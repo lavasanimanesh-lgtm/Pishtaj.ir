@@ -415,9 +415,213 @@ function seo_queue_apply_one($ROOT, $DATA, $file, $title, $desc) {
   return ''; /* خالی = موفق */
 }
 
+/* ═══ v34.14.0 (S4/RENDER): رندر صفحهٔ عمومی از قالب مرکز دانش — جدا شد از page_create
+   تا «انتشار زمان‌بندی‌شده» هم همین موتور را صدا بزند (یک منشأ، دو دهانه) ═══ */
+function cms_page_folders() {
+    return [
+        'services'    => ['lb' => 'خدمات',         'schema' => 'Service', 'sitemap' => 'sitemap-services.xml'],
+        'industries'  => ['lb' => 'صنایع',          'schema' => 'Article', 'sitemap' => 'sitemap-industries.xml'],
+        'comparisons' => ['lb' => 'مقایسه محصولات', 'schema' => 'Article', 'sitemap' => 'sitemap-misc.xml'],
+    ];
+}
+function cms_render_public_page($ROOT, $folder, $in) {
+    $FOLDERS = cms_page_folders();
+    if (!isset($FOLDERS[$folder])) return ['err' => 'پوشهٔ مقصد نامعتبر است'];
+    $meta = $FOLDERS[$folder];
+    $title = mb_substr(strip_tags($in['title'] ?? ''), 0, 200);
+    $h1    = mb_substr(strip_tags($in['h1'] ?? ''), 0, 200);
+    $desc  = mb_substr(strip_tags($in['desc'] ?? ''), 0, 300);
+    $slug  = strtolower(preg_replace('/[^a-z0-9\-]/', '', $in['slug'] ?? ''));
+    $body  = $in['body'] ?? '';
+    $img   = preg_replace('#[^a-zA-Z0-9/\-_.:]#', '', $in['img'] ?? '../assets/images/ptf-logo.png');
+    if ($title === '' || $slug === '') return ['err' => 'عنوان و نامک (slug) الزامی است'];
+    if ($h1 === '') $h1 = $title;
+    if (mb_strlen(strip_tags($body), 'UTF-8') < 200) return ['err' => 'متن صفحه حداقل ۲۰۰ کاراکتر لازم دارد'];
+
+    $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
+    $body = preg_replace('/on\w+\s*=\s*"[^"]*"/i', '', $body);
+    $body = preg_replace("/on\w+\s*=\s*'[^']*'/i", '', $body);
+    $body = preg_replace('/javascript\s*:/i', '', $body);
+
+    $skel = (string)@file_get_contents($ROOT . '/knowledge-center/astm-a105.html');
+    if ($skel === '') return ['err' => 'قالب مرجع یافت نشد'];
+    $heroMark = '<section style="background:linear-gradient(135deg,#151517,#2d2d31)';
+    $pBody = strpos($skel, '<body>'); $pHero = strpos($skel, $heroMark);
+    $pCta  = strpos($skel, '<div class="kc-supply-cta"'); $pFoot = strpos($skel, '<footer');
+    if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) return ['err' => 'ساختار قالب مرجع شناخته نشد'];
+    $header = substr($skel, $pBody, $pHero - $pBody);
+    $cta    = substr($skel, $pCta, $pFoot - $pCta);
+    $footer = substr($skel, $pFoot);
+
+    $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+    $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
+    $dEsc = htmlspecialchars($desc, ENT_QUOTES, 'UTF-8');
+    $url  = 'https://pishtaj.ir/' . $folder . '/' . $slug . '.html';
+    $imgAbs = (strpos($img, 'http') === 0) ? $img : 'https://pishtaj.ir/' . ltrim(str_replace('../', '', $img), '/');
+    $folderUrl = 'https://pishtaj.ir/' . $folder . '/';
+
+    $graph = [];
+    if ($meta['schema'] === 'Service') {
+        $graph[] = ['@type' => 'Service', 'name' => $h1, 'description' => $desc,
+            'provider' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک'],
+            'areaServed' => 'IR', 'url' => $url, 'image' => $imgAbs];
+    } else {
+        $graph[] = ['@type' => 'Article', 'headline' => $h1, 'description' => $desc,
+            'author' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک'],
+            'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $url], 'image' => $imgAbs];
+    }
+    $graph[] = ['@type' => 'BreadcrumbList', 'itemListElement' => [
+        ['@type' => 'ListItem', 'position' => 1, 'name' => 'خانه', 'item' => 'https://pishtaj.ir/'],
+        ['@type' => 'ListItem', 'position' => 2, 'name' => $meta['lb'], 'item' => $folderUrl],
+        ['@type' => 'ListItem', 'position' => 3, 'name' => $title],
+    ]];
+    $jsonLd = json_encode(['@context' => 'https://schema.org', '@graph' => $graph], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    /* v34.14.0 (S4/HREFLANG): اگر نسخهٔ انگلیسیِ هم‌مسیر روی دیسک هست، سه‌گانهٔ
+       hreflang (fa-IR + en + x-default) تزریق می‌شود؛ اگر نیست، هیچ لینکی به ۴۰۴ ساخته نمی‌شود. */
+    $hreflang = '';
+    if (is_file($ROOT . '/en/' . $folder . '/' . $slug . '.html')) {
+        $enUrl = 'https://pishtaj.ir/en/' . $folder . '/' . $slug . '.html';
+        $hreflang = '<link rel="alternate" hreflang="fa-IR" href="' . $url . '" />' . "\n"
+            . '<link rel="alternate" hreflang="en" href="' . $enUrl . '" />' . "\n"
+            . '<link rel="alternate" hreflang="x-default" href="' . $url . '" />' . "\n";
+    }
+
+    $html = '<!doctype html>' . "\n" . '<html lang="fa" dir="rtl">' . "\n" . '<head>' . "\n"
+        . '<meta charset="utf-8" />' . "\n"
+        . '<meta name="viewport" content="width=device-width, initial-scale=1" />' . "\n"
+        . '<title>' . $tEsc . '</title>' . "\n"
+        . '<meta name="description" content="' . $dEsc . '" />' . "\n"
+        . '<meta name="robots" content="index, follow" />' . "\n"
+        . '<link rel="canonical" href="' . $url . '" />' . "\n"
+        . $hreflang
+        . '<meta property="og:locale" content="fa_IR" />' . "\n"
+        . '<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />' . "\n"
+        . '<meta property="og:type" content="' . ($meta['schema'] === 'Service' ? 'website' : 'article') . '" />' . "\n"
+        . '<meta property="og:title" content="' . $tEsc . '" />' . "\n"
+        . '<meta property="og:description" content="' . $dEsc . '" />' . "\n"
+        . '<meta property="og:url" content="' . $url . '" />' . "\n"
+        . '<meta property="og:image" content="' . htmlspecialchars($imgAbs, ENT_QUOTES, 'UTF-8') . '" />' . "\n"
+        . '<meta name="twitter:card" content="summary_large_image" />' . "\n"
+        . '<link rel="stylesheet" href="../assets/css/style.css" />' . "\n"
+        . '<script type="application/ld+json">' . $jsonLd . '</script>' . "\n"
+        . '</head>' . "\n"
+        . $header . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
+        . '<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">' . $meta['lb'] . '</span>' . "\n"
+        . '<h1>' . $hEsc . '</h1>' . "\n"
+        . '<p style="color:rgba(255,255,255,.75);font-size:14px">واحد محتوای فنی پیشرو تجهیز فرتاک</p>' . "\n"
+        . '</div>' . "\n" . '</section>' . "\n"
+        . '<div class="article-wrap">' . "\n" . '<div class="article-content">' . "\n"
+        . $body . "\n"
+        . '</div>' . "\n" . '</div>' . "\n"
+        . $cta . "\n" . $footer;
+    return ['html' => $html, 'rel' => $folder . '/' . $slug . '.html', 'url' => $url];
+}
+
+/* ═══ v34.14.0 (S4/SCHED): انتشار زمان‌بندی‌شده — موتور lazy بدون cron ═══
+   هر فراخوانی api/cms.php ابتدا صف را چک می‌کند؛ آیتم‌های تأییدشده که موعدشان
+   رسیده باشد همان‌جا منتشر می‌شوند (بک‌آپ + نقشه + لاگ). قاعدهٔ دومرحله‌ای:
+   آیتمِ ثبت‌شده به دست «commercial» تا تأیید مدیر ارشد در صف می‌ماند. */
+function cms_sched_file($DATA) { return $DATA . '/cms-sched.json'; }
+function cms_sched_load($DATA) {
+    $j = is_file(cms_sched_file($DATA)) ? json_decode((string)@file_get_contents(cms_sched_file($DATA)), true) : null;
+    return (is_array($j) && isset($j['items']) && is_array($j['items'])) ? $j : ['items' => []];
+}
+function cms_sched_save($DATA, $q) {
+    @file_put_contents(cms_sched_file($DATA), json_encode($q, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+function cms_sched_publish_item($ROOT, $DATA, $it) { /* نوشتن فایل رندرشدهٔ ذخیره‌شده + بک‌آپ + نقشه */
+    $rel = (string)($it['rel'] ?? '');
+    if ($rel === '' || strpos($rel, '..') !== false) return 'مسیر نامعتبر';
+    $f = $ROOT . '/' . $rel;
+    if (file_exists($f)) cms_backup($DATA, $ROOT, $rel);
+    if (file_put_contents($f, (string)($it['html'] ?? ''), LOCK_EX) === false) return 'خطای نوشتن فایل';
+    sitemap_add((string)$it['url']);
+    if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
+    cms_log('sched_publish', $rel);
+    return '';
+}
+function cms_sched_due($ROOT, $DATA) {
+    $q = cms_sched_load($DATA);
+    if (!$q['items']) return;
+    $now = time(); $changed = false;
+    foreach ($q['items'] as $id => $it) {
+        if (!is_array($it) || ($it['st'] ?? '') !== 'approved' || !empty($it['done'])) continue;
+        if ((int)($it['at'] ?? 0) > $now + 30) continue;
+        $err = cms_sched_publish_item($ROOT, $DATA, $it);
+        $q['items'][$id]['done'] = 1;
+        $q['items'][$id]['done_at'] = $now;
+        $q['items'][$id]['err'] = $err;
+        $changed = true;
+    }
+    /* پاک‌سازی: ۱۵ انتشارِ انجام‌شدهٔ آخر نگه داشته می‌شود */
+    $done = array_filter($q['items'], function ($it) { return is_array($it) && !empty($it['done']); });
+    if (count($done) > 15) {
+        uasort($done, function ($a, $b) { return (int)($b['done_at'] ?? 0) <=> (int)($a['done_at'] ?? 0); });
+        foreach (array_slice($done, 15) as $k => $_) unset($q['items'][$k]);
+    }
+    if ($changed) cms_sched_save($DATA, $q);
+}
+
+/* ═══ v34.14.0 (S4/BACKUP): مرور/بازیابی بک‌آپ‌های موجود (crm/data/cms-backups) ═══ */
+function cms_backups_list($DATA) {
+    $out = [];
+    foreach ((glob($DATA . '/cms-backups/*.html') ?: []) as $f) {
+        $b = basename($f);
+        if (!preg_match('/^(.*)--(\d{8}-\d{6})\.html$/', $b, $m)) continue;
+        $rel = str_replace('__', '/', $m[1]);
+        $out[$rel][] = ['stamp' => $m[2], 'size' => filesize($f)];
+    }
+    ksort($out);
+    return $out;
+}
+function cms_backup_path($DATA, $rel, $stamp) { /* فقط نام امن — ضد path-traversal */
+    $safe = str_replace(['/', '\\'], '__', (string)$rel);
+    if (!preg_match('/^\d{8}-\d{6}$/', (string)$stamp)) return '';
+    $p = $DATA . '/cms-backups/' . $safe . '--' . $stamp . '.html';
+    return is_file($p) ? $p : '';
+}
+
+/* ═══ v34.14.0 (S4/PSI): PageSpeed Insights برای صفحات پول‌ساز ═══ */
+function cms_psi_cfg_file($DATA) { return $DATA . '/psi-config.json'; }
+function cms_psi_cfg($DATA) {
+    $j = is_file(cms_psi_cfg_file($DATA)) ? json_decode((string)@file_get_contents(cms_psi_cfg_file($DATA)), true) : null;
+    $urls = (is_array($j) && isset($j['urls']) && is_array($j['urls'])) ? $j['urls'] : ['/', '/products/', '/services/', '/industries/', '/knowledge-center/'];
+    return array_values(array_slice($urls, 0, 10));
+}
+function cms_psi_hist_file($DATA) { return $DATA . '/psi-history.json'; }
+function cms_psi_hist($DATA) {
+    $j = is_file(cms_psi_hist_file($DATA)) ? json_decode((string)@file_get_contents(cms_psi_hist_file($DATA)), true) : null;
+    return is_array($j) ? $j : [];
+}
+function cms_psi_http($url) { /* GET با cURL + timeout ۲۵ثانیه؛ خطا => ['', err] */
+    if (!function_exists('curl_init')) return ['', 'cURL روی هاست فعال نیست'];
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_TIMEOUT => 25,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_USERAGENT => 'PTF-CRM-PSI/1.0',
+    ]);
+    $b = curl_exec($ch);
+    $e = curl_error($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($b === false) return ['', $e !== '' ? $e : 'خطای شبکه'];
+    if ($code < 200 || $code >= 300) return ['', 'HTTP ' . $code];
+    return [(string)$b, ''];
+}
+
+/* v34.14.0 (S4/SCHED): قلاب lazy — هر فراخوانی (حتی sched_list)، آیتم‌های موعد‌رسیدهٔ
+   تأییدشده را منتشر می‌کند؛ پاسخ همان فراخوانی وضعیت تازه را نشان می‌دهد (بدون cron) */
+cms_sched_due($ROOT, $DATA);
+
 switch ($action) {
 /* ============ AC1: اخبار ============ */
     case 'news_save':
+
         $items = json_decode($_POST['items'] ?? '[]', true);
         if (!is_array($items)) jerr('ساختار نامعتبر');
         if (count($items) > 200) jerr('حداکثر ۲۰۰ خبر');
@@ -1001,99 +1205,215 @@ switch ($action) {
         break;
 
     /* ═══ v34.13.0 (S2-id/GENERIC-PAGE): مولد صفحهٔ عمومی — services/industries/comparisons ═══ */
-    case 'page_create':
-        $FOLDERS = [
-            'services'    => ['lb' => 'خدمات',            'schema' => 'Service', 'sitemap' => 'sitemap-services.xml'],
-            'industries'  => ['lb' => 'صنایع',             'schema' => 'Article', 'sitemap' => 'sitemap-industries.xml'],
-            'comparisons' => ['lb' => 'مقایسه محصولات',    'schema' => 'Article', 'sitemap' => 'sitemap-misc.xml'],
+    /* ═══ v34.14.0 (S4/SCHED): انتشار زمان‌بندی‌شده + جریان دومرحله‌ای نویسنده/منتشرکننده ═══ */
+    case 'sched_add':
+        $when = (int)($_POST['when_ts'] ?? 0);
+        if ($when < time() + 300) jerr('زمان انتشار باید حداقل ۵ دقیقهٔ دیگر باشد');
+        if ($when > time() + 60 * 86400) jerr('زمان انتشار حداکثر تا ۶۰ روز جلوتر مجاز است');
+        $r = cms_render_public_page($ROOT, (string)($_POST['folder'] ?? ''), $_POST);
+        if (!empty($r['err'])) jerr($r['err']);
+        if (is_file($ROOT . '/' . $r['rel']) && empty($_POST['overwrite'])) jerr('exists');
+        $q = cms_sched_load($DATA);
+        $pend = array_filter($q['items'], function ($it) { return is_array($it) && empty($it['done']); });
+        if (count($pend) >= 20) jerr('صف زمان‌بندی پر است (۲۰) — ابتدا موارد را مدیریت کنید');
+        $senior = in_array($ROLE, ['admin', 'chairman', 'ceo'], true);
+        $id = date('YmdHis') . '-' . substr(sha1($r['rel'] . $when . mt_rand()), 0, 6);
+        $q['items'][$id] = [
+            'rel' => $r['rel'], 'url' => $r['url'], 'title' => mb_substr(strip_tags($_POST['title'] ?? ''), 0, 200),
+            'html' => $r['html'], 'at' => $when, 'author' => $ROLE,
+            'st' => $senior ? 'approved' : 'pending', /* commercial: تا تأیید مدیر ارشد معلق */
+            'approved_by' => $senior ? $ROLE : '', 'overwrite' => empty($_POST['overwrite']) ? 0 : 1,
         ];
-        $folder = (string)($_POST['folder'] ?? '');
-        if (!isset($FOLDERS[$folder])) jerr('پوشهٔ مقصد نامعتبر است');
-        $meta = $FOLDERS[$folder];
-        $title = mb_substr(strip_tags($_POST['title'] ?? ''), 0, 200);
-        $h1    = mb_substr(strip_tags($_POST['h1'] ?? ''), 0, 200);
-        $desc  = mb_substr(strip_tags($_POST['desc'] ?? ''), 0, 300);
-        $slug  = strtolower(preg_replace('/[^a-z0-9\-]/', '', $_POST['slug'] ?? ''));
-        $body  = $_POST['body'] ?? '';
-        $img   = preg_replace('#[^a-zA-Z0-9/\-_.:]#', '', $_POST['img'] ?? '../assets/images/ptf-logo.png');
-        if ($title === '' || $slug === '') jerr('عنوان و نامک (slug) الزامی است');
-        if ($h1 === '') $h1 = $title;
-        if (mb_strlen(strip_tags($body), 'UTF-8') < 200) jerr('متن صفحه حداقل ۲۰۰ کاراکتر لازم دارد');
-        $file = $ROOT . '/' . $folder . '/' . $slug . '.html';
-        if (file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
+        cms_sched_save($DATA, $q);
+        cms_log('sched_add', $r['rel'] . ' | at=' . date('Y-m-d H:i', $when) . ' | st=' . ($senior ? 'approved' : 'pending'));
+        jok(['id' => $id, 'st' => $senior ? 'approved' : 'pending', 'pending_approval' => !$senior]);
+        break;
 
-        $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
-        $body = preg_replace('/on\w+\s*=\s*"[^"]*"/i', '', $body);
-        $body = preg_replace("/on\w+\s*=\s*'[^']*'/i", '', $body);
-        $body = preg_replace('/javascript\s*:/i', '', $body);
-
-        $skel = (string)@file_get_contents($ROOT . '/knowledge-center/astm-a105.html');
-        if ($skel === '') jerr('قالب مرجع یافت نشد');
-        $heroMark = '<section style="background:linear-gradient(135deg,#151517,#2d2d31)';
-        $pBody = strpos($skel, '<body>'); $pHero = strpos($skel, $heroMark);
-        $pCta  = strpos($skel, '<div class="kc-supply-cta"'); $pFoot = strpos($skel, '<footer');
-        if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) jerr('ساختار قالب مرجع شناخته نشد');
-        $header = substr($skel, $pBody, $pHero - $pBody);
-        $cta    = substr($skel, $pCta, $pFoot - $pCta);
-        $footer = substr($skel, $pFoot);
-
-        $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
-        $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
-        $dEsc = htmlspecialchars($desc, ENT_QUOTES, 'UTF-8');
-        $url  = 'https://pishtaj.ir/' . $folder . '/' . $slug . '.html';
-        $imgAbs = (strpos($img, 'http') === 0) ? $img : 'https://pishtaj.ir/' . ltrim(str_replace('../', '', $img), '/');
-        $folderUrl = 'https://pishtaj.ir/' . $folder . '/';
-
-        $graph = [];
-        if ($meta['schema'] === 'Service') {
-            $graph[] = ['@type' => 'Service', 'name' => $h1, 'description' => $desc,
-                'provider' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک'],
-                'areaServed' => 'IR', 'url' => $url, 'image' => $imgAbs];
-        } else {
-            $graph[] = ['@type' => 'Article', 'headline' => $h1, 'description' => $desc,
-                'author' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک'],
-                'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $url], 'image' => $imgAbs];
+    case 'sched_list':
+        $q = cms_sched_load($DATA);
+        $items = [];
+        foreach ($q['items'] as $id => $it) {
+            if (!is_array($it)) continue;
+            $it['id'] = $id;
+            unset($it['html']); /* بدنهٔ رندرشده به کلاینت فرستاده نمی‌شود */
+            $items[] = $it;
         }
-        $graph[] = ['@type' => 'BreadcrumbList', 'itemListElement' => [
-            ['@type' => 'ListItem', 'position' => 1, 'name' => 'خانه', 'item' => 'https://pishtaj.ir/'],
-            ['@type' => 'ListItem', 'position' => 2, 'name' => $meta['lb'], 'item' => $folderUrl],
-            ['@type' => 'ListItem', 'position' => 3, 'name' => $title],
-        ]];
-        $jsonLd = json_encode(['@context' => 'https://schema.org', '@graph' => $graph], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        usort($items, function ($a, $b) { /* معلق‌ها اول (نزدیک‌ترین موعد)، سپس انجام‌شده‌ها */
+            $ad = empty($a['done']); $bd = empty($b['done']);
+            if ($ad !== $bd) return $ad ? -1 : 1;
+            return (int)($a['at'] ?? 0) <=> (int)($b['at'] ?? 0);
+        });
+        jok(['items' => $items, 'now' => time(), 'role' => $ROLE]);
+        break;
 
-        $html = '<!doctype html>' . "\n" . '<html lang="fa" dir="rtl">' . "\n" . '<head>' . "\n"
-            . '<meta charset="utf-8" />' . "\n"
-            . '<meta name="viewport" content="width=device-width, initial-scale=1" />' . "\n"
-            . '<title>' . $tEsc . '</title>' . "\n"
-            . '<meta name="description" content="' . $dEsc . '" />' . "\n"
-            . '<meta name="robots" content="index, follow" />' . "\n"
-            . '<link rel="canonical" href="' . $url . '" />' . "\n"
-            . '<meta property="og:locale" content="fa_IR" />' . "\n"
-            . '<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />' . "\n"
-            . '<meta property="og:type" content="' . ($meta['schema'] === 'Service' ? 'website' : 'article') . '" />' . "\n"
-            . '<meta property="og:title" content="' . $tEsc . '" />' . "\n"
-            . '<meta property="og:description" content="' . $dEsc . '" />' . "\n"
-            . '<meta property="og:url" content="' . $url . '" />' . "\n"
-            . '<meta property="og:image" content="' . htmlspecialchars($imgAbs, ENT_QUOTES, 'UTF-8') . '" />' . "\n"
-            . '<meta name="twitter:card" content="summary_large_image" />' . "\n"
-            . '<link rel="stylesheet" href="../assets/css/style.css" />' . "\n"
-            . '<script type="application/ld+json">' . $jsonLd . '</script>' . "\n"
-            . '</head>' . "\n"
-            . $header . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
-            . '<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">' . $meta['lb'] . '</span>' . "\n"
-            . '<h1>' . $hEsc . '</h1>' . "\n"
-            . '<p style="color:rgba(255,255,255,.75);font-size:14px">واحد محتوای فنی پیشرو تجهیز فرتاک</p>' . "\n"
-            . '</div>' . "\n" . '</section>' . "\n"
-            . '<div class="article-wrap">' . "\n" . '<div class="article-content">' . "\n"
-            . $body . "\n"
-            . '</div>' . "\n" . '</div>' . "\n"
-            . $cta . "\n" . $footer;
+    case 'sched_approve':
+        if (!in_array($ROLE, ['admin', 'chairman', 'ceo'], true)) jerr('تأیید انتشار فقط برای مدیر ارشد مجاز است');
+        $q = cms_sched_load($DATA);
+        $id = (string)($_POST['id'] ?? '');
+        if (!isset($q['items'][$id]) || !empty($q['items'][$id]['done'])) jerr('آیتم یافت نشد');
+        if (($q['items'][$id]['st'] ?? '') !== 'pending') jerr('این آیتم تأیید شده است');
+        $q['items'][$id]['st'] = 'approved';
+        $q['items'][$id]['approved_by'] = $ROLE;
+        cms_sched_save($DATA, $q);
+        cms_log('sched_approve', ($q['items'][$id]['rel'] ?? $id));
+        jok(['approved' => $id]);
+        break;
 
-        if (file_exists($file)) cms_backup($DATA, $ROOT, $folder . '/' . $slug . '.html');
-        if (file_put_contents($file, $html, LOCK_EX) === false) jerr('خطای نوشتن فایل (مجوز write?)');
-        sitemap_add($url);
-        cms_log('page_create', $folder . '/' . $slug);
-        jok(['url' => $folder . '/' . $slug . '.html']);
+    case 'sched_cancel':
+        $q = cms_sched_load($DATA);
+        $id = (string)($_POST['id'] ?? '');
+        if (!isset($q['items'][$id])) jerr('آیتم یافت نشد');
+        $it = $q['items'][$id];
+        $senior = in_array($ROLE, ['admin', 'chairman', 'ceo'], true);
+        if (!$senior && ($it['author'] ?? '') !== $ROLE) jerr('فقط سازندهٔ آیتم یا مدیر ارشد می‌تواند لغو کند');
+        if (!empty($it['done'])) jerr('این آیتم منتشر شده است');
+        unset($q['items'][$id]);
+        cms_sched_save($DATA, $q);
+        cms_log('sched_cancel', ($it['rel'] ?? $id));
+        jok(['cancelled' => $id]);
+        break;
+
+    case 'sched_publish_now':
+        if (!in_array($ROLE, ['admin', 'chairman', 'ceo'], true)) jerr('انتشار فوری فقط برای مدیر ارشد مجاز است');
+        $q = cms_sched_load($DATA);
+        $id = (string)($_POST['id'] ?? '');
+        if (!isset($q['items'][$id]) || !empty($q['items'][$id]['done'])) jerr('آیتم یافت نشد');
+        if (($q['items'][$id]['st'] ?? '') !== 'approved') jerr('ابتدا آیتم باید تأیید شود');
+        $q['items'][$id]['at'] = time() - 1;
+        cms_sched_save($DATA, $q);
+        cms_sched_due($ROOT, $DATA);
+        cms_log('sched_publish_now', ($q['items'][$id]['rel'] ?? $id));
+        jok(['published' => $id]);
+        break;
+
+    /* ═══ v34.14.0 (S4/BACKUP): مرور/مقایسه/بازگردانی بک‌آپ‌ها ═══ */
+    case 'backup_list':
+        $list = cms_backups_list($DATA);
+        $out = [];
+        foreach ($list as $rel => $vers) {
+            usort($vers, function ($a, $b) { return strcmp($b['stamp'], $a['stamp']); });
+            $out[] = ['rel' => $rel, 'live' => is_file($ROOT . '/' . $rel) ? 1 : 0, 'vers' => array_slice($vers, 0, 3)];
+        }
+        jok(['files' => $out]);
+        break;
+
+    case 'backup_fetch':
+        $rel = str_replace('\\', '/', (string)($_POST['rel'] ?? ''));
+        $p = cms_backup_path($DATA, $rel, (string)($_POST['stamp'] ?? ''));
+        if ($p === '') jerr('نسخهٔ بک‌آپ یافت نشد');
+        $livePath = $ROOT . '/' . ltrim(preg_replace('#\.\./#', '', $rel), '/');
+        $live = is_file($livePath) ? (string)file_get_contents($livePath) : '';
+        $bak = (string)file_get_contents($p);
+        /* سقف حجم برای مرور: ۸۰KB از هر سو */
+        jok(['bak' => mb_substr($bak, 0, 80000), 'live' => mb_substr($live, 0, 80000),
+             'bak_size' => strlen($bak), 'live_size' => strlen($live)]);
+        break;
+
+    case 'backup_restore':
+        $rel = str_replace('\\', '/', (string)($_POST['rel'] ?? ''));
+        $rel = ltrim(preg_replace('#\.\./#', '', $rel), '/');
+        if ($rel === '' || !preg_match('#^[A-Za-z0-9\x{0600}-\x{06FF}_./\-]+\.html$#u', $rel)) jerr('مسیر نامعتبر');
+        foreach (array_slice(explode('/', $rel), 0, -1) as $seg) { if (cms_skip_dir($seg)) jerr('مسیر نامعتبر'); }
+        $p = cms_backup_path($DATA, $rel, (string)($_POST['stamp'] ?? ''));
+        if ($p === '') jerr('نسخهٔ بک‌آپ یافت نشد');
+        $bak = (string)file_get_contents($p);
+        if ($bak === '' || stripos($bak, '<') === false) jerr('محتوای بک‌آپ معتبر نیست');
+        $livePath = $ROOT . '/' . $rel;
+        if (is_file($livePath)) cms_backup($DATA, $ROOT, $rel); /* نسخهٔ فعلی هم بک‌آپ می‌شود — بازگشتِ بازگشت ممکن است */
+        if (file_put_contents($livePath, $bak, LOCK_EX) === false) jerr('خطای نوشتن فایل');
+        sitemap_add('https://pishtaj.ir/' . $rel);
+        if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
+        cms_log('backup_restore', $rel . ' | ' . ($_POST['stamp'] ?? ''));
+        jok(['restored' => $rel]);
+        break;
+
+    /* ═══ v34.14.0 (S4/PSI): PageSpeed Insights — صفحات پول‌ساز ═══ */
+    case 'psi_config_get':
+        jok(['urls' => cms_psi_cfg($DATA)]);
+        break;
+
+    case 'psi_config_set':
+        $urls = $_POST['urls'] ?? [];
+        if (is_string($urls)) { $d = json_decode($urls, true); $urls = is_array($d) ? $d : []; }
+        $clean = [];
+        foreach ((array)$urls as $u) {
+            $u = '/' . trim((string)$u, '/');
+            if ($u === '/') { $clean[] = '/'; continue; }
+            if (!preg_match('#^/[A-Za-z0-9\-_./]*$#', $u)) continue;
+            $disk = $ROOT . $u . (substr($u, -1) === '/' ? 'index.html' : '');
+            if (!is_file($disk) && !is_file($ROOT . $u . '.html') && !is_file($ROOT . $u . '/index.html')) continue; /* فقط مسیرهای موجود */
+            $clean[] = rtrim($u, '/');
+        }
+        $clean = array_values(array_unique($clean));
+        if (count($clean) > 10) $clean = array_slice($clean, 0, 10);
+        if (!$clean) jerr('هیچ مسیر معتبری باقی نماند');
+        @file_put_contents(cms_psi_cfg_file($DATA), json_encode(['urls' => $clean], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        cms_log('psi_config_set', implode(' ', $clean));
+        jok(['urls' => $clean]);
+        break;
+
+    case 'psi_run':
+        $u = '/' . trim((string)($_POST['url'] ?? ''), '/');
+        if ($u === '') $u = '/';
+        if (!preg_match('#^/[A-Za-z0-9\-_./]*$#', $u)) jerr('مسیر نامعتبر');
+        $target = 'https://pishtaj.ir' . ($u === '/' ? '/' : $u);
+        $hist = cms_psi_hist($DATA);
+        $runs = isset($hist[$u]['runs']) && is_array($hist[$u]['runs']) ? $hist[$u]['runs'] : [];
+        $last = $runs ? end($runs) : null;
+        if ($last && (time() - (int)($last['ts'] ?? 0)) < 6 * 3600) jerr('throttled'); /* هر مسیر حداکثر یک‌بار در ۶ ساعت */
+        /* کلید اختیاری از gsc-config.php (psi_key) — بدون کلید هم PSI با نرخ پایین جواب می‌دهد */
+        $key = '';
+        $gc = __DIR__ . '/gsc-config.php';
+        if (is_file($gc)) { $c = include $gc; $key = is_array($c) && !empty($c['psi_key']) ? (string)$c['psi_key'] : ''; }
+        $api = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=' . urlencode($target)
+             . '&strategy=mobile&category=performance&category=seo' . ($key !== '' ? '&key=' . urlencode($key) : '');
+        list($body, $err) = cms_psi_http($api);
+        if ($err !== '') { jerr('خطای PSI: ' . $err); }
+        $j = json_decode($body, true);
+        if (!is_array($j)) jerr('پاسخ PSI معتبر نبود');
+        if (isset($j['error']['message'])) jerr('PSI: ' . mb_substr((string)$j['error']['message'], 0, 200));
+        $lr = $j['lighthouseResult'] ?? null;
+        if (!is_array($lr)) jerr('نتیجهٔ Lighthouse در پاسخ نبود');
+        $aud = $lr['audits'] ?? [];
+        $run = [
+            'ts' => time(),
+            'score' => (int)round(((float)($lr['categories']['performance']['score'] ?? 0)) * 100),
+            'seo' => (int)round(((float)($lr['categories']['seo']['score'] ?? 0)) * 100),
+            'lcp' => round((float)($aud['largest-contentful-paint']['numericValue'] ?? 0) / 1000, 1),
+            'cls' => round((float)($aud['cumulative-layout-shift']['numericValue'] ?? 0), 3),
+            'tbt' => (int)round((float)($aud['total-blocking-time']['numericValue'] ?? 0)),
+            'fcp' => round((float)($aud['first-contentful-paint']['numericValue'] ?? 0) / 1000, 1),
+        ];
+        $runs[] = $run;
+        if (count($runs) > 30) $runs = array_slice($runs, -30);
+        $hist[$u] = ['runs' => $runs];
+        @file_put_contents(cms_psi_hist_file($DATA), json_encode($hist, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        cms_log('psi_run', $u . ' | score=' . $run['score']);
+        jok(['url' => $u, 'run' => $run, 'runs' => $run ? array_slice($runs, -10) : []]);
+        break;
+
+    case 'psi_history':
+        $hist = cms_psi_hist($DATA);
+        $out = [];
+        foreach (cms_psi_cfg($DATA) as $u) {
+            $runs = isset($hist[$u]['runs']) && is_array($hist[$u]['runs']) ? $hist[$u]['runs'] : [];
+            $out[$u] = array_slice($runs, -10);
+        }
+        jok(['history' => $out]);
+        break;
+
+    case 'page_create':
+        /* v34.14.0 (S4): رندر به cms_render_public_page منتقل شد (مشترک با زمان‌بند) */
+        $folder = (string)($_POST['folder'] ?? '');
+        $r = cms_render_public_page($ROOT, $folder, $_POST);
+        if (!empty($r['err'])) jerr($r['err']);
+        $file = $ROOT . '/' . $r['rel'];
+        if (file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
+        if (file_exists($file)) cms_backup($DATA, $ROOT, $r['rel']);
+        if (file_put_contents($file, $r['html'], LOCK_EX) === false) jerr('خطای نوشتن فایل (مجوز write?)');
+        sitemap_add($r['url']);
+        cms_log('page_create', $r['rel']);
+        jok(['url' => $r['rel']]);
         break;
 
     case 'product_list':

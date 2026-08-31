@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester530 — v34.13.0 (T4 + T3-2):
+/* tester530 — v34.14.0 (T4 + T3-2):
    T4-1a: کوکی نشست HttpOnly (صدور هنگام لاگین، پاک شدن هنگام خروج، fallback هدر→کوکی)
    T4-2: TTL نشست ۲۴ ساعت / مالی ۸ ساعت (S5)
    T4-3: اسکن چک → آروان S3 با آزادسازی base64 از LS
@@ -32,9 +32,9 @@ T('T3-2: پرچم movedAny در preload', /var movedAny = false;/.test(cs));
 T('T3-2: re-render پس از انتقال آینه', /ptfScheduleDataRefresh\('__cold_boot__'\)/.test(cs));
 
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.13.0', ver.crm_version === 'v34.13.0', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.13.0', /window\.PTF_CRM_RELEASE = 'v34\.13.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.13.0'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.14.0', ver.crm_version === 'v34.14.0', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.14.0', /window\.PTF_CRM_RELEASE = 'v34\.14.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.14.0'/.test(read('crm/sw.js')));
 
-console.log('\n— tester530 (v34.13.0: T4 security + T3-2 cold-boot) —');
+console.log('\n— tester530 (v34.14.0: T4 security + T3-2 cold-boot) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

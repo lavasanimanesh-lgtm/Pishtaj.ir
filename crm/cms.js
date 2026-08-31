@@ -40,7 +40,7 @@
     }
     return '<div class="ph"><h3>🎛 مدیریت سایت (CMS)</h3></div>' +
       '<div id="cmsStatus" style="margin-bottom:10px"></div>' +
-      '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">' + tb('news', '📰 اخبار') + tb('blog', '📝 وبلاگ') + tb('prod', '🛒 محصولات') + tb('page', '📄 صفحهٔ جدید') + tb('seo', '🔍 سئوی صفحات') + '</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">' + tb('news', '📰 اخبار') + tb('blog', '📝 وبلاگ') + tb('prod', '🛒 محصولات') + tb('page', '📄 صفحهٔ جدید') + tb('seo', '🔍 سئوی صفحات') + tb('q', '🛠 کیفیت') + '</div>' +
       '<div id="cmsWrap"></div>';
   };
   window.cmsTab = function (t) { _tab = t; goPanelByName('cms'); };
@@ -62,6 +62,7 @@
     else if (_tab === 'blog') renderCmsBlog(el);
     else if (_tab === 'prod') renderCmsProducts(el); /* v34.11.0 (S2) */
     else if (_tab === 'page') renderCmsPageNew(el); /* v34.13.0 (S2-id) */
+    else if (_tab === 'q') renderCmsQuality(el); /* v34.14.0 (S4) */
     else renderCmsSeo(el);
   };
 
@@ -675,6 +676,7 @@
       '<div class="fld"><label>متن صفحه (HTML سبک — حداقل ۲۰۰ حرف)</label><textarea id="pgBody" rows="10"></textarea></div>' +
       '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت)</label><input type="text" id="pgImg" dir="ltr" value="assets/images/ptf-logo.png"></div>' +
       '<label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#374151;margin:8px 0"><input type="checkbox" id="pgReviewed"> ⛔ بازبینی انسانی انجام شد (الزامی)</label>' +
+      '<div style="display:flex;gap:7px;align-items:center;margin:8px 0;flex-wrap:wrap"><input type="datetime-local" id="pgWhen" dir="ltr" style="padding:7px;border:1px solid var(--brd);border-radius:8px;font-size:12px"><button class="bt bt-o" style="color:#7c3aed" onclick="cmsPageSchedule()">🕘 زمان‌بندی انتشار</button><small style="color:#94a3b8">صف در تب «🛠 کیفیت»</small></div>' +
       '<div style="display:flex;gap:7px;justify-content:flex-end"><button class="bt" onclick="cmsPagePublish()">🚀 انتشار صفحه</button></div>' +
       '</div>';
     cmsDraftRestore(PAGE_FIELDS, 'pgAiSt'); cmsDraftBind(PAGE_FIELDS);
@@ -723,6 +725,251 @@
           });
         }
       } else alert('⚠️ ' + (d.error || 'خطا'));
+    });
+  };
+
+  /* ═══ v34.14.0 (S4/SCHED): زمان‌بندی انتشار همان فرم صفحه — رندر اکنون، انتشار در موعد ═══ */
+  window.cmsPageSchedule = function () {
+    var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
+    var folder = g('pgFolder'), title = g('pgTitle').trim(), slug = g('pgSlug').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var body = g('pgBody');
+    if (!folder || !title || !slug || body.trim().length < 200) { alert('بخش، عنوان، نامک و متن (حداقل ۲۰۰ حرف) الزامی است'); return; }
+    var rv = document.getElementById('pgReviewed');
+    if (!rv || !rv.checked) { alert('⛔ پیش از زمان‌بندی هم باید تیکِ بازبینیِ انسانی زده شود.'); return; }
+    var w = g('pgWhen');
+    var ts = w ? Math.floor(new Date(w).getTime() / 1000) : 0;
+    if (!ts || isNaN(ts) || ts * 1000 < Date.now() + 300000) { alert('زمان انتشار معتبر وارد کنید (حداقل ۵ دقیقهٔ دیگر)'); return; }
+    var payload = { folder: folder, title: title, slug: slug, h1: g('pgH1').trim() || title, desc: g('pgDesc').trim(), body: body, img: g('pgImg').trim(), when_ts: ts };
+    if (!confirm('🕘 انتشار «' + title + '» در ' + new Date(ts * 1000).toLocaleString('fa-IR') + ' زمان‌بندی شود؟')) return;
+    api('sched_add', payload, function (d) {
+      if (d.ok) {
+        cmsDraftClear(PAGE_FIELDS);
+        audit('CMS', 'زمان‌بندی انتشار صفحه: ' + title, folder + '/' + slug);
+        alert('✅ در صف زمان‌بندی ثبت شد' + (d.pending_approval ? '\n(نقش شما منتظر تأیید مدیر ارشد است — تب 🛠 کیفیت)' : ''));
+        window.cmsTab('q');
+      } else if (d.error === 'exists') {
+        if (confirm('صفحه‌ای با این نامک هست — در موعد انتشار بازنویسی شود؟')) {
+          payload.overwrite = 1;
+          api('sched_add', payload, function (d2) { if (d2.ok) { cmsDraftClear(PAGE_FIELDS); alert('✅ زمان‌بندی (بازنویسی) ثبت شد'); window.cmsTab('q'); } else alert('⚠️ ' + (d2.error || '')); });
+        }
+      } else alert('⚠️ ' + (d.error || 'خطا'));
+    });
+  };
+
+  /* ═══ v34.14.0 (S4): تب «🛠 کیفیت» — زمان‌بندی / تاریخچه و بازگشت / هزینهٔ AI / PageSpeed ═══ */
+  function cmsSenior() { return ['admin', 'chairman', 'ceo'].indexOf(curRole()) > -1; }
+
+  function renderCmsQuality(el) {
+    el.innerHTML =
+      '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:12px;color:#475569;line-height:1.9;margin-bottom:10px"><b>کیفیت و مقیاس (S4):</b> انتشار زمان‌بندی‌شده با تأیید دومرحله‌ای · تاریخچه/بازگشت روی بک‌آپ‌های موجود · شمارندهٔ هزینهٔ هوش مصنوعی · PageSpeed صفحات پول‌ساز.</div>' +
+      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕘 انتشار زمان‌بندی‌شده</b><div id="qSched" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن صف…</div></div>' +
+      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕰 تاریخچه و بازگشت (۳ نسخهٔ آخر هر فایل)</b><div id="qBk" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن بک‌آپ‌ها…</div></div>' +
+      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">💸 هزینهٔ هوش مصنوعی</b><div id="qCost" style="margin-top:8px;font-size:12px;color:#64748b">در حال محاسبه…</div></div>' +
+      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px"><b style="font-size:13px">⚡ PageSpeed (موبایل)</b><div id="qPsi" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن تنظیمات…</div></div>';
+    cmsQSched(); cmsQBk(); cmsQCost(); cmsQPsi();
+  }
+
+  /* ── ۱) صف زمان‌بندی ── */
+  function cmsQFaTs(ts) { try { return new Date(ts * 1000).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }); } catch (e) { return String(ts); } }
+  function cmsQSched() {
+    api('sched_list', {}, function (d) {
+      var el = document.getElementById('qSched'); if (!el) return;
+      if (!d || !d.ok) { el.innerHTML = '<span style="color:#b91c1c">⚠️ ' + escP((d && d.error) || 'خطا') + '</span>'; return; }
+      var items = d.items || [];
+      if (!items.length) { el.innerHTML = '<span style="color:#94a3b8">صف خالی است — از فرم «📄 صفحهٔ جدید» با دکمهٔ «🕘 زمان‌بندی انتشار» اضافه کنید.</span>'; return; }
+      var sen = cmsSenior();
+      var h = '<table class="tb"><thead><tr><th>عنوان</th><th>مسیر</th><th>موعد</th><th>وضعیت</th><th>سازنده</th><th></th></tr></thead><tbody>';
+      items.forEach(function (it) {
+        var st = it.done ? (it.err ? '<span style="color:#b91c1c">خطا: ' + escP(it.err) + '</span>' : '<span style="color:#059669">✅ منتشر شد ' + (it.done_at ? '(' + cmsQFaTs(it.done_at) + ')' : '') + '</span>')
+          : (it.st === 'approved' ? '<span style="color:#2563eb">⏳ تأییدشده — در انتظار موعد</span>' : '<span style="color:#b45309">🟡 منتظر تأیید مدیر ارشد</span>');
+        var act = '';
+        if (!it.done) {
+          if (it.st !== 'approved' && sen) act += '<button class="bt" style="padding:3px 9px;font-size:11px;background:#059669" onclick="cmsSchedAct(\'approve\',\'' + ptfOnClickArg(it.id) + '\')">✅ تأیید</button> ';
+          if (sen) act += '<button class="bt" style="padding:3px 9px;font-size:11px" onclick="cmsSchedAct(\'now\',\'' + ptfOnClickArg(it.id) + '\')">🚀 هم‌اکنون</button> ';
+          act += '<button class="bt bt-o" style="padding:3px 9px;font-size:11px;color:#b91c1c" onclick="cmsSchedAct(\'cancel\',\'' + ptfOnClickArg(it.id) + '\')">✖ لغو</button>';
+        }
+        h += '<tr><td><b>' + escP((it.title || '').slice(0, 50)) + '</b></td><td dir="ltr" style="font-size:11px">' + escP(it.rel || '') + '</td><td>' + cmsQFaTs(it.at || 0) + '</td><td>' + st + '</td><td>' + escP(it.author || '') + (it.approved_by && !it.done ? '<br><small style="color:#94a3b8">تأیید: ' + escP(it.approved_by) + '</small>' : '') + '</td><td style="white-space:nowrap">' + act + '</td></tr>';
+      });
+      h += '</tbody></table><div style="font-size:11px;color:#94a3b8;margin-top:6px">انتشارِ موعدرسیده با اولین فراخوانی CMS انجام می‌شود (موتور lazy — بدون cron هاست).</div>';
+      el.innerHTML = h;
+    });
+  }
+  window.cmsSchedAct = function (op, id) {
+    if (op === 'cancel' && !confirm('این آیتم زمان‌بندی لغو شود؟')) return;
+    api('sched_' + (op === 'approve' ? 'approve' : op === 'now' ? 'publish_now' : 'cancel'), { id: id }, function (d) {
+      if (d && d.ok) { audit('CMS', 'زمان‌بندی: ' + op, id); cmsQSched(); }
+      else alert('⚠️ ' + ((d && d.error) || 'خطا'));
+    });
+  };
+
+  /* ── ۲) تاریخچه/بازگشت ── */
+  var _bkFiles = null;
+  function cmsQBk() {
+    api('backup_list', {}, function (d) {
+      var el = document.getElementById('qBk'); if (!el) return;
+      if (!d || !d.ok) { el.innerHTML = '<span style="color:#b91c1c">⚠️ ' + escP((d && d.error) || 'خطا') + '</span>'; return; }
+      _bkFiles = d.files || [];
+      if (!_bkFiles.length) { el.innerHTML = '<span style="color:#94a3b8">هنوز بک‌آپی ثبت نشده — با اولین بازنویسی/انتشار فایل، نسخه‌های قبلی اینجا ظاهر می‌شوند.</span>'; return; }
+      var opts = _bkFiles.map(function (f, i) { return '<option value="' + i + '">' + escP(f.rel) + ' (' + f.vers.length + ')</option>'; }).join('');
+      el.innerHTML =
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+        '<select id="bkFile" onchange="cmsBkVers()">' + opts + '</select>' +
+        '<select id="bkVer"></select>' +
+        '<button class="bt bt-o" style="padding:5px 12px;font-size:11.5px;color:#0e7490" onclick="cmsBkCompare()">🔍 مقایسه</button>' +
+        '<button class="bt bt-o" style="padding:5px 12px;font-size:11.5px;color:#b45309" onclick="cmsBkRestore()">↩️ بازگردانی این نسخه</button>' +
+        '</div><div id="bkDiff" style="margin-top:10px"></div>';
+      cmsBkVers();
+    });
+  }
+  window.cmsBkVers = function () {
+    var fi = document.getElementById('bkFile'), vs = document.getElementById('bkVer'); if (!fi || !vs || !_bkFiles) return;
+    var f = _bkFiles[fi.value]; if (!f) return;
+    vs.innerHTML = f.vers.map(function (v, i) { return '<option value="' + v.stamp + '">' + v.stamp.slice(0, 4) + '/' + v.stamp.slice(4, 6) + '/' + v.stamp.slice(6, 8) + ' ' + v.stamp.slice(9, 11) + ':' + v.stamp.slice(11, 13) + ':' + v.stamp.slice(13) + '</option>'; }).join('');
+  };
+  function cmsBkLineDiff(a, b) { /* diff خطی سبک: پیشوند/پسوند مشترک + بلوک میانی (اگر بزرگ بود فقط شمارش) */
+    var A = a.split('\n'), B = b.split('\n'), out = [], i = 0, j = 0;
+    while (i < A.length && j < B.length && A[i] === B[j]) { i++; j++; }
+    var i2 = A.length - 1, j2 = B.length - 1;
+    while (i2 >= i && j2 >= j && A[i2] === B[j2]) { i2--; j2--; }
+    var del = A.slice(i, i2 + 1), add = B.slice(j, j2 + 1);
+    if (del.length + add.length > 400) return { n: del.length + add.length, lines: [] };
+    return { n: del.length + add.length, lines: del.slice(0, 60).map(function (l) { return ['-', l]; }).concat(add.slice(0, 60).map(function (l) { return ['+', l]; })) };
+  }
+  window.cmsBkCompare = function () {
+    var fi = document.getElementById('bkFile'), vs = document.getElementById('bkVer'); if (!fi || !vs || !_bkFiles) return;
+    var f = _bkFiles[fi.value]; if (!f) return;
+    var rel = f.rel, stamp = vs.value;
+    var box = document.getElementById('bkDiff'); if (box) box.innerHTML = '⏳ در حال دریافت نسخه‌ها…';
+    api('backup_fetch', { rel: rel, stamp: stamp }, function (d) {
+      if (!box) return;
+      if (!d || !d.ok) { box.innerHTML = '<span style="color:#b91c1c">⚠️ ' + escP((d && d.error) || 'خطا') + '</span>'; return; }
+      var pick = function (t, re) { var m = (t || '').match(re); return m ? m[1].trim().slice(0, 120) : '—'; };
+      var meta = [['عنوان (title)', /<title>([\s\S]*?)<\/title>/i], ['توضیح (description)', /<meta\s+name=["']description["']\s+content=["']([\s\S]*?)["']/i], ['H1', /<h1[^>]*>([\s\S]*?)<\/h1>/i]];
+      var h = '<div style="font-size:11.5px;margin-bottom:6px">حجم: بک‌آپ <b>' + (d.bak_size / 1024).toFixed(1) + 'KB</b> · نسخهٔ زنده <b>' + (d.live_size / 1024).toFixed(1) + 'KB</b></div>' +
+        '<table class="tb"><thead><tr><th>فیلد</th><th>بک‌آپ (' + escP(stamp) + ')</th><th>نسخهٔ زنده</th></tr></thead><tbody>';
+      meta.forEach(function (m) {
+        var b = pick(d.bak, m[1]), l = pick(d.live, m[1]);
+        h += '<tr><td>' + m[0] + '</td><td style="' + (b !== l ? 'background:#fef2f2' : '') + '">' + escP(b) + '</td><td style="' + (b !== l ? 'background:#ecfdf5' : '') + '">' + escP(l) + '</td></tr>';
+      });
+      h += '</tbody></table>';
+      var df = cmsBkLineDiff(d.bak || '', d.live || '');
+      h += '<div style="font-size:11.5px;margin:8px 0 4px">' + (df.n ? ('تغییرات خطی: <b>' + df.n + '</b> خط' + (df.lines.length ? '' : ' (بلوک بزرگ — فقط شمارش)')) : '✅ بدنهٔ دو نسخه یکسان است') + '</div>';
+      if (df.lines.length) {
+        h += '<div dir="ltr" style="max-height:260px;overflow:auto;background:#0f172a;border-radius:8px;padding:8px;font:11px/1.7 monospace;color:#cbd5e1;text-align:left">';
+        df.lines.forEach(function (L) {
+          h += '<div style="color:' + (L[0] === '-' ? '#f87171' : '#4ade80') + ';white-space:pre-wrap">' + (L[0] === '-' ? '− ' : '+ ') + escP(L[1].trim().slice(0, 200)) + '</div>';
+        });
+        h += '</div>';
+      }
+      box.innerHTML = h;
+    });
+  };
+  window.cmsBkRestore = function () {
+    var fi = document.getElementById('bkFile'), vs = document.getElementById('bkVer'); if (!fi || !vs || !_bkFiles) return;
+    var f = _bkFiles[fi.value]; if (!f) return;
+    var rel = f.rel, stamp = vs.value;
+    if (!confirm('↩️ نسخهٔ ' + stamp + ' روی «' + rel + '» بازگردانی شود؟\n(از نسخهٔ فعلی هم بک‌آپ گرفته می‌شود — بازگشت قابلِ تکرار است)')) return;
+    api('backup_restore', { rel: rel, stamp: stamp }, function (d) {
+      if (d && d.ok) { audit('CMS', 'بازگردانی بک‌آپ: ' + rel, stamp); alert('✅ بازگردانی شد — کش سئو هم نو شد.'); }
+      else alert('⚠️ ' + ((d && d.error) || 'خطا'));
+    });
+  };
+
+  /* ── ۳) هزینهٔ AI ── */
+  function cmsQCost() {
+    var el = document.getElementById('qCost'); if (!el) return;
+    if (!cmsSenior()) { el.innerHTML = '<span style="color:#94a3b8">مشاهدهٔ هزینه فقط برای نقش‌های ارشد (مدیر سیستم/رییس هیات مدیره/مدیرعامل) مجاز است.</span>'; return; }
+    cmsLLM('usage_stats', {}, function (d) {
+      if (!el) return;
+      if (!d || !d.ok) { el.innerHTML = '<span style="color:#b91c1c">⚠️ ' + escP((d && d.error) || 'خطا') + '</span>'; return; }
+      var t = d.tot || {};
+      var h = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">' +
+        '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:8px 12px"><small style="color:#64748b">درخواست‌ها (۳۰ روز)</small><br><b>' + (t.n || 0) + '</b></div>' +
+        '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:8px 12px"><small style="color:#64748b">توکن ورودی</small><br><b>' + ((t.pt || 0)).toLocaleString('fa-IR') + '</b></div>' +
+        '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:8px 12px"><small style="color:#64748b">توکن خروجی</small><br><b>' + ((t.ct || 0)).toLocaleString('fa-IR') + '</b></div>' +
+        '<div style="background:#faf5ff;border:1px solid #a855f7;border-radius:10px;padding:8px 12px"><small style="color:#6b21a8">هزینهٔ تخمینی</small><br><b style="color:#7c3aed">$' + (t.cost || 0).toFixed(3) + '</b></div>' +
+        '</div>';
+      var acts = Object.keys(d.acts || {}).slice(0, 6);
+      if (acts.length) {
+        h += '<div style="font-size:11.5px;color:#64748b;margin-bottom:3px">پرکاربردترین اکشن‌ها:</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">';
+        acts.forEach(function (a) { h += '<span style="background:#f1f5f9;border-radius:999px;padding:2px 10px;font-size:11px">' + escP(a) + ' × ' + (d.acts[a].n || 0) + '</span>'; });
+        h += '</div>';
+      }
+      var bd = (d.byDay || []).slice(-14).reverse();
+      if (bd.length) {
+        h += '<details><summary style="font-size:11.5px;color:#0e7490;cursor:pointer">روزبه‌روز (۱۴ روز آخر)</summary><table class="tb"><thead><tr><th>روز</th><th>درخواست</th><th>ورودی</th><th>خروجی</th><th>هزینه</th></tr></thead><tbody>';
+        bd.forEach(function (r) { h += '<tr><td dir="ltr">' + escP(r.d) + '</td><td>' + (r.n || 0) + '</td><td>' + (r.pt || 0) + '</td><td>' + (r.ct || 0) + '</td><td>$' + (r.cost || 0).toFixed(3) + '</td></tr>'; });
+        h += '</tbody></table></details>';
+      }
+      h += '<div style="font-size:10.5px;color:#94a3b8;margin-top:6px">💡 ' + escP(d.note || 'هزینه تخمینی است') + ' — پاسخ‌های کش‌شده هزینه ندارند و شمرده نمی‌شوند.</div>';
+      el.innerHTML = h;
+    });
+  }
+
+  /* ── ۴) PageSpeed ── */
+  function cmsPsiScoreColor(s) { return s >= 90 ? '#059669' : s >= 50 ? '#b45309' : '#b91c1c'; }
+  function cmsQPsi() {
+    api('psi_config_get', {}, function (dc) {
+      api('psi_history', {}, function (dh) {
+        var el = document.getElementById('qPsi'); if (!el) return;
+        if (!dc || !dc.ok) { el.innerHTML = '<span style="color:#b91c1c">⚠️ ' + escP((dc && dc.error) || 'خطا') + '</span>'; return; }
+        var urls = dc.urls || [];
+        var hist = (dh && dh.ok && dh.history) || {};
+        var h = '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' +
+          '<button class="bt" style="background:#0e7490" onclick="cmsPsiRunAll()">⚡ اندازه‌گیری همه</button>' +
+          '<span id="psiProg" style="font-size:11.5px;color:#64748b"></span></div>' +
+          '<table class="tb"><thead><tr><th>مسیر</th><th>امتیاز</th><th>LCP</th><th>CLS</th><th>TBT</th><th>سئو</th><th>روند</th><th></th></tr></thead><tbody>';
+        urls.forEach(function (u) {
+          var runs = hist[u] || [];
+          var last = runs.length ? runs[runs.length - 1] : null;
+          var trend = runs.slice(-10).map(function (r) { return '<span style="color:' + cmsPsiScoreColor(r.score) + '">' + r.score + '</span>'; }).join(' → ') || '—';
+          h += '<tr><td dir="ltr" style="font-size:11.5px">' + escP(u) + '</td>' +
+            '<td>' + (last ? '<b style="color:' + cmsPsiScoreColor(last.score) + ';font-size:15px">' + last.score + '</b>' : '<span style="color:#94a3b8">—</span>') + '</td>' +
+            '<td>' + (last ? escP(last.lcp) + 's' : '—') + '</td><td>' + (last ? escP(last.cls) : '—') + '</td><td>' + (last ? escP(last.tbt) + 'ms' : '—') + '</td>' +
+            '<td>' + (last ? '<b style="color:' + cmsPsiScoreColor(last.seo) + '">' + last.seo + '</b>' : '—') + '</td>' +
+            '<td style="font-size:11px">' + trend + '</td>' +
+            '<td><button class="bt bt-o" style="padding:3px 9px;font-size:11px;color:#0e7490" onclick="cmsPsiRunOne(\'' + ptfOnClickArg(u) + '\')">⚡</button></td></tr>';
+        });
+        h += '</tbody></table>' +
+          '<details style="margin-top:8px"><summary style="font-size:11.5px;color:#0e7490;cursor:pointer">⚙️ ویرایش فهرست مسیرها (حداکثر ۱۰ صفحهٔ پول‌ساز)</summary>' +
+          '<textarea id="psiUrls" rows="5" dir="ltr" style="width:100%;margin-top:6px;font:12px monospace">' + escP(urls.join('\n')) + '</textarea>' +
+          '<button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;margin-top:5px" onclick="cmsPsiSave()">💾 ذخیرهٔ فهرست</button></details>' +
+          '<div style="font-size:10.5px;color:#94a3b8;margin-top:6px">هر مسیر حداکثر یک‌بار در ۶ ساعت سنجیده می‌شود (سهمیهٔ رایگان PSI). کلید اختیاری در gsc-config.php (psi_key).</div>';
+        el.innerHTML = h;
+      });
+    });
+  }
+  window.cmsPsiSave = function () {
+    var ta = document.getElementById('psiUrls'); if (!ta) return;
+    var urls = ta.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+    api('psi_config_set', { urls: JSON.stringify(urls) }, function (d) {
+      if (d && d.ok) { alert('✅ ذخیره شد (' + d.urls.length + ' مسیر)'); cmsQPsi(); }
+      else alert('⚠️ ' + ((d && d.error) || 'خطا — مسیرها باید موجود باشند'));
+    });
+  };
+  window.cmsPsiRunOne = function (u, cb) {
+    api('psi_run', { url: u }, function (d) {
+      if (d && d.ok) { if (typeof cb === 'function') cb(true); else cmsQPsi(); }
+      else if (d && d.error === 'throttled') { alert('⏳ این مسیر در ۶ ساعت گذشته سنجیده شده — بعداً تلاش کنید.'); if (typeof cb === 'function') cb(true); }
+      else { alert('⚠️ ' + ((d && d.error) || 'خطا')); if (typeof cb === 'function') cb(false); }
+    });
+  };
+  window.cmsPsiRunAll = function () {
+    var el = document.getElementById('qPsi'); if (!el) return;
+    var urls = [];
+    /* مسیرها را از سرور می‌خوانیم — نه از DOM */
+    api('psi_config_get', {}, function (dc) {
+      if (!dc || !dc.ok) { alert('⚠️ ' + ((dc && dc.error) || 'خطا')); return; }
+      urls = dc.urls || [];
+      if (!urls.length) { alert('فهرست مسیرها خالی است'); return; }
+      var i = 0;
+      var prog = document.getElementById('psiProg');
+      var step = function () {
+        if (i >= urls.length) { if (prog) prog.textContent = '✅ پایان'; cmsQPsi(); return; }
+        if (prog) prog.textContent = '⏳ ' + (i + 1) + ' از ' + urls.length + ' — ' + urls[i] + ' (هر سنجش تا ~۳۰ ثانیه)';
+        cmsPsiRunOne(urls[i], function () { i++; setTimeout(step, 400); });
+      };
+      step();
     });
   };
 

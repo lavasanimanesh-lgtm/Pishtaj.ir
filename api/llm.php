@@ -124,6 +124,77 @@ file_put_contents($rlFile, json_encode($rl));
 
 $in = json_decode(file_get_contents('php://input'), true) ?: [];
 
+/* ═══ v34.14.0 (S4/COST): شمارندهٔ مصرف/هزینهٔ AI — داشبورد برای نقش‌های ارشد ═══ */
+function llm_price($cfg, $model) { /* دلار به‌ازای ۱M توکن [ورودی، خروجی] — تخمینی؛ با 'pricing' در llm-config.php قابل بازنویسی */
+    $p = $cfg['pricing'] ?? null;
+    if (is_array($p) && isset($p[$model]) && is_array($p[$model]) && count($p[$model]) >= 2) {
+        return [(float)$p[$model][0], (float)$p[$model][1]];
+    }
+    $m = strtolower((string)$model);
+    if (strpos($m, 'flash-lite') !== false) return [0.10, 0.40];
+    if (strpos($m, 'flash') !== false) return [0.30, 2.50];
+    if (strpos($m, 'gemini') !== false && strpos($m, 'pro') !== false) return [1.25, 10.00];
+    if (strpos($m, 'gpt-4o-mini') !== false || strpos($m, 'gpt-4.1-mini') !== false || strpos($m, 'gpt-4.1-nano') !== false) return [0.15, 0.60];
+    if (strpos($m, 'gpt-4o') !== false || strpos($m, 'gpt-4.1') !== false || strpos($m, 'o4-mini') !== false) return [2.50, 10.00];
+    if (strpos($m, 'gpt-4') !== false) return [10.00, 30.00];
+    return [0.0, 0.0];
+}
+function llm_usage_file() { return llm_data_dir() . '/ai-usage.json'; }
+function llm_usage_log($model, $pt, $ct, $ms = 0) { /* فقط فراخوانی‌های واقعی — cache-hitها زودتر return می‌شوند و هزینه ندارند */
+    global $action;
+    $f = llm_usage_file();
+    $j = is_file($f) ? json_decode((string)@file_get_contents($f), true) : [];
+    if (!is_array($j)) $j = [];
+    $d = date('Y-m-d');
+    if (!isset($j[$d]) || !is_array($j[$d])) $j[$d] = ['n' => 0, 'pt' => 0, 'ct' => 0, 'ms' => 0, 'act' => [], 'mod' => []];
+    $day = &$j[$d];
+    $day['n']++; $day['pt'] += (int)$pt; $day['ct'] += (int)$ct; $day['ms'] += (int)$ms;
+    $a = trim((string)$action); if ($a === '') $a = 'other';
+    if (!isset($day['act'][$a]) || !is_array($day['act'][$a])) $day['act'][$a] = ['n' => 0, 'pt' => 0, 'ct' => 0];
+    $day['act'][$a]['n']++; $day['act'][$a]['pt'] += (int)$pt; $day['act'][$a]['ct'] += (int)$ct;
+    if (!isset($day['mod'][$model]) || !is_array($day['mod'][$model])) $day['mod'][$model] = ['n' => 0, 'pt' => 0, 'ct' => 0];
+    $day['mod'][$model]['n']++; $day['mod'][$model]['pt'] += (int)$pt; $day['mod'][$model]['ct'] += (int)$ct;
+    unset($day);
+    $ks = array_keys($j); sort($ks);
+    while (count($ks) > 120) { unset($j[array_shift($ks)]); } /* نگهداری ۱۲۰ روز */
+    @file_put_contents($f, json_encode($j, JSON_UNESCAPED_UNICODE), LOCK_EX);
+}
+if ($action === 'usage_stats') {
+    if (!in_array($llmRole, ['admin', 'chairman', 'ceo'], true)) { /* نقش از توکن تأییدشده — نه هدر خام */
+        echo json_encode(['ok' => false, 'error' => 'مشاهدهٔ هزینهٔ هوش مصنوعی فقط برای مدیر ارشد مجاز است'], JSON_UNESCAPED_UNICODE); exit;
+    }
+    $j = is_file(llm_usage_file()) ? json_decode((string)@file_get_contents(llm_usage_file()), true) : [];
+    if (!is_array($j)) $j = [];
+    ksort($j);
+    $days = array_slice($j, -30, null, true);
+    $tot = ['n' => 0, 'pt' => 0, 'ct' => 0, 'ms' => 0, 'cost' => 0.0];
+    $acts = []; $mods = []; $byDay = [];
+    foreach ($days as $d => $day) {
+        if (!is_array($day)) continue;
+        $dCost = 0.0;
+        foreach ((is_array($day['mod'] ?? null) ? $day['mod'] : []) as $m => $mv) {
+            if (!is_array($mv)) continue;
+            list($pi, $po) = llm_price($cfg, $m);
+            $dCost += ((int)($mv['pt'] ?? 0)) * $pi / 1000000 + ((int)($mv['ct'] ?? 0)) * $po / 1000000;
+            foreach (['n', 'pt', 'ct'] as $k) $mods[$m][$k] = ($mods[$m][$k] ?? 0) + (int)($mv[$k] ?? 0);
+        }
+        foreach ((is_array($day['act'] ?? null) ? $day['act'] : []) as $a => $av) {
+            if (!is_array($av)) continue;
+            foreach (['n', 'pt', 'ct'] as $k) $acts[$a][$k] = ($acts[$a][$k] ?? 0) + (int)($av[$k] ?? 0);
+        }
+        $byDay[] = ['d' => $d, 'n' => (int)($day['n'] ?? 0), 'pt' => (int)($day['pt'] ?? 0), 'ct' => (int)($day['ct'] ?? 0), 'ms' => (int)($day['ms'] ?? 0), 'cost' => round($dCost, 4)];
+        $tot['n'] += (int)($day['n'] ?? 0); $tot['pt'] += (int)($day['pt'] ?? 0);
+        $tot['ct'] += (int)($day['ct'] ?? 0); $tot['ms'] += (int)($day['ms'] ?? 0);
+        $tot['cost'] += $dCost;
+    }
+    uasort($acts, function ($x, $y) { return (int)($y['n'] ?? 0) <=> (int)($x['n'] ?? 0); });
+    $tot['cost'] = round($tot['cost'], 4);
+    echo json_encode(['ok' => true, 'byDay' => $byDay, 'tot' => $tot, 'acts' => $acts, 'mods' => $mods,
+        'prices' => array_map(function ($c) { return ['in' => $c[0], 'out' => $c[1]]; }, array_combine(array_keys($mods), array_map(function ($m) use ($cfg) { return llm_price($cfg, $m); }, array_keys($mods)))),
+        'note' => 'هزینه تخمینی است — قیمت‌های دقیق را با کلید pricing در llm-config.php بازنویسی کنید'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 /* ---------- فراخوانی ارائه‌دهنده: cache صحیح، quota بدون خروجی debug و تشخیص transport ---------- */
 function llm_data_dir() {
     $dir = __DIR__ . '/../crm/data';
@@ -284,6 +355,20 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
 
     $text = preg_replace('/^```(?:json)?\s*/i', '', trim($text));
     $text = preg_replace('/```$/', '', $text);
+    /* v34.14.0 (S4/COST): استخراج توکن‌های واقعی از پاسخ provider — در نبودِ آن تخمین حرفی */
+    $ptTok = $ctTok = 0;
+    if ($provider === 'gemini') {
+        $um = is_array($json['usageMetadata'] ?? null) ? $json['usageMetadata'] : [];
+        $ptTok = (int)($um['promptTokenCount'] ?? 0);
+        $ctTok = (int)($um['candidatesTokenCount'] ?? 0);
+    } else {
+        $um = is_array($json['usage'] ?? null) ? $json['usage'] : [];
+        $ptTok = (int)($um['prompt_tokens'] ?? 0);
+        $ctTok = (int)($um['completion_tokens'] ?? 0);
+    }
+    if ($ptTok <= 0) $ptTok = (int)ceil((mb_strlen($system . $userText, 'UTF-8') + 12) / 3);
+    if ($ctTok <= 0) $ctTok = (int)ceil((mb_strlen($text, 'UTF-8') + 12) / 3);
+    try { llm_usage_log($model, $ptTok, $ctTok, (int)round((microtime(true) - $t0) * 1000)); } catch (Throwable $eUsage) {}
     $result = ['ok' => true, 'text' => trim($text), 'model' => $model, 'transport' => $transport['transport']];
     if (!$skipCache) {
         $cacheData[$cacheKey] = ['t' => time(), 'res' => $result];
