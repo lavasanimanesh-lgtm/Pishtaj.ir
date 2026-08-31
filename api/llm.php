@@ -659,6 +659,7 @@ switch ($action) {
     case 'seo_fix':
     case 'seo_intlinks':
     case 'seo_product':
+    case 'seo_clusters':
         if (!in_array($llmRole, ['admin', 'chairman', 'ceo', 'commercial'], true)) {
             http_response_code(403);
             echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
@@ -711,6 +712,32 @@ switch ($action) {
                 . 'Reply ONLY valid JSON: {"links":[{"from":"<candidate path>","anchor":"...","how":"..."}]}';
             $user = "صفحهٔ هدف: $tgtPath\nعنوان هدف: $tgtTitle\n\nصفحات کاندید (مسیر | عنوان):\n" . $candTxt;
             out_json(llm_call($cfg, $sys, $user, null, null, 700));
+            break;
+        }
+
+        if ($action === 'seo_clusters') {
+            /* v34.12.0 (S3): خوشه‌بندی کلمه‌کلید → برنامهٔ محتوا (صفحهٔ جدید یا بهینه‌سازی) */
+            $queries = $in['queries'] ?? [];
+            $pages = $in['pages'] ?? [];
+            if (!is_array($queries)) $queries = [];
+            if (!is_array($pages)) $pages = [];
+            if (count($queries) > 60) $queries = array_slice($queries, 0, 60);
+            if (count($pages) > 60) $pages = array_slice($pages, 0, 60);
+            if (!$queries) { echo json_encode(['ok' => false, 'error' => 'فهرست کلمات لازم است'], JSON_UNESCAPED_UNICODE); exit; }
+            $qt = ''; $i = 0;
+            foreach ($queries as $qr) {
+                $i++;
+                $qt .= $i . '. ' . trim((string)($qr['q'] ?? '')) . ' | نمایش:' . (int)($qr['impressions'] ?? 0) . ' کلیک:' . (int)($qr['clicks'] ?? 0) . ' جایگاه:' . round((float)($qr['position'] ?? 0), 1) . "\n";
+            }
+            $pt = '';
+            foreach ($pages as $pp) { $pt .= '- ' . trim((string)($pp['path'] ?? '')) . ' | نمایش:' . (int)($pp['impressions'] ?? 0) . "\n"; }
+            $sys = $SEO_RULES
+                . 'Task: keyword clustering for content planning. Group the given Persian/Latin search queries into 3-6 topical clusters. '
+                . 'For each cluster decide: action="new" (no good page exists yet — worth a new article) or "optimize" (a listed page already targets it but underperforms: impressions high, clicks low or position 8-30). '
+                . 'Priority = impressions potential. Cluster title = short Persian topic. NEVER suggest a new page for a query the site already ranks position<=5 for. '
+                . 'Reply ONLY valid JSON: {"clusters":[{"topic":"...","action":"new|optimize","why":"...","queries":["..."],"target":"<existing path for optimize or empty>"}]}';
+            $user = "کلمات جست‌وجو:\n$qt\n\nصفحات موجود:\n$pt";
+            out_json(llm_call($cfg, $sys, $user, null, null, 1400));
             break;
         }
 

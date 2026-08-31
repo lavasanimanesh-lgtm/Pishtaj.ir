@@ -144,7 +144,13 @@
       card('سهم کلیک برندی', pct(brandShare), brandShare > 0.7 ? '⚠️ وابسته به برند' : 'خوب', brandShare > 0.7 ? '#dc2626' : '#059669') +
       '</div>';
 
+    h += '<div id="gscTrend"></div>'; /* v34.12.0 (S3): روند اسنپ‌شات‌ها */
     h += trendBars(_data.dates);
+    h += '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 12px;margin-top:10px">' + /* v34.12.0 (S3) */
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:12.5px;color:#6b21a8">🧠 برنامهٔ محتوا با هوش مصنوعی</b>' +
+      '<button class="bt" style="padding:5px 12px;font-size:12px;background:#7c3aed" onclick="gscContentPlan()">تحلیل فرصت‌ها و پیشنهاد</button>' +
+      '<span style="font-size:11px;color:#94a3b8">خوشه‌بندی کلماتِ فرصت + تطبیق با صفحات موجود: صفحهٔ جدید بسازم یا همین را بهینه کنم؟</span></div>' +
+      '<div id="gscPlan" style="margin-top:6px"></div></div>';
     h += queryTable(_data.quickwins, '🔥 فرصت‌های سریع',
       'کوئری‌های غیربرندی با نمایشِ بالا و جایگاه ۶ تا ۳۰ — با یک اصلاحِ عنوان/توضیح و لینک داخلی بیشترین بازده را دارند');
     h += queryTable(_data.queries, 'کوئری‌های پربازدید');
@@ -159,6 +165,7 @@
       '<div id="gscCov" style="margin-top:8px"></div></div>';
 
     el.innerHTML = h;
+    gscTrendLoad(); /* v34.12.0 (S3) */
   }
 
   /* پوششِ ایندکس — verify>0 یعنی تأییدِ قطعیِ چند مورد با URL Inspection (سهمیهٔ روزانه محدود است) */
@@ -295,6 +302,76 @@
     });
   };
 
+  /* ═══ v34.12.0 (S3): KPI روند از اسنپ‌شات‌ها + برنامهٔ محتوا با خوشه‌بندی AI ═══ */
+  function gscLLM(action, body, cb) {
+    var h = authHeaders(); h['Content-Type'] = 'application/json';
+    fetch('../api/llm.php?action=' + action, { method: 'POST', headers: h, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); }).then(cb)
+      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به هوش مصنوعی' }); });
+  }
+
+  window.gscTrendLoad = function () {
+    var box = document.getElementById('gscTrend'); if (!box) return;
+    api('snaps', {}, function (d) {
+      if (!d.ok || !(d.series || []).length) { box.innerHTML = ''; return; }
+      var ser = d.series;
+      var max = Math.max.apply(null, ser.map(function (x) { return x.clicks; })) || 1;
+      var bars = ser.slice(-30).map(function (x) {
+        var hp = Math.max(4, Math.round((x.clicks / max) * 46));
+        return '<div title="' + escP(x.date) + ' — ' + n(x.clicks) + ' کلیک / ' + n(x.impressions) + ' نمایش" style="width:7px;height:' + hp + 'px;background:linear-gradient(180deg,#f79400,#ef4b1a);border-radius:2px"></div>';
+      }).join('');
+      var dl = d.delta;
+      var dlH = dl ? '<span style="font-size:11.5px;margin-right:auto;color:#64748b">مقایسهٔ ' + escP(dl.from) + ' → ' + escP(dl.to) + ': ' +
+        'کلیک <b style="color:' + (dl.clicks >= 0 ? '#059669' : '#dc2626') + '">' + (dl.clicks >= 0 ? '+' : '') + dl.clicks + '%</b> · ' +
+        'نمایش <b style="color:' + (dl.impressions >= 0 ? '#059669' : '#dc2626') + '">' + (dl.impressions >= 0 ? '+' : '') + dl.impressions + '%</b></span>' : '';
+      box.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 12px">' +
+        '<div style="display:flex;gap:2px;align-items:flex-end;height:48px">' + bars + '</div>' +
+        '<span style="font-size:11px;color:#94a3b8">' + ser.length + ' اسنپ‌شات روزانه</span>' + dlH + '</div>';
+    });
+  };
+
+  window.gscContentPlan = function () {
+    var box = document.getElementById('gscPlan'); if (!box) return;
+    if (!_data || !_data.ok) return;
+    var qs = (_data.quickwins || []).slice(0, 25).map(function (r) { return { q: r.q || r.query || '', impressions: r.impressions, clicks: r.clicks, position: r.position }; })
+      .concat((_data.no_click || []).slice(0, 15).map(function (r) { return { q: r.q || r.query || '', impressions: r.impressions, clicks: 0, position: r.position }; }));
+    var ps = (_data.pages || []).slice(0, 30).map(function (r) { return { path: String(r.p || r.page || '').replace('https://pishtaj.ir/', ''), impressions: r.impressions }; });
+    if (!qs.length) { box.innerHTML = '<div style="font-size:12px;color:#b91c1c">کوئری مناسبی برای خوشه‌بندی نیست.</div>'; return; }
+    box.innerHTML = '<div style="font-size:12px;color:#6b21a8">⏳ هوش مصنوعی در حال خوشه‌بندی ' + qs.length + ' کلمه و تطبیق با صفحات موجود…</div>';
+    gscLLM('seo_clusters', { queries: qs, pages: ps }, function (d) {
+      if (!d.ok || !d.data || !d.data.clusters) { box.innerHTML = '<div style="font-size:12px;color:#b91c1c">⚠️ ' + escP(d.error || 'خطا') + '</div>'; return; }
+      var h = '';
+      d.data.clusters.forEach(function (c, i) {
+        var isNew = c.action === 'new';
+        h += '<div style="border:1px solid ' + (isNew ? '#bbf7d0' : '#fde68a') + ';background:' + (isNew ? '#f0fdf4' : '#fffbeb') + ';border-radius:10px;padding:9px 12px;margin-top:7px">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">' +
+          '<b style="font-size:12.5px">' + escP(c.topic || '') + '</b>' +
+          '<span style="font-size:10.5px;padding:2px 8px;border-radius:8px;background:' + (isNew ? '#059669' : '#d97706') + ';color:#fff">' + (isNew ? 'صفحهٔ جدید' : 'بهینه‌سازی صفحهٔ موجود') + '</span></div>' +
+          '<div style="font-size:11px;color:#475569;margin-top:4px;line-height:1.8">' + escP(c.why || '') + '<br>کلمات: ' + (c.queries || []).slice(0, 6).map(escP).join('، ') + (c.target ? '<br>هدف: <span dir="ltr">' + escP(c.target) + '</span>' : '') + '</div>' +
+          (isNew
+            ? '<button class="bt" style="padding:4px 11px;font-size:11.5px;margin-top:6px" onclick="gscClusterNew(\'' + ptfOnClickArg(String(c.topic || '').slice(0, 80)) + '\')">📝 ساخت مقالهٔ جدید</button>'
+            : '<button class="bt bt-o" style="padding:4px 11px;font-size:11.5px;margin-top:6px" onclick="gscOptimize(\'' + ptfOnClickArg((c.queries || [])[0] || c.topic || '') + '\')">🔍 بهینه‌سازی در تب سئو</button>') +
+          '</div>';
+      });
+      box.innerHTML = '<div style="font-size:11.5px;color:#64748b;margin-bottom:4px">برنامهٔ پیشنهادی — هر مورد را با قضاوت انسانی اجرا کنید:</div>' + h;
+    });
+  };
+
+  window.gscClusterNew = function (topic) {
+    try { if (typeof goPanelByName === 'function') goPanelByName('cms'); } catch (e) {}
+    setTimeout(function () {
+      try { if (typeof cmsTab === 'function') cmsTab('blog'); } catch (e) {}
+      setTimeout(function () {
+        try { if (typeof cmsKcNew === 'function') cmsKcNew(); } catch (e) {}
+        setTimeout(function () {
+          var te = document.getElementById('kcTitle');
+          if (te && !te.value) te.value = topic;
+          if (typeof cmsKcCount === 'function') { try { cmsKcCount(); } catch (e) {} }
+        }, 250);
+      }, 250);
+    }, 150);
+  };
+
   window.gscSubmitSitemap = function () {
     if (!confirm('نقشهٔ سایت (sitemap-index.xml) در سرچ کنسول ثبت/به‌روزرسانی شود؟\n\nاین کار فقط به گوگل می‌گوید نقشه کجاست؛ ایندکس‌شدنِ صفحات را تضمین نمی‌کند.')) return;
     var el = document.getElementById('gscWrap');
@@ -304,8 +381,11 @@
       var box = document.getElementById('gscWrap');
       if (box) { var f = box.firstElementChild; if (f && f.textContent.indexOf('در حال ثبت نقشه') > -1) f.remove(); }
       if (!d || !d.ok) {
-        alert('⚠️ ثبت ناموفق: ' + ((d && d.error) || 'خطای نامشخص') +
-          '\n\nاگر خطا 403 است، سطحِ سرویس‌اکانت در سرچ کنسول باید Full باشد.');
+        var em = String((d && d.error) || 'خطای نامشخص');
+        /* v34.12.0: خطای سرور اکنون علت دقیق فارسی دارد (سطح دسترسی/پراپرتی)؛ فقط برای خطاهای خام راهنما اضافه کن */
+        var hint = (/permission_|property_not_found|سطح|پراپرتی/.test(em)) ? '' :
+          '\n\nاگر خطا 403 است، سطحِ سرویس‌اکانت در سرچ کنسول باید Full باشد (Settings ← Users and permissions).';
+        alert('⚠️ ثبت ناموفق:\n' + em + hint);
         return;
       }
       var err = parseInt(d.errors || '0', 10), wrn = parseInt(d.warnings || '0', 10);

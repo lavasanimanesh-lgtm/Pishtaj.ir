@@ -170,6 +170,71 @@ function gsc_api($cfg, $path, $payload = null, $method = 'GET') {
     return is_array($j) ? $j : [];
 }
 
+/* ═══ v34.12.0 (S3/SNAPSHOT): اسنپ‌شات روزانهٔ lazy — بدون cron؛ هر بازکردن پنل GSC
+   اگر از آخرین اسنپ‌شات بیش از ۲۰ ساعت گذشته، وضعیت روز ذخیره می‌شود (سری زمانی برای
+   روند و مقایسهٔ دوره‌ها). ═══ */
+$GSC_SNAP_DIR = $DATA . '/gsc-snaps';
+function gsc_snap_maybe($dir, $days, $sum, $dates) {
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    $existing = glob($dir . '/*.json') ?: [];
+    usort($existing, function ($a, $b) { return strcmp($b, $a); }); /* جدیدترین اول */
+    $today = date('Y-m-d');
+    if ($existing && basename($existing[0], '.json') === $today) return; /* امروز گرفته شده */
+    if ($existing && is_file($existing[0]) && time() - (int)@filemtime($existing[0]) < 20 * 3600) return; /* هنوز ۲۰ ساعت نشده */
+    $top = function ($rows, $key, $lim) {
+        $out = [];
+        foreach (array_slice($rows, 0, $lim) as $r) {
+            if (empty($r['keys'][0])) continue;
+            $out[] = ['k' => $r['keys'][0], 'clicks' => (float)($r['clicks'] ?? 0), 'impressions' => (float)($r['impressions'] ?? 0), 'position' => round((float)($r['position'] ?? 0), 1)];
+        }
+        return $out;
+    };
+    $snap = [
+        'date' => $today, 'days' => $days, 'ts' => date('c'),
+        'clicks' => (float)($sum['totals']['clicks'] ?? 0),
+        'impressions' => (float)($sum['totals']['impressions'] ?? 0),
+        'topQueries' => $top($sum['queries'] ?? [], 'query', 30),
+        'topPages' => $top($sum['pages'] ?? [], 'page', 30),
+    ];
+    @file_put_contents($dir . '/' . $today . '.json', json_encode($snap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    /* نگهداری ۱۸۰ روز */
+    if (count($existing) > 180) foreach (array_slice($existing, 180) as $old) @unlink($old);
+}
+
+/* v34.12.0 (S3/SUBMIT-FIX): تشخیص خودکار پراپرتی + سطح دسترسی — ریشهٔ «ثبت نقشه ناموفق»:
+   PUT sitemaps فقط با سطح Full مجاز است و site_url کانفیگ ممکن است با نوع پراپرتی واقعی
+   (sc-domain در برابر URL-prefix) نخواند. اینجا فهرست سایت‌های قابل‌دسترسی را می‌گیریم،
+   بهترین تطبیق را انتخاب و اگر سطح کافی نیست علت را صریح برمی‌گردانیم. */
+function gsc_resolve_site($cfg, $needWrite = true) {
+    $list = gsc_api($cfg, 'webmasters/v3/sites');
+    $sites = $list['site'] ?? [];
+    $want = (string)$cfg['site_url'];
+    $host = 'pishtaj.ir';
+    $m = [];
+    if (preg_match('#https?://([^/]+)/?#', $want, $m)) $host = strtolower($m[1]);
+    $exact = null; $domain = null; $prefix = null;
+    foreach ($sites as $st) {
+        $u = (string)($st['siteUrl'] ?? '');
+        $perm = (string)($st['permissionLevel'] ?? '');
+        if ($u === $want) $exact = $st;
+        if ($u === 'sc-domain:' . $host) $domain = $st;
+        if (stripos($u, 'https://' . $host) === 0) $prefix = $st;
+    }
+    $chosen = $exact ?: ($domain ?: $prefix);
+    if (!$chosen) {
+        $names = array_map(function ($st) { return ($st['siteUrl'] ?? '') . ' (' . ($st['permissionLevel'] ?? '?') . ')'; }, $sites);
+        jerr('property_not_found: سرویس‌اکانت به هیچ پراپرتیِ ' . $host . ' دسترسی ندارد. پراپرتی‌های قابل‌دسترسی: '
+            . ($names ? implode('، ', $names) : 'هیچ') . ' — در Search Console ← Settings ← Users and permissions ایمیل '
+            . $cfg['client_email'] . ' را با سطح Full اضافه کنید.');
+    }
+    $perm = (string)($chosen['permissionLevel'] ?? '');
+    if ($needWrite && ($perm === 'siteRestrictedUser' || $perm === 'siteUnverifiedUser')) {
+        jerr('permission_' . $perm . ': سرویس‌اکانت (' . $cfg['client_email'] . ') روی پراپرتی ' . $chosen['siteUrl']
+            . ' سطح «' . $perm . '» دارد؛ ثبت نقشه فقط با سطح Full مجاز است. در Search Console ← Settings ← Users and permissions این ایمیل را به Full ارتقا دهید.');
+    }
+    return $chosen['siteUrl'];
+}
+
 function gsc_query($cfg, $dimensions, $days, $rowLimit = 500) {
     $end = date('Y-m-d', strtotime('-2 days'));   /* دادهٔ دو روز اخیر هنوز نهایی نیست */
     $start = date('Y-m-d', strtotime('-' . (int)$days . ' days'));
@@ -340,8 +405,7 @@ switch ($action) {
             ];
         }
         usort($dates, function ($a, $b) { return strcmp($a['date'], $b['date']); });
-
-        /* فرصت‌ها: غیربرندی، نمایشِ بالا، نزدیک به صفحهٔ اول */
+        gsc_snap_maybe($GSC_SNAP_DIR, $days, $sum, $dates); /* v34.12.0 (S3): اسنپ‌شات lazy روزانه */
         $wins = [];
         foreach ($sum['queries'] as $r) {
             if ($r['brand']) continue;
@@ -442,6 +506,27 @@ switch ($action) {
         ]);
         break;
 
+    /* v34.12.0 (S3): سری زمانی اسنپ‌شات‌ها + دلتای آخرین دو نقطه */
+    case 'snaps':
+        $files = glob($GSC_SNAP_DIR . '/*.json') ?: [];
+        sort($files);
+        $series = []; $lastTwo = [];
+        foreach ($files as $i => $f) {
+            $j = json_decode((string)@file_get_contents($f), true);
+            if (!is_array($j) || empty($j['date'])) continue;
+            $series[] = ['date' => $j['date'], 'clicks' => (float)($j['clicks'] ?? 0), 'impressions' => (float)($j['impressions'] ?? 0)];
+            $lastTwo[] = $j;
+            if (count($lastTwo) > 2) array_shift($lastTwo);
+        }
+        $delta = null;
+        if (count($lastTwo) === 2) {
+            $a = $lastTwo[0]; $b = $lastTwo[1];
+            $df = function ($x, $y) use ($a, $b) { return $a[$x] > 0 ? round((($b[$x] - $a[$x]) / $a[$x]) * 100, 1) : 0; };
+            $delta = ['from' => $a['date'], 'to' => $b['date'], 'clicks' => $df('clicks', 0), 'impressions' => $df('impressions', 0)];
+        }
+        jok(['series' => array_slice($series, -60), 'total_snaps' => count($series), 'delta' => $delta]);
+        break;
+
     /* v34.10.0 (S1/INDEX-LOOP): تاریخچهٔ بررسی‌های ایندکس */
     case 'inspect_log':
         $hist = gsc_hist_load($GSC_HIST);
@@ -459,8 +544,7 @@ switch ($action) {
         if (!$cfg) jerr('gsc_not_configured');
         $feed = trim((string)($_REQUEST['feed'] ?? 'https://pishtaj.ir/sitemap-index.xml'));
         if (!preg_match('#^https://(www\.)?pishtaj\.ir/#i', $feed)) jerr('feed_invalid');
-        $site = $cfg['site_url'];
-        if (strpos($site, 'sc-domain:') !== 0) $site = rtrim($site, '/') . '/';
+        $site = gsc_resolve_site($cfg); /* v34.12.0: پراپرتی واقعی + گیت سطح Full */
         /* PUT روی مسیرِ feedpath؛ بدنه لازم نیست چون آدرس در خودِ مسیر است */
         gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site)
              . '/sitemaps/' . rawurlencode($feed), null, 'PUT');
@@ -472,6 +556,7 @@ switch ($action) {
         }
         jok([
             'submitted' => $feed,
+            'site'      => $site,
             'state'     => $mine['state'] ?? 'pending',
             'warnings'  => $mine['warnings'] ?? '0',
             'errors'    => $mine['errors'] ?? '0',
@@ -483,8 +568,7 @@ switch ($action) {
     case 'sitemaps':
         $cfg = gsc_cfg();
         if (!$cfg) jerr('gsc_not_configured');
-        $site = $cfg['site_url'];
-        if (strpos($site, 'sc-domain:') !== 0) $site = rtrim($site, '/') . '/';
+        $site = gsc_resolve_site($cfg, false); /* v34.12.0: پراپرتی خودکار */
         $r = gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site) . '/sitemaps');
         jok(['sitemaps' => $r['sitemap'] ?? []]);
         break;

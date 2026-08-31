@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester556 — v34.11.0 (فاز S2 سئو): مولد صفحات
+/* tester556 — v34.12.0 (فاز S2 سئو): مولد صفحات
    ۱) مولد صفحهٔ محصول از دیتای CRM (اسکیمای Product/Offer/FAQ/Breadcrumb + سایت‌مپ اختصاصی)
    ۲) ادیتور ریدایرکت (stub امن + بک‌آپ + بازگردانی)
    ۳) ثبت خودکار زیرنقشهٔ جدید در sitemap-index */
@@ -16,7 +16,7 @@ function blk(src, a, b) { var i = src.indexOf(a); var j = src.indexOf(b, i); ret
 var PC = blk(cmsPhp, "case 'product_create'", "case 'product_list'");
 var PRD = blk(cmsPhp, "case 'page_redirect'", "case 'redirect_list'");
 var RM = blk(cmsPhp, "case 'redirect_remove'", "case 'seo_queue_add'");
-var UIPUB = blk(cmsJs, 'window.cmsProdPublish', '/* ═══ v34.11.0 (S2/REDIRECT)');
+var UIPUB = blk(cmsJs, 'window.cmsProdPublish', 'S2/REDIRECT): ادیتور ریدایرکت'); /* انکر بدون نسخه - مصون از bump */
 
 /* ═══ ۱) مولد صفحهٔ محصول — سرور ═══ */
 T('S2: نگاشت محصولات به سایت‌مپ اختصاصی', cmsPhp.indexOf("'products'         => 'sitemap-products.xml'") > -1);

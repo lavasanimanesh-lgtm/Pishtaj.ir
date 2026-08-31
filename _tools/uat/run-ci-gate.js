@@ -216,6 +216,7 @@ var SUITE = [
   { g: 'نهایی 9.2: RCA برخورد کد/ضمائم + خزانه/نام دوگانه/جستجو/typeahead/امضا/کپی نامه/صف H', f: '_tools/uat/tester554-v34.9.2-ux-integrity.js' },
   { g: 'سئو S1 (10.0): صف متای AI + حلقهٔ ایندکس + نقشهٔ خودکار + پیش‌نویس + یتیم/لینک‌سازی', f: '_tools/uat/tester555-v34.10.0-seo-s1-loops.js' },
   { g: 'سئو S2 (11.0): مولد صفحهٔ محصول + ادیتور ریدایرکت + ثبت زیرنقشه در ایندکس', f: '_tools/uat/tester556-v34.11.0-seo-s2-generators.js' },
+  { g: 'سئو S3 (12.0): فیکس ثبت نقشه + اسنپ‌شات/روند + خوشه‌بندی محتوا', f: '_tools/uat/tester557-v34.12.0-seo-s3-growth.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
