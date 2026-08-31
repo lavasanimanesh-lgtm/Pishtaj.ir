@@ -684,10 +684,30 @@
     _go(id, btn);
   };
 
+  /* برچسبِ ماژولِ «مدیریت سایت» وقتی هر سه زیربخش پنهان باشند پنهان می‌شود.
+     عمداً مجوزها را دوباره ارزیابی نمی‌کند بلکه نتیجهٔ display را می‌خواند،
+     تا با canCms/canGsc/canJobs (که هرکدام در ماژولِ خودشان است) واگرا نشود. */
+  function syncSiteModLabel() {
+    var lab = document.getElementById('smLabel');
+    if (!lab) return;
+    var any = false;
+    ['cms', 'gsc', 'jobs'].forEach(function (k) {
+      document.querySelectorAll('.sb-i').forEach(function (b) {
+        if ((b.getAttribute('onclick') || '').indexOf("'" + k + "'") > -1
+            && b.style.display !== 'none') any = true;
+      });
+    });
+    lab.style.display = any ? '' : 'none';
+  }
+  window.syncSiteModLabel = syncSiteModLabel;
+
   function hideCmsBtn() {
     document.querySelectorAll('.sb-i').forEach(function (b) {
       if ((b.getAttribute('onclick') || '').indexOf("'cms'") > -1) b.style.display = canCms() ? '' : 'none';
     });
+    /* gsc.js و careers.js هم‌زمان و مستقل آیتمِ خودشان را پنهان می‌کنند؛
+     با کمی تأخیر اجرا می‌شود تا نتیجهٔ نهاییِ هر سه خوانده شود */
+    setTimeout(syncSiteModLabel, 250);
   }
   var tries = 0;
   var t = setInterval(function () {

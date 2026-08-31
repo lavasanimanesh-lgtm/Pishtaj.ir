@@ -1795,12 +1795,16 @@ function ptfSafeReset() {
 <button class="sb-i" onclick="goPanel('petty',this)"><span class="ic">💵</span><span class="lb">هاب مالی</span></button>
 <div class="nl">سیستم</div>
 <button class="sb-i" onclick="goPanel('sms',this)"><span class="ic">💬</span><span class="lb">پیامک</span></button>
-<button class="sb-i" onclick="goPanel('cms',this)"><span class="ic">🎛</span><span class="lb">سایت</span></button>
-<button class="sb-i" onclick="goPanel('gsc',this)"><span class="ic">📈</span><span class="lb">سرچ کنسول</span></button>
-<button class="sb-i" onclick="goPanel('jobs',this)"><span class="ic">💼</span><span class="lb">فرصت شغلی</span></button>
 <button class="sb-i" onclick="goPanel('rep',this)"><span class="ic">📈</span><span class="lb">گزارشات</span></button>
 <button class="sb-i" onclick="goPanel('users',this)"><span class="ic">👥</span><span class="lb">کاربران</span></button>
 <button class="sb-i" onclick="goPanel('set',this)"><span class="ic">⚙️</span><span class="lb">تنظیمات</span></button>
+<!-- ماژولِ مدیریت سایت: هر سه زیربخش مجوزِ مستقل دارند و هرکدام توسط ماژولِ
+     خودش پنهان می‌شود (canCms / canGsc / canJobs). برچسبِ بخش با شناسهٔ
+     smLabel وقتی هر سه پنهان باشند خودکار پنهان می‌شود (crm/cms.js). -->
+<div class="nl" id="smLabel">مدیریت سایت</div>
+<button class="sb-i" onclick="goPanel('cms',this)"><span class="ic">🎛</span><span class="lb">سایت</span></button>
+<button class="sb-i" onclick="goPanel('gsc',this)"><span class="ic">📈</span><span class="lb">سرچ کنسول</span></button>
+<button class="sb-i" onclick="goPanel('jobs',this)"><span class="ic">💼</span><span class="lb">فرصت شغلی</span></button>
 </nav>
 <div class="sb-f"><button onclick="doLogout()">🚪 خروج</button></div>
 </aside>
