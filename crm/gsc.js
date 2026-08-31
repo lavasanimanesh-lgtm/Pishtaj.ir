@@ -274,6 +274,29 @@
     });
   };
 
+  /* ثبتِ نقشه در سرچ کنسول (اکشنِ sitemap_submit — نیازمندِ سطحِ Full) */
+  window.gscSubmitSitemap = function () {
+    if (!confirm('نقشهٔ سایت (sitemap-index.xml) در سرچ کنسول ثبت/به‌روزرسانی شود؟\n\nاین کار فقط به گوگل می‌گوید نقشه کجاست؛ ایندکس‌شدنِ صفحات را تضمین نمی‌کند.')) return;
+    var el = document.getElementById('gscWrap');
+    var mark = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:10px">⏳ در حال ثبت نقشه…</div>';
+    if (el) el.insertAdjacentHTML('afterbegin', mark);
+    api('sitemap_submit', { feed: 'https://pishtaj.ir/sitemap-index.xml' }, function (d) {
+      var box = document.getElementById('gscWrap');
+      if (box) { var f = box.firstElementChild; if (f && f.textContent.indexOf('در حال ثبت نقشه') > -1) f.remove(); }
+      if (!d || !d.ok) {
+        alert('⚠️ ثبت ناموفق: ' + ((d && d.error) || 'خطای نامشخص') +
+          '\n\nاگر خطا 403 است، سطحِ سرویس‌اکانت در سرچ کنسول باید Full باشد.');
+        return;
+      }
+      var err = parseInt(d.errors || '0', 10), wrn = parseInt(d.warnings || '0', 10);
+      var msg = '✅ نقشه ثبت شد\n\nوضعیت: ' + (d.state || '—') +
+        '\nخطا: ' + err + ' · هشدار: ' + wrn +
+        (d.lastDownload ? '\nآخرین دریافتِ گوگل: ' + String(d.lastDownload).slice(0, 10) : '') +
+        '\n\nنکته: «pending» یعنی گوگل هنوز نقشه را نخوانده؛ معمولاً چند ساعت تا چند روز طول می‌کشد.';
+      alert(msg);
+    });
+  };
+
   /* ============ روتینگ ============ */
   var _go = window.goPanel;
   window.goPanel = function (id, btn) {
@@ -290,6 +313,7 @@
         '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscSetDays(90)">۹۰ روز</button>' +
         '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscSetDays(180)">۶ ماه</button>' +
         '<button class="bt" style="padding:5px 11px;font-size:12px" onclick="gscRefresh()">⟳ به‌روزرسانی</button>' +
+        '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscSubmitSitemap()">📤 ثبت نقشه در سرچ کنسول</button>' +
         '<span style="font-size:11px;color:#94a3b8">داده هر ۳۰ دقیقه کش می‌شود</span></div>' +
         '<div id="gscWrap"></div>';
       api('status', null, function (s) {

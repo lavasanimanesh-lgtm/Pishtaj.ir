@@ -42,6 +42,11 @@ $ROOT = dirname(__DIR__);
 $DATA = $ROOT . '/crm/data';
 if (!is_dir($DATA)) { mkdir($DATA, 0755, true); file_put_contents($DATA . '/.htaccess', "Deny from all\n"); }
 $CACHE_FILE = $DATA . '/gsc-cache.json';
+
+/* اسکوپِ دسترسی. webmasters = خواندن + نوشتن (ثبتِ نقشه).
+   برای سرویس‌اکانت، اسکوپ در خودِ JWT اعلام می‌شود و نیازی به تغییر در
+   کنسولِ گوگل نیست؛ ولی سرویس‌اکانت باید در سرچ کنسول سطحِ Full داشته باشد. */
+define('GSC_SCOPE', 'https://www.googleapis.com/auth/webmasters');
 $COV_FILE   = $DATA . '/gsc-coverage.json';   /* کشِ جدا تا کشِ overview بازنویسی نشود */
 
 $action = $_REQUEST['action'] ?? '';
@@ -70,6 +75,12 @@ function gsc_token($cfg) {
     $cacheF = dirname(__DIR__) . '/crm/data/gsc-token.json';
     if (is_file($cacheF)) {
         $j = json_decode((string)@file_get_contents($cacheF), true);
+        /* توکنِ کش‌شده با اسکوپِ قبلی صادر شده؛ اگر اسکوپ عوض شده باشد بی‌اعتبار است
+           وگرنه تا یک ساعت همان توکنِ قدیمی مصرف می‌شود و تغییر اثر نمی‌کند */
+        if (is_array($j) && ($j['scope'] ?? '') !== GSC_SCOPE) {
+            @unlink($cacheF);
+            $j = null;
+        }
         if (is_array($j) && !empty($j['access_token']) && (int)$j['exp'] > time() + 120) {
             $mem = $j['access_token'];
             return $mem;
@@ -81,7 +92,7 @@ function gsc_token($cfg) {
     $hdr = ['alg' => 'RS256', 'typ' => 'JWT'];
     $clm = [
         'iss'   => $cfg['client_email'],
-        'scope' => 'https://www.googleapis.com/auth/webmasters.readonly',
+        'scope' => GSC_SCOPE,
         'aud'   => 'https://oauth2.googleapis.com/token',
         'iat'   => $now,
         'exp'   => $now + 3600,
@@ -120,6 +131,7 @@ function gsc_token($cfg) {
     @file_put_contents($cacheF, json_encode([
         'access_token' => $j['access_token'],
         'exp'          => $now + (int)($j['expires_in'] ?? 3600),
+        'scope'        => GSC_SCOPE,   /* برای تشخیصِ تغییرِ اسکوپ در دفعهٔ بعد */
     ]), LOCK_EX);
     $mem = $j['access_token'];
     return $mem;
@@ -367,8 +379,8 @@ switch ($action) {
         // پیوندِ مستقیم به صفحهٔ «URL Inspection» در سرچ کنسول.
         // چرا پیوند و نه درخواستِ خودکار؟ Indexing API فقط برای صفحاتِ دارای
         // JobPosting یا BroadcastEvent (داخلِ VideoObject) مجاز است و برای صفحهٔ
-        // مقاله/محصول/خدمت نادیده گرفته می‌شود؛ ضمن آنکه اسکوپِ این فایل
-        // webmasters.readonly است. دکمهٔ «درخواست ایندکس» تنها در UI خودِ
+        // مقاله/محصول/خدمت نادیده گرفته می‌شود. این محدودیتِ خودِ API است و با
+        // ارتقای اسکوپ هم حل نمی‌شود. دکمهٔ «درخواست ایندکس» تنها در UI خودِ
         // سرچ کنسول وجود دارد، پس کاربر را دقیقاً به همان صفحه می‌بریم.
         // اولویت با inspectionResultLink است که خودِ API برمی‌گرداند (معتبرترین
         // حالت). ساختِ دستی فقط یدک است و در برابرِ سرچ کنسولِ زنده آزموده نشده.
@@ -392,6 +404,33 @@ switch ($action) {
             'sitemap'     => $res['indexStatusResult']['sitemap'] ?? [],
             'inspectLink' => $link,
             'raw'         => $res,
+        ]);
+        break;
+
+    /* ثبتِ نقشه در سرچ کنسول — نیازمندِ اسکوپِ webmasters و سطحِ Full برای سرویس‌اکانت */
+    case 'sitemap_submit':
+        $cfg = gsc_cfg();
+        if (!$cfg) jerr('gsc_not_configured');
+        $feed = trim((string)($_REQUEST['feed'] ?? 'https://pishtaj.ir/sitemap-index.xml'));
+        if (!preg_match('#^https://(www\.)?pishtaj\.ir/#i', $feed)) jerr('feed_invalid');
+        $site = $cfg['site_url'];
+        if (strpos($site, 'sc-domain:') !== 0) $site = rtrim($site, '/') . '/';
+        /* PUT روی مسیرِ feedpath؛ بدنه لازم نیست چون آدرس در خودِ مسیر است */
+        gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site)
+             . '/sitemaps/' . rawurlencode($feed), null, 'PUT');
+        /* بازخوانیِ فهرست تا نتیجه فوراً دیده شود */
+        $after = gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site) . '/sitemaps');
+        $mine = null;
+        foreach (($after['sitemap'] ?? []) as $sm) {
+            if (rtrim($sm['path'] ?? '', '/') === rtrim($feed, '/')) { $mine = $sm; break; }
+        }
+        jok([
+            'submitted' => $feed,
+            'state'     => $mine['state'] ?? 'pending',
+            'warnings'  => $mine['warnings'] ?? '0',
+            'errors'    => $mine['errors'] ?? '0',
+            'lastDownload' => $mine['lastDownloaded'] ?? '',
+            'sitemaps'  => $after['sitemap'] ?? [],
         ]);
         break;
 
