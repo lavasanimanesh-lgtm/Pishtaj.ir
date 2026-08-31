@@ -698,8 +698,23 @@
       });
     });
     lab.style.display = any ? '' : 'none';
+    var body = document.getElementById('smBody');
+    if (body && !any) body.style.display = 'none';
   }
   window.syncSiteModLabel = syncSiteModLabel;
+
+  /* باز/بستنِ ماژولِ «مدیریت سایت».
+     وضعیت عمداً فقط در حافظه نگه داشته می‌شود: قانونِ A10 گاردِ معماری
+     دسترسیِ مستقیمِ UI به localStorage را ممنوع می‌کند (فقط لایهٔ داده مجاز
+     است) و ماندگاریِ این ترجیح هم خواستهٔ مشخصی نبود. */
+  var siteModOpen = false;
+  window.toggleSiteMod = function (force) {
+    var b = document.getElementById('smBody'), a = document.getElementById('smArrow');
+    if (!b) return;
+    siteModOpen = (typeof force === 'boolean') ? force : !siteModOpen;
+    b.style.display = siteModOpen ? '' : 'none';
+    if (a) a.textContent = siteModOpen ? '\u25b4' : '\u25be';
+  };
 
   function hideCmsBtn() {
     document.querySelectorAll('.sb-i').forEach(function (b) {
