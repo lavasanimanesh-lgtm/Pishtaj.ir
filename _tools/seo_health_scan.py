@@ -118,6 +118,7 @@ def expected_url(rel):
 
 def scan():
     pages = public_pages()
+    page_set = {rel for rel, _ in pages}
     inbound = collections.Counter()
     rows = []
 
@@ -137,6 +138,12 @@ def scan():
             if not href:
                 continue
             target = os.path.normpath(os.path.join(base_dir, href)).replace(os.sep, "/")
+            # normpath اسلشِ پایانی را برمی‌دارد («about/» → «about») و ریشه «/» می‌ماند؛
+            # بدونِ این نگاشت، لینکِ پوشه‌ها و صفحهٔ اصلی همیشه صفر شمرده می‌شد.
+            if target in ("", "/"):
+                target = "index.html"
+            elif target + "/index.html" in page_set:
+                target = target + "/index.html"
             inbound[target] += 1
 
     uniq = {}
