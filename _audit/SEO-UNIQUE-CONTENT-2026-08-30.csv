@@ -1,0 +1,657 @@
+﻿file,url,folder,title,words,unique_shingles,unique_share,inbound
+careers/index.html,https://pishtaj.ir/careers/index.html,careers,فرصت شغلی | پیشرو تجهیز فرتاک,54,26,0.531,1
+assistant/index.html,https://pishtaj.ir/assistant/index.html,assistant,دستیار هوشمند انتخاب متریال و شیرآلات صنعتی | AI Assistant,175,30,0.184,541
+news/index.html,https://pishtaj.ir/news/index.html,news,اخبار و اطلاعیه‌ها | پیشرو تجهیز فرتاک,169,35,0.208,572
+en/careers.html,https://pishtaj.ir/en/careers.html,en,Careers | Pishro Tajhiz Fartak,38,37,1.0,1
+search/index.html,https://pishtaj.ir/search/index.html,search,جستجوی سایت | پیشرو تجهیز فرتاک,59,37,0.771,1
+knowledge-center/ph.html,https://pishtaj.ir/knowledge-center/ph.html,knowledge-center,راهنمای pH متر صنعتی | پیشرو تجهیز فرتاک,1680,55,0.041,2
+knowledge-center/esd-emergency-shutdown.html,https://pishtaj.ir/knowledge-center/esd-emergency-shutdown.html,knowledge-center,راهنمای سیستم ESD (Emergency Shutdown) | پیشرو تجهیز فرتاک,1684,59,0.044,6
+knowledge-center/thermowell.html,https://pishtaj.ir/knowledge-center/thermowell.html,knowledge-center,Thermowell (ترموول) | پیشرو تجهیز فرتاک,1683,59,0.044,2
+knowledge-center/fire-gas-system-fgs.html,https://pishtaj.ir/knowledge-center/fire-gas-system-fgs.html,knowledge-center,راهنمای Fire & Gas System (FGS) | پیشرو تجهیز فرتاک,1683,60,0.045,7
+knowledge-center/modbus-tcp-rtu.html,https://pishtaj.ir/knowledge-center/modbus-tcp-rtu.html,knowledge-center,راهنمای شبکه Modbus TCP/RTU | پیشرو تجهیز فرتاک,1688,66,0.049,4
+knowledge-center/conductivity-meter.html,https://pishtaj.ir/knowledge-center/conductivity-meter.html,knowledge-center,راهنمای هدایت سنج (Conductivity Meter) | پیشرو تجهیز فرتاک,1681,69,0.051,4
+knowledge-center/guided-wave-non-contact.html,https://pishtaj.ir/knowledge-center/guided-wave-non-contact.html,knowledge-center,سطح‌سنج راداری | پیشرو تجهیز فرتاک,1691,69,0.051,4
+knowledge-center/sil-iec-61508-iec-61511.html,https://pishtaj.ir/knowledge-center/sil-iec-61508-iec-61511.html,knowledge-center,SIL در ابزار دقیق | پیشرو تجهیز فرتاک,1688,69,0.051,4
+knowledge-center/turbidity-meter.html,https://pishtaj.ir/knowledge-center/turbidity-meter.html,knowledge-center,راهنمای Turbidity Meter (کدورت سنج) | پیشرو تجهیز فرتاک,1684,71,0.053,3
+knowledge-center/seat-ptfe-peek-nylon.html,https://pishtaj.ir/knowledge-center/seat-ptfe-peek-nylon.html,knowledge-center,مواد نشیمنگاه (Seat) در شیرآلات | پیشرو تجهیز فرتاک,1691,73,0.054,4
+knowledge-center/ups-online-line-interactive.html,https://pishtaj.ir/knowledge-center/ups-online-line-interactive.html,knowledge-center,UPS صنعتی | پیشرو تجهیز فرتاک,1687,74,0.055,3
+knowledge-center/astm-a179.html,https://pishtaj.ir/knowledge-center/astm-a179.html,knowledge-center,راهنمای لوله ASTM A179 | پیشرو تجهیز فرتاک,1697,78,0.058,12
+knowledge-center/astm-a335-p91.html,https://pishtaj.ir/knowledge-center/astm-a335-p91.html,knowledge-center,لوله ASTM A335 P91 | پیشرو تجهیز فرتاک,1691,78,0.058,2
+knowledge-center/plc-siemens-s7-1500.html,https://pishtaj.ir/knowledge-center/plc-siemens-s7-1500.html,knowledge-center,کنترلر PLC Siemens S7-1500 | پیشرو تجهیز فرتاک,1686,78,0.058,3
+knowledge-center/api-5l-x42.html,https://pishtaj.ir/knowledge-center/api-5l-x42.html,knowledge-center,لوله API 5L X42؛ مشخصات فنی، قیمت و کاربرد | پیشرو تجهیز فرتاک,1693,80,0.059,8
+knowledge-center/control-valve-iec-60534.html,https://pishtaj.ir/knowledge-center/control-valve-iec-60534.html,knowledge-center,شیر کنترل (Control Valve) | پیشرو تجهیز فرتاک,1687,80,0.059,6
+knowledge-center/fire-test-api-607.html,https://pishtaj.ir/knowledge-center/fire-test-api-607.html,knowledge-center,راهنمای تست آتش (Fire Test) شیرآلات | پیشرو تجهیز فرتاک,1700,81,0.059,4
+knowledge-center/pressure-gauge-asme-b40-100.html,https://pishtaj.ir/knowledge-center/pressure-gauge-asme-b40-100.html,knowledge-center,گیج فشار (Pressure Gauge) | پیشرو تجهیز فرتاک,1692,81,0.06,3
+knowledge-center/asme-b16-11-socket-weld-threaded.html,https://pishtaj.ir/knowledge-center/asme-b16-11-socket-weld-threaded.html,knowledge-center,ASME B16.11 | پیشرو تجهیز فرتاک,1692,82,0.061,3
+knowledge-center/socket-weld-threaded.html,https://pishtaj.ir/knowledge-center/socket-weld-threaded.html,knowledge-center,مقایسه فلنج Socket Weld و Threaded | پیشرو تجهیز فرتاک,1699,82,0.061,4
+knowledge-center/ups-nicd-li-ion.html,https://pishtaj.ir/knowledge-center/ups-nicd-li-ion.html,knowledge-center,UPS باتری NiCd و Li-ion | پیشرو تجهیز فرتاک,1697,82,0.061,3
+knowledge-center/astm-a335-p11-p22-p91.html,https://pishtaj.ir/knowledge-center/astm-a335-p11-p22-p91.html,knowledge-center,"لوله آلیاژی ASTM A335 P11, P22, P91 | پیشرو تجهیز فرتاک",1696,85,0.062,4
+knowledge-center/o2-co2-h2s.html,https://pishtaj.ir/knowledge-center/o2-co2-h2s.html,knowledge-center,آنالایزر گاز صنعتی | پیشرو تجهیز فرتاک,1708,85,0.062,3
+knowledge-center/iso-9001.html,https://pishtaj.ir/knowledge-center/iso-9001.html,knowledge-center,ISO 9001 برای تامین‌کنندگان صنعتی | پیشرو تجهیز فرتاک,1615,86,0.067,1
+knowledge-center/api-5l-x52-x60-x65.html,https://pishtaj.ir/knowledge-center/api-5l-x52-x60-x65.html,knowledge-center,مقایسه لوله API 5L X52 و X60 و X65 | پیشرو تجهیز فرتاک,1696,87,0.064,5
+knowledge-center/asme-b36-19.html,https://pishtaj.ir/knowledge-center/asme-b36-19.html,knowledge-center,راهنمای ابعاد لوله طبق ASME B36.19 | پیشرو تجهیز فرتاک,1695,87,0.064,5
+knowledge-center/ss304-ss316.html,https://pishtaj.ir/knowledge-center/ss304-ss316.html,knowledge-center,لوله استینلس استیل SS304 و SS316 | پیشرو تجهیز فرتاک,1707,87,0.064,4
+tools/rfq-checklist/index.html,https://pishtaj.ir/tools/rfq-checklist/index.html,tools,چک‌لیست استعلام تجهیزات صنعتی (RFQ) | پیشرو تجهیز فرتاک,123,87,0.757,1
+knowledge-center/a106-gr-b-a333-gr-6.html,https://pishtaj.ir/knowledge-center/a106-gr-b-a333-gr-6.html,knowledge-center,مقایسه لوله A106 Gr.B و A333 Gr.6 | پیشرو تجهیز فرتاک,1705,89,0.065,5
+knowledge-center/schedule-sch-40-80-160.html,https://pishtaj.ir/knowledge-center/schedule-sch-40-80-160.html,knowledge-center,راهنمای ضخامت دیواره لوله (Schedule) | پیشرو تجهیز فرتاک,1697,92,0.068,3
+knowledge-center/article-011.html,https://pishtaj.ir/knowledge-center/article-011.html,knowledge-center,تامین تجهیزات پتروشیمی | پیشرو تجهیز فرتاک,1714,94,0.069,1
+knowledge-center/article-009.html,https://pishtaj.ir/knowledge-center/article-009.html,knowledge-center,قرارداد تامین صنعتی | پیشرو تجهیز فرتاک,1716,95,0.069,1
+knowledge-center/article-010.html,https://pishtaj.ir/knowledge-center/article-010.html,knowledge-center,راهنمای گمرک و ترخیص کالاهای صنعتی | پیشرو تجهیز فرتاک,1722,96,0.07,1
+knowledge-center/asme-b31-1.html,https://pishtaj.ir/knowledge-center/asme-b31-1.html,knowledge-center,ASME B31.1 | پیشرو تجهیز فرتاک,1710,97,0.071,3
+knowledge-center/en-10204.html,https://pishtaj.ir/knowledge-center/en-10204.html,knowledge-center,EN 10204 | پیشرو تجهیز فرتاک,1713,97,0.071,1
+knowledge-center/article-013.html,https://pishtaj.ir/knowledge-center/article-013.html,knowledge-center,تامین تجهیزات نیروگاه سیکل ترکیبی | پیشرو تجهیز فرتاک,1719,98,0.071,1
+knowledge-center/article-015.html,https://pishtaj.ir/knowledge-center/article-015.html,knowledge-center,تجهیزات پالایشگاه نفت | پیشرو تجهیز فرتاک,1714,98,0.071,1
+knowledge-center/article-017.html,https://pishtaj.ir/knowledge-center/article-017.html,knowledge-center,تامین تجهیزات صنعت سیمان | پیشرو تجهیز فرتاک,1719,98,0.071,1
+knowledge-center/article-012.html,https://pishtaj.ir/knowledge-center/article-012.html,knowledge-center,تامین تجهیزات صنعت فولاد | پیشرو تجهیز فرتاک,1719,99,0.072,1
+knowledge-center/article-016.html,https://pishtaj.ir/knowledge-center/article-016.html,knowledge-center,تجهیزات سیستم بخار | پیشرو تجهیز فرتاک,1721,99,0.072,1
+knowledge-center/shutdown.html,https://pishtaj.ir/knowledge-center/shutdown.html,knowledge-center,تجهیزات Shutdown و اورهال صنعتی | پیشرو تجهیز فرتاک,1722,99,0.072,3
+knowledge-center/erw.html,https://pishtaj.ir/knowledge-center/erw.html,knowledge-center,مقایسه لوله جوشی ERW و لوله اسپیرال | پیشرو تجهیز فرتاک,1714,100,0.073,3
+knowledge-center/article-005.html,https://pishtaj.ir/knowledge-center/article-005.html,knowledge-center,فلومتر کوریولیس | پیشرو تجهیز فرتاک,1728,103,0.075,24
+knowledge-center/article-006.html,https://pishtaj.ir/knowledge-center/article-006.html,knowledge-center,ترانسمیتر سطح هیدرواستاتیک | پیشرو تجهیز فرتاک,1724,103,0.075,24
+knowledge-center/article-007.html,https://pishtaj.ir/knowledge-center/article-007.html,knowledge-center,کالیبراسیون ترانسمیتر دما | پیشرو تجهیز فرتاک,1728,104,0.075,7
+knowledge-center/article-052.html,https://pishtaj.ir/knowledge-center/article-052.html,knowledge-center,مقایسه برندهای ترانسمیتر صنعتی | پیشرو تجهیز فرتاک,1726,104,0.075,1
+knowledge-center/astm-a53-gr-b.html,https://pishtaj.ir/knowledge-center/astm-a53-gr-b.html,knowledge-center,مشخصات لوله ASTM A53 Gr.B | پیشرو تجهیز فرتاک,1720,104,0.075,10
+knowledge-center/incoterms-2024.html,https://pishtaj.ir/knowledge-center/incoterms-2024.html,knowledge-center,Incoterms 2024 | پیشرو تجهیز فرتاک,1721,104,0.075,3
+knowledge-center/a53-gr-b.html,https://pishtaj.ir/knowledge-center/a53-gr-b.html,knowledge-center,راهنمای خرید لوله A53 Gr.B | پیشرو تجهیز فرتاک,1726,105,0.076,4
+knowledge-center/api-617.html,https://pishtaj.ir/knowledge-center/api-617.html,knowledge-center,API 617 | پیشرو تجهیز فرتاک,1711,105,0.076,1
+knowledge-center/ndt-ut.html,https://pishtaj.ir/knowledge-center/ndt-ut.html,knowledge-center,بازرسی NDT با تست فراصوت (UT) | پیشرو تجهیز فرتاک,1733,105,0.076,4
+knowledge-center/sf6.html,https://pishtaj.ir/knowledge-center/sf6.html,knowledge-center,کلید SF6 | پیشرو تجهیز فرتاک,1730,105,0.076,2
+knowledge-center/article-008.html,https://pishtaj.ir/knowledge-center/article-008.html,knowledge-center,ترانسفورماتور قدرت | پیشرو تجهیز فرتاک,1728,106,0.077,1
+knowledge-center/article-041.html,https://pishtaj.ir/knowledge-center/article-041.html,knowledge-center,ترانسمیتر سطح التراسونیک | پیشرو تجهیز فرتاک,1729,106,0.077,1
+knowledge-center/hplc-gc.html,https://pishtaj.ir/knowledge-center/hplc-gc.html,knowledge-center,راهنمای تجهیزات HPLC و GC در آزمایشگاه | پیشرو تجهیز فرتاک,1736,106,0.076,2
+knowledge-center/ndt-rt.html,https://pishtaj.ir/knowledge-center/ndt-rt.html,knowledge-center,بازرسی NDT با تست رادیوگرافی (RT) | پیشرو تجهیز فرتاک,1731,106,0.077,4
+knowledge-center/pmi-positive-material-identification.html,https://pishtaj.ir/knowledge-center/pmi-positive-material-identification.html,knowledge-center,راهنمای PMI (Positive Material Identification),1738,107,0.077,1
+knowledge-center/api-610.html,https://pishtaj.ir/knowledge-center/api-610.html,knowledge-center,API 610 | پیشرو تجهیز فرتاک,1738,108,0.078,3
+knowledge-center/transit-time-doppler.html,https://pishtaj.ir/knowledge-center/transit-time-doppler.html,knowledge-center,فلومتر اولتراسونیک | پیشرو تجهیز فرتاک,1728,108,0.078,1
+knowledge-center/a333-gr-6.html,https://pishtaj.ir/knowledge-center/a333-gr-6.html,knowledge-center,راهنمای کامل لوله A333 Gr.6 برای دمای پایین؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1735,109,0.079,3
+knowledge-center/article-059.html,https://pishtaj.ir/knowledge-center/article-059.html,knowledge-center,کنتاکتور و بی متال | پیشرو تجهیز فرتاک,1735,109,0.079,1
+knowledge-center/mfc-mass-flow-controller.html,https://pishtaj.ir/knowledge-center/mfc-mass-flow-controller.html,knowledge-center,راهنمای MFC (Mass Flow Controller) | پیشرو تجهیز فرتاک,1723,110,0.08,2
+knowledge-center/article-004.html,https://pishtaj.ir/knowledge-center/article-004.html,knowledge-center,راهنمای آب‌بندی شیرآلات صنعتی | پیشرو تجهیز فرتاک,1730,111,0.08,24
+knowledge-center/article-021.html,https://pishtaj.ir/knowledge-center/article-021.html,knowledge-center,انتخاب شیر برای سرویس بخار | پیشرو تجهیز فرتاک,1733,111,0.08,1
+knowledge-center/float-vibrating-capacitance.html,https://pishtaj.ir/knowledge-center/float-vibrating-capacitance.html,knowledge-center,سوئیچ سطح | پیشرو تجهیز فرتاک,1728,111,0.08,1
+knowledge-center/profibus-profinet.html,https://pishtaj.ir/knowledge-center/profibus-profinet.html,knowledge-center,راهنمای شبکه Profibus و Profinet | پیشرو تجهیز فرتاک,1735,111,0.08,1
+knowledge-center/article-023.html,https://pishtaj.ir/knowledge-center/article-023.html,knowledge-center,انتخاب شیر برای خطوط گاز | پیشرو تجهیز فرتاک,1732,113,0.081,1
+knowledge-center/asme-b16-9.html,https://pishtaj.ir/knowledge-center/asme-b16-9.html,knowledge-center,ASME B16.9 | پیشرو تجهیز فرتاک,1750,113,0.081,5
+knowledge-center/article-031.html,https://pishtaj.ir/knowledge-center/article-031.html,knowledge-center,مقایسه برندهای شیرآلات اروپایی و آسیایی | پیشرو تجهیز فرتاک,1738,114,0.082,1
+knowledge-center/asme-b16-34.html,https://pishtaj.ir/knowledge-center/asme-b16-34.html,knowledge-center,استاندارد ASME B16.34 | پیشرو تجهیز فرتاک,1718,114,0.082,3
+knowledge-center/article-014.html,https://pishtaj.ir/knowledge-center/article-014.html,knowledge-center,تامین تجهیزات خطوط لوله انتقال | پیشرو تجهیز فرتاک,1727,115,0.083,1
+knowledge-center/vendor-qualification.html,https://pishtaj.ir/knowledge-center/vendor-qualification.html,knowledge-center,راهنمای تأیید صلاحیت تامین‌کننده (Vendor Qualification),1741,115,0.082,4
+knowledge-center/article-027.html,https://pishtaj.ir/knowledge-center/article-027.html,knowledge-center,مقایسه شیر فولادی و چدنی | پیشرو تجهیز فرتاک,1737,116,0.083,1
+knowledge-center/cerabar.html,https://pishtaj.ir/knowledge-center/cerabar.html,knowledge-center,ترانسمیتر فشار اندرس هاسر Cerabar | پیشرو تجهیز فرتاک,1744,116,0.083,1
+knowledge-center/din-ansi.html,https://pishtaj.ir/knowledge-center/din-ansi.html,knowledge-center,مقایسه استاندارد DIN و ANSI در پایپینگ | پیشرو تجهیز فرتاک,1740,116,0.083,2
+knowledge-center/dpt.html,https://pishtaj.ir/knowledge-center/dpt.html,knowledge-center,ترانسمیتر اختلاف فشار DPT | پیشرو تجهیز فرتاک,1750,116,0.083,3
+knowledge-center/asme-b16-5.html,https://pishtaj.ir/knowledge-center/asme-b16-5.html,knowledge-center,ASME B16.5 | پیشرو تجهیز فرتاک,1754,117,0.084,5
+knowledge-center/asme-b31-3.html,https://pishtaj.ir/knowledge-center/asme-b31-3.html,knowledge-center,ASME B31.3 | پیشرو تجهیز فرتاک,1723,117,0.084,3
+knowledge-center/astm-a105-astm-a350-lf2.html,https://pishtaj.ir/knowledge-center/astm-a105-astm-a350-lf2.html,knowledge-center,مقایسه ASTM A105 و ASTM A350 LF2 | پیشرو تجهیز فرتاک,1738,117,0.084,3
+knowledge-center/pinch-valve.html,https://pishtaj.ir/knowledge-center/pinch-valve.html,knowledge-center,Pinch Valve | پیشرو تجهیز فرتاک,1728,117,0.084,9
+knowledge-center/article-003.html,https://pishtaj.ir/knowledge-center/article-003.html,knowledge-center,راهنمای انتخاب شیر بر اساس کلاس فشار | پیشرو تجهیز فرتاک,1733,118,0.084,24
+knowledge-center/astm-a105.html,https://pishtaj.ir/knowledge-center/astm-a105.html,knowledge-center,ASTM A105 | پیشرو تجهیز فرتاک,1733,118,0.084,10
+knowledge-center/astm-a234-wpb.html,https://pishtaj.ir/knowledge-center/astm-a234-wpb.html,knowledge-center,ASTM A234 WPB | پیشرو تجهیز فرتاک,1733,118,0.084,2
+knowledge-center/astm-a403-wp304-wp316.html,https://pishtaj.ir/knowledge-center/astm-a403-wp304-wp316.html,knowledge-center,ASTM A403 WP304/WP316 | پیشرو تجهیز فرتاک,1735,118,0.084,1
+knowledge-center/diaphragm-valve.html,https://pishtaj.ir/knowledge-center/diaphragm-valve.html,knowledge-center,Diaphragm Valve | پیشرو تجهیز فرتاک,1729,118,0.085,15
+knowledge-center/mv-iec-62271.html,https://pishtaj.ir/knowledge-center/mv-iec-62271.html,knowledge-center,تابلو MV | پیشرو تجهیز فرتاک,1750,118,0.084,4
+knowledge-center/3-way-valve-l-port-t-port.html,https://pishtaj.ir/knowledge-center/3-way-valve-l-port-t-port.html,knowledge-center,شیر سه راهه (3-Way Valve) | پیشرو تجهیز فرتاک,1736,119,0.086,2
+knowledge-center/article-001.html,https://pishtaj.ir/knowledge-center/article-001.html,knowledge-center,تست هیدرواستاتیک لوله | پیشرو تجهیز فرتاک,1737,119,0.086,24
+knowledge-center/astm-a182-f304-f316.html,https://pishtaj.ir/knowledge-center/astm-a182-f304-f316.html,knowledge-center,ASTM A182 F304/F316 | پیشرو تجهیز فرتاک,1728,120,0.086,1
+knowledge-center/distribution-transformer.html,https://pishtaj.ir/knowledge-center/distribution-transformer.html,knowledge-center,ترانسفورماتور توزیع (Distribution Transformer),1741,120,0.086,3
+knowledge-center/ghz-80.html,https://pishtaj.ir/knowledge-center/ghz-80.html,knowledge-center,ترانسمیتر سطح راداری GHz 80 | پیشرو تجهیز فرتاک,1747,120,0.086,2
+knowledge-center/lv-iec-61439.html,https://pishtaj.ir/knowledge-center/lv-iec-61439.html,knowledge-center,تابلو LV | پیشرو تجهیز فرتاک,1754,120,0.086,2
+knowledge-center/pilot-operated-valve.html,https://pishtaj.ir/knowledge-center/pilot-operated-valve.html,knowledge-center,شیر پایلوت (Pilot Operated Valve) | پیشرو تجهیز فرتاک,1736,120,0.086,1
+knowledge-center/surge-arrester.html,https://pishtaj.ir/knowledge-center/surge-arrester.html,knowledge-center,رله برقگیر (Surge Arrester) | پیشرو تجهیز فرتاک,1746,120,0.086,2
+knowledge-center/ut.html,https://pishtaj.ir/knowledge-center/ut.html,knowledge-center,راهنمای تست UT لوله (فراصوت) | پیشرو تجهیز فرتاک,1736,120,0.086,2
+knowledge-center/angle-valve.html,https://pishtaj.ir/knowledge-center/angle-valve.html,knowledge-center,راهنمای شیر زاویه‌ای (Angle Valve) | پیشرو تجهیز فرتاک,1740,121,0.087,16
+knowledge-center/article-002.html,https://pishtaj.ir/knowledge-center/article-002.html,knowledge-center,مقایسه لوله کربن استیل و استینلس استیل | پیشرو تجهیز فرتاک,1739,121,0.087,24
+knowledge-center/cryogenic-valve-lng.html,https://pishtaj.ir/knowledge-center/cryogenic-valve-lng.html,knowledge-center,شیر برودتی (Cryogenic Valve) | پیشرو تجهیز فرتاک,1737,121,0.087,2
+knowledge-center/scada.html,https://pishtaj.ir/knowledge-center/scada.html,knowledge-center,سیستم SCADA در صنعت نفت و گاز | پیشرو تجهیز فرتاک,1751,121,0.086,1
+knowledge-center/astm-a312.html,https://pishtaj.ir/knowledge-center/astm-a312.html,knowledge-center,راهنمای لوله ASTM A312 | پیشرو تجهیز فرتاک,1737,122,0.087,9
+knowledge-center/astm-jis.html,https://pishtaj.ir/knowledge-center/astm-jis.html,knowledge-center,مقایسه استاندارد ASTM و JIS در پایپینگ | پیشرو تجهیز فرتاک,1743,122,0.087,4
+knowledge-center/plc-allen-bradley-controllogix.html,https://pishtaj.ir/knowledge-center/plc-allen-bradley-controllogix.html,knowledge-center,کنترلر PLC Allen Bradley ControlLogix | پیشرو تجهیز فرتاک,1731,122,0.088,1
+knowledge-center/shell-seat-closure.html,https://pishtaj.ir/knowledge-center/shell-seat-closure.html,knowledge-center,تست شیرآلات | پیشرو تجهیز فرتاک,1745,123,0.088,2
+knowledge-center/en-10204-certificate-guide.html,https://pishtaj.ir/knowledge-center/en-10204-certificate-guide.html,knowledge-center,راهنمای کامل EN 10204؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1608,124,0.097,5
+knowledge-center/pneumatic-actuator-rack-pinion.html,https://pishtaj.ir/knowledge-center/pneumatic-actuator-rack-pinion.html,knowledge-center,محرک پنوماتیک (Pneumatic Actuator) | پیشرو تجهیز فرتاک,1748,124,0.089,3
+knowledge-center/stainless-steel.html,https://pishtaj.ir/knowledge-center/stainless-steel.html,knowledge-center,شیر Stainless Steel | پیشرو تجهیز فرتاک,1752,125,0.089,6
+knowledge-center/astm-a213.html,https://pishtaj.ir/knowledge-center/astm-a213.html,knowledge-center,لوله ASTM A213 | پیشرو تجهیز فرتاک,1738,126,0.09,10
+knowledge-center/dcs-distributed-control-system.html,https://pishtaj.ir/knowledge-center/dcs-distributed-control-system.html,knowledge-center,راهنمای سیستم DCS (Distributed Control System),1744,126,0.09,2
+knowledge-center/plug-valve-lubricated-non-lubricated.html,https://pishtaj.ir/knowledge-center/plug-valve-lubricated-non-lubricated.html,knowledge-center,راهنمای Plug Valve | پیشرو تجهیز فرتاک,1740,126,0.09,3
+knowledge-center/astm-a209.html,https://pishtaj.ir/knowledge-center/astm-a209.html,knowledge-center,راهنمای لوله ASTM A209 | پیشرو تجهیز فرتاک,1738,127,0.091,10
+knowledge-center/gearbox-handwheel-worm-gear.html,https://pishtaj.ir/knowledge-center/gearbox-handwheel-worm-gear.html,knowledge-center,راهنمای Gearbox شیرآلات | پیشرو تجهیز فرتاک,1746,127,0.091,2
+knowledge-center/thermal-mass-flowmeter.html,https://pishtaj.ir/knowledge-center/thermal-mass-flowmeter.html,knowledge-center,فلومتر حرارتی (Thermal Mass Flowmeter) | پیشرو تجهیز فرتاک,1752,127,0.091,4
+knowledge-center/ansi-ieee-c37.html,https://pishtaj.ir/knowledge-center/ansi-ieee-c37.html,knowledge-center,رله حفاظتی | پیشرو تجهیز فرتاک,1728,128,0.092,2
+knowledge-center/rosemount-644.html,https://pishtaj.ir/knowledge-center/rosemount-644.html,knowledge-center,ترانسمیتر دما Rosemount 644 | پیشرو تجهیز فرتاک,1757,128,0.091,2
+knowledge-center/nozzle-check-valve.html,https://pishtaj.ir/knowledge-center/nozzle-check-valve.html,knowledge-center,شیر Nozzle Check Valve | پیشرو تجهیز فرتاک,1752,129,0.092,7
+knowledge-center/api-5l-x52.html,https://pishtaj.ir/knowledge-center/api-5l-x52.html,knowledge-center,API 5L X52 مشخصات کامل خطوط انتقال | پیشرو تجهیز فرتاک,1662,130,0.097,5
+knowledge-center/check-valve-swing-lift-dual-plate.html,https://pishtaj.ir/knowledge-center/check-valve-swing-lift-dual-plate.html,knowledge-center,مقایسه شیر Check Valve | پیشرو تجهیز فرتاک,1753,130,0.093,5
+knowledge-center/class-i-class-vi.html,https://pishtaj.ir/knowledge-center/class-i-class-vi.html,knowledge-center,مقایسه نرخ نشتی شیرآلات | پیشرو تجهیز فرتاک,1754,131,0.093,2
+knowledge-center/phase-control-relay.html,https://pishtaj.ir/knowledge-center/phase-control-relay.html,knowledge-center,رله کنترل فاز (Phase Control Relay) | پیشرو تجهیز فرتاک,1760,131,0.094,1
+knowledge-center/api-600.html,https://pishtaj.ir/knowledge-center/api-600.html,knowledge-center,راهنمای شیر دروازه‌ای API 600 | پیشرو تجهیز فرتاک,1741,133,0.094,3
+knowledge-center/yokogawa-eja.html,https://pishtaj.ir/knowledge-center/yokogawa-eja.html,knowledge-center,ترانسمیتر فشار Yokogawa EJA | پیشرو تجهیز فرتاک,1758,136,0.096,1
+knowledge-center/psv-prv-api-520-api-526.html,https://pishtaj.ir/knowledge-center/psv-prv-api-520-api-526.html,knowledge-center,شیر اطمینان PSV/PRV | پیشرو تجهیز فرتاک,1752,137,0.097,4
+knowledge-center/rosemount-3051.html,https://pishtaj.ir/knowledge-center/rosemount-3051.html,knowledge-center,ترانسمیتر فشار Rosemount 3051؛ مشخصات فنی و نصب | پیشرو تجهیز فرتاک,1768,137,0.097,4
+knowledge-center/api-5l-psl2-psl1.html,https://pishtaj.ir/knowledge-center/api-5l-psl2-psl1.html,knowledge-center,لوله API 5L PSL2 | پیشرو تجهیز فرتاک,1765,138,0.098,5
+knowledge-center/soft-starter.html,https://pishtaj.ir/knowledge-center/soft-starter.html,knowledge-center,سافت استارتر (Soft Starter) | پیشرو تجهیز فرتاک,1769,138,0.098,1
+knowledge-center/api-5l-x70.html,https://pishtaj.ir/knowledge-center/api-5l-x70.html,knowledge-center,لوله API 5L X70 | پیشرو تجهیز فرتاک,1742,139,0.099,3
+knowledge-center/high-temperature.html,https://pishtaj.ir/knowledge-center/high-temperature.html,knowledge-center,انتخاب شیر برای دمای بالا (High Temperature) | پیشرو تجهیز فرتاک,1755,139,0.099,2
+knowledge-center/vcb.html,https://pishtaj.ir/knowledge-center/vcb.html,knowledge-center,کلید وکیوم (VCB) | پیشرو تجهیز فرتاک,1774,142,0.101,3
+knowledge-center/vfd.html,https://pishtaj.ir/knowledge-center/vfd.html,knowledge-center,درایو فرکانس متغیر VFD | پیشرو تجهیز فرتاک,1767,145,0.102,3
+knowledge-center/nace-mr0175.html,https://pishtaj.ir/knowledge-center/nace-mr0175.html,knowledge-center,استاندارد NACE MR0175 در لوله و فلنج | پیشرو تجهیز فرتاک,1772,146,0.103,3
+knowledge-center/butterfly-valve-api-609-concentric-offset.html,https://pishtaj.ir/knowledge-center/butterfly-valve-api-609-concentric-offset.html,knowledge-center,Butterfly Valve API 609 | پیشرو تجهیز فرتاک,1769,151,0.106,2
+knowledge-center/astm-a106-a53.html,https://pishtaj.ir/knowledge-center/astm-a106-a53.html,knowledge-center,مقایسه ASTM A106 و A53 | پیشرو تجهیز فرتاک,1769,153,0.107,3
+knowledge-center/globe-gate-valve.html,https://pishtaj.ir/knowledge-center/globe-gate-valve.html,knowledge-center,مقایسه Globe و Gate Valve | پیشرو تجهیز فرتاک,1780,153,0.108,6
+knowledge-center/ball-valve-api-6d.html,https://pishtaj.ir/knowledge-center/ball-valve-api-6d.html,knowledge-center,Ball Valve API 6D | پیشرو تجهیز فرتاک,1777,155,0.109,3
+knowledge-center/knife-gate-valve.html,https://pishtaj.ir/knowledge-center/knife-gate-valve.html,knowledge-center,Knife Gate Valve | پیشرو تجهیز فرتاک,1769,156,0.11,1
+knowledge-center/vortex-flowmeter.html,https://pishtaj.ir/knowledge-center/vortex-flowmeter.html,knowledge-center,فلومتر ورتکس (Vortex Flowmeter) | پیشرو تجهیز فرتاک,1802,166,0.115,2
+about/certificates/index.html,https://pishtaj.ir/about/certificates/index.html,about,گواهینامه‌های ISO و مدیریت کیفیت | پیشرو تجهیز فرتاک,307,167,0.557,4
+knowledge-center/temperature-transmitter-guide.html,https://pishtaj.ir/knowledge-center/temperature-transmitter-guide.html,knowledge-center,راهنمای ترانسمیتر دما | پیشرو تجهیز فرتاک,1652,170,0.129,5
+knowledge-center/electric-actuator.html,https://pishtaj.ir/knowledge-center/electric-actuator.html,knowledge-center,محرک الکتریکی (Electric Actuator) شیرآلات | پیشرو تجهیز فرتاک,1796,173,0.12,2
+knowledge-center/a106-gr-b.html,https://pishtaj.ir/knowledge-center/a106-gr-b.html,knowledge-center,راهنمای کامل لوله A106 Gr.B؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1810,175,0.121,7
+knowledge-center/ndt-inspection-industrial-guide.html,https://pishtaj.ir/knowledge-center/ndt-inspection-industrial-guide.html,knowledge-center,راهنمای تست‌های NDT در بازرسی صنعتی | پیشرو تجهیز فرتاک,1662,175,0.132,5
+knowledge-center/tilting-disc-check-valve.html,https://pishtaj.ir/knowledge-center/tilting-disc-check-valve.html,knowledge-center,راهنمای شیر Tilting Disc Check Valve | پیشرو تجهیز فرتاک,1801,176,0.122,2
+knowledge-center/dual-plate-check-valve.html,https://pishtaj.ir/knowledge-center/dual-plate-check-valve.html,knowledge-center,راهنمای شیرهای Dual Plate Check Valve | پیشرو تجهیز فرتاک,1805,180,0.124,3
+knowledge-center/globe-angle-valve.html,https://pishtaj.ir/knowledge-center/globe-angle-valve.html,knowledge-center,مقایسه شیر Globe و Angle Valve | پیشرو تجهیز فرتاک,1807,180,0.124,4
+knowledge-center/api-5l-x65.html,https://pishtaj.ir/knowledge-center/api-5l-x65.html,knowledge-center,لوله API 5L X65 | پیشرو تجهیز فرتاک,1796,182,0.125,4
+knowledge-center/magmeter.html,https://pishtaj.ir/knowledge-center/magmeter.html,knowledge-center,فلومتر مغناطیسی (Magmeter) | پیشرو تجهیز فرتاک,1819,184,0.127,3
+knowledge-center/a106-api-5l.html,https://pishtaj.ir/knowledge-center/a106-api-5l.html,knowledge-center,مقایسه لوله A106 و API 5L | پیشرو تجهیز فرتاک,1805,186,0.128,11
+knowledge-center/mcc-panel-guide.html,https://pishtaj.ir/knowledge-center/mcc-panel-guide.html,knowledge-center,راهنمای تابلو برق MCC | پیشرو تجهیز فرتاک,1663,186,0.14,1
+blog/index.html,https://pishtaj.ir/blog/index.html,blog,وبلاگ و مرکز مقالات تخصصی تجهیزات صنعتی | پیشرو تجهیز فرتاک,369,187,0.584,572
+en/services.html,https://pishtaj.ir/en/services.html,en,Industrial Equipment Supply &amp; Procurement Services | Pishro Tajhiz Fartak,187,193,0.98,4
+services/procurement-logistics.html,https://pishtaj.ir/services/procurement-logistics.html,services,خدمات تامین، لجستیک و مدیریت زنجیره تامین صنعتی | پیشرو تجهیز فرتاک,359,195,0.589,7
+knowledge-center/check-valve-complete-guide.html,https://pishtaj.ir/knowledge-center/check-valve-complete-guide.html,knowledge-center,راهنمای جامع Check Valve (شیر یک‌طرفه) | پیشرو تجهیز فرتاک,1706,198,0.147,6
+catalog/index.html,https://pishtaj.ir/catalog/index.html,catalog,مرکز دانلود کاتالوگ و مستندات فنی | پیشرو تجهیز فرتاک,358,199,0.599,565
+knowledge-center/mccb-circuit-breaker-guide.html,https://pishtaj.ir/knowledge-center/mccb-circuit-breaker-guide.html,knowledge-center,راهنمای کلید کامپکت MCCB | پیشرو تجهیز فرتاک,1699,203,0.151,3
+knowledge-center/level-measurement-guide.html,https://pishtaj.ir/knowledge-center/level-measurement-guide.html,knowledge-center,راهنمای سطح سنج (Level Measurement) | پیشرو تجهیز فرتاک,1695,204,0.151,3
+knowledge-center/a106-pipe-procurement-guide.html,https://pishtaj.ir/knowledge-center/a106-pipe-procurement-guide.html,knowledge-center,راهنمای خرید و قیمت لوله A106 Gr.B | پیشرو تجهیز فرتاک,1690,205,0.153,5
+logistics/index.html,https://pishtaj.ir/logistics/index.html,logistics,لجستیک، تامین و انبارداری صنعتی | پیشرو تجهیز فرتاک,388,205,0.607,1
+services/instrumentation-supply.html,https://pishtaj.ir/services/instrumentation-supply.html,services,تامین تجهیزات ابزار دقیق | پیشرو تجهیز فرتاک,368,205,0.599,17
+knowledge-center/gasket-types-guide.html,https://pishtaj.ir/knowledge-center/gasket-types-guide.html,knowledge-center,راهنمای انواع گسکت صنعتی | پیشرو تجهیز فرتاک,1705,206,0.152,5
+knowledge-center/hart-protocol-complete-guide.html,https://pishtaj.ir/knowledge-center/hart-protocol-complete-guide.html,knowledge-center,راهنمای کامل پروتکل HART در ابزار دقیق صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1705,215,0.158,2
+services/electrical-supply.html,https://pishtaj.ir/services/electrical-supply.html,services,تامین تجهیزات برق صنعتی | پیشرو تجهیز فرتاک,373,215,0.611,46
+knowledge-center/acb-circuit-breaker-guide.html,https://pishtaj.ir/knowledge-center/acb-circuit-breaker-guide.html,knowledge-center,راهنمای کلید هوایی ACB (Air Circuit Breaker) | پیشرو تجهیز فرتاک,1727,219,0.161,4
+services/transmitters-guide/index.html,https://pishtaj.ir/services/transmitters-guide/index.html,services,راهنمای جامع ترانسمیترهای صنعتی | انواع و انتخاب,378,220,0.623,1
+services/inspection-quality.html,https://pishtaj.ir/services/inspection-quality.html,services,خدمات بازرسی فنی و تضمین کیفیت | پیشرو تجهیز فرتاک,396,222,0.595,1
+en/index.html,https://pishtaj.ir/en/index.html,en,Industrial Equipment Supplier in Iran &amp; the Middle East | Pishro Tajhiz Fartak (PTF),220,223,0.982,562
+about/why-ptf/index.html,https://pishtaj.ir/about/why-ptf/index.html,about,چرا پیشرو تجهیز فرتاک؟ | سابقه، اعتبار و مسیر رشد شرکت,391,224,0.627,1
+knowledge-center/globe-valve-complete-guide.html,https://pishtaj.ir/knowledge-center/globe-valve-complete-guide.html,knowledge-center,راهنمای جامع Globe Valve (شیر کروی) | پیشرو تجهیز فرتاک,1716,224,0.164,8
+knowledge-center/butterfly-valve-complete-guide.html,https://pishtaj.ir/knowledge-center/butterfly-valve-complete-guide.html,knowledge-center,راهنمای جامع Butterfly Valve (شیر پروانه‌ای) | پیشرو تجهیز فرتاک,1727,227,0.165,4
+knowledge-center/asme-b36-10-pipe-dimensions.html,https://pishtaj.ir/knowledge-center/asme-b36-10-pipe-dimensions.html,knowledge-center,استاندارد ASME B36.10 | پیشرو تجهیز فرتاک,1685,229,0.167,3
+supplier/index.html,https://pishtaj.ir/supplier/index.html,supplier,ثبت‌نام تامین‌کنندگان تجهیزات صنعتی | پیشرو تجهیز فرتاک,414,232,0.636,536
+knowledge-center/api-600-gate-valve-standard.html,https://pishtaj.ir/knowledge-center/api-600-gate-valve-standard.html,knowledge-center,استاندارد API 600 | پیشرو تجهیز فرتاک,1709,233,0.17,7
+knowledge-center/pipe-fittings-guide.html,https://pishtaj.ir/knowledge-center/pipe-fittings-guide.html,knowledge-center,راهنمای اتصالات فیتینگ پایپینگ | پیشرو تجهیز فرتاک,1730,237,0.171,5
+knowledge-center/oil-gas-industry-supply-guide.html,https://pishtaj.ir/knowledge-center/oil-gas-industry-supply-guide.html,knowledge-center,راهنمای تامین تجهیزات صنایع نفت و گاز | پیشرو تجهیز فرتاک,1731,240,0.173,9
+knowledge-center/wn-vs-so-flange-comparison.html,https://pishtaj.ir/knowledge-center/wn-vs-so-flange-comparison.html,knowledge-center,مقایسه فلنج گلودار (WN) و اسلیپ‌آن (SO) | پیشرو تجهیز فرتاک,1762,241,0.174,6
+en/about.html,https://pishtaj.ir/en/about.html,en,About Us — Industrial Equipment Supplier | Pishro Tajhiz Fartak,236,242,0.984,4
+tracking/index.html,https://pishtaj.ir/tracking/index.html,tracking,رهگیری آنلاین استعلام و پیش‌فاکتور | پیشرو تجهیز فرتاک,402,242,0.645,562
+knowledge-center/api-5l-pipe-guide.html,https://pishtaj.ir/knowledge-center/api-5l-pipe-guide.html,knowledge-center,مشخصات فنی لوله API 5L | پیشرو تجهیز فرتاک,1715,243,0.176,12
+comparisons/index.html,https://pishtaj.ir/comparisons/index.html,comparisons,مرجع مقایسه‌های فنی تجهیزات صنعتی | پیشرو تجهیز فرتاک,315,244,0.957,14
+knowledge-center/api-6d-ball-valve-standard.html,https://pishtaj.ir/knowledge-center/api-6d-ball-valve-standard.html,knowledge-center,استاندارد API 6D | پیشرو تجهیز فرتاک,1710,244,0.178,4
+knowledge-center/ball-vs-gate-valve-comparison.html,https://pishtaj.ir/knowledge-center/ball-vs-gate-valve-comparison.html,knowledge-center,مقایسه Ball Valve و Gate Valve | پیشرو تجهیز فرتاک,1733,245,0.176,8
+knowledge-center/gate-valve-complete-guide.html,https://pishtaj.ir/knowledge-center/gate-valve-complete-guide.html,knowledge-center,راهنمای جامع Gate Valve (شیر دروازه‌ای) | پیشرو تجهیز فرتاک,1763,246,0.177,8
+rfq/index.html,https://pishtaj.ir/rfq/index.html,rfq,استعلام قیمت تجهیزات صنعتی (RFQ) | پیشرو تجهیز فرتاک,406,246,0.649,655
+knowledge-center/flowmeter-types-guide.html,https://pishtaj.ir/knowledge-center/flowmeter-types-guide.html,knowledge-center,راهنمای فلومتر صنعتی | پیشرو تجهیز فرتاک,1752,249,0.178,8
+knowledge-center/seamless-vs-erw-pipe-difference.html,https://pishtaj.ir/knowledge-center/seamless-vs-erw-pipe-difference.html,knowledge-center,تفاوت لوله مانیسمان و لوله درزدار (ERW) | پیشرو تجهیز فرتاک,1753,255,0.183,6
+about/logo-philosophy/index.html,https://pishtaj.ir/about/logo-philosophy/index.html,about,فلسفه طراحی لوگوی شرکت پیشرو تجهیز فرتاک | پیشرو تجهیز فرتاک,483,271,0.671,3
+knowledge-center/differential-pressure-transmitter-guide.html,https://pishtaj.ir/knowledge-center/differential-pressure-transmitter-guide.html,knowledge-center,راهنمای ترانسمیتر اختلاف فشار (DPT) | پیشرو تجهیز فرتاک,1779,271,0.191,5
+services/valves-supply.html,https://pishtaj.ir/services/valves-supply.html,services,تامین شیرآلات صنعتی | پیشرو تجهیز فرتاک,472,289,0.68,72
+services/index.html,https://pishtaj.ir/services/index.html,services,خدمات تخصصی تامین تجهیزات صنعتی | پیشرو تجهیز فرتاک,438,296,0.688,629
+knowledge-center/flange-material-selection-guide.html,https://pishtaj.ir/knowledge-center/flange-material-selection-guide.html,knowledge-center,راهنمای جنس و متریال فلنج صنعتی بر اساس کلاس فشار و سیال,1802,297,0.207,3
+knowledge-center/seamless-pipe-complete-guide.html,https://pishtaj.ir/knowledge-center/seamless-pipe-complete-guide.html,knowledge-center,راهنمای جامع لوله مانیسمان (بدون درز) | پیشرو تجهیز فرتاک,1816,312,0.215,4
+en/projects.html,https://pishtaj.ir/en/projects.html,en,Industrial Projects &amp; Case Studies | Pishro Tajhiz Fartak,301,314,0.987,4
+services/piping-supply.html,https://pishtaj.ir/services/piping-supply.html,services,تامین تجهیزات پایپینگ | پیشرو تجهیز فرتاک,532,336,0.703,24
+suppliers/index.html,https://pishtaj.ir/suppliers/index.html,suppliers,تامین‌کننده تجهیزات صنعتی نفت، گاز و پتروشیمی | پیشرو تجهیز فرتاک,466,338,0.782,539
+industries/index.html,https://pishtaj.ir/industries/index.html,industries,صنایع هدف | تامین تجهیزات نفت، گاز، پتروشیمی، فولاد، نیروگاه,592,373,0.737,570
+about/company-profile/index.html,https://pishtaj.ir/about/company-profile/index.html,about,پروفایل رسمی شرکت پیشرو تجهیز فرتاک | شناسه، تماس و اعتبار صنعتی,471,384,0.97,22
+blog/a106-vs-a333-pipes.html,https://pishtaj.ir/blog/a106-vs-a333-pipes.html,blog,مقایسه کامل لوله A106 در مقابل A333 | راهنمای تخصصی پایپینگ,1171,386,0.391,6
+about/index.html,https://pishtaj.ir/about/index.html,about,درباره ما و ساختار سازمانی | پیشرو تجهیز فرتاک,602,399,0.753,54
+about/management-message/index.html,https://pishtaj.ir/about/management-message/index.html,about,پیام مدیریت | پیشرو تجهیز فرتاک,610,400,0.75,2
+blog/mtc-tpi-inspection-guide.html,https://pishtaj.ir/blog/mtc-tpi-inspection-guide.html,blog,راهنمای گواهی MTC و بازرسی TPI | پیشرو تجهیز فرتاک,1264,409,0.397,4
+services/valves-guide/index.html,https://pishtaj.ir/services/valves-guide/index.html,services,راهنمای جامع شیرآلات صنعتی (Valves) | انواع و استانداردها,606,417,0.758,69
+knowledge-center/industrial-valve-standards-guide.html,https://pishtaj.ir/knowledge-center/industrial-valve-standards-guide.html,knowledge-center,استانداردهای شیرآلات صنعتی؛ API 600، ASME B16.34 و ISO 5208 | پیشرو تجهیز فرتاک,558,420,0.794,16
+suppliers/fittings-supplier.html,https://pishtaj.ir/suppliers/fittings-supplier.html,suppliers,تامین‌کننده اتصالات صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,592,448,0.844,2
+suppliers/vcb-supplier.html,https://pishtaj.ir/suppliers/vcb-supplier.html,suppliers,تامین‌کننده وکیوم سیرکت بریکر VCB؛ قیمت و استعلام | پیشرو تجهیز فرتاک,621,453,0.845,3
+blog/ball-valve-selection-guide.html,https://pishtaj.ir/blog/ball-valve-selection-guide.html,blog,راهنمای انتخاب شیر توپی (Ball Valve) | پیشرو تجهیز فرتاک,1302,454,0.425,1
+blog/rfq-procurement-guide.html,https://pishtaj.ir/blog/rfq-procurement-guide.html,blog,راهنمای کامل استعلام بهاء (RFQ) در صنایع نفت، گاز و پتروشیمی,1334,456,0.424,2
+brands/index.html,https://pishtaj.ir/brands/index.html,brands,جستجوی برندهای قابل سورسینگ تجهیزات صنعتی | پیشرو تجهیز فرتاک,567,461,0.998,22
+suppliers/gasket-supplier.html,https://pishtaj.ir/suppliers/gasket-supplier.html,suppliers,تامین‌کننده گسکت صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,606,462,0.848,2
+about/organizational-chart/index.html,https://pishtaj.ir/about/organizational-chart/index.html,about,چارت سازمانی | پیشرو تجهیز فرتاک,687,465,0.778,2
+blog/seamless-pipe-guide.html,https://pishtaj.ir/blog/seamless-pipe-guide.html,blog,راهنمای کامل لوله مانیسمان (بدون درز) | پیشرو تجهیز فرتاک,1312,465,0.431,3
+blog/electrical-switchgear-guide.html,https://pishtaj.ir/blog/electrical-switchgear-guide.html,blog,راهنمای تجهیزات برق صنعتی و سوئیچگیر | پیشرو تجهیز فرتاک,1337,482,0.439,4
+suppliers/petrochemical-valve-supplier.html,https://pishtaj.ir/suppliers/petrochemical-valve-supplier.html,suppliers,تامین‌کننده شیرآلات پتروشیمی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,636,482,0.853,2
+tools/control-valve-sizing/index.html,https://pishtaj.ir/tools/control-valve-sizing/index.html,tools,سایزینگ کنترل ولو | محاسبه Cv و Kv آنلاین | پیشرو تجهیز فرتاک,615,486,0.984,8
+knowledge-center/rosemount-pressure-transmitter-family.html,https://pishtaj.ir/knowledge-center/rosemount-pressure-transmitter-family.html,knowledge-center,ترانسمیتر فشار روزمونت؛ خانواده‌ی 3051 و 2088 و راهنمای انتخاب | پیشرو تجهیز فرتاک,706,488,0.817,3
+suppliers/pipe-supplier.html,https://pishtaj.ir/suppliers/pipe-supplier.html,suppliers,تامین‌کننده لوله صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,642,495,0.856,2
+blog/industrial-valves-complete-guide.html,https://pishtaj.ir/blog/industrial-valves-complete-guide.html,blog,راهنمای کامل شیرآلات صنعتی (Industrial Valves),1347,496,0.446,6
+knowledge-center/nioc-npc-vendor-list-guide.html,https://pishtaj.ir/knowledge-center/nioc-npc-vendor-list-guide.html,knowledge-center,راهنمای وندورلیست NIOC و NPC در پروژه‌های نفتی,1643,520,0.403,4
+knowledge-center/flange-arak-guide.html,https://pishtaj.ir/knowledge-center/flange-arak-guide.html,knowledge-center,فلنج اراک؛ راهنمای خرید، استانداردها و راستی‌آزمایی کیفیت | پیشرو تجهیز فرتاک,720,527,0.829,4
+suppliers/flange-supplier.html,https://pishtaj.ir/suppliers/flange-supplier.html,suppliers,تامین‌کننده فلنج صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,699,534,0.865,4
+blog/flange-types-guide.html,https://pishtaj.ir/blog/flange-types-guide.html,blog,راهنمای جامع انواع فلنج صنعتی | پیشرو تجهیز فرتاک,1428,544,0.47,5
+blog/rfq-industrial-equipment/index.html,https://pishtaj.ir/blog/rfq-industrial-equipment/index.html,blog,راهنمای ارسال RFQ تجهیزات صنعتی | پیشرو تجهیز فرتاک,827,552,0.784,9
+suppliers/petrochemical-equipment-supplier.html,https://pishtaj.ir/suppliers/petrochemical-equipment-supplier.html,suppliers,تامین‌کننده تجهیزات پتروشیمی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,744,556,0.859,62
+knowledge-center/flange-types-complete-guide.html,https://pishtaj.ir/knowledge-center/flange-types-complete-guide.html,knowledge-center,انواع فلنج صنعتی: WN، SO، Blind و SW | پیشرو تجهیز فرتاک,1688,557,0.423,8
+suppliers/instrumentation-supplier.html,https://pishtaj.ir/suppliers/instrumentation-supplier.html,suppliers,تامین‌کننده تجهیزات ابزار دقیق؛ قیمت و استعلام | پیشرو تجهیز فرتاک,742,570,0.878,92
+knowledge-center/ip-rating-industrial-equipment-guide.html,https://pishtaj.ir/knowledge-center/ip-rating-industrial-equipment-guide.html,knowledge-center,راهنمای استاندارد IP در تجهیزات صنعتی | پیشرو تجهیز فرتاک,1735,573,0.426,2
+knowledge-center/atex-iecex-hazardous-area-guide.html,https://pishtaj.ir/knowledge-center/atex-iecex-hazardous-area-guide.html,knowledge-center,راهنمای استاندارد ATEX و IECEx برای مناطق خطرناک,1745,574,0.426,6
+knowledge-center/shutdown-turnaround-industrial-guide.html,https://pishtaj.ir/knowledge-center/shutdown-turnaround-industrial-guide.html,knowledge-center,راهنمای تجهیزات Shutdown و اورهال صنعتی | پیشرو تجهیز فرتاک,1735,574,0.426,6
+blog/piping-equipment-procurement/index.html,https://pishtaj.ir/blog/piping-equipment-procurement/index.html,blog,راهنمای تامین تجهیزات پایپینگ در پروژه‌های نفت و گاز,902,575,0.792,1
+knowledge-center/pmi-testing-guide.html,https://pishtaj.ir/knowledge-center/pmi-testing-guide.html,knowledge-center,راهنمای تست PMI در بازرسی تجهیزات صنعتی | پیشرو تجهیز فرتاک,1740,575,0.427,3
+knowledge-center/third-party-inspection-guide.html,https://pishtaj.ir/knowledge-center/third-party-inspection-guide.html,knowledge-center,راهنمای بازرسی شخص ثالث (TPI) در صنعت | پیشرو تجهیز فرتاک,1740,575,0.427,7
+knowledge-center/a53-pipe-specifications.html,https://pishtaj.ir/knowledge-center/a53-pipe-specifications.html,knowledge-center,مشخصات فنی لوله ASTM A53 Gr.B | پیشرو تجهیز فرتاک,1675,576,0.435,3
+knowledge-center/thermowell-guide.html,https://pishtaj.ir/knowledge-center/thermowell-guide.html,knowledge-center,راهنمای ترموول (Thermowell) در ابزار دقیق | پیشرو تجهیز فرتاک,1745,583,0.43,2
+knowledge-center/industrial-grounding-guide.html,https://pishtaj.ir/knowledge-center/industrial-grounding-guide.html,knowledge-center,راهنمای سیستم اتصال زمین (Grounding) صنعتی | پیشرو تجهیز فرتاک,1735,584,0.434,5
+knowledge-center/scada-rtu-system-guide.html,https://pishtaj.ir/knowledge-center/scada-rtu-system-guide.html,knowledge-center,راهنمای سیستم SCADA و RTU در اتوماسیون صنعتی | پیشرو تجهیز فرتاک,1755,584,0.43,4
+knowledge-center/sil-certification-instrument-guide.html,https://pishtaj.ir/knowledge-center/sil-certification-instrument-guide.html,knowledge-center,راهنمای گواهی SIL در ابزار دقیق صنعتی | پیشرو تجهیز فرتاک,1750,584,0.43,4
+blog/pumps-procurement-guide/index.html,https://pishtaj.ir/blog/pumps-procurement-guide/index.html,blog,راهنمای تامین پمپ صنعتی و قطعات یدکی | پیشرو تجهیز فرتاک,874,588,0.801,2
+suppliers/electrical-supplier.html,https://pishtaj.ir/suppliers/electrical-supplier.html,suppliers,تامین‌کننده تجهیزات برق صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,773,592,0.877,26
+knowledge-center/astm-piping-standards-guide.html,https://pishtaj.ir/knowledge-center/astm-piping-standards-guide.html,knowledge-center,راهنمای استانداردهای ASTM در پایپینگ | پیشرو تجهیز فرتاک,1743,594,0.438,3
+knowledge-center/industrial-cable-selection-guide.html,https://pishtaj.ir/knowledge-center/industrial-cable-selection-guide.html,knowledge-center,راهنمای انتخاب کابل صنعتی (Power Cable) | پیشرو تجهیز فرتاک,1745,594,0.438,7
+knowledge-center/protective-relay-guide.html,https://pishtaj.ir/knowledge-center/protective-relay-guide.html,knowledge-center,راهنمای رله‌های حفاظتی در تابلو برق صنعتی | پیشرو تجهیز فرتاک,1750,594,0.438,4
+knowledge-center/ups-industrial-guide.html,https://pishtaj.ir/knowledge-center/ups-industrial-guide.html,knowledge-center,راهنمای UPS صنعتی | پیشرو تجهیز فرتاک,1746,595,0.438,3
+knowledge-center/valve-seat-material-guide.html,https://pishtaj.ir/knowledge-center/valve-seat-material-guide.html,knowledge-center,راهنمای مواد نشیمنگاه (Seat) در شیرآلات صنعتی | پیشرو تجهیز فرتاک,1747,595,0.438,6
+knowledge-center/hydrostatic-level-transmitter.html,https://pishtaj.ir/knowledge-center/hydrostatic-level-transmitter.html,knowledge-center,راهنمای ترانسمیتر سطح هیدرواستاتیک صنعتی | پیشرو تجهیز فرتاک,1742,596,0.439,4
+knowledge-center/instrument-calibration-standards.html,https://pishtaj.ir/knowledge-center/instrument-calibration-standards.html,knowledge-center,راهنمای استانداردهای کالیبراسیون ابزار دقیق | پیشرو تجهیز فرتاک,1742,596,0.439,3
+knowledge-center/diaphragm-seal-guide.html,https://pishtaj.ir/knowledge-center/diaphragm-seal-guide.html,knowledge-center,راهنمای سیل جداکننده (Diaphragm Seal) در ابزار دقیق,1758,597,0.439,3
+knowledge-center/plc-types-industrial-guide.html,https://pishtaj.ir/knowledge-center/plc-types-industrial-guide.html,knowledge-center,راهنمای انواع PLC صنعتی | پیشرو تجهیز فرتاک,1751,597,0.439,4
+knowledge-center/gas-analyzer-industry-guide.html,https://pishtaj.ir/knowledge-center/gas-analyzer-industry-guide.html,knowledge-center,راهنمای آنالایزر گاز صنعتی | پیشرو تجهیز فرتاک,1741,599,0.44,6
+knowledge-center/hart-calibration-training.html,https://pishtaj.ir/knowledge-center/hart-calibration-training.html,knowledge-center,آموزش کالیبراسیون HART در ابزار دقیق صنعتی | پیشرو تجهیز فرتاک,1752,599,0.44,6
+knowledge-center/pressure-gauge-complete-guide.html,https://pishtaj.ir/knowledge-center/pressure-gauge-complete-guide.html,knowledge-center,راهنمای کامل گیج فشار صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1754,599,0.44,5
+knowledge-center/rtd-vs-thermocouple-comparison.html,https://pishtaj.ir/knowledge-center/rtd-vs-thermocouple-comparison.html,knowledge-center,مقایسه سنسور دما RTD و Thermocouple صنعتی | پیشرو تجهیز فرتاک,1752,599,0.44,4
+knowledge-center/hydrostatic-test-pipe-guide.html,https://pishtaj.ir/knowledge-center/hydrostatic-test-pipe-guide.html,knowledge-center,راهنمای تست هیدرواستاتیک لوله | پیشرو تجهیز فرتاک,1743,603,0.444,3
+knowledge-center/soft-starter-guide.html,https://pishtaj.ir/knowledge-center/soft-starter-guide.html,knowledge-center,راهنمای سافت استارتر در کنترل موتورهای صنعتی | پیشرو تجهیز فرتاک,1773,604,0.439,3
+knowledge-center/stainless-steel-pipe-guide.html,https://pishtaj.ir/knowledge-center/stainless-steel-pipe-guide.html,knowledge-center,راهنمای لوله استینلس استیل (Stainless Steel Pipe),1754,604,0.444,9
+blog/instrumentation-checklist/index.html,https://pishtaj.ir/blog/instrumentation-checklist/index.html,blog,چک‌لیست خرید تجهیزات ابزار دقیق | پیشرو تجهیز فرتاک,884,605,0.806,2
+knowledge-center/asme-b31-3-process-piping-guide.html,https://pishtaj.ir/knowledge-center/asme-b31-3-process-piping-guide.html,knowledge-center,راهنمای استاندارد ASME B31.3 | پیشرو تجهیز فرتاک,1746,605,0.445,5
+blog/flanges-fittings-gaskets/index.html,https://pishtaj.ir/blog/flanges-fittings-gaskets/index.html,blog,نکات مهم خرید فلنج، فیتینگ و گسکت صنعتی | پیشرو تجهیز فرتاک,922,607,0.807,3
+knowledge-center/nace-mr0175-sour-service-guide.html,https://pishtaj.ir/knowledge-center/nace-mr0175-sour-service-guide.html,knowledge-center,راهنمای استاندارد NACE MR0175 | پیشرو تجهیز فرتاک,1776,612,0.443,9
+blog/petrochemical-supply-chain/index.html,https://pishtaj.ir/blog/petrochemical-supply-chain/index.html,blog,مدیریت زنجیره تامین تجهیزات پتروشیمی | پیشرو تجهیز فرتاک,892,618,0.809,3
+knowledge-center/quality-assurance-supply-guide.html,https://pishtaj.ir/knowledge-center/quality-assurance-supply-guide.html,knowledge-center,راهنمای تضمین کیفیت در تامین تجهیزات صنعتی | پیشرو تجهیز فرتاک,1780,619,0.446,3
+knowledge-center/incoterms-industrial-trade-guide.html,https://pishtaj.ir/knowledge-center/incoterms-industrial-trade-guide.html,knowledge-center,راهنمای Incoterms 2024 در تجارت بین‌المللی صنعتی,1778,620,0.446,3
+knowledge-center/international-supply-contract-guide.html,https://pishtaj.ir/knowledge-center/international-supply-contract-guide.html,knowledge-center,راهنمای قراردادهای تامین بین‌المللی صنعتی | پیشرو تجهیز فرتاک,1776,620,0.447,3
+knowledge-center/industrial-customs-clearance-guide.html,https://pishtaj.ir/knowledge-center/industrial-customs-clearance-guide.html,knowledge-center,راهنمای ترخیص گمرکی کالاهای صنعتی | پیشرو تجهیز فرتاک,1780,621,0.447,4
+knowledge-center/steel-industry-supply-guide.html,https://pishtaj.ir/knowledge-center/steel-industry-supply-guide.html,knowledge-center,راهنمای تامین تجهیزات صنایع فولاد | پیشرو تجهیز فرتاک,1780,621,0.447,9
+knowledge-center/epc-supply-chain-management-guide.html,https://pishtaj.ir/knowledge-center/epc-supply-chain-management-guide.html,knowledge-center,راهنمای مدیریت زنجیره تامین در پروژه‌های EPC | پیشرو تجهیز فرتاک,1783,622,0.447,2
+knowledge-center/corrosion-resistant-equipment-guide.html,https://pishtaj.ir/knowledge-center/corrosion-resistant-equipment-guide.html,knowledge-center,راهنمای تجهیزات مقاوم به خوردگی صنعتی | پیشرو تجهیز فرتاک,1788,625,0.448,1
+knowledge-center/steam-system-equipment-guide.html,https://pishtaj.ir/knowledge-center/steam-system-equipment-guide.html,knowledge-center,راهنمای تجهیزات سیستم بخار صنعتی | پیشرو تجهیز فرتاک,1783,627,0.451,8
+knowledge-center/petrochemical-industry-supply-guide.html,https://pishtaj.ir/knowledge-center/petrochemical-industry-supply-guide.html,knowledge-center,راهنمای تامین تجهیزات صنایع پتروشیمی | پیشرو تجهیز فرتاک,1778,629,0.454,9
+suppliers/pump-supplier.html,https://pishtaj.ir/suppliers/pump-supplier.html,suppliers,تامین‌کننده پمپ صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,814,630,0.884,21
+knowledge-center/cement-industry-supply-guide.html,https://pishtaj.ir/knowledge-center/cement-industry-supply-guide.html,knowledge-center,راهنمای تامین تجهیزات صنایع سیمان | پیشرو تجهیز فرتاک,1779,631,0.455,8
+knowledge-center/power-plant-industry-supply-guide.html,https://pishtaj.ir/knowledge-center/power-plant-industry-supply-guide.html,knowledge-center,راهنمای تامین تجهیزات نیروگاهی صنعتی | پیشرو تجهیز فرتاک,1779,631,0.455,4
+blog/pressure-transmitter-guide.html,https://pishtaj.ir/blog/pressure-transmitter-guide.html,blog,راهنمای جامع ترانسمیتر فشار (Pressure Transmitter),1550,633,0.507,4
+knowledge-center/astm-a105-vs-a234.html,https://pishtaj.ir/knowledge-center/astm-a105-vs-a234.html,knowledge-center,مقایسه ASTM A105 و ASTM A234 در پایپینگ | پیشرو تجهیز فرتاک,1786,634,0.452,4
+knowledge-center/high-pressure-equipment-guide.html,https://pishtaj.ir/knowledge-center/high-pressure-equipment-guide.html,knowledge-center,راهنمای تجهیزات فشار قوی و فوق‌العاده صنعتی | پیشرو تجهیز فرتاک,1796,637,0.457,3
+knowledge-center/pinch-valve-guide.html,https://pishtaj.ir/knowledge-center/pinch-valve-guide.html,knowledge-center,راهنمای شیر پینچ (Pinch Valve) صنعتی | پیشرو تجهیز فرتاک,1785,637,0.457,11
+knowledge-center/power-distribution-transformer-guide.html,https://pishtaj.ir/knowledge-center/power-distribution-transformer-guide.html,knowledge-center,راهنمای ترانسفورماتور قدرت و توزیع صنعتی | پیشرو تجهیز فرتاک,1799,637,0.455,2
+knowledge-center/valve-sealing-guide.html,https://pishtaj.ir/knowledge-center/valve-sealing-guide.html,knowledge-center,راهنمای آب‌بندی (Sealing) در شیرآلات صنعتی | پیشرو تجهیز فرتاک,1785,637,0.457,2
+knowledge-center/valve-testing-guide.html,https://pishtaj.ir/knowledge-center/valve-testing-guide.html,knowledge-center,راهنمای تست شیرآلات صنعتی | پیشرو تجهیز فرتاک,1787,639,0.457,2
+suppliers/cement-supplier.html,https://pishtaj.ir/suppliers/cement-supplier.html,suppliers,تامین‌کننده تجهیزات صنایع سیمان؛ قیمت و استعلام | پیشرو تجهیز فرتاک,856,639,0.884,1
+knowledge-center/plug-valve-guide.html,https://pishtaj.ir/knowledge-center/plug-valve-guide.html,knowledge-center,راهنمای شیر پلاگ (Plug Valve) صنعتی | پیشرو تجهیز فرتاک,1787,640,0.458,5
+knowledge-center/valve-actuator-types-guide.html,https://pishtaj.ir/knowledge-center/valve-actuator-types-guide.html,knowledge-center,راهنمای انواع محرک (Actuator) در شیرآلات صنعتی,1803,640,0.456,5
+suppliers/compressor-supplier.html,https://pishtaj.ir/suppliers/compressor-supplier.html,suppliers,تامین‌کننده کمپرسور صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,822,641,0.885,4
+knowledge-center/radar-level-transmitter-guide.html,https://pishtaj.ir/knowledge-center/radar-level-transmitter-guide.html,knowledge-center,راهنمای ترانسمیتر سطح راداری صنعتی | پیشرو تجهیز فرتاک,1797,642,0.457,4
+knowledge-center/valve-brands-comparison-guide.html,https://pishtaj.ir/knowledge-center/valve-brands-comparison-guide.html,knowledge-center,راهنمای مقایسه برندهای شیرآلات صنعتی | پیشرو تجهیز فرتاک,1787,642,0.459,3
+knowledge-center/contactor-bimetal-guide.html,https://pishtaj.ir/knowledge-center/contactor-bimetal-guide.html,knowledge-center,راهنمای کنتاکتور و بی متال در برق صنعتی | پیشرو تجهیز فرتاک,1816,647,0.46,3
+knowledge-center/control-valve-complete-guide.html,https://pishtaj.ir/knowledge-center/control-valve-complete-guide.html,knowledge-center,راهنمای کامل شیر کنترل (Control Valve) صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1814,647,0.459,12
+knowledge-center/electrical-brands-comparison.html,https://pishtaj.ir/knowledge-center/electrical-brands-comparison.html,knowledge-center,مقایسه برندهای تجهیزات برق صنعتی | پیشرو تجهیز فرتاک,1805,647,0.461,2
+knowledge-center/safety-relief-valve-guide.html,https://pishtaj.ir/knowledge-center/safety-relief-valve-guide.html,knowledge-center,راهنمای شیر اطمینان و ایمنی (PSV/PRV) صنعتی | پیشرو تجهیز فرتاک,1815,647,0.459,4
+suppliers/industrial-import.html,https://pishtaj.ir/suppliers/industrial-import.html,suppliers,واردات تجهیزات صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,893,648,0.888,1
+knowledge-center/sour-service-equipment-guide.html,https://pishtaj.ir/knowledge-center/sour-service-equipment-guide.html,knowledge-center,راهنمای تجهیزات سرویس اسیدی (Sour Service) | پیشرو تجهیز فرتاک,1814,649,0.458,2
+blog/industrial-valves-selection/index.html,https://pishtaj.ir/blog/industrial-valves-selection/index.html,blog,راهنمای انتخاب ولو صنعتی برای سرویس‌های فرایندی,957,652,0.817,2
+knowledge-center/rosemount-vs-yokogawa-comparison.html,https://pishtaj.ir/knowledge-center/rosemount-vs-yokogawa-comparison.html,knowledge-center,مقایسه ترانسمیتر Rosemount و Yokogawa صنعتی | پیشرو تجهیز فرتاک,1824,653,0.459,6
+knowledge-center/valve-body-material-selection.html,https://pishtaj.ir/knowledge-center/valve-body-material-selection.html,knowledge-center,راهنمای انتخاب متریال بدنه شیرآلات صنعتی | پیشرو تجهیز فرتاک,1804,653,0.463,5
+knowledge-center/vfd-variable-frequency-drive-guide.html,https://pishtaj.ir/knowledge-center/vfd-variable-frequency-drive-guide.html,knowledge-center,راهنمای درایو فرکانس متغیر VFD صنعتی | پیشرو تجهیز فرتاک,1823,659,0.464,4
+blog/gas-detection.html,https://pishtaj.ir/blog/gas-detection.html,blog,راهنمای جامع سیستم‌های تشخیص گاز صنعتی (Gas Detection),1555,660,0.518,2
+suppliers/steel-supplier.html,https://pishtaj.ir/suppliers/steel-supplier.html,suppliers,تامین‌کننده تجهیزات صنایع فولاد؛ قیمت و استعلام | پیشرو تجهیز فرتاک,858,661,0.887,1
+knowledge-center/flange-bolting-guide.html,https://pishtaj.ir/knowledge-center/flange-bolting-guide.html,knowledge-center,راهنمای پیچ و مهره در اتصالات فلنجی صنعتی | پیشرو تجهیز فرتاک,1839,662,0.466,9
+knowledge-center/pressure-transmitter-calibration-guide.html,https://pishtaj.ir/knowledge-center/pressure-transmitter-calibration-guide.html,knowledge-center,راهنمای کالیبراسیون ترانسمیتر فشار صنعتی | پیشرو تجهیز فرتاک,1827,665,0.467,6
+knowledge-center/api-602-small-gate-valve.html,https://pishtaj.ir/knowledge-center/api-602-small-gate-valve.html,knowledge-center,استاندارد API 602 | پیشرو تجهیز فرتاک,1823,669,0.468,4
+suppliers/epc-project-supply.html,https://pishtaj.ir/suppliers/epc-project-supply.html,suppliers,تامین کالای پروژه EPC؛ قیمت و استعلام | پیشرو تجهیز فرتاک,908,672,0.892,2
+suppliers/refinery-supplier.html,https://pishtaj.ir/suppliers/refinery-supplier.html,suppliers,تامین‌کننده تجهیزات پالایشگاهی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,855,676,0.889,2
+blog/electrical-equipment-epc/index.html,https://pishtaj.ir/blog/electrical-equipment-epc/index.html,blog,تامین تجهیزات برق صنعتی برای پروژه‌های EPC | پیشرو تجهیز فرتاک,952,678,0.821,1
+knowledge-center/nde-inspection-pipe-flange.html,https://pishtaj.ir/knowledge-center/nde-inspection-pipe-flange.html,knowledge-center,راهنمای بازرسی NDE لوله و فلنج صنعتی | پیشرو تجهیز فرتاک,1832,678,0.475,3
+suppliers/power-plant-supplier.html,https://pishtaj.ir/suppliers/power-plant-supplier.html,suppliers,تامین‌کننده تجهیزات نیروگاهی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,886,685,0.89,7
+suppliers/valve-supplier.html,https://pishtaj.ir/suppliers/valve-supplier.html,suppliers,تامین‌کننده شیرآلات صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,889,689,0.891,44
+suppliers/piping-supplier.html,https://pishtaj.ir/suppliers/piping-supplier.html,suppliers,تامین‌کننده پایپینگ؛ قیمت و استعلام | پیشرو تجهیز فرتاک,889,697,0.87,100
+blog/compressors-air-systems/index.html,https://pishtaj.ir/blog/compressors-air-systems/index.html,blog,نکات تامین کمپرسور صنعتی و تجهیزات هوای فشرده | پیشرو تجهیز فرتاک,1010,706,0.828,2
+blog/pressure-vessels-asme.html,https://pishtaj.ir/blog/pressure-vessels-asme.html,blog,راهنمای جامع مخازن تحت فشار (Pressure Vessels),1628,731,0.543,2
+tools/index.html,https://pishtaj.ir/tools/index.html,tools,ابزارهای مهندسی تامین تجهیزات صنعتی | پیشرو تجهیز فرتاک,1006,739,0.847,567
+industries/steel/index.html,https://pishtaj.ir/industries/steel/index.html,industries,تامین تجهیزات صنعت فولاد | کوره، نورد، فولادسازی، Utility,1049,766,0.852,13
+suppliers/industrial-projects-supplier.html,https://pishtaj.ir/suppliers/industrial-projects-supplier.html,suppliers,تامین‌کننده پروژه‌های صنعتی؛ قیمت و استعلام | پیشرو تجهیز فرتاک,1014,798,0.906,1
+industries/cement/index.html,https://pishtaj.ir/industries/cement/index.html,industries,تامین تجهیزات کارخانه سیمان | Kiln، Cooler، Mill، Cyclone، فیلتر,1076,814,0.86,9
+knowledge-center/control-valve-cavitation-guide.html,https://pishtaj.ir/knowledge-center/control-valve-cavitation-guide.html,knowledge-center,کاویتاسیون در کنترل ولو چیست؟ روش تشخیص و جلوگیری,1147,826,0.925,14
+industries/power-plant/index.html,https://pishtaj.ir/industries/power-plant/index.html,industries,تامین تجهیزات نیروگاهی | گازی، سیکل ترکیبی، حرارتی، تجدیدپذیر,1115,847,0.864,14
+knowledge-center/control-valve-cv-calculation-guide.html,https://pishtaj.ir/knowledge-center/control-valve-cv-calculation-guide.html,knowledge-center,محاسبه Cv کنترل ولو چیست؟ راهنمای سایزینگ Control Valve,1160,849,0.927,15
+industries/water/index.html,https://pishtaj.ir/industries/water/index.html,industries,تامین تجهیزات صنعت آب و فاضلاب | تصفیه‌خانه، RO، پمپ، MBR، Dosing,1127,851,0.865,8
+blog/boiler-steam-equipment/index.html,https://pishtaj.ir/blog/boiler-steam-equipment/index.html,blog,راهنمای بویلر و تجهیزات بخار صنعتی | پیشرو تجهیز فرتاک,1310,954,0.863,1
+services/products/industrial-hvac-pressurization.html,https://pishtaj.ir/services/products/industrial-hvac-pressurization.html,services,خرید و تامین HVAC صنعتی و Pressurization اتاق کنترل,1823,1008,0.987,2
+services/boilers/index.html,https://pishtaj.ir/services/boilers/index.html,services,تامین بویلر و تجهیزات بخار صنعتی | پیشرو تجهیز فرتاک,1349,1016,0.884,19
+services/compressors/index.html,https://pishtaj.ir/services/compressors/index.html,services,تامین کمپرسور صنعتی | اسکرو، رفت‌وبرگشتی، سانتریفیوژ,1263,1016,0.883,17
+brands/siemens-industrial.html,https://pishtaj.ir/brands/siemens-industrial.html,brands,تامین و سورسینگ زیمنس صنعتی | پیشرو تجهیز فرتاک,1823,1021,0.999,1
+services/products/expansion-joints-flexible-hose.html,https://pishtaj.ir/services/products/expansion-joints-flexible-hose.html,services,خرید و تامین اکسپنشن جوینت فلزی و Flexible Metal Hose,1805,1022,0.988,1
+services/products/industrial-fan-blower.html,https://pishtaj.ir/services/products/industrial-fan-blower.html,services,خرید و تامین فن و بلوور صنعتی؛ Centrifugal Fan، ID/FD Fan,1853,1027,0.983,5
+services/products/positive-displacement-pump.html,https://pishtaj.ir/services/products/positive-displacement-pump.html,services,خرید و تامین پمپ جابجایی مثبت؛ Screw، Gear و Lobe Pump,1864,1040,0.988,3
+services/products/slurry-pump.html,https://pishtaj.ir/services/products/slurry-pump.html,services,خرید و تامین پمپ اسلاری؛ Slurry Pump معدنی و صنعتی,1816,1041,0.988,3
+services/products/vertical-multistage-pump.html,https://pishtaj.ir/services/products/vertical-multistage-pump.html,services,خرید و تامین پمپ طبقاتی عمودی؛ Vertical Multistage Pump,1844,1043,0.988,4
+services/products/diaphragm-seal.html,https://pishtaj.ir/services/products/diaphragm-seal.html,services,خرید و تامین دیافراگم سیل و Remote Seal برای ترانسمیتر و گیج,1898,1047,0.988,3
+services/products/temperature-transmitter.html,https://pishtaj.ir/services/products/temperature-transmitter.html,services,خرید و تامین ترانسمیتر دما؛ Head Mount، Field Mount و Rail Mount,1875,1051,0.988,6
+services/industrial-equipment/index.html,https://pishtaj.ir/services/industrial-equipment/index.html,services,تامین تجهیزات صنعتی متفرقه | مبدل حرارتی، فن، بلوور، مخزن,1419,1054,0.888,24
+services/products/online-water-quality-analyzer.html,https://pishtaj.ir/services/products/online-water-quality-analyzer.html,services,خرید و تامین آنالایزر آنلاین کیفیت آب؛ pH، Conductivity، Turbidity،,1889,1054,0.988,3
+industries/petrochemical/index.html,https://pishtaj.ir/industries/petrochemical/index.html,industries,تجهیزات صنعت پتروشیمی؛ راهنمای تامین واحدهای الفین و آروماتیک | پیشرو تجهیز فرتاک,1406,1062,0.886,251
+services/products/water-tube-boiler.html,https://pishtaj.ir/services/products/water-tube-boiler.html,services,خرید و تامین بویلر واترتیوب صنعتی؛ بخار فشار و ظرفیت بالا,1889,1063,0.988,5
+services/products/mechanical-seal.html,https://pishtaj.ir/services/products/mechanical-seal.html,services,خرید و تامین مکانیکال سیل صنعتی API 682 برای پمپ,1822,1067,0.988,8
+knowledge-center/kc-industrial-material-handling-transport.html,https://pishtaj.ir/knowledge-center/kc-industrial-material-handling-transport.html,knowledge-center,حمل تجهیزات صنعتی و جابجایی مواد؛ راهنمای کامل | پیشرو تجهیز فرتاک,1578,1068,0.861,5
+services/products/pressure-gauge.html,https://pishtaj.ir/services/products/pressure-gauge.html,services,خرید و تامین گیج فشار صنعتی؛ Safety Pattern مطابق ASME B40.100,1882,1068,0.988,4
+knowledge-center/kc-project-management-equipment-supply.html,https://pishtaj.ir/knowledge-center/kc-project-management-equipment-supply.html,knowledge-center,راهنمای کامل مدیریت پروژه در تامین تجهیزات صنعتی,1564,1071,0.862,7
+services/products/plate-heat-exchanger.html,https://pishtaj.ir/services/products/plate-heat-exchanger.html,services,خرید و تامین مبدل حرارتی صفحه‌ای Gasketed و Brazed,1815,1071,0.988,3
+knowledge-center/kc-hse.html,https://pishtaj.ir/knowledge-center/kc-hse.html,knowledge-center,راهنمای کامل سیستم مدیریت ایمنی (HSE) در صنایع فرایندی,1596,1074,0.85,4
+knowledge-center/kc-purchase-order-management.html,https://pishtaj.ir/knowledge-center/kc-purchase-order-management.html,knowledge-center,راهنمای کامل مدیریت سفارشات خرید (Purchase Order Management),1594,1074,0.85,3
+services/products/air-cooler-fin-fan.html,https://pishtaj.ir/services/products/air-cooler-fin-fan.html,services,خرید و تامین Air Cooler و Fin Fan مطابق API 661,1864,1076,0.988,4
+knowledge-center/kc-intrusion-detection-access-control.html,https://pishtaj.ir/knowledge-center/kc-intrusion-detection-access-control.html,knowledge-center,راهنمای کامل سیستم اعلام سرقت و کنترل دسترسی صنعتی,1568,1077,0.862,3
+knowledge-center/kc-ppe.html,https://pishtaj.ir/knowledge-center/kc-ppe.html,knowledge-center,راهنمای کامل تجهیزات حفاظت فردی (PPE) صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1568,1078,0.851,3
+knowledge-center/kc-pm.html,https://pishtaj.ir/knowledge-center/kc-pm.html,knowledge-center,راهنمای کامل نگهداری و تعمیرات (PM) تجهیزات صنعتی,1579,1080,0.851,2
+knowledge-center/kc-commissioning.html,https://pishtaj.ir/knowledge-center/kc-commissioning.html,knowledge-center,راهنمای کامل تجهیزات تست و راه‌اندازی پروژه‌های صنعتی,1581,1081,0.851,3
+services/products/explosion-proof-lighting.html,https://pishtaj.ir/services/products/explosion-proof-lighting.html,services,خرید و تامین چراغ ضدانفجار LED؛ ATEX، IECEx، Zone 1/2,1856,1085,0.987,3
+knowledge-center/kc-fcc-unit.html,https://pishtaj.ir/knowledge-center/kc-fcc-unit.html,knowledge-center,راهنمای کامل تجهیزات کراکینگ کاتالیستی (FCC Unit),1568,1086,0.859,2
+knowledge-center/kc-gas-dehydration-teg.html,https://pishtaj.ir/knowledge-center/kc-gas-dehydration-teg.html,knowledge-center,راهنمای کامل تجهیزات آب‌گیری گاز (Gas Dehydration - TEG),1578,1086,0.852,3
+knowledge-center/kc-incoterms-2024.html,https://pishtaj.ir/knowledge-center/kc-incoterms-2024.html,knowledge-center,راهنمای کامل اینکوترمز (Incoterms) 2024 در تامین تجهیزات صنعتی,1604,1086,0.852,5
+services/products/process-gas-analyzer-system.html,https://pishtaj.ir/services/products/process-gas-analyzer-system.html,services,خرید و تامین سیستم آنالایزر گاز فرایندی؛ Extractive و In-situ,1922,1086,0.988,3
+services/products/industrial-burner.html,https://pishtaj.ir/services/products/industrial-burner.html,services,خرید و تامین مشعل صنعتی؛ Gas/Oil/Dual Fuel Burner و BMS,1920,1087,0.988,3
+knowledge-center/kc-cctv.html,https://pishtaj.ir/knowledge-center/kc-cctv.html,knowledge-center,راهنمای کامل سیستم دوربین مداربسته صنعتی (CCTV),1581,1088,0.852,3
+knowledge-center/kc-ndt.html,https://pishtaj.ir/knowledge-center/kc-ndt.html,knowledge-center,راهنمای کامل تست‌های غیرمخرب (NDT) در پایپینگ؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1580,1088,0.852,7
+knowledge-center/kc-desalter.html,https://pishtaj.ir/knowledge-center/kc-desalter.html,knowledge-center,راهنمای کامل تجهیزات نمک‌زدایی نفت خام (Desalter),1572,1092,0.86,2
+knowledge-center/kc-hvac.html,https://pishtaj.ir/knowledge-center/kc-hvac.html,knowledge-center,راهنمای کامل سیستم تهویه صنعتی (HVAC) و فن‌های صنعتی,1596,1092,0.852,3
+knowledge-center/kc-esd-fire-gas.html,https://pishtaj.ir/knowledge-center/kc-esd-fire-gas.html,knowledge-center,راهنمای کامل سیستم ESD و Fire &amp; Gas (F&amp;G),1581,1093,0.853,3
+knowledge-center/kc-sulfur-recovery-unit-sru.html,https://pishtaj.ir/knowledge-center/kc-sulfur-recovery-unit-sru.html,knowledge-center,راهنمای کامل تجهیزات گوگردزدا (Sulfur Recovery Unit - SRU),1577,1093,0.86,2
+knowledge-center/kc-ngl-recovery.html,https://pishtaj.ir/knowledge-center/kc-ngl-recovery.html,knowledge-center,راهنمای کامل تجهیزات خطوط انتقال گاز (NGL Recovery),1584,1094,0.86,2
+knowledge-center/kc-nitrogen-air-natural-gas.html,https://pishtaj.ir/knowledge-center/kc-nitrogen-air-natural-gas.html,knowledge-center,"راهنمای کامل سیستم گازرسانی صنعتی (Nitrogen, Air, Natural Gas)",1595,1094,0.86,2
+knowledge-center/kc-sulfur-recovery.html,https://pishtaj.ir/knowledge-center/kc-sulfur-recovery.html,knowledge-center,راهنمای کامل تجهیزات واحد بازیافت گوگرد (Sulfur Recovery),1587,1095,0.86,2
+knowledge-center/kc-cooling-water.html,https://pishtaj.ir/knowledge-center/kc-cooling-water.html,knowledge-center,راهنمای کامل سیستم آب خنک‌کننده صنعتی (Cooling Water),1584,1096,0.86,2
+projects/index.html,https://pishtaj.ir/projects/index.html,projects,سوابق تامین و شواهد قابل انتشار | پیشرو تجهیز فرتاک,1404,1096,0.994,567
+knowledge-center/kc-earthing.html,https://pishtaj.ir/knowledge-center/kc-earthing.html,knowledge-center,راهنمای کامل سیستم اتصال به زمین (Earthing) پست‌های برق,1595,1097,0.86,2
+knowledge-center/kc-fm200-co2-foam-water.html,https://pishtaj.ir/knowledge-center/kc-fm200-co2-foam-water.html,knowledge-center,راهنمای کامل سیستم اطفاء حریق صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1574,1097,0.86,4
+knowledge-center/kc-lubrication-system.html,https://pishtaj.ir/knowledge-center/kc-lubrication-system.html,knowledge-center,راهنمای کامل سیستم روغن‌کاری صنعتی (Lubrication System),1577,1098,0.853,6
+knowledge-center/kc-spiral-wound-kammprofile.html,https://pishtaj.ir/knowledge-center/kc-spiral-wound-kammprofile.html,knowledge-center,راهنمای کامل گسکت Spiral Wound و Kammprofile؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1575,1100,0.853,4
+knowledge-center/kc-dcs.html,https://pishtaj.ir/knowledge-center/kc-dcs.html,knowledge-center,راهنمای کامل سیستم DCS در صنایع فرایندی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1589,1104,0.861,4
+services/electrical-equipment/index.html,https://pishtaj.ir/services/electrical-equipment/index.html,services,تامین تجهیزات برق صنعتی | Switchgear، Automation، Cable,1470,1104,0.892,66
+knowledge-center/kc-customs-clearance.html,https://pishtaj.ir/knowledge-center/kc-customs-clearance.html,knowledge-center,راهنمای کامل ترخیص گمرکی کالاهای صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1578,1107,0.874,3
+knowledge-center/kc-international-supply-contracts.html,https://pishtaj.ir/knowledge-center/kc-international-supply-contracts.html,knowledge-center,راهنمای کامل قراردادهای تامین بین‌المللی تجهیزات صنعتی,1583,1107,0.874,10
+services/products/plc-control-panel.html,https://pishtaj.ir/services/products/plc-control-panel.html,services,خرید و تامین تابلو کنترل PLC، I/O، HMI و تجهیزات اتوماسیون صنعتی,1909,1109,0.988,8
+knowledge-center/kc-industrial-equipment-export.html,https://pishtaj.ir/knowledge-center/kc-industrial-equipment-export.html,knowledge-center,راهنمای کامل صادرات تجهیزات صنعتی به بازارهای بین‌المللی,1607,1114,0.869,2
+knowledge-center/kc-industrial-laboratory-equipment.html,https://pishtaj.ir/knowledge-center/kc-industrial-laboratory-equipment.html,knowledge-center,راهنمای کامل تجهیزات آزمایشگاهی صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1571,1114,0.869,2
+knowledge-center/kc-control-room-equipment-standards.html,https://pishtaj.ir/knowledge-center/kc-control-room-equipment-standards.html,knowledge-center,راهنمای کامل اتاق کنترل صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1580,1117,0.869,3
+industries/oil-gas/index.html,https://pishtaj.ir/industries/oil-gas/index.html,industries,تامین تجهیزات نفت و گاز برای پروژه‌های EPC | پیشرو تجهیز فرتاک,1442,1122,0.894,14
+knowledge-center/kc-energy-management-oil-gas.html,https://pishtaj.ir/knowledge-center/kc-energy-management-oil-gas.html,knowledge-center,راهنمای کامل مدیریت انرژی در صنایع نفت و گاز؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1631,1124,0.87,4
+knowledge-center/kc-spare-parts-warehousing-inventory.html,https://pishtaj.ir/knowledge-center/kc-spare-parts-warehousing-inventory.html,knowledge-center,مدیریت انبار قطعات یدکی صنعتی؛ راهنمای کامل | پیشرو تجهیز فرتاک,1622,1124,0.87,1
+services/products/ansi-process-pump.html,https://pishtaj.ir/services/products/ansi-process-pump.html,services,خرید و تامین پمپ ANSI Process مطابق ASME B73.1,1929,1126,0.989,3
+services/products/reciprocating-compressor.html,https://pishtaj.ir/services/products/reciprocating-compressor.html,services,خرید و تامین کمپرسور رفت‌وبرگشتی API 618 برای گاز فرایندی,1948,1126,0.989,4
+knowledge-center/kc-international-marketing-oil-gas.html,https://pishtaj.ir/knowledge-center/kc-international-marketing-oil-gas.html,knowledge-center,راهنمای کامل بازاریابی بین‌المللی در صنایع نفت و گاز,1636,1127,0.87,5
+knowledge-center/kc-oil-gas-export-terminal-equipment.html,https://pishtaj.ir/knowledge-center/kc-oil-gas-export-terminal-equipment.html,knowledge-center,راهنمای کامل تجهیزات پایانه‌های صادراتی نفت و گاز,1624,1128,0.87,4
+knowledge-center/kc-fire-alarm-detection-system.html,https://pishtaj.ir/knowledge-center/kc-fire-alarm-detection-system.html,knowledge-center,راهنمای کامل سیستم آتش‌نشان و اعلام حریق صنعتی,1607,1131,0.871,1
+knowledge-center/kc-ngl-lpg-lng.html,https://pishtaj.ir/knowledge-center/kc-ngl-lpg-lng.html,knowledge-center,"راهنمای کامل تجهیزات خطوط گاز طبیعی (NGL, LPG, LNG)",1639,1131,0.864,4
+knowledge-center/kc-supplier-qualification-assessment.html,https://pishtaj.ir/knowledge-center/kc-supplier-qualification-assessment.html,knowledge-center,راهنمای کامل ارزیابی و تایید صلاحیت تامین‌کنندگان,1613,1131,0.871,3
+knowledge-center/kc-compressed-air-system.html,https://pishtaj.ir/knowledge-center/kc-compressed-air-system.html,knowledge-center,راهنمای کامل سیستم هوای فشرده صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1595,1134,0.869,7
+knowledge-center/kc-offshore.html,https://pishtaj.ir/knowledge-center/kc-offshore.html,knowledge-center,راهنمای کامل تجهیزات صنایع نفت و گاز فراساحل (Offshore),1641,1134,0.864,2
+knowledge-center/kc-incoterms-fob-cif-risk-transfer-comparison.html,https://pishtaj.ir/knowledge-center/kc-incoterms-fob-cif-risk-transfer-comparison.html,knowledge-center,مقایسهٔ انتقال ریسک در ترم‌های FOB و CIF | پیشرو تجهیز فرتاک,1645,1136,0.881,7
+knowledge-center/kc-led.html,https://pishtaj.ir/knowledge-center/kc-led.html,knowledge-center,راهنمای کامل سیستم روشنایی صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1610,1136,0.857,2
+knowledge-center/kc-load-cell.html,https://pishtaj.ir/knowledge-center/kc-load-cell.html,knowledge-center,راهنمای کامل لودسل (Load Cell) و سیستم توزین صنعتی,1647,1136,0.857,2
+knowledge-center/kc-steel-beam-rebar-specifications.html,https://pishtaj.ir/knowledge-center/kc-steel-beam-rebar-specifications.html,knowledge-center,راهنمای کامل مشخصات فنی تیرآهن و میلگرد صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1614,1136,0.871,3
+knowledge-center/kc-lightning-protection-arrester.html,https://pishtaj.ir/knowledge-center/kc-lightning-protection-arrester.html,knowledge-center,راهنمای کامل برقگیر و سیستم حفاظت در برابر صاعقه صنعتی,1636,1137,0.884,4
+knowledge-center/kc-steel-industry-equipment.html,https://pishtaj.ir/knowledge-center/kc-steel-industry-equipment.html,knowledge-center,راهنمای کامل تجهیزات صنعت فولاد؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1610,1137,0.877,10
+knowledge-center/kc-steel-plate-specifications.html,https://pishtaj.ir/knowledge-center/kc-steel-plate-specifications.html,knowledge-center,راهنمای کامل مشخصات فنی ورق‌های فولادی صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1602,1137,0.871,3
+knowledge-center/kc-api-617.html,https://pishtaj.ir/knowledge-center/kc-api-617.html,knowledge-center,راهنمای کامل کمپرسورهای سانتریفیوژ API 617؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1594,1139,0.858,7
+knowledge-center/kc-ct-pt.html,https://pishtaj.ir/knowledge-center/kc-ct-pt.html,knowledge-center,راهنمای کامل ترانسفورماتورهای جریان (CT) و ولتاژ (PT),1640,1139,0.858,2
+knowledge-center/kc-international-lc-payment-terms-guide.html,https://pishtaj.ir/knowledge-center/kc-international-lc-payment-terms-guide.html,knowledge-center,راهنمای اعتبار اسنادی (LC) در خرید بین‌المللی | پیشرو تجهیز فرتاک,1612,1139,0.88,6
+knowledge-center/kc-air-cooled.html,https://pishtaj.ir/knowledge-center/kc-air-cooled.html,knowledge-center,راهنمای کامل مبدل‌های حرارتی هوایی (Air Cooled),1615,1140,0.858,4
+knowledge-center/kc-bms.html,https://pishtaj.ir/knowledge-center/kc-bms.html,knowledge-center,راهنمای کامل سیستم اتوماسیون ساختمان (BMS) صنعتی,1610,1140,0.858,2
+knowledge-center/kc-api-618.html,https://pishtaj.ir/knowledge-center/kc-api-618.html,knowledge-center,راهنمای کامل کمپرسورهای رفت و برگشتی API 618؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1621,1141,0.858,5
+knowledge-center/kc-gauge-absolute-differential.html,https://pishtaj.ir/knowledge-center/kc-gauge-absolute-differential.html,knowledge-center,راهنمای کامل ترانسمیتر فشار؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1609,1141,0.865,2
+knowledge-center/kc-chemical-injection.html,https://pishtaj.ir/knowledge-center/kc-chemical-injection.html,knowledge-center,راهنمای کامل سیستم تزریق مواد شیمیایی (Chemical Injection),1641,1143,0.866,4
+knowledge-center/kc-flare-burner-equipment.html,https://pishtaj.ir/knowledge-center/kc-flare-burner-equipment.html,knowledge-center,راهنمای کامل تجهیزات فلر و مشعل صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1598,1143,0.879,1
+knowledge-center/kc-purchase-order-terms-conditions-guide.html,https://pishtaj.ir/knowledge-center/kc-purchase-order-terms-conditions-guide.html,knowledge-center,بندهای حقوقی سفارش خرید (PO) | پیشرو تجهیز فرتاک,1686,1144,0.881,2
+knowledge-center/kc-instrumentation-control-cables.html,https://pishtaj.ir/knowledge-center/kc-instrumentation-control-cables.html,knowledge-center,راهنمای کامل کابل‌های ابزار دقیق و کنترل صنعتی,1614,1145,0.877,5
+knowledge-center/kc-rtd-thermocouple-thermistor.html,https://pishtaj.ir/knowledge-center/kc-rtd-thermocouple-thermistor.html,knowledge-center,راهنمای کامل سنسورهای دما؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1609,1145,0.865,3
+knowledge-center/kc-cement-industry-equipment.html,https://pishtaj.ir/knowledge-center/kc-cement-industry-equipment.html,knowledge-center,راهنمای کامل تجهیزات صنایع سیمان؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1604,1147,0.885,6
+knowledge-center/kc-crude-oil-products-storage-system.html,https://pishtaj.ir/knowledge-center/kc-crude-oil-products-storage-system.html,knowledge-center,راهنمای کامل سیستم ذخیره‌سازی نفت خام و فرآورده‌های نفتی,1630,1148,0.872,1
+knowledge-center/kc-cable-tray-cable-duct.html,https://pishtaj.ir/knowledge-center/kc-cable-tray-cable-duct.html,knowledge-center,راهنمای کامل کانال‌های کابل و سینی کابل صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1604,1149,0.877,2
+knowledge-center/kc-industrial-power-cable-sizing.html,https://pishtaj.ir/knowledge-center/kc-industrial-power-cable-sizing.html,knowledge-center,راهنمای کامل کابل‌های قدرت صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1587,1149,0.877,4
+knowledge-center/kc-water-wastewater-treatment.html,https://pishtaj.ir/knowledge-center/kc-water-wastewater-treatment.html,knowledge-center,راهنمای کامل سیستم تصفیه آب و پساب صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1628,1150,0.885,2
+knowledge-center/kc-ct-pt-accuracy-class-burden.html,https://pishtaj.ir/knowledge-center/kc-ct-pt-accuracy-class-burden.html,knowledge-center,کلاس دقت و بار مجاز CT/PT | پیشرو تجهیز فرتاک,1677,1152,0.89,3
+knowledge-center/kc-technical-certifications-supplier-qualification.html,https://pishtaj.ir/knowledge-center/kc-technical-certifications-supplier-qualification.html,knowledge-center,راهنمای کامل گواهینامه‌های فنی و صلاحیت تامین‌کنندگان,1612,1152,0.873,4
+knowledge-center/kc-level-measurement-6-methods.html,https://pishtaj.ir/knowledge-center/kc-level-measurement-6-methods.html,knowledge-center,راهنمای کامل اندازه‌گیری سطح در صنایع نفت و گاز,1646,1153,0.886,2
+knowledge-center/kc-plc.html,https://pishtaj.ir/knowledge-center/kc-plc.html,knowledge-center,راهنمای کامل تابلوهای PLC و اتوماسیون صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1609,1153,0.866,3
+knowledge-center/kc-petrochemical-complex-equipment.html,https://pishtaj.ir/knowledge-center/kc-petrochemical-complex-equipment.html,knowledge-center,راهنمای کامل تجهیزات مجتمع پتروشیمی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1616,1154,0.886,4
+knowledge-center/kc-pressure-gauge.html,https://pishtaj.ir/knowledge-center/kc-pressure-gauge.html,knowledge-center,راهنمای کامل گیج فشار (Pressure Gauge)؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1632,1155,0.866,4
+knowledge-center/kc-reciprocating-pump.html,https://pishtaj.ir/knowledge-center/kc-reciprocating-pump.html,knowledge-center,راهنمای کامل پمپ‌های رفت و برگشتی (Reciprocating Pump),1639,1155,0.866,4
+knowledge-center/kc-shell-tube.html,https://pishtaj.ir/knowledge-center/kc-shell-tube.html,knowledge-center,راهنمای کامل مبدل‌های حرارتی Shell &amp; Tube؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1607,1156,0.867,5
+quality/index.html,https://pishtaj.ir/quality/index.html,quality,فرآیند QA/QC و کنترل مدارک فنی | پیشرو تجهیز فرتاک,1527,1156,0.994,581
+knowledge-center/kc-gc-ph-o2-h2s.html,https://pishtaj.ir/knowledge-center/kc-gc-ph-o2-h2s.html,knowledge-center,راهنمای کامل آنالایزرهای فرآیندی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1633,1157,0.862,3
+knowledge-center/kc-commissioning-punch-list-management.html,https://pishtaj.ir/knowledge-center/kc-commissioning-punch-list-management.html,knowledge-center,مدیریت Punch List در Commissioning | پیشرو تجهیز فرتاک,1650,1162,0.883,4
+knowledge-center/kc-steam-boiler-system.html,https://pishtaj.ir/knowledge-center/kc-steam-boiler-system.html,knowledge-center,راهنمای کامل تجهیزات سیستم بخار و بویلر صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1635,1166,0.887,6
+knowledge-center/kc-api-5l-psl-charpy-impact-test.html,https://pishtaj.ir/knowledge-center/kc-api-5l-psl-charpy-impact-test.html,knowledge-center,تست ضربه شارپی لوله API 5L PSL2 | پیشرو تجهیز فرتاک,1670,1169,0.891,2
+knowledge-center/kc-304-vs-316-corrosion-resistance.html,https://pishtaj.ir/knowledge-center/kc-304-vs-316-corrosion-resistance.html,knowledge-center,مقاومت به خوردگی 304 و 316 | پیشرو تجهیز فرتاک,1632,1172,0.891,5
+knowledge-center/kc-ansi-50-51-87-21.html,https://pishtaj.ir/knowledge-center/kc-ansi-50-51-87-21.html,knowledge-center,راهنمای کامل رله‌های حفاظتی در تابلو برق؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1655,1173,0.861,8
+knowledge-center/kc-ppe-selection-by-hazard-category.html,https://pishtaj.ir/knowledge-center/kc-ppe-selection-by-hazard-category.html,knowledge-center,راهنمای انتخاب PPE بر اساس دستهٔ خطر | پیشرو تجهیز فرتاک,1680,1175,0.883,3
+services/pumps/index.html,https://pishtaj.ir/services/pumps/index.html,services,تامین پمپ صنعتی | سانتریفیوژ، دوزینگ، طبقاتی و قطعات یدکی,1564,1175,0.898,235
+knowledge-center/kc-technical-personnel-training.html,https://pishtaj.ir/knowledge-center/kc-technical-personnel-training.html,knowledge-center,راهنمای کامل آموزش و توانمندسازی پرسنل فنی صنعتی,1660,1176,0.875,3
+knowledge-center/kc-ups.html,https://pishtaj.ir/knowledge-center/kc-ups.html,knowledge-center,راهنمای کامل سیستم UPS و باتری صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1656,1176,0.869,2
+knowledge-center/kc-oil-refinery-equipment.html,https://pishtaj.ir/knowledge-center/kc-oil-refinery-equipment.html,knowledge-center,راهنمای کامل تجهیزات پالایشگاه نفت؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1653,1177,0.888,7
+knowledge-center/industrial-procurement-documentation-guide.html,https://pishtaj.ir/knowledge-center/industrial-procurement-documentation-guide.html,knowledge-center,راهنمای مدارک خرید تجهیزات صنعتی؛ MTC، COC، TPI و Data Book,1591,1178,0.994,4
+knowledge-center/kc-pipeline-welding-npi-qualification.html,https://pishtaj.ir/knowledge-center/kc-pipeline-welding-npi-qualification.html,knowledge-center,تایید صلاحیت جوشکار و روش جوشکاری خط لوله | پیشرو تجهیز فرتاک,1676,1180,0.885,5
+knowledge-center/kc-api-617-surge-control-antisurge.html,https://pishtaj.ir/knowledge-center/kc-api-617-surge-control-antisurge.html,knowledge-center,کنترل سرج کمپرسور API 617 | پیشرو تجهیز فرتاک,1669,1181,0.892,7
+comparisons/rosemount-vs-yokogawa-transmitter.html,https://pishtaj.ir/comparisons/rosemount-vs-yokogawa-transmitter.html,comparisons,مقایسه ترانسمیتر Rosemount و Yokogawa | دقت، اکوسیستم و سرویس,1552,1182,0.989,11
+comparisons/seamless-vs-erw-pipe.html,https://pishtaj.ir/comparisons/seamless-vs-erw-pipe.html,comparisons,مقایسه لوله مانیسمان (Seamless) و درزدار (ERW) | استحکام و کاربرد,1510,1189,0.989,9
+knowledge-center/kc-pressure-gauge-glycerin-fill-guide.html,https://pishtaj.ir/knowledge-center/kc-pressure-gauge-glycerin-fill-guide.html,knowledge-center,گیج فشار پرشده با گلیسیرین | پیشرو تجهیز فرتاک,1680,1195,0.893,3
+knowledge-center/kc-thermal-powerplant-equipment.html,https://pishtaj.ir/knowledge-center/kc-thermal-powerplant-equipment.html,knowledge-center,راهنمای کامل تجهیزات نیروگاه حرارتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1651,1195,0.882,4
+comparisons/gate-vs-globe-valve.html,https://pishtaj.ir/comparisons/gate-vs-globe-valve.html,comparisons,مقایسه شیر دروازه‌ای (Gate) و کروی (Globe) | افت فشار و تنظیم جریان,1519,1196,0.988,16
+knowledge-center/kc-astm-a106-heat-treatment-requirements.html,https://pishtaj.ir/knowledge-center/kc-astm-a106-heat-treatment-requirements.html,knowledge-center,عملیات حرارتی Normalizing لوله A106 | پیشرو تجهیز فرتاک,1697,1196,0.896,4
+knowledge-center/kc-fire-suppression-agent-selection-guide.html,https://pishtaj.ir/knowledge-center/kc-fire-suppression-agent-selection-guide.html,knowledge-center,راهنمای انتخاب عامل اطفاء حریق صنعتی | پیشرو تجهیز فرتاک,1620,1196,0.893,3
+knowledge-center/kc-offshore-subsea-pipeline-cathodic-protection.html,https://pishtaj.ir/knowledge-center/kc-offshore-subsea-pipeline-cathodic-protection.html,knowledge-center,حفاظت کاتدی خط لولهٔ زیردریایی Offshore | پیشرو تجهیز فرتاک,1681,1197,0.886,4
+comparisons/ball-vs-butterfly-valve.html,https://pishtaj.ir/comparisons/ball-vs-butterfly-valve.html,comparisons,مقایسه شیر توپی (Ball) و پروانه‌ای (Butterfly) | سایز، وزن و کاربرد,1524,1198,0.989,13
+comparisons/magmeter-vs-coriolis-flowmeter.html,https://pishtaj.ir/comparisons/magmeter-vs-coriolis-flowmeter.html,comparisons,مقایسه فلومتر مغناطیسی (Magmeter) و کوریولیس (Coriolis) | دقت و کاربرد,1542,1198,0.989,4
+knowledge-center/kc-sawh-vs-lsaw-comparison.html,https://pishtaj.ir/knowledge-center/kc-sawh-vs-lsaw-comparison.html,knowledge-center,مقایسه لوله اسپیرال SAWH و LSAW | پیشرو تجهیز فرتاک,1707,1200,0.894,3
+knowledge-center/kc-esd-fire-gas-sil-rated-design.html,https://pishtaj.ir/knowledge-center/kc-esd-fire-gas-sil-rated-design.html,knowledge-center,طراحی سیستم ESD/F&G بر اساس SIL | پیشرو تجهیز فرتاک,1708,1201,0.886,8
+knowledge-center/kc-a335-pwht-post-weld-heat-treatment.html,https://pishtaj.ir/knowledge-center/kc-a335-pwht-post-weld-heat-treatment.html,knowledge-center,عملیات حرارتی پس از جوش (PWHT) لوله A335 | پیشرو تجهیز فرتاک,1663,1202,0.894,2
+knowledge-center/kc-gas-analyzer-calibration-zero-span.html,https://pishtaj.ir/knowledge-center/kc-gas-analyzer-calibration-zero-span.html,knowledge-center,کالیبراسیون Zero و Span آنالایزر گازی | پیشرو تجهیز فرتاک,1682,1203,0.894,3
+knowledge-center/kc-steam-turbine-blade-erosion-prevention.html,https://pishtaj.ir/knowledge-center/kc-steam-turbine-blade-erosion-prevention.html,knowledge-center,پیشگیری از فرسایش پرهٔ توربین بخار | پیشرو تجهیز فرتاک,1676,1204,0.887,5
+comparisons/nace-mr0175-vs-mr0103.html,https://pishtaj.ir/comparisons/nace-mr0175-vs-mr0103.html,comparisons,مقایسه NACE MR0175 و MR0103 | سرویس ترش بالادستی و پایین‌دستی,1531,1207,0.989,13
+knowledge-center/kc-instrumentation-communication-protocols.html,https://pishtaj.ir/knowledge-center/kc-instrumentation-communication-protocols.html,knowledge-center,راهنمای کامل پروتکل‌های ارتباطی ابزار دقیق؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1662,1207,0.885,3
+knowledge-center/kc-wastewater-sludge-treatment-methods.html,https://pishtaj.ir/knowledge-center/kc-wastewater-sludge-treatment-methods.html,knowledge-center,روش‌های تصفیهٔ لجن پساب صنعتی | پیشرو تجهیز فرتاک,1682,1207,0.887,2
+comparisons/vcb-vs-acb-switchgear.html,https://pishtaj.ir/comparisons/vcb-vs-acb-switchgear.html,comparisons,مقایسه کلید VCB (وکیوم) و ACB (هوایی) | ولتاژ، کاربرد و عمر,1560,1208,0.989,9
+knowledge-center/kc-api-5l-x60-pipeline-design-factor.html,https://pishtaj.ir/knowledge-center/kc-api-5l-x60-pipeline-design-factor.html,knowledge-center,ضریب طراحی لولهٔ API 5L X60 طبق ASME B31.8 | پیشرو تجهیز فرتاک,1607,1208,0.894,2
+knowledge-center/kc-nitrogen-purging-procedure-safety.html,https://pishtaj.ir/knowledge-center/kc-nitrogen-purging-procedure-safety.html,knowledge-center,رویهٔ ایمن پرج نیتروژن (Nitrogen Purging) | پیشرو تجهیز فرتاک,1682,1208,0.887,6
+knowledge-center/kc-pipeline-coating-holiday-detection.html,https://pishtaj.ir/knowledge-center/kc-pipeline-coating-holiday-detection.html,knowledge-center,پوشش خط لوله و تشخیص عیب پوشش Holiday | پیشرو تجهیز فرتاک,1688,1208,0.887,3
+services/products/a333-low-temperature-pipe.html,https://pishtaj.ir/services/products/a333-low-temperature-pipe.html,services,خرید و تامین لوله دمای پایین ASTM A333 Gr.6,1852,1210,0.99,3
+knowledge-center/kc-ngl-recovery-turboexpander-process.html,https://pishtaj.ir/knowledge-center/kc-ngl-recovery-turboexpander-process.html,knowledge-center,فرآیند Turboexpander در بازیافت NGL | پیشرو تجهیز فرتاک,1689,1213,0.887,6
+knowledge-center/kc-dcs-redundancy-architecture-guide.html,https://pishtaj.ir/knowledge-center/kc-dcs-redundancy-architecture-guide.html,knowledge-center,معماری افزونگی (Redundancy) سیستم DCS | پیشرو تجهیز فرتاک,1673,1214,0.895,2
+knowledge-center/kc-hse-permit-to-work-system-guide.html,https://pishtaj.ir/knowledge-center/kc-hse-permit-to-work-system-guide.html,knowledge-center,سیستم مجوز کار (Permit to Work) صنعتی | پیشرو تجهیز فرتاک,1683,1214,0.887,3
+knowledge-center/kc-customs-clearance-hs-code-tariff-guide.html,https://pishtaj.ir/knowledge-center/kc-customs-clearance-hs-code-tariff-guide.html,knowledge-center,راهنمای کد HS و تعرفهٔ گمرکی تجهیزات صنعتی | پیشرو تجهیز فرتاک,1668,1215,0.887,6
+knowledge-center/kc-lap-joint-stub-end-rotation-installation.html,https://pishtaj.ir/knowledge-center/kc-lap-joint-stub-end-rotation-installation.html,knowledge-center,نصب و چرخش صحیح فلنج Lap Joint روی Stub End | پیشرو تجهیز فرتاک,1721,1215,0.895,3
+knowledge-center/kc-boiler-water-treatment-scale-prevention.html,https://pishtaj.ir/knowledge-center/kc-boiler-water-treatment-scale-prevention.html,knowledge-center,تصفیهٔ آب بویلر و پیشگیری از رسوب‌گذاری | پیشرو تجهیز فرتاک,1671,1216,0.888,2
+knowledge-center/kc-fcc-catalyst-regeneration-process.html,https://pishtaj.ir/knowledge-center/kc-fcc-catalyst-regeneration-process.html,knowledge-center,فرآیند احیای کاتالیست در واحد FCC | پیشرو تجهیز فرتاک,1672,1216,0.888,5
+knowledge-center/kc-api-610.html,https://pishtaj.ir/knowledge-center/kc-api-610.html,knowledge-center,راهنمای کامل پمپ‌های سانتریفیوژ فرایندی API 610,1688,1217,0.873,5
+knowledge-center/kc-pipeline-pigging-cleaning-operations.html,https://pishtaj.ir/knowledge-center/kc-pipeline-pigging-cleaning-operations.html,knowledge-center,عملیات پیگینگ و تمیزکاری خط لوله (Pigging) | پیشرو تجهیز فرتاک,1684,1219,0.888,4
+knowledge-center/kc-lightning-arrester-coordination-study.html,https://pishtaj.ir/knowledge-center/kc-lightning-arrester-coordination-study.html,knowledge-center,مطالعهٔ هماهنگی برقگیر صنعتی | پیشرو تجهیز فرتاک,1671,1220,0.895,5
+comparisons/vfd-vs-soft-starter.html,https://pishtaj.ir/comparisons/vfd-vs-soft-starter.html,comparisons,مقایسه VFD و Soft Starter برای موتور الکتریکی | انتخاب بر اساس بار,1555,1222,0.989,9
+knowledge-center/gas-control-valve-sizing-guide.html,https://pishtaj.ir/knowledge-center/gas-control-valve-sizing-guide.html,knowledge-center,سایزینگ کنترل ولو گاز چیست؟ نکات انتخاب Gas Control Valve,1717,1222,0.943,3
+knowledge-center/kc-load-cell-calibration-procedure.html,https://pishtaj.ir/knowledge-center/kc-load-cell-calibration-procedure.html,knowledge-center,کالیبراسیون لودسل با وزنه مرجع OIML | پیشرو تجهیز فرتاک,1696,1222,0.895,3
+knowledge-center/kc-a335-p11-p22-p91-welding-procedure.html,https://pishtaj.ir/knowledge-center/kc-a335-p11-p22-p91-welding-procedure.html,knowledge-center,جوشکاری لوله آلیاژی A335 P11/P22/P91 | پیشرو تجهیز فرتاک,1672,1223,0.895,5
+knowledge-center/kc-teg-dehydration-glycol-loss-control.html,https://pishtaj.ir/knowledge-center/kc-teg-dehydration-glycol-loss-control.html,knowledge-center,کنترل اتلاف گلایکول در واحد آب‌گیری TEG | پیشرو تجهیز فرتاک,1672,1224,0.888,7
+knowledge-center/kc-api-618-vibration-pulsation-analysis.html,https://pishtaj.ir/knowledge-center/kc-api-618-vibration-pulsation-analysis.html,knowledge-center,ارتعاش و پالس کمپرسور API 618 | پیشرو تجهیز فرتاک,1676,1228,0.896,5
+knowledge-center/kc-pipe-wall-thickness-corrosion-allowance.html,https://pishtaj.ir/knowledge-center/kc-pipe-wall-thickness-corrosion-allowance.html,knowledge-center,محاسبهٔ ضخامت لوله و حاشیهٔ خوردگی | پیشرو تجهیز فرتاک,1646,1228,0.896,3
+knowledge-center/kc-refinery-distillation-column-tray-design.html,https://pishtaj.ir/knowledge-center/kc-refinery-distillation-column-tray-design.html,knowledge-center,طراحی سینی برج تقطیر پالایشگاه | پیشرو تجهیز فرتاک,1679,1229,0.889,2
+knowledge-center/kc-ball-valve-seat-material-selection.html,https://pishtaj.ir/knowledge-center/kc-ball-valve-seat-material-selection.html,knowledge-center,متریال نشیمنگاه شیر توپی Ball Valve | پیشرو تجهیز فرتاک,1708,1230,0.898,6
+knowledge-center/kc-cooling-water-legionella-control.html,https://pishtaj.ir/knowledge-center/kc-cooling-water-legionella-control.html,knowledge-center,کنترل لژیونلا در سیستم آب خنک‌کننده | پیشرو تجهیز فرتاک,1679,1230,0.889,3
+knowledge-center/kc-sru-claus-process-efficiency.html,https://pishtaj.ir/knowledge-center/kc-sru-claus-process-efficiency.html,knowledge-center,راندمان فرآیند کلاوس (Claus) در واحد SRU | پیشرو تجهیز فرتاک,1690,1230,0.889,7
+services/products/fixed-gas-detector.html,https://pishtaj.ir/services/products/fixed-gas-detector.html,services,خرید و تامین دتکتور گاز ثابت صنعتی؛ H2S، LEL، O2، CO,1882,1230,0.99,3
+knowledge-center/kc-protective-relay-coordination-curve.html,https://pishtaj.ir/knowledge-center/kc-protective-relay-coordination-curve.html,knowledge-center,منحنی هماهنگی رله‌های حفاظتی (Coordination) | پیشرو تجهیز فرتاک,1675,1231,0.896,2
+knowledge-center/kc-vfd.html,https://pishtaj.ir/knowledge-center/kc-vfd.html,knowledge-center,راهنمای کامل درایو VFD؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1706,1232,0.877,5
+services/products/orifice-plate-flowmeter.html,https://pishtaj.ir/services/products/orifice-plate-flowmeter.html,services,خرید و تامین Orifice Plate Flowmeter مطابق ISO 5167,1914,1232,0.99,2
+knowledge-center/kc-hvac-pressurization-control-room.html,https://pishtaj.ir/knowledge-center/kc-hvac-pressurization-control-room.html,knowledge-center,فشار مثبت اتاق کنترل طبق NFPA 496 | پیشرو تجهیز فرتاک,1677,1233,0.889,5
+knowledge-center/kc-api-610-pump-curve-reading-guide.html,https://pishtaj.ir/knowledge-center/kc-api-610-pump-curve-reading-guide.html,knowledge-center,خواندن منحنی پمپ API 610 | پیشرو تجهیز فرتاک,1744,1234,0.897,5
+knowledge-center/kc-washer.html,https://pishtaj.ir/knowledge-center/kc-washer.html,knowledge-center,راهنمای کامل واشر (Washer) در اتصالات صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1726,1234,0.867,3
+knowledge-center/kc-a106-api-5l-standard-selection-by-project.html,https://pishtaj.ir/knowledge-center/kc-a106-api-5l-standard-selection-by-project.html,knowledge-center,انتخاب استاندارد A106 یا API 5L بر اساس پروژه | پیشرو تجهیز فرتاک,1658,1237,0.898,4
+knowledge-center/kc-cctv-camera-selection-hazardous-area.html,https://pishtaj.ir/knowledge-center/kc-cctv-camera-selection-hazardous-area.html,knowledge-center,انتخاب دوربین CCTV ضدانفجار برای مناطق خطرناک | پیشرو تجهیز فرتاک,1699,1238,0.896,4
+knowledge-center/kc-api-5l-psl2-sour-service-nace-requirements.html,https://pishtaj.ir/knowledge-center/kc-api-5l-psl2-sour-service-nace-requirements.html,knowledge-center,لوله NACE (سرویس ترش)؛ الزامات MR0175 برای API 5L PSL2 | پیشرو تجهیز فرتاک,1695,1239,0.899,6
+comparisons/wn-vs-so-flange.html,https://pishtaj.ir/comparisons/wn-vs-so-flange.html,comparisons,مقایسه فلنج Weld Neck (WN) و Slip On (SO) | فشار، جوش و کاربرد,1588,1240,0.99,10
+knowledge-center/kc-control-valve-noise-prediction-iec-60534.html,https://pishtaj.ir/knowledge-center/kc-control-valve-noise-prediction-iec-60534.html,knowledge-center,پیش‌بینی نویز آیرودینامیک کنترل ولو IEC 60534 | پیشرو تجهیز فرتاک,1661,1241,0.897,2
+knowledge-center/kc-cement-kiln-refractory-lining-guide.html,https://pishtaj.ir/knowledge-center/kc-cement-kiln-refractory-lining-guide.html,knowledge-center,راهنمای نسوزکاری کورهٔ سیمان Kiln Refractory | پیشرو تجهیز فرتاک,1677,1243,0.889,4
+knowledge-center/kc-erw-hfw-weld-seam-inspection.html,https://pishtaj.ir/knowledge-center/kc-erw-hfw-weld-seam-inspection.html,knowledge-center,بازرسی درز جوش لوله ERW و HFW | پیشرو تجهیز فرتاک,1737,1243,0.899,3
+knowledge-center/kc-class-900-class-2500.html,https://pishtaj.ir/knowledge-center/kc-class-900-class-2500.html,knowledge-center,راهنمای کامل فلنج‌های فشار قوی Class 900 تا Class 2500,1743,1244,0.868,4
+knowledge-center/kc-mv-switchgear-arc-flash-study.html,https://pishtaj.ir/knowledge-center/kc-mv-switchgear-arc-flash-study.html,knowledge-center,مطالعهٔ قوس الکتریکی تابلوهای فشار متوسط | پیشرو تجهیز فرتاک,1700,1244,0.899,3
+knowledge-center/kc-sulfur-recovery-tail-gas-treatment.html,https://pishtaj.ir/knowledge-center/kc-sulfur-recovery-tail-gas-treatment.html,knowledge-center,واحد تصفیهٔ گاز دنباله TGTU در بازیافت گوگرد | پیشرو تجهیز فرتاک,1675,1246,0.89,4
+knowledge-center/kc-heat-exchanger-tema-class-selection.html,https://pishtaj.ir/knowledge-center/kc-heat-exchanger-tema-class-selection.html,knowledge-center,راهنمای انتخاب کلاس TEMA مبدل حرارتی | پیشرو تجهیز فرتاک,1704,1248,0.89,6
+knowledge-center/kc-explosion-proof-lighting-zone-classification.html,https://pishtaj.ir/knowledge-center/kc-explosion-proof-lighting-zone-classification.html,knowledge-center,روشنایی ضدانفجار و تطبیق با طبقه‌بندی مناطق | پیشرو تجهیز فرتاک,1676,1249,0.897,3
+knowledge-center/kc-olefin-cracking-furnace-coil-design.html,https://pishtaj.ir/knowledge-center/kc-olefin-cracking-furnace-coil-design.html,knowledge-center,طراحی کویل کورهٔ کراکینگ الفین | پیشرو تجهیز فرتاک,1707,1249,0.893,2
+knowledge-center/kc-a106-mill-test-certificate-verification.html,https://pishtaj.ir/knowledge-center/kc-a106-mill-test-certificate-verification.html,knowledge-center,راستی‌آزمایی گواهی MTC لوله A106 Gr.B | پیشرو تجهیز فرتاک,1679,1250,0.899,3
+knowledge-center/kc-control-valve-rangeability-turndown.html,https://pishtaj.ir/knowledge-center/kc-control-valve-rangeability-turndown.html,knowledge-center,رنج‌پذیری و نسبت Turndown کنترل ولو | پیشرو تجهیز فرتاک,1690,1251,0.897,2
+knowledge-center/kc-mv-switchgear.html,https://pishtaj.ir/knowledge-center/kc-mv-switchgear.html,knowledge-center,راهنمای کامل تابلوهای برق فشار متوسط (MV Switchgear),1746,1251,0.879,6
+knowledge-center/kc-plc-programming-languages-guide.html,https://pishtaj.ir/knowledge-center/kc-plc-programming-languages-guide.html,knowledge-center,زبان‌های برنامه‌نویسی PLC | پیشرو تجهیز فرتاک,1700,1251,0.897,4
+knowledge-center/kc-bms-integration-fire-alarm-hvac.html,https://pishtaj.ir/knowledge-center/kc-bms-integration-fire-alarm-hvac.html,knowledge-center,یکپارچه‌سازی BMS با اعلام حریق و HVAC | پیشرو تجهیز فرتاک,1684,1252,0.897,3
+knowledge-center/kc-gate-valve-wedge-sticking-troubleshooting.html,https://pishtaj.ir/knowledge-center/kc-gate-valve-wedge-sticking-troubleshooting.html,knowledge-center,گیرکردن گوه شیر دروازه‌ای | پیشرو تجهیز فرتاک,1773,1253,0.901,3
+knowledge-center/kc-orifice-plate-beta-ratio-sizing.html,https://pishtaj.ir/knowledge-center/kc-orifice-plate-beta-ratio-sizing.html,knowledge-center,محاسبهٔ نسبت بتا صفحهٔ اریفیس (ISO 5167) | پیشرو تجهیز فرتاک,1683,1253,0.898,3
+knowledge-center/kc-pm-predictive-vs-preventive-strategy.html,https://pishtaj.ir/knowledge-center/kc-pm-predictive-vs-preventive-strategy.html,knowledge-center,نگهداری پیشگویانه در برابر پیشگیرانه | پیشرو تجهیز فرتاک,1679,1254,0.891,3
+knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html,https://pishtaj.ir/knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html,knowledge-center,تنظیم فشار ست و Blowdown شیر اطمینان PSV | پیشرو تجهیز فرتاک,1742,1254,0.898,3
+knowledge-center/kc-globe-valve-flow-direction-guide.html,https://pishtaj.ir/knowledge-center/kc-globe-valve-flow-direction-guide.html,knowledge-center,جهت صحیح نصب شیر Globe Valve | پیشرو تجهیز فرتاک,1753,1255,0.901,5
+knowledge-center/kc-heat-tracing-power-calculation-guide.html,https://pishtaj.ir/knowledge-center/kc-heat-tracing-power-calculation-guide.html,knowledge-center,محاسبهٔ توان سیستم Heat Tracing لوله | پیشرو تجهیز فرتاک,1714,1255,0.898,2
+knowledge-center/kc-a179-tube-expansion-rolling-procedure.html,https://pishtaj.ir/knowledge-center/kc-a179-tube-expansion-rolling-procedure.html,knowledge-center,اتصال لولهٔ A179 به Tube Sheet با Rolling | پیشرو تجهیز فرتاک,1712,1257,0.893,2
+knowledge-center/kc-ndt-method-selection-by-defect-type.html,https://pishtaj.ir/knowledge-center/kc-ndt-method-selection-by-defect-type.html,knowledge-center,راهنمای انتخاب روش NDT بر اساس نوع عیب | پیشرو تجهیز فرتاک,1707,1257,0.897,4
+knowledge-center/kc-slurry-valve-abrasion-wear-life-estimation.html,https://pishtaj.ir/knowledge-center/kc-slurry-valve-abrasion-wear-life-estimation.html,knowledge-center,تخمین عمر سایشی شیرهای دوغاب Slurry Valve | پیشرو تجهیز فرتاک,1686,1257,0.898,2
+knowledge-center/kc-earthing-grid-resistance-testing.html,https://pishtaj.ir/knowledge-center/kc-earthing-grid-resistance-testing.html,knowledge-center,تست مقاومت شبکهٔ زمین (Earthing Grid) | پیشرو تجهیز فرتاک,1671,1258,0.898,5
+knowledge-center/kc-lng-boil-off-gas-management.html,https://pishtaj.ir/knowledge-center/kc-lng-boil-off-gas-management.html,knowledge-center,مدیریت گاز تبخیرشدهٔ LNG (Boil-Off Gas) | پیشرو تجهیز فرتاک,1679,1258,0.891,3
+knowledge-center/kc-ups-battery-sizing-autonomy-calculation.html,https://pishtaj.ir/knowledge-center/kc-ups-battery-sizing-autonomy-calculation.html,knowledge-center,محاسبهٔ سایز باتری و زمان اتونومی UPS | پیشرو تجهیز فرتاک,1689,1258,0.898,3
+knowledge-center/kc-washer-material-torque-relaxation.html,https://pishtaj.ir/knowledge-center/kc-washer-material-torque-relaxation.html,knowledge-center,مادهٔ واشر و نشست گشتاور در اتصالات صنعتی | پیشرو تجهیز فرتاک,1690,1259,0.898,3
+knowledge-center/kc-desalter-electrostatic-grid-troubleshooting.html,https://pishtaj.ir/knowledge-center/kc-desalter-electrostatic-grid-troubleshooting.html,knowledge-center,عیب‌یابی شبکهٔ الکترواستاتیک دیسالتر | پیشرو تجهیز فرتاک,1674,1260,0.891,4
+knowledge-center/kc-reciprocating-pump-packing-seal-guide.html,https://pishtaj.ir/knowledge-center/kc-reciprocating-pump-packing-seal-guide.html,knowledge-center,آب‌بندی Packing پمپ رفت‌وبرگشتی | پیشرو تجهیز فرتاک,1681,1262,0.898,3
+knowledge-center/kc-compressor-selection-screw-vs-reciprocating.html,https://pishtaj.ir/knowledge-center/kc-compressor-selection-screw-vs-reciprocating.html,knowledge-center,مقایسهٔ کمپرسور اسکرو و رفت‌وبرگشتی | پیشرو تجهیز فرتاک,1730,1264,0.892,5
+knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html,https://pishtaj.ir/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html,knowledge-center,محاسبهٔ فشار تست و زمان نگه‌داشت هیدرواستاتیک | پیشرو تجهیز فرتاک,1725,1264,0.901,2
+knowledge-center/kc-steel-continuous-casting-mold-cooling.html,https://pishtaj.ir/knowledge-center/kc-steel-continuous-casting-mold-cooling.html,knowledge-center,خنک‌کاری قالب ریخته‌گری مداوم فولاد | پیشرو تجهیز فرتاک,1670,1265,0.891,2
+knowledge-center/kc-air-cooled-fin-fan-selection-guide.html,https://pishtaj.ir/knowledge-center/kc-air-cooled-fin-fan-selection-guide.html,knowledge-center,انتخاب فن مبدل هوایی Air Cooled برای اقلیم گرم,1761,1268,0.892,4
+knowledge-center/kc-flowmeters-10-methods.html,https://pishtaj.ir/knowledge-center/kc-flowmeters-10-methods.html,knowledge-center,راهنمای کامل فلومترهای صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1737,1268,0.895,7
+knowledge-center/kc-radar-level-transmitter-tank-installation.html,https://pishtaj.ir/knowledge-center/kc-radar-level-transmitter-tank-installation.html,knowledge-center,نصب صحیح ترانسمیتر سطح راداری در مخازن | پیشرو تجهیز فرتاک,1746,1268,0.899,3
+knowledge-center/control-valve-actuator-selection-guide.html,https://pishtaj.ir/knowledge-center/control-valve-actuator-selection-guide.html,knowledge-center,راهنمای انتخاب اکچویتور کنترل ولو | Fail Action و Shutoff,1755,1269,0.95,7
+knowledge-center/kc-amine-unit-foaming-corrosion-problems.html,https://pishtaj.ir/knowledge-center/kc-amine-unit-foaming-corrosion-problems.html,knowledge-center,مشکلات کف‌کردن و خوردگی واحد آمین | پیشرو تجهیز فرتاک,1679,1269,0.892,5
+knowledge-center/kc-a53-vs-a106-selection-criteria.html,https://pishtaj.ir/knowledge-center/kc-a53-vs-a106-selection-criteria.html,knowledge-center,معیار انتخاب بین لولهٔ ASTM A53 و A106 Gr.B | پیشرو تجهیز فرتاک,1686,1271,0.901,2
+knowledge-center/kc-thermocouple-cold-junction-compensation.html,https://pishtaj.ir/knowledge-center/kc-thermocouple-cold-junction-compensation.html,knowledge-center,جبران‌سازی نقطهٔ سرد ترموکوپل (CJC) | پیشرو تجهیز فرتاک,1675,1271,0.899,4
+knowledge-center/kc-butterfly-valve-torque-actuator-sizing.html,https://pishtaj.ir/knowledge-center/kc-butterfly-valve-torque-actuator-sizing.html,knowledge-center,گشتاور شیر Butterfly و انتخاب اکچویتور | پیشرو تجهیز فرتاک,1766,1272,0.902,3
+knowledge-center/kc-lubrication-oil-analysis-condition-monitoring.html,https://pishtaj.ir/knowledge-center/kc-lubrication-oil-analysis-condition-monitoring.html,knowledge-center,آنالیز روغن و پایش وضعیت تجهیزات دوار | پیشرو تجهیز فرتاک,1693,1272,0.892,5
+knowledge-center/kc-shell-tube-heat-exchanger-tema-guide.html,https://pishtaj.ir/knowledge-center/kc-shell-tube-heat-exchanger-tema-guide.html,knowledge-center,انتخاب کلاس TEMA مبدل Shell & Tube | پیشرو تجهیز فرتاک,1761,1273,0.893,9
+knowledge-center/kc-cf8-cf8m-casting-defects-inspection.html,https://pishtaj.ir/knowledge-center/kc-cf8-cf8m-casting-defects-inspection.html,knowledge-center,عیوب ریخته‌گری و بازرسی بدنهٔ شیر CF8/CF8M | پیشرو تجهیز فرتاک,1687,1275,0.899,4
+knowledge-center/kc-chemical-injection-pump-metering-accuracy.html,https://pishtaj.ir/knowledge-center/kc-chemical-injection-pump-metering-accuracy.html,knowledge-center,دقت اندازه‌گیری پمپ تزریق مواد شیمیایی | پیشرو تجهیز فرتاک,1725,1275,0.893,6
+knowledge-center/kc-valve-leak-test-acceptance-criteria.html,https://pishtaj.ir/knowledge-center/kc-valve-leak-test-acceptance-criteria.html,knowledge-center,معیارهای پذیرش تست نشتی شیرآلات | پیشرو تجهیز فرتاک,1672,1277,0.899,3
+knowledge-center/kc-a335.html,https://pishtaj.ir/knowledge-center/kc-a335.html,knowledge-center,راهنمای کامل لوله‌های آلیاژی کروم-مولیبدن A335,1767,1279,0.871,2
+knowledge-center/kc-gasket-selection-by-fluid-temperature.html,https://pishtaj.ir/knowledge-center/kc-gasket-selection-by-fluid-temperature.html,knowledge-center,انتخاب گسکت بر اساس سیال و دما | پیشرو تجهیز فرتاک,1736,1279,0.9,6
+knowledge-center/kc-vfd-harmonic-distortion-mitigation.html,https://pishtaj.ir/knowledge-center/kc-vfd-harmonic-distortion-mitigation.html,knowledge-center,کاهش هارمونیک ناشی از درایو VFD | پیشرو تجهیز فرتاک,1754,1285,0.903,3
+knowledge-center/kc-sawh.html,https://pishtaj.ir/knowledge-center/kc-sawh.html,knowledge-center,راهنمای کامل لوله‌های اسپیرال (SAWH)؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1761,1287,0.878,2
+knowledge-center/kc-pipe-thermal-insulation.html,https://pishtaj.ir/knowledge-center/kc-pipe-thermal-insulation.html,knowledge-center,راهنمای کامل عایق‌کاری حرارتی لوله‌های صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1745,1288,0.889,2
+knowledge-center/kc-heat-tracing.html,https://pishtaj.ir/knowledge-center/kc-heat-tracing.html,knowledge-center,راهنمای کامل سیستم گرمایش الکتریکی (Heat Tracing) لوله,1798,1291,0.872,2
+knowledge-center/kc-pipe-support-steel-structure.html,https://pishtaj.ir/knowledge-center/kc-pipe-support-steel-structure.html,knowledge-center,راهنمای کامل سازه فلزی و ساپورت لوله در خطوط لوله کشی صنعتی,1810,1292,0.889,4
+knowledge-center/kc-304-316.html,https://pishtaj.ir/knowledge-center/kc-304-316.html,knowledge-center,راهنمای کامل لوله‌های استینلس استیل 304 و 316؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1776,1293,0.872,3
+knowledge-center/kc-welded-fittings-elbow-tee-reducer.html,https://pishtaj.ir/knowledge-center/kc-welded-fittings-elbow-tee-reducer.html,knowledge-center,راهنمای کامل اتصالات جوشی فیتینگ؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1766,1294,0.89,2
+knowledge-center/kc-a333-low-temperature-impact-testing.html,https://pishtaj.ir/knowledge-center/kc-a333-low-temperature-impact-testing.html,knowledge-center,تست ضربهٔ دمای پایین لولهٔ A333 Gr.6 | پیشرو تجهیز فرتاک,1692,1297,0.903,3
+knowledge-center/kc-cold-drawn-hot-rolled-dimensional-tolerance.html,https://pishtaj.ir/knowledge-center/kc-cold-drawn-hot-rolled-dimensional-tolerance.html,knowledge-center,تلورانس ابعادی لولهٔ کشش سرد و نورد گرم | پیشرو تجهیز فرتاک,1745,1298,0.903,1
+knowledge-center/kc-flowmeter-selection-by-fluid-application.html,https://pishtaj.ir/knowledge-center/kc-flowmeter-selection-by-fluid-application.html,knowledge-center,راهنمای انتخاب فلومتر بر اساس نوع سیال | پیشرو تجهیز فرتاک,1793,1298,0.901,9
+knowledge-center/kc-stainless-steel-pipe-passivation-procedure.html,https://pishtaj.ir/knowledge-center/kc-stainless-steel-pipe-passivation-procedure.html,knowledge-center,پسیو کردن لولهٔ استینلس استیل بعد از جوش | پیشرو تجهیز فرتاک,1717,1298,0.903,4
+services/products/displacer-level-transmitter.html,https://pishtaj.ir/services/products/displacer-level-transmitter.html,services,خرید و تامین ترانسمیتر سطح دیسپلیسری؛ Torque Tube و Cage Type,1803,1300,0.99,2
+services/products/power-transformer.html,https://pishtaj.ir/services/products/power-transformer.html,services,خرید و تامین ترانسفورماتور توزیع و قدرت | پیشرو تجهیز فرتاک,1809,1304,0.933,6
+brands/vallourec-pipes.html,https://pishtaj.ir/brands/vallourec-pipes.html,brands,تامین و سورسینگ والورک Vallourec | پیشرو تجهیز فرتاک,1792,1306,0.999,1
+knowledge-center/kc-nps-dn-schedule-od-wt.html,https://pishtaj.ir/knowledge-center/kc-nps-dn-schedule-od-wt.html,knowledge-center,راهنمای کامل ابعاد لوله‌های صنعتی؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1791,1309,0.88,4
+knowledge-center/kc-gate-valve-api-600-flexible-wedge-design.html,https://pishtaj.ir/knowledge-center/kc-gate-valve-api-600-flexible-wedge-design.html,knowledge-center,طراحی گوهٔ منعطف در شیر دروازه‌ای API 600 | پیشرو تجهیز فرتاک,1791,1312,0.905,2
+knowledge-center/steam-control-valve-sizing-guide.html,https://pishtaj.ir/knowledge-center/steam-control-valve-sizing-guide.html,knowledge-center,سایزینگ کنترل ولو بخار چیست؟ نکات انتخاب Steam Control Valve,1841,1314,0.951,4
+knowledge-center/kc-api-598-iso-5208.html,https://pishtaj.ir/knowledge-center/kc-api-598-iso-5208.html,knowledge-center,راهنمای کامل تست نشتی شیرآلات؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1798,1316,0.874,5
+knowledge-center/kc-pressure-transmitter-range-selection.html,https://pishtaj.ir/knowledge-center/kc-pressure-transmitter-range-selection.html,knowledge-center,انتخاب رنج ترانسمیتر فشار | پیشرو تجهیز فرتاک,1768,1316,0.905,4
+brands/galperti-flanges.html,https://pishtaj.ir/brands/galperti-flanges.html,brands,تامین و سورسینگ گالپرتی Galperti | پیشرو تجهیز فرتاک,1762,1317,0.999,1
+services/products/industrial-gaskets.html,https://pishtaj.ir/services/products/industrial-gaskets.html,services,خرید و تامین گسکت صنعتی | پیشرو تجهیز فرتاک,1811,1317,0.935,11
+brands/flexitallic-gaskets.html,https://pishtaj.ir/brands/flexitallic-gaskets.html,brands,تامین و سورسینگ فلکسیتالیک Flexitallic | پیشرو تجهیز فرتاک,1794,1318,0.999,1
+knowledge-center/kc-erw-hfw.html,https://pishtaj.ir/knowledge-center/kc-erw-hfw.html,knowledge-center,راهنمای کامل لوله‌های جوشی ERW و HFW؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1812,1320,0.884,3
+services/products/vortex-flowmeter.html,https://pishtaj.ir/services/products/vortex-flowmeter.html,services,خرید و تامین فلومتر ورتکس | پیشرو تجهیز فرتاک,1824,1320,0.934,6
+services/products/thermowell.html,https://pishtaj.ir/services/products/thermowell.html,services,خرید و تامین ترموول صنعتی؛ Flanged، Threaded و Weld-in,1801,1321,0.99,4
+knowledge-center/kc-api-5l-psl1-psl2.html,https://pishtaj.ir/knowledge-center/kc-api-5l-psl1-psl2.html,knowledge-center,راهنمای کامل لوله‌های بدون درز API 5L PSL1 و PSL2,1840,1325,0.882,2
+knowledge-center/kc-gas-sweetening-amine.html,https://pishtaj.ir/knowledge-center/kc-gas-sweetening-amine.html,knowledge-center,راهنمای کامل تجهیزات شیرین‌سازی گاز (Gas Sweetening - Amine),1803,1325,0.882,5
+knowledge-center/kc-pipeline-welding-standards.html,https://pishtaj.ir/knowledge-center/kc-pipeline-welding-standards.html,knowledge-center,راهنمای کامل جوشکاری خطوط لوله؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1782,1326,0.899,3
+brands/kitz-valves.html,https://pishtaj.ir/brands/kitz-valves.html,brands,تامین و سورسینگ شیرآلات KITZ | پیشرو تجهیز فرتاک,1822,1327,0.999,1
+knowledge-center/kc-astm-a106-gr.html,https://pishtaj.ir/knowledge-center/kc-astm-a106-gr.html,knowledge-center,راهنمای کامل مشخصات فنی لوله ASTM A106 Gr.B؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1819,1327,0.878,3
+services/products/pipe-supports-spring-hangers.html,https://pishtaj.ir/services/products/pipe-supports-spring-hangers.html,services,خرید و تامین ساپورت پایپینگ، Spring Hanger و Pipe Shoe,1814,1328,0.991,3
+knowledge-center/kc-pipeline-corrosion-prevention.html,https://pishtaj.ir/knowledge-center/kc-pipeline-corrosion-prevention.html,knowledge-center,راهنمای کامل خوردگی در خطوط لوله و روش‌های پیشگیری,1810,1329,0.899,3
+knowledge-center/kc-slurry-valves.html,https://pishtaj.ir/knowledge-center/kc-slurry-valves.html,knowledge-center,راهنمای کامل شیرهای دوغاب (Slurry Valves)؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1803,1331,0.882,5
+brands/yokogawa-industrial.html,https://pishtaj.ir/brands/yokogawa-industrial.html,brands,تامین و سورسینگ یوکوگاوا Yokogawa | پیشرو تجهیز فرتاک,1900,1332,0.999,1
+knowledge-center/kc-cf8-cf8m-cf3m.html,https://pishtaj.ir/knowledge-center/kc-cf8-cf8m-cf3m.html,knowledge-center,راهنمای کامل شیرهای صنعتی استینلس استیل؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1808,1332,0.882,4
+knowledge-center/kc-ball-valve-api-6d-fire-safe-design.html,https://pishtaj.ir/knowledge-center/kc-ball-valve-api-6d-fire-safe-design.html,knowledge-center,طراحی Fire-Safe شیر توپی API 6D | پیشرو تجهیز فرتاک,1756,1333,0.906,2
+services/products/magnetic-flowmeter.html,https://pishtaj.ir/services/products/magnetic-flowmeter.html,services,خرید و تامین فلومتر مغناطیسی Magmeter | پیشرو تجهیز فرتاک,1860,1333,0.935,8
+services/products/thermal-mass-flowmeter.html,https://pishtaj.ir/services/products/thermal-mass-flowmeter.html,services,خرید و تامین فلومتر جرمی حرارتی برای هوای فشرده و گاز,1812,1334,0.99,2
+services/products/welding-flanges.html,https://pishtaj.ir/services/products/welding-flanges.html,services,خرید و تامین فلنج صنعتی ASME B16.5 | پیشرو تجهیز فرتاک,1835,1334,0.935,545
+brands/emerson-rosemount.html,https://pishtaj.ir/brands/emerson-rosemount.html,brands,سورسینگ و تامین روزمونت / امرسون؛ نمایندگی و اصالت | پیشرو تجهیز فرتاک,1883,1335,0.999,3
+knowledge-center/kc-flange-class-900-2500-bolt-torque-table.html,https://pishtaj.ir/knowledge-center/kc-flange-class-900-2500-bolt-torque-table.html,knowledge-center,جدول گشتاور پیچ فلنج Class 900 تا 2500 | پیشرو تجهیز فرتاک,1744,1335,0.906,5
+services/products/industrial-circuit-breakers.html,https://pishtaj.ir/services/products/industrial-circuit-breakers.html,services,خرید و تامین کلید صنعتی ACB MCCB VCB | پیشرو تجهیز فرتاک,1874,1335,0.934,12
+knowledge-center/kc-globe-valve-type-type.html,https://pishtaj.ir/knowledge-center/kc-globe-valve-type-type.html,knowledge-center,راهنمای کامل شیرهای Globe Valve؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1810,1337,0.885,4
+services/products/vfd-soft-starter.html,https://pishtaj.ir/services/products/vfd-soft-starter.html,services,خرید و تامین VFD و Soft Starter | پیشرو تجهیز فرتاک,1833,1338,0.934,15
+knowledge-center/kc-gate-valve-wedge-parallel-slide.html,https://pishtaj.ir/knowledge-center/kc-gate-valve-wedge-parallel-slide.html,knowledge-center,راهنمای کامل شیرهای Gate Valve؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1817,1341,0.885,5
+brands/abb-industrial.html,https://pishtaj.ir/brands/abb-industrial.html,brands,تامین و سورسینگ ABB صنعتی | پیشرو تجهیز فرتاک,1886,1343,0.999,1
+services/products/lv-mv-switchgear.html,https://pishtaj.ir/services/products/lv-mv-switchgear.html,services,خرید و تامین تابلو برق LV/MV | پیشرو تجهیز فرتاک,1843,1343,0.935,15
+services/products/steam-trap.html,https://pishtaj.ir/services/products/steam-trap.html,services,خرید و تامین تله بخار صنعتی | پیشرو تجهیز فرتاک,1843,1343,0.935,7
+knowledge-center/kc-ball-valve.html,https://pishtaj.ir/knowledge-center/kc-ball-valve.html,knowledge-center,راهنمای کامل شیرهای Ball Valve؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1809,1344,0.885,16
+services/products/butt-weld-fittings.html,https://pishtaj.ir/services/products/butt-weld-fittings.html,services,خرید و تامین فیتینگ جوشی ASME B16.9 | پیشرو تجهیز فرتاک,1840,1344,0.936,8
+services/products/pressure-vessel.html,https://pishtaj.ir/services/products/pressure-vessel.html,services,خرید و تامین مخزن تحت فشار ASME | پیشرو تجهیز فرتاک,1849,1346,0.935,6
+brands/wika-instrumentation.html,https://pishtaj.ir/brands/wika-instrumentation.html,brands,تامین و سورسینگ ویکا WIKA | پیشرو تجهیز فرتاک,1887,1348,0.999,1
+knowledge-center/kc-hydraulic-control-valves.html,https://pishtaj.ir/knowledge-center/kc-hydraulic-control-valves.html,knowledge-center,راهنمای کامل شیرهای کنترل هیدرولیک؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1806,1348,0.896,3
+knowledge-center/kc-oil-gas-pipeline-equipment.html,https://pishtaj.ir/knowledge-center/kc-oil-gas-pipeline-equipment.html,knowledge-center,راهنمای کامل تجهیزات خطوط لوله انتقال نفت و گاز,1837,1349,0.901,7
+brands/tenaris-pipes.html,https://pishtaj.ir/brands/tenaris-pipes.html,brands,تامین و سورسینگ تناریس Tenaris | پیشرو تجهیز فرتاک,1850,1352,0.999,1
+services/products/dosing-metering-pump.html,https://pishtaj.ir/services/products/dosing-metering-pump.html,services,خرید و تامین دوزینگ پمپ API 675 | پیشرو تجهیز فرتاک,1855,1352,0.936,9
+services/products/coriolis-flowmeter.html,https://pishtaj.ir/services/products/coriolis-flowmeter.html,services,خرید و تامین فلومتر کوریولیس | پیشرو تجهیز فرتاک,1857,1354,0.936,9
+brands/krohne-instrumentation.html,https://pishtaj.ir/brands/krohne-instrumentation.html,brands,تامین و سورسینگ کرونه KROHNE | پیشرو تجهیز فرتاک,1840,1355,0.999,1
+knowledge-center/kc-actuator-fail-safe-position-guide.html,https://pishtaj.ir/knowledge-center/kc-actuator-fail-safe-position-guide.html,knowledge-center,انتخاب وضعیت ایمن Fail-Safe محرک شیرآلات | پیشرو تجهیز فرتاک,1775,1355,0.905,4
+knowledge-center/kc-surge-arrester-emergency-shutdown-valves.html,https://pishtaj.ir/knowledge-center/kc-surge-arrester-emergency-shutdown-valves.html,knowledge-center,راهنمای کامل شیرهای برقگیر و شیرهای قطع اضطراری,1828,1355,0.896,4
+knowledge-center/kc-pneumatic-electropneumatic-control-valves.html,https://pishtaj.ir/knowledge-center/kc-pneumatic-electropneumatic-control-valves.html,knowledge-center,راهنمای کامل شیرهای کنترل پنوماتیک و الکتروپنوماتیک,1829,1360,0.897,2
+services/products/seamless-pipe.html,https://pishtaj.ir/services/products/seamless-pipe.html,services,خرید و تامین لوله مانیسمان ASTM A106 | پیشرو تجهیز فرتاک,1866,1361,0.937,543
+services/products/industrial-strainer-filter.html,https://pishtaj.ir/services/products/industrial-strainer-filter.html,services,خرید و تامین Y Strainer، Basket Strainer و فیلتر صنعتی,1827,1362,0.991,3
+services/products/radar-level-transmitter.html,https://pishtaj.ir/services/products/radar-level-transmitter.html,services,خرید و تامین رادار لول ترانسمیتر | پیشرو تجهیز فرتاک,1875,1365,0.936,10
+knowledge-center/kc-actuator.html,https://pishtaj.ir/knowledge-center/kc-actuator.html,knowledge-center,راهنمای کامل انتخاب محرک (Actuator) برای شیرآلات,1858,1369,0.886,4
+services/products/forged-fittings.html,https://pishtaj.ir/services/products/forged-fittings.html,services,خرید و تامین فیتینگ فورج ASME B16.11؛ Socket Weld و Threaded,1846,1369,0.974,3
+knowledge-center/kc-cv-actuator.html,https://pishtaj.ir/knowledge-center/kc-cv-actuator.html,knowledge-center,راهنمای کامل شیرهای کنترل؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1856,1370,0.886,4
+services/products/shell-tube-heat-exchanger.html,https://pishtaj.ir/services/products/shell-tube-heat-exchanger.html,services,خرید و تامین مبدل حرارتی Shell &amp; Tube | پیشرو تجهیز فرتاک,1886,1370,0.936,9
+knowledge-center/control-valve-cv-kv-difference.html,https://pishtaj.ir/knowledge-center/control-valve-cv-kv-difference.html,knowledge-center,تفاوت Cv و Kv در کنترل ولو چیست؟ فرمول تبدیل و کاربرد,1940,1371,0.949,11
+brands/endress-hauser.html,https://pishtaj.ir/brands/endress-hauser.html,brands,تامین و سورسینگ اندرس هاوزر Endress+Hauser | پیشرو تجهیز فرتاک,1893,1372,0.999,1
+brands/schneider-electric.html,https://pishtaj.ir/brands/schneider-electric.html,brands,تامین و سورسینگ اشنایدر الکتریک Schneider Electric | پیشرو تجهیز فرتاک,1901,1374,0.999,1
+services/products/alloy-steel-pipe-a335.html,https://pishtaj.ir/services/products/alloy-steel-pipe-a335.html,services,خرید و تامین لوله آلیاژی ASTM A335 P11/P22/P91,1804,1375,0.991,5
+services/products/stainless-steel-pipe.html,https://pishtaj.ir/services/products/stainless-steel-pipe.html,services,خرید و تامین لوله استنلس استیل ASTM A312 TP304/TP316,1849,1376,0.974,4
+services/products/screw-compressor.html,https://pishtaj.ir/services/products/screw-compressor.html,services,خرید و تامین کمپرسور اسکرو صنعتی | پیشرو تجهیز فرتاک,1869,1377,0.937,12
+knowledge-center/kc-psv.html,https://pishtaj.ir/knowledge-center/kc-psv.html,knowledge-center,راهنمای کامل شیرهای اطمینان (PSV)؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1869,1379,0.886,3
+brands/eaton-crouse-hinds.html,https://pishtaj.ir/brands/eaton-crouse-hinds.html,brands,تامین تجهیزات Eaton Crouse-Hinds | پیشرو تجهیز فرتاک,1901,1380,0.999,1
+brands/spirax-sarco-steam.html,https://pishtaj.ir/brands/spirax-sarco-steam.html,brands,تامین و سورسینگ اسپیرکس سارکو Spirax Sarco | پیشرو تجهیز فرتاک,1855,1380,0.999,1
+services/products/earthing-lightning-protection.html,https://pishtaj.ir/services/products/earthing-lightning-protection.html,services,خرید و تامین سیستم ارتینگ و حفاظت صاعقه؛ IEC 62305 و IEEE 80,1776,1381,0.99,3
+services/products/stud-bolts-nuts.html,https://pishtaj.ir/services/products/stud-bolts-nuts.html,services,خرید و تامین استادبولت ASTM A193 B7/B8 و مهره A194 2H,1789,1381,0.991,4
+comparisons/a106-vs-a333-pipe.html,https://pishtaj.ir/comparisons/a106-vs-a333-pipe.html,comparisons,مقایسه لوله ASTM A106 و A333 | تفاوت کاربرد، تست ضربه و دما,1698,1383,0.991,19
+services/products/mixer-agitator.html,https://pishtaj.ir/services/products/mixer-agitator.html,services,خرید و تامین میکسر و آگیتاتور صنعتی؛ Top Entry، Side Entry و High Sh,1883,1385,0.991,2
+knowledge-center/kc-butterfly-valve-offset.html,https://pishtaj.ir/knowledge-center/kc-butterfly-valve-offset.html,knowledge-center,راهنمای کامل شیرهای Butterfly Valve؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1864,1387,0.889,2
+services/products/pressure-transmitter.html,https://pishtaj.ir/services/products/pressure-transmitter.html,services,خرید و تامین ترانسمیتر فشار صنعتی | پیشرو تجهیز فرتاک,1921,1389,0.937,16
+brands/phoenix-contact.html,https://pishtaj.ir/brands/phoenix-contact.html,brands,تامین و سورسینگ فونیکس کنتاکت Phoenix Contact | پیشرو تجهیز فرتاک,1884,1390,0.999,1
+services/products/fire-alarm-fg-panel.html,https://pishtaj.ir/services/products/fire-alarm-fg-panel.html,services,خرید و تامین پنل اعلام حریق و Fire &amp; Gas صنعتی؛ EN 54، NFPA 72,1857,1390,0.99,2
+services/products/hazardous-area-cctv-access-control.html,https://pishtaj.ir/services/products/hazardous-area-cctv-access-control.html,services,خرید و تامین CCTV ضدانفجار و Access Control صنعتی,1912,1392,0.991,1
+services/products/api-5l-pipe.html,https://pishtaj.ir/services/products/api-5l-pipe.html,services,خرید و تامین لوله API 5L PSL1/PSL2 | پیشرو تجهیز فرتاک,1877,1393,0.938,11
+brands/omron-automation.html,https://pishtaj.ir/brands/omron-automation.html,brands,تامین و سورسینگ امرون Omron Automation | پیشرو تجهیز فرتاک,1928,1394,0.999,1
+knowledge-center/kc-valve-selection-by-fluid-type.html,https://pishtaj.ir/knowledge-center/kc-valve-selection-by-fluid-type.html,knowledge-center,راهنمای کامل انتخاب شیر بر اساس نوع سیال؛ مشخصات و قیمت | پیشرو تجهیز فرتاک,1885,1395,0.899,2
+brands/grundfos-pumps.html,https://pishtaj.ir/brands/grundfos-pumps.html,brands,تامین و سورسینگ گراندفوس Grundfos | پیشرو تجهیز فرتاک,1899,1396,0.999,1
+services/products/api-610-centrifugal-pump.html,https://pishtaj.ir/services/products/api-610-centrifugal-pump.html,services,خرید و تامین پمپ سانتریفیوژ API 610 | پیشرو تجهیز فرتاک,1889,1396,0.938,15
+services/products/fire-suppression-system.html,https://pishtaj.ir/services/products/fire-suppression-system.html,services,خرید و تامین سیستم اطفای حریق Clean Agent، CO2، Foam و Water Mist,1918,1399,0.991,1
+services/products/instrument-air-package.html,https://pishtaj.ir/services/products/instrument-air-package.html,services,خرید و تامین پکیج Instrument Air؛ کمپرسور، درایر، فیلتر و Receiver,1872,1399,0.991,5
+services/products/differential-pressure-transmitter.html,https://pishtaj.ir/services/products/differential-pressure-transmitter.html,services,خرید و تامین ترانسمیتر اختلاف فشار DP | پیشرو تجهیز فرتاک,1924,1400,0.938,11
+services/products/butterfly-valve.html,https://pishtaj.ir/services/products/butterfly-valve.html,services,خرید و تامین باترفلای ولو API 609 | پیشرو تجهیز فرتاک,1939,1407,0.938,9
+services/products/industrial-power-instrument-cable.html,https://pishtaj.ir/services/products/industrial-power-instrument-cable.html,services,خرید و تامین کابل قدرت و ابزار دقیق صنعتی؛ XLPE، Armored، Shielded,1885,1407,0.973,4
+services/products/fire-tube-boiler.html,https://pishtaj.ir/services/products/fire-tube-boiler.html,services,خرید و تامین بویلر فایرتیوب صنعتی؛ Packaged Steam Boiler,1876,1408,0.991,7
+brands/atlas-copco-compressed-air.html,https://pishtaj.ir/brands/atlas-copco-compressed-air.html,brands,تامین و سورسینگ اطلس کوپکو Atlas Copco | پیشرو تجهیز فرتاک,1831,1413,0.999,1
+services/products/chemical-injection-package.html,https://pishtaj.ir/services/products/chemical-injection-package.html,services,خرید و تامین پکیج تزریق مواد شیمیایی؛ Chemical Injection Skid,1920,1413,0.991,2
+services/products/industrial-ups-battery-charger.html,https://pishtaj.ir/services/products/industrial-ups-battery-charger.html,services,خرید و تامین UPS صنعتی و شارژر باتری؛ AC/DC Backup Power,1902,1420,0.973,5
+brands/fisher-samson-control-valves.html,https://pishtaj.ir/brands/fisher-samson-control-valves.html,brands,تامین و سورسینگ کنترل ولو Fisher و SAMSON | پیشرو تجهیز فرتاک,1971,1421,0.999,1
+services/products/control-valve.html,https://pishtaj.ir/services/products/control-valve.html,services,خرید و تامین کنترل ولو IEC 60534 | پیشرو تجهیز فرتاک,1959,1422,0.939,14
+services/products/check-valve.html,https://pishtaj.ir/services/products/check-valve.html,services,خرید و تامین چک ولو Swing، Dual Plate و Nozzle | پیشرو تجهیز فرتاک,1963,1429,0.939,9
+services/products/globe-valve.html,https://pishtaj.ir/services/products/globe-valve.html,services,خرید و تامین گلوب ولو صنعتی API 623 | پیشرو تجهیز فرتاک,1983,1437,0.939,8
+services/products/flowmeter.html,https://pishtaj.ir/services/products/flowmeter.html,services,خرید و تامین فلومتر صنعتی | پیشرو تجهیز فرتاک,1991,1445,0.94,19
+services/products/valve-actuator.html,https://pishtaj.ir/services/products/valve-actuator.html,services,خرید و تامین اکچویتور ولو | پیشرو تجهیز فرتاک,1994,1448,0.94,12
+services/products/cable-accessories.html,https://pishtaj.ir/services/products/cable-accessories.html,services,خرید و تامین متعلقات کابل صنعتی؛ Cable Gland، Lug، Tray,1916,1451,0.99,4
+services/products/rosemount-3051.html,https://pishtaj.ir/services/products/rosemount-3051.html,services,ترانسمیتر فشار روزمونت 3051؛ تامین، قیمت و استعلام | پیشرو تجهیز فرتاک,1973,1452,0.94,543
+services/products/ultrasonic-flowmeter.html,https://pishtaj.ir/services/products/ultrasonic-flowmeter.html,services,خرید و تامین فلومتر التراسونیک Clamp-on و Inline,1911,1452,0.991,1
+services/products/motor-control-center-mcc.html,https://pishtaj.ir/services/products/motor-control-center-mcc.html,services,خرید و تامین تابلو MCC مرکز کنترل موتور IEC 61439 / NEMA ICS 18,1972,1456,0.991,7
+services/products/gate-valve.html,https://pishtaj.ir/services/products/gate-valve.html,services,خرید و تامین گیت ولو API 600 و API 602 | پیشرو تجهیز فرتاک,1996,1467,0.94,10
+services/instrumentation-equipment/index.html,https://pishtaj.ir/services/instrumentation-equipment/index.html,services,تامین ابزار دقیق، ترانسمیتر و فلومتر | پیشرو تجهیز فرتاک,1943,1507,0.917,132
+services/products/psv-prv-safety-valve.html,https://pishtaj.ir/services/products/psv-prv-safety-valve.html,services,خرید و تامین PSV و Safety Valve | پیشرو تجهیز فرتاک,2081,1512,0.942,9
+services/products/ball-valve.html,https://pishtaj.ir/services/products/ball-valve.html,services,خرید و تامین بال ولو صنعتی API 6D | پیشرو تجهیز فرتاک,2080,1519,0.942,544
+services/products/deaerator-feedwater-system.html,https://pishtaj.ir/services/products/deaerator-feedwater-system.html,services,خرید و تامین دی‌اریاتور و سیستم آب تغذیه بویلر,2011,1525,0.992,5
+index.html,https://pishtaj.ir/index.html,(ریشه),تامین تجهیزات صنعتی نفت، گاز و پتروشیمی | پیشرو تجهیز فرتاک,1933,1558,0.94,655
+services/piping-equipment/index.html,https://pishtaj.ir/services/piping-equipment/index.html,services,تامین تجهیزات پایپینگ، لوله، فلنج و فیتینگ | پیشرو تجهیز فرتاک,2134,1698,0.924,101
+services/products/index.html,https://pishtaj.ir/services/products/index.html,services,جستجوی محصولات صنعتی قابل تامین | پیشرو تجهیز فرتاک,3201,2390,0.986,650
+knowledge-center/index.html,https://pishtaj.ir/knowledge-center/index.html,knowledge-center,مرکز دانش تجهیزات صنعتی و استانداردها | پیشرو تجهیز فرتاک,3761,3438,0.962,587

@@ -22,9 +22,10 @@ RewriteRule ^tamin-tajhizat/?$ /suppliers/ [R=301,L]
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
   # SEC-04 (v34.1): CSP — مسدودسازی بارگذاری منابع خارجی (unsafe-inline لازم است چون ۸۰+ onclick/style inline وجود دارد)
+  # v34.9.1: دامنه‌های Google Analytics 4 مجاز شدند (بدون آن‌ها مرورگر gtag را بلاک می‌کرد).
   # v34.4.44: PDF امن از attachment-read به Blob URL تبدیل و داخل iframe نمایش داده می‌شود؛
   # default-src 'self' به‌تنهایی blob: را برای frame نمی‌پذیرفت و فقط «تب جدید» کار می‌کرد.
-  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.arvancloud.ir https://*.arvanstorage.ir; frame-src 'self' blob:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://www.googletagmanager.com https://www.google-analytics.com; font-src 'self'; connect-src 'self' https://*.arvancloud.ir https://*.arvanstorage.ir https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com; frame-src 'self' blob:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'"
 </IfModule>
 
 # Canonical HTTPS redirect for the production hostname only.
@@ -34,10 +35,42 @@ RewriteCond %{HTTP:X-Forwarded-SSL} !on
 RewriteCond %{HTTP_HOST} ^(?:www\.)?pishtaj\.ir$ [NC]
 RewriteRule ^ https://pishtaj.ir%{REQUEST_URI} [R=301,L]
 
+# ------------------------------------------------------------------
+# SEO-2026-08-30 (BUG-SEO-WWW-001): یکسان‌سازی میزبان روی HTTPS
+# قانون بالا فقط وقتی HTTPS خاموش بود اجرا می‌شد؛ در نتیجه
+# https://www.pishtaj.ir با کد ۲۰۰ و محتوای کاملِ تکراری سرو می‌شد
+# (گوگل هر دو میزبان را ایندکس کرده بود → تقسیم اعتبار دامنه).
+# این قانون برای درخواست‌های HTTPS هم www را به نود دامنه ۳۰۱ می‌دهد.
+# ------------------------------------------------------------------
+RewriteCond %{HTTP_HOST} ^www\.pishtaj\.ir$ [NC]
+RewriteRule ^ https://pishtaj.ir%{REQUEST_URI} [R=301,L]
+
+# ------------------------------------------------------------------
+# SEO-2026-08-30 (BUG-SEO-SPAM-410): URLهای اسپم تزریقیِ دوران وردپرس
+# (کازینو/شرط‌بندی عربی). این مسیرها الان ۴۰۴ هستند و در فهرست گوگل
+# مانده‌اند؛ ۴۱۰ (Gone) سیگنالِ حذفِ قوی‌تر و سریع‌تری از ۴۰۴ است.
+# فقط کلیدواژه‌های بی‌خطرِ اختصاصیِ اسپم — نه واژه‌های عمومی فارسی.
+# ------------------------------------------------------------------
+RewriteCond %{REQUEST_URI} (casino|paysafecard|bingo|مراهنات|مراهنة|مراهنه) [NC]
+RewriteRule ^ - [G,L]
+
 # v34.7.51: صفحه آگهی از jobs.json اگر فایل استاتیک ساخته نشده باشد
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^careers/([a-z0-9]+(?:-[a-z0-9]+)*)/?$ /careers/view.php?slug=$1 [L,QSA]
+
+# ------------------------------------------------------------------
+# SEO-2026-08-30 (BUG-SEO-DUP-301): صفحات تکراری/کم‌حجم که تا امروز فقط با
+# canonical سرپوش گذاشته شده بودند. canonical به‌تنهایی اعتبار را منتقل نمی‌کند
+# و خزش را هدر می‌دهد؛ ریدایرکت ۳۰۱ سیگنال قطعی است و مقصدها واقعاً قوی‌ترند:
+#   یکتای مبدأ در برابر مقصد: ۳۳۶→۱۶۹۸ | ۲۸۹→۶۸۹ | ۲۱۵→۱۱۰۴ | ۲۰۵→۱۵۰۷ | ۹۹→۷۶۶ | ۱۴۶→۶۱۲
+# ------------------------------------------------------------------
+RewriteRule ^services/piping-supply\.html$ /services/piping-equipment/ [R=301,L]
+RewriteRule ^services/valves-supply\.html$ /suppliers/valve-supplier.html [R=301,L]
+RewriteRule ^services/electrical-supply\.html$ /services/electrical-equipment/ [R=301,L]
+RewriteRule ^services/instrumentation-supply\.html$ /services/instrumentation-equipment/ [R=301,L]
+RewriteRule ^knowledge-center/article-012\.html$ /industries/steel/ [R=301,L]
+RewriteRule ^knowledge-center/nace-mr0175\.html$ /knowledge-center/nace-mr0175-sour-service-guide.html [R=301,L]
 
 # ------------------------------------------------------------------
 # SEO-CLEANUP-2026-07: قدیمی‌ترین نسخهٔ «تخت» این صفحات با نسخهٔ
@@ -64,6 +97,22 @@ RewriteRule ^industries/petrochemical\.html$ /industries/petrochemical/ [R=301,L
 RewriteRule ^industries/power-plant\.html$ /industries/power-plant/ [R=301,L]
 RewriteRule ^industries/steel\.html$ /industries/steel/ [R=301,L]
 RewriteRule ^industries/water\.html$ /industries/water/ [R=301,L]
+
+# ------------------------------------------------------------------
+# SEO-2026-08-30 (BUG-SEO-LEGACY-404): آدرس‌های نسخهٔ قدیمیِ وردپرسی که
+# هنوز در فهرست گوگل هستند و الان ۴۰۴ می‌دهند. هر نتیجهٔ قدیمی/بک‌لینک
+# به نزدیک‌ترین صفحهٔ معادل ۳۰۱ می‌شود تا اعتبار از دست نرود.
+# ⚠️ فهرست کامل باید از GSC → Indexing → Not found (404) استخراج و تکمیل شود؛
+# این فقط نمونه‌های رؤیت‌شده در نتایج جستجوست.
+# ------------------------------------------------------------------
+RewriteRule ^logo/?$ /about/logo-philosophy/ [R=301,L]
+RewriteRule ^contact-us/?$ /#contact [R=301,NE,L]
+RewriteRule "^درباره-ما/?$" /about/ [R=301,L]
+RewriteRule "^تماس-با-ما/?$" /#contact [R=301,NE,L]
+RewriteRule "^ساختار-سازمانی/?$" /about/organizational-chart/ [R=301,L]
+RewriteRule "^خدمات-ما/?$" /services/ [R=301,L]
+RewriteRule "^وبلاگ/?$" /blog/ [R=301,L]
+RewriteRule "^en/درباره-ما/?$" /en/about.html [R=301,L]
 
 RewriteRule ^blog/boiler-steam-equipment\.html$ /blog/boiler-steam-equipment/ [R=301,L]
 RewriteRule ^blog/compressors-air-systems\.html$ /blog/compressors-air-systems/ [R=301,L]
