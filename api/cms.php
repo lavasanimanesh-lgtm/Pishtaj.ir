@@ -1000,6 +1000,102 @@ switch ($action) {
         jok(['url' => 'products/' . $slug . '.html']);
         break;
 
+    /* ═══ v34.13.0 (S2-id/GENERIC-PAGE): مولد صفحهٔ عمومی — services/industries/comparisons ═══ */
+    case 'page_create':
+        $FOLDERS = [
+            'services'    => ['lb' => 'خدمات',            'schema' => 'Service', 'sitemap' => 'sitemap-services.xml'],
+            'industries'  => ['lb' => 'صنایع',             'schema' => 'Article', 'sitemap' => 'sitemap-industries.xml'],
+            'comparisons' => ['lb' => 'مقایسه محصولات',    'schema' => 'Article', 'sitemap' => 'sitemap-misc.xml'],
+        ];
+        $folder = (string)($_POST['folder'] ?? '');
+        if (!isset($FOLDERS[$folder])) jerr('پوشهٔ مقصد نامعتبر است');
+        $meta = $FOLDERS[$folder];
+        $title = mb_substr(strip_tags($_POST['title'] ?? ''), 0, 200);
+        $h1    = mb_substr(strip_tags($_POST['h1'] ?? ''), 0, 200);
+        $desc  = mb_substr(strip_tags($_POST['desc'] ?? ''), 0, 300);
+        $slug  = strtolower(preg_replace('/[^a-z0-9\-]/', '', $_POST['slug'] ?? ''));
+        $body  = $_POST['body'] ?? '';
+        $img   = preg_replace('#[^a-zA-Z0-9/\-_.:]#', '', $_POST['img'] ?? '../assets/images/ptf-logo.png');
+        if ($title === '' || $slug === '') jerr('عنوان و نامک (slug) الزامی است');
+        if ($h1 === '') $h1 = $title;
+        if (mb_strlen(strip_tags($body), 'UTF-8') < 200) jerr('متن صفحه حداقل ۲۰۰ کاراکتر لازم دارد');
+        $file = $ROOT . '/' . $folder . '/' . $slug . '.html';
+        if (file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
+
+        $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
+        $body = preg_replace('/on\w+\s*=\s*"[^"]*"/i', '', $body);
+        $body = preg_replace("/on\w+\s*=\s*'[^']*'/i", '', $body);
+        $body = preg_replace('/javascript\s*:/i', '', $body);
+
+        $skel = (string)@file_get_contents($ROOT . '/knowledge-center/astm-a105.html');
+        if ($skel === '') jerr('قالب مرجع یافت نشد');
+        $heroMark = '<section style="background:linear-gradient(135deg,#151517,#2d2d31)';
+        $pBody = strpos($skel, '<body>'); $pHero = strpos($skel, $heroMark);
+        $pCta  = strpos($skel, '<div class="kc-supply-cta"'); $pFoot = strpos($skel, '<footer');
+        if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) jerr('ساختار قالب مرجع شناخته نشد');
+        $header = substr($skel, $pBody, $pHero - $pBody);
+        $cta    = substr($skel, $pCta, $pFoot - $pCta);
+        $footer = substr($skel, $pFoot);
+
+        $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+        $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
+        $dEsc = htmlspecialchars($desc, ENT_QUOTES, 'UTF-8');
+        $url  = 'https://pishtaj.ir/' . $folder . '/' . $slug . '.html';
+        $imgAbs = (strpos($img, 'http') === 0) ? $img : 'https://pishtaj.ir/' . ltrim(str_replace('../', '', $img), '/');
+        $folderUrl = 'https://pishtaj.ir/' . $folder . '/';
+
+        $graph = [];
+        if ($meta['schema'] === 'Service') {
+            $graph[] = ['@type' => 'Service', 'name' => $h1, 'description' => $desc,
+                'provider' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک'],
+                'areaServed' => 'IR', 'url' => $url, 'image' => $imgAbs];
+        } else {
+            $graph[] = ['@type' => 'Article', 'headline' => $h1, 'description' => $desc,
+                'author' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک'],
+                'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $url], 'image' => $imgAbs];
+        }
+        $graph[] = ['@type' => 'BreadcrumbList', 'itemListElement' => [
+            ['@type' => 'ListItem', 'position' => 1, 'name' => 'خانه', 'item' => 'https://pishtaj.ir/'],
+            ['@type' => 'ListItem', 'position' => 2, 'name' => $meta['lb'], 'item' => $folderUrl],
+            ['@type' => 'ListItem', 'position' => 3, 'name' => $title],
+        ]];
+        $jsonLd = json_encode(['@context' => 'https://schema.org', '@graph' => $graph], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $html = '<!doctype html>' . "\n" . '<html lang="fa" dir="rtl">' . "\n" . '<head>' . "\n"
+            . '<meta charset="utf-8" />' . "\n"
+            . '<meta name="viewport" content="width=device-width, initial-scale=1" />' . "\n"
+            . '<title>' . $tEsc . '</title>' . "\n"
+            . '<meta name="description" content="' . $dEsc . '" />' . "\n"
+            . '<meta name="robots" content="index, follow" />' . "\n"
+            . '<link rel="canonical" href="' . $url . '" />' . "\n"
+            . '<meta property="og:locale" content="fa_IR" />' . "\n"
+            . '<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />' . "\n"
+            . '<meta property="og:type" content="' . ($meta['schema'] === 'Service' ? 'website' : 'article') . '" />' . "\n"
+            . '<meta property="og:title" content="' . $tEsc . '" />' . "\n"
+            . '<meta property="og:description" content="' . $dEsc . '" />' . "\n"
+            . '<meta property="og:url" content="' . $url . '" />' . "\n"
+            . '<meta property="og:image" content="' . htmlspecialchars($imgAbs, ENT_QUOTES, 'UTF-8') . '" />' . "\n"
+            . '<meta name="twitter:card" content="summary_large_image" />' . "\n"
+            . '<link rel="stylesheet" href="../assets/css/style.css" />' . "\n"
+            . '<script type="application/ld+json">' . $jsonLd . '</script>' . "\n"
+            . '</head>' . "\n"
+            . $header . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
+            . '<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">' . $meta['lb'] . '</span>' . "\n"
+            . '<h1>' . $hEsc . '</h1>' . "\n"
+            . '<p style="color:rgba(255,255,255,.75);font-size:14px">واحد محتوای فنی پیشرو تجهیز فرتاک</p>' . "\n"
+            . '</div>' . "\n" . '</section>' . "\n"
+            . '<div class="article-wrap">' . "\n" . '<div class="article-content">' . "\n"
+            . $body . "\n"
+            . '</div>' . "\n" . '</div>' . "\n"
+            . $cta . "\n" . $footer;
+
+        if (file_exists($file)) cms_backup($DATA, $ROOT, $folder . '/' . $slug . '.html');
+        if (file_put_contents($file, $html, LOCK_EX) === false) jerr('خطای نوشتن فایل (مجوز write?)');
+        sitemap_add($url);
+        cms_log('page_create', $folder . '/' . $slug);
+        jok(['url' => $folder . '/' . $slug . '.html']);
+        break;
+
     case 'product_list':
         $out = [];
         foreach (glob($ROOT . '/products/*.html') ?: [] as $pf) {

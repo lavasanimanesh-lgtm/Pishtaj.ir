@@ -40,7 +40,7 @@
     }
     return '<div class="ph"><h3>🎛 مدیریت سایت (CMS)</h3></div>' +
       '<div id="cmsStatus" style="margin-bottom:10px"></div>' +
-      '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">' + tb('news', '📰 اخبار') + tb('blog', '📝 وبلاگ') + tb('prod', '🛒 محصولات') + tb('seo', '🔍 سئوی صفحات') + '</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">' + tb('news', '📰 اخبار') + tb('blog', '📝 وبلاگ') + tb('prod', '🛒 محصولات') + tb('page', '📄 صفحهٔ جدید') + tb('seo', '🔍 سئوی صفحات') + '</div>' +
       '<div id="cmsWrap"></div>';
   };
   window.cmsTab = function (t) { _tab = t; goPanelByName('cms'); };
@@ -61,6 +61,7 @@
     if (_tab === 'news') renderCmsNews(el);
     else if (_tab === 'blog') renderCmsBlog(el);
     else if (_tab === 'prod') renderCmsProducts(el); /* v34.11.0 (S2) */
+    else if (_tab === 'page') renderCmsPageNew(el); /* v34.13.0 (S2-id) */
     else renderCmsSeo(el);
   };
 
@@ -623,7 +624,7 @@
         '<div style="display:flex;gap:4px;align-items:center">' +
         '<a class="bt bt-o" style="padding:4px 8px;font-size:11.5px;text-decoration:none" target="_blank" href="/' + escP(p.path) + '">👁️</a>' +
         '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="cmsSeoEdit(' + i + ')">✏️ ویرایش</button>' +
-        ((p.issues || []).indexOf('orphan') > -1 ? '<button class="bt bt-o" style="padding:4px 8px;font-size:11.5px;color:#7c3aed" onclick="cmsSeoLinkSuggest(' + i + ')" title="پیشنهاد هوش مصنوعی: از کدام صفحات به این صفحه لینک شود">💡 لینک‌سازی</button>' : '') +
+        ((p.issues || []).indexOf('orphan') > -1 ? '<button class="bt bt-o" style="padding:4px 8px;font-size:11.5px;color:#7c3aed" onclick="cmsSeoLinkSuggest(' + i + ',event)" title="پیشنهاد هوش مصنوعی: از کدام صفحات به این صفحه لینک شود">💡 لینک‌سازی</button>' : '') +
         '</div></div>' +
         (badges ? '<div style="margin-top:5px">' + badges + '</div>' : '<div style="margin-top:5px"><span style="font-size:10.5px;color:#059669">✅ بدون ایراد</span></div>') +
         '</div>';
@@ -646,6 +647,84 @@
       if (typeof cmsRedirectLoad === 'function') cmsRedirectLoad(); /* v34.11.0 (S2) */
     });
   }
+
+  /* ═══ v34.13.0 (S2-id/GENERIC-PAGE): مولد صفحهٔ عمومی — خدمات/صنایع/مقایسه‌ها ═══ */
+  var PAGE_FOLDERS = [
+    { v: 'services', lb: 'خدمات (Service schema)' },
+    { v: 'industries', lb: 'صنایع' },
+    { v: 'comparisons', lb: 'مقایسهٔ محصولات' }
+  ];
+  var PAGE_FIELDS = ['pgTitle', 'pgSlug', 'pgH1', 'pgDesc', 'pgBody', 'pgImg'];
+
+  function renderCmsPageNew(el) {
+    var opts = PAGE_FOLDERS.map(function (f) { return '<option value="' + f.v + '">' + f.lb + '</option>'; }).join('');
+    el.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:14px;font-size:12px;color:#475569;line-height:2;margin-bottom:10px">' +
+      'مولد صفحهٔ عمومی سایت برای بخش‌های <b>خدمات / صنایع / مقایسه‌ها</b>: متن یگانه با هوش مصنوعی (مثل مرکز دانش) + اسکیمای مناسبِ هر بخش + افزودن خودکار به نقشهٔ سایت و ثبت در سرچ کنسول.</div>' +
+      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px">' +
+      '<div id="pgAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+      '<div class="fld"><label>بخش مقصد *</label><select id="pgFolder">' + opts + '</select></div>' +
+      '<div class="fld"><label>نامک (slug) * <small style="color:#94a3b8">a-z و خط تیره</small></label><input type="text" id="pgSlug" dir="ltr" placeholder="valve-maintenance-services"></div>' +
+      '<div class="fld"><label>عنوان یا موضوع برای AI *</label><input type="text" id="pgTopic" placeholder="مثلاً: خدمات تعمیر و کالیبراسیون شیرآلات صنعتی"></div>' +
+      '<div class="fld"><label>مخاطب</label><input type="text" id="pgAud" value="کارشناس خرید و مهندس نگهداری و تعمیر"></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:7px;margin:10px 0"><button class="bt" style="background:#7c3aed" onclick="cmsPageAi()">🤖 تولید با هوش مصنوعی</button></div>' +
+      '<div class="fld"><label>عنوان سئو (title) <span id="pgTitleLen" style="font-size:11px"></span></label><input type="text" id="pgTitle"></div>' +
+      '<div class="fld"><label>H1</label><input type="text" id="pgH1"></div>' +
+      '<div class="fld"><label>توضیح (description) <span id="pgDescLen" style="font-size:11px"></span></label><textarea id="pgDesc" rows="2"></textarea></div>' +
+      '<div class="fld"><label>متن صفحه (HTML سبک — حداقل ۲۰۰ حرف)</label><textarea id="pgBody" rows="10"></textarea></div>' +
+      '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت)</label><input type="text" id="pgImg" dir="ltr" value="assets/images/ptf-logo.png"></div>' +
+      '<label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#374151;margin:8px 0"><input type="checkbox" id="pgReviewed"> ⛔ بازبینی انسانی انجام شد (الزامی)</label>' +
+      '<div style="display:flex;gap:7px;justify-content:flex-end"><button class="bt" onclick="cmsPagePublish()">🚀 انتشار صفحه</button></div>' +
+      '</div>';
+    cmsDraftRestore(PAGE_FIELDS, 'pgAiSt'); cmsDraftBind(PAGE_FIELDS);
+  }
+
+  window.cmsPageAi = function () {
+    var topic = (document.getElementById('pgTopic').value || '').trim();
+    if (!topic) { alert('موضوع را بنویسید'); return; }
+    var st = document.getElementById('pgAiSt');
+    if (st) st.innerHTML = '⏳ هوش مصنوعی در حال تولید محتوا… (متن بلند — چند لحظه)';
+    cmsLLM('seo_article', { topic: topic, aud: (document.getElementById('pgAud').value || '').trim() }, function (d) {
+      if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'خطا') + '</span>'; return; }
+      var v = d.data;
+      var g = function (id) { return document.getElementById(id); };
+      if (v.title && !g('pgTitle').value) g('pgTitle').value = v.title;
+      if (v.slug && !g('pgSlug').value) g('pgSlug').value = v.slug;
+      if (v.h1 && !g('pgH1').value) g('pgH1').value = v.h1;
+      if (v.desc && !g('pgDesc').value) g('pgDesc').value = v.desc;
+      if (v.body && !g('pgBody').value.trim()) g('pgBody').value = v.body;
+      if (st) st.innerHTML = '✅ پیش‌نویس تولید شد — <b>بازبینی انسانی الزامی است.</b>';
+    });
+  };
+
+  window.cmsPagePublish = function () {
+    var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
+    var folder = g('pgFolder'), title = g('pgTitle').trim(), slug = g('pgSlug').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var body = g('pgBody');
+    if (!folder || !title || !slug || body.trim().length < 200) { alert('بخش، عنوان، نامک و متن (حداقل ۲۰۰ حرف) الزامی است'); return; }
+    var rv = document.getElementById('pgReviewed');
+    if (!rv || !rv.checked) { alert('⛔ پیش از انتشار باید تیکِ بازبینیِ انسانی زده شود.'); return; }
+    var payload = { folder: folder, title: title, slug: slug, h1: g('pgH1').trim() || title, desc: g('pgDesc').trim(), body: body, img: g('pgImg').trim() };
+    if (!confirm('🚀 صفحه در ' + folder + '/' + slug + '.html منتشر شود؟')) return;
+    api('page_create', payload, function (d) {
+      if (d.ok) {
+        cmsDraftClear(PAGE_FIELDS);
+        audit('CMS', 'انتشار صفحهٔ عمومی: ' + title, folder + '/' + slug);
+        alert('✅ صفحه منتشر شد:\npishtaj.ir/' + d.url);
+        if (typeof renderCms === 'function') renderCms(document.getElementById('cmsWrap'));
+        cmsSitemapAfterPublish();
+      } else if (d.error === 'exists') {
+        if (confirm('صفحه‌ای با این نامک هست — بازنویسی شود؟')) {
+          payload.overwrite = 1;
+          api('page_create', payload, function (d2) {
+            if (d2.ok) { cmsDraftClear(PAGE_FIELDS); alert('✅ بازنویسی شد'); cmsSitemapAfterPublish(); }
+            else alert('⚠️ ' + (d2.error || ''));
+          });
+        }
+      } else alert('⚠️ ' + (d.error || 'خطا'));
+    });
+  };
 
   /* ═══ v34.11.0 (S2/PRODUCT): تب محصولات — مولد صفحهٔ محصول از دیتای CRM ═══ */
   var _prodSite = null; /* نقشهٔ cd → {slug,title,mtime} از سرور */
@@ -939,13 +1018,13 @@
   window.cmsSeoQueueClear = function (mode) { api('seo_queue_clear', { mode: mode || 'done' }, function () { cmsSeoQueueRefresh(); }); };
 
   /* ── پیشنهاد لینک داخلی برای صفحهٔ یتیم ── */
-  window.cmsSeoLinkSuggest = function (i) {
+  window.cmsSeoLinkSuggest = function (i, ev) { /* v34.13.0 (BUGFIX): event صریح — نه global ضمنی */
     var p = (window._cmsPages || [])[i]; if (!p) return;
     var folder = p.folder || '';
     var cands = (window._cmsPages || []).filter(function (x) { return x.path !== p.path && (x.folder === folder || (x.inlinks || 0) > 3); }).slice(0, 25)
       .map(function (x) { return { path: x.path, title: x.title }; });
     if (!cands.length) { alert('کاندیدایی در نمای فعلی نیست — «نمایش بیشتر» یا حذف فیلتر را امتحان کنید.'); return; }
-    var btn = event && event.target;
+    var btn = (ev && ev.target) || (typeof window.event === 'object' && window.event && window.event.target);
     if (btn) { btn.disabled = true; btn.textContent = '⏳…'; }
     cmsLLM('seo_intlinks', { target: p.path, title: p.title || '', candidates: cands }, function (d) {
       if (btn) { btn.disabled = false; btn.textContent = '💡 لینک‌سازی'; }
@@ -1287,18 +1366,41 @@
   }
   window.syncSiteModLabel = syncSiteModLabel;
 
-  /* باز/بستنِ ماژولِ «مدیریت سایت».
-     وضعیت عمداً فقط در حافظه نگه داشته می‌شود: قانونِ A10 گاردِ معماری
-     دسترسیِ مستقیمِ UI به localStorage را ممنوع می‌کند (فقط لایهٔ داده مجاز
-     است) و ماندگاریِ این ترجیح هم خواستهٔ مشخصی نبود. */
-  var siteModOpen = false;
+  /* v34.13.0 (BUGFIX/SITE-MOD): وضعیت باز/بستهٔ زیرمنوی «مدیریت سایت» از طریق لایهٔ
+     داده (ptfDevKv — سازگار با A10) ماندگار می‌شود؛ قبلاً با هر بارگذاری صفحه
+     می‌بست. همچنین والد وقتی فرزندی فعال است هایلایت و گروه یک‌بار خودکار باز
+     می‌شود تا کاربر گم نشود. */
+  var siteModOpen = false, siteModHydrated = false;
+  try {
+    if (window.ptfDevKv) window.ptfDevKv.get('cms.sitemod.open', function (v) {
+      siteModHydrated = true;
+      if (v === '1') toggleSiteMod(true);
+    });
+  } catch (eH2) {}
   window.toggleSiteMod = function (force) {
     var b = document.getElementById('smBody'), a = document.getElementById('smArrow');
     if (!b) return;
+    var mobile = window.matchMedia && window.matchMedia('(max-width:900px)').matches; /* موبایل: CSS همیشه باز نگه می‌دارد */
     siteModOpen = (typeof force === 'boolean') ? force : !siteModOpen;
-    b.style.display = siteModOpen ? '' : 'none';
+    if (!mobile) b.style.display = siteModOpen ? '' : 'none';
     if (a) a.textContent = siteModOpen ? '\u25b4' : '\u25be';
+    try { if (window.ptfDevKv && siteModHydrated) window.ptfDevKv.set('cms.sitemod.open', siteModOpen ? '1' : '0'); } catch (eS2) {}
   };
+  /* هایلایت والد + بازشدن یک‌باره وقتی فرزند فعال است (delegation — بدون interval) */
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.closest && e.target.closest('#smBody .sb-i')) setTimeout(syncSiteModLabel, 0);
+  }, false);
+  window.syncSiteModActive = function () {
+    var lab = document.getElementById('smLabel');
+    if (!lab) return;
+    var act = false;
+    document.querySelectorAll('#smBody .sb-i').forEach(function (b) { if (b.classList.contains('act')) act = true; });
+    if (act) { lab.classList.add('act'); if (!siteModOpen) toggleSiteMod(true); }
+    else lab.classList.remove('act');
+  };
+  var _syncSm = syncSiteModLabel;
+  syncSiteModLabel = function () { _syncSm(); window.syncSiteModActive(); };
+  window.syncSiteModLabel = syncSiteModLabel;
 
   function hideCmsBtn() {
     document.querySelectorAll('.sb-i').forEach(function (b) {

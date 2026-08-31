@@ -112,7 +112,15 @@
 - **سایت‌مپ**: نگاشت `products/` → `sitemap-products.xml` + رفع یک باگ ساختاری: زیرنقشهٔ تازه‌ساز تا امروز هرگز در `sitemap-index.xml` ثبت نمی‌شد (`sitemap_index_ensure`).
 - **ادیتور ریدایرکت** (تب سئو): تبدیل صفحه به stub امن (refresh+canonical به مقصد+noindex، همان الگوی blog_archive) + حذف از نقشه + رجیستری زنده + «↩️ بازگردانی» از بک‌آپ؛ فقط مقصد داخلی مجاز.
 - پیش‌نویس ماندگار فرم محصول؛ ثبت خودکار نقشه پس از انتشار؛ تستر556 (۳۶ سنجه)؛ گیت **172 PASS / 0 FAIL**؛ PHP لینت.
-- **باقی‌ماندهٔ S2 → بعدی**: قالب‌های نوع صفحه برای services/industries/comparisons (همان موتور، اسکیمای متفاوت) و ادیتور canonicalِ گروهی.
+- **باقی‌ماندهٔ S2 → بعدی**: ~~قالب‌های نوع صفحه برای services/industries/comparisons~~ (✅ S2-id در v34.13.0)؛ ادیتور canonicalِ گروهی → S4.
+
+### ✅ S2-id — «مولد صفحهٔ عمومی» — ساخته‌شده (۲۰۲۶-۰۹-۰۱، v34.13.0)
+
+- **`page_create` در api/cms.php**: انتشار صفحات `services/ | industries/ | comparisons/<slug>.html` از اسکلت مرکز دانش (astm-a105) با اسکیمای **Service** (services: provider/areaServed=IR) یا **Article** + BreadcrumbListِ والدِ بخش، OG/canonical، sanitize لیست‌سفید تگ‌ها + پاکسازی onclick/js:، بک‌آپ پیش از بازنویسی، `sitemap_add` با نگاشت خودکار به sitemap-services/industries/misc، خطاهای فارسی (exists/پوشهٔ نامعتبر/حداقل ۲۰۰ حرف).
+- **UI تب «📄 صفحهٔ جدید»** (مدیریت سایت): فرم ۶فیلدی با پیش‌نویس ماندگار (A10)، «🤖 تولید با AI» (`seo_article` — فقط فیلدهای خالی پر می‌شوند)، دروازهٔ تیکِ بازبینی انسانی، exists→confirm→overwrite، ثبت خودکار نقشه پس از انتشار.
+- **فیکس‌های توسعه‌ای سئو**: ① `cmsSeoLinkSuggest(i, ev)` با event صریح (قبلاً global ضمنی — در ماژول‌های strict می‌شکست) ② ماندگاری وضعیت باز/بستهٔ زیرمنوی «مدیریت سایت» در `ptfDevKv` (قبلاً با هر رفرش می‌بست؛ موبایل همیشه‌باز محفوظ) ③ هایلایت نارنجی والد وقتی فرزند فعال + بازشدن یک‌بارهٔ گروه (delegation بدون interval).
+- تستر558 (۲۸ سنجه)؛ گیت **174 PASS / 0 FAIL**؛ PHP لینت (php-parser)؛ node --check روی cms/gsc/careers/sw/shell.
+
 
 ### S2 — «مولد صفحات» (خواستهٔ مستقیم مالک)
 1. **مولد صفحهٔ محصول**: از رکورد `ptf_crm_products` (نام/برند/مشخصات/عکس‌ها) + AI:

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester557 — v34.12.0: فیکس ثبت نقشه + فاز S3 (رشد داده‌محور)
+/* tester557 — v34.13.0: فیکس ثبت نقشه + فاز S3 (رشد داده‌محور)
    ۱) sitemap_submit: تشخیص خودکار پراپرتی + گیت سطح Full + خطای فارسی دقیق
    ۲) اسنپ‌شات روزانهٔ lazy گلوال + اکشن snaps (سری + دلتا)
    ۳) خوشه‌بندی کلمه→محتوا (seo_clusters) + UI برنامهٔ محتوا
@@ -48,7 +48,7 @@ T('UI: ورودی خوشه‌بندی = quickwins + no_click (فیلد درست)
 T('UI: کارت خوشه با برچسب صفحهٔ جدید/بهینه‌سازی', gscJs.indexOf('صفحهٔ جدید') > -1 && gscJs.indexOf('بهینه‌سازی صفحهٔ موجود') > -1);
 T('UI: پرش «📝 ساخت مقاله» به فرم KC با prefetch موضوع', gscJs.indexOf('window.gscClusterNew') > -1 && /gscClusterNew[\s\S]{0,700}cmsKcNew\(\)/.test(gscJs));
 T('UI: پرش بهینه‌سازی از مسیر موجود gscOptimize', gscJs.indexOf("gscOptimize(\\'' + ptfOnClickArg") > -1);
-T('UI: روند پس از رندر لود می‌شود', gscJs.indexOf('gscTrendLoad(); /* v34.12.0 (S3) */') > -1);
+T('UI: روند پس از رندر لود می‌شود', gscJs.indexOf('gscTrendLoad(); /* v') > -1); /* انکر بدون نسخه — مقاوم به جاروی bump */
 
 /* ═══ بهداشت ═══ */
 T('HYG: gsc.js بدون LS مستقیم (A10)', /localStorage\s*\./.test(gscJs) === false);
