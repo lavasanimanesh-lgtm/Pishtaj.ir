@@ -137,7 +137,14 @@ def scan():
             href = href.split("#")[0].split("?")[0]
             if not href:
                 continue
-            target = os.path.normpath(os.path.join(base_dir, href)).replace(os.sep, "/")
+            # href ریشه‌مطلق («/logistics/») نسبت به ریشهٔ سایت است نه پوشهٔ جاری.
+            # os.path.join در آن حالت مسیرِ جاری را دور می‌ریزد و normpath اسلشِ
+            # نخست را نگه می‌دارد («/logistics»)، پس نگاشتِ زیر کار نمی‌کرد.
+            if href.startswith("/"):
+                base = href.lstrip("/")
+            else:
+                base = os.path.join(base_dir, href)
+            target = os.path.normpath(base).replace(os.sep, "/") if base else ""
             # normpath اسلشِ پایانی را برمی‌دارد («about/» → «about») و ریشه «/» می‌ماند؛
             # بدونِ این نگاشت، لینکِ پوشه‌ها و صفحهٔ اصلی همیشه صفر شمرده می‌شد.
             if target in ("", "/"):
