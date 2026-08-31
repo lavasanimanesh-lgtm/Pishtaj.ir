@@ -170,14 +170,18 @@ function cms_meta_of($ROOT, $rel, &$smap) {
   $can  = $get('#<link[^>]*rel=["\']canonical["\'][^>]*href=["\'](.*?)["\']#isu');
   if ($can === '') $can = $get('#<link[^>]*href=["\'](.*?)["\'][^>]*rel=["\']canonical["\']#isu');
   $rob  = $get('#<meta\s+name=["\']robots["\']\s+content=["\'](.*?)["\']#isu');
-  $h1   = $get('#<h1[^>]*>(.*?)</h1>#isu');
+  // h1 در <body> است نه <head>؛ پس روی سندِ کامل جستجو می‌شود (بدونِ script/style/noscript/template
+  // تا h1ِ داخلِ رشتهٔ جاوااسکریپت شمرده نشود) — مثلِ همان پاک‌سازیِ cms_visible_words()
+  $h1src = preg_replace('#<(script|style|noscript|template)\b[^>]*>.*?</\1>#isu', ' ', $html);
+  $h1   = preg_match('#<h1[^>]*>(.*?)</h1>#isu', $h1src, $hm) ? trim($hm[1]) : '';
   $h1   = trim(preg_replace('#\s+#u', ' ', strip_tags($h1)));
 
   $words  = cms_visible_words($html);
   $imgs   = preg_match_all('#<img\b[^>]*>#isu', $html, $im) ? $im[0] : array();
   $noalt  = 0;
   foreach ($imgs as $im2) {
-    if (!preg_match('#\balt=["\']\s*([^"\']+)["\']#isu', $im2)) $noalt++;
+    // فقط نبودِ «صفتِ alt» ایراد است؛ alt="" برای تصویرِ تزئینی (مثلِ preloader با aria-hidden) درست است
+    if (!preg_match('#\balt\s*=#isu', $im2)) $noalt++;
   }
   $schema = array();
   if (preg_match_all('#<script[^>]*application/ld\+json[^>]*>(.*?)</script>#isu', $html, $lm)) {
