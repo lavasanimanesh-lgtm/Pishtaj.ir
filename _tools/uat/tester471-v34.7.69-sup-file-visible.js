@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.9.1 — نمایش فایل پیوست تامین‌کننده در فهرست تاییدشده و کارت مشاهده.
+/* v34.9.2 — نمایش فایل پیوست تامین‌کننده در فهرست تاییدشده و کارت مشاهده.
    ریشهٔ باگ: supApprove فایل را به files.oth می‌برد ولی renderSuppliers2 و showEntityCard
    هیچ‌جا فایل را نمایش نمی‌دادند. */
 var fs = require('fs'), path = require('path');
@@ -15,8 +15,8 @@ var bridge = read('crm/bridge.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.9.1', ver.crm_version === 'v34.9.1', ver.crm_version);
-T('offers.js cache-bust 34.9.1', /offers\.js\?v=34\.9.1/.test(idx));
+T('VERSION.json = v34.9.2', ver.crm_version === 'v34.9.2', ver.crm_version);
+T('offers.js cache-bust 34.9.2', /offers\.js\?v=34\.9.2/.test(idx));
 
 /* helper استخراج فایل */
 T('ptfEntityFiles تعریف شده', offers.indexOf('function ptfEntityFiles(c)') > -1);
@@ -38,6 +38,6 @@ T('supApprove فایل را به files.oth منتقل می‌کند', bridge.ind
 
 T('tester471 در گیت CI', gate.indexOf('tester471-v34.7.69-sup-file-visible.js') > -1);
 
-console.log('\n— tester471 (v34.9.1: نمایش فایل تامین‌کننده در فهرست/کارت) —');
+console.log('\n— tester471 (v34.9.2: نمایش فایل تامین‌کننده در فهرست/کارت) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

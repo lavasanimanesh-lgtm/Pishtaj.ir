@@ -587,7 +587,7 @@ function renderOffers() {
       (o.altOf ? '<br><span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:10px" title="پیشنهاد جایگزین برای همین درخواست — در کنار ' + escP(o.altOf) + '">⑂ گزینه جایگزین</span>' : '') +
       (vst ? '<br><span class="bd" style="background:' + vst.cl + ';font-size:10px">' + vst.lb + '</span>' : '') + rialInline + '</td>' +
       '<td>' + (o.kind === 'TO' ? '🔧 فنی' : o.kind === 'TC' ? '🤝 فنی-مالی' : '💰 مالی') + '</td>' /* v12.8 */ +
-      '<td>' + escP(o.buyerCo || '-') + (o.buyerCd ? '<div style="font-size:10.5px;color:#64748b" dir="ltr">' + escP(o.buyerCd) + '</div>' : '') + '</td>' +
+      '<td>' + escP(o.buyerCo || '-') + (function(){ var en = (typeof ptfCustEnByCd === 'function' && o.buyerCd) ? ptfCustEnByCd(o.buyerCd) : ''; return (en && en !== o.buyerCo) ? '<div style="font-size:10.5px;color:#64748b" dir="ltr">' + escP(en) + '</div>' : ''; })() + (o.buyerCd ? '<div style="font-size:10.5px;color:#94a3b8" dir="ltr">' + escP(o.buyerCd) + '</div>' : '') + '</td>' +
       '<td style="direction:ltr;font-size:12px">' + escP(o.inqNo || '—') + '</td>' +
       '<td>' + escP(o.dateFa || '') + '</td>' +
       '<td>' + o.items.length + '</td>' +
@@ -1045,6 +1045,56 @@ window.ptfOfferRefreshBuyerChip = function (cd) {
 };
 
 // ---- فرم صدور/ویرایش ----
+/* v34.9.2 (TYPEAHEAD): جستجوی تایپی مشتری در فرم پیشنهاد — به‌جای اسکرول لیست کشویی بلند،
+   کاربر بخشی از نام (فارسی/انگلیسی/کد) را می‌نویسد و از فهرست فیلترشده انتخاب می‌کند؛
+   دکمهٔ «لیست کامل» همان select قبلی را باز می‌کند. */
+window.offerBuyerAcLabel = function (c) {
+  if (!c) return '';
+  var l = c.co || c.coEn || c.cd || '';
+  if (c.coEn && c.co && c.coEn !== c.co) l = c.co + ' / ' + c.coEn;
+  return l;
+};
+window.offerBuyerAcSearch = function () {
+  var inp = document.getElementById('ofBuyerAc'), box = document.getElementById('ofBuyerAcBox');
+  if (!inp || !box) return;
+  var q = String(inp.value || '').trim().toLowerCase();
+  var custs = [];
+  try { custs = getData('ptf_crm_customers') || []; } catch (eC) {}
+  var hits = custs.filter(function (c) {
+    if (!q) return true;
+    return ((c.co||'')+' '+(c.coEn||'')+' '+(c.cd||'')).toLowerCase().indexOf(q) > -1;
+  }).slice(0, 40);
+  box.innerHTML = hits.length
+    ? hits.map(function (c) {
+        return '<div role="button" tabindex="0" style="padding:8px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:12.5px" onclick="offerBuyerAcPick(\'' + ptfOnClickArg(c.cd) + '\')" onkeydown="if(event.key===\'Enter\')offerBuyerAcPick(\'' + ptfOnClickArg(c.cd) + '\')">' +
+          '<b>' + escP(c.co || c.coEn || c.cd) + '</b>' + (c.coEn && c.co ? ' <span dir="ltr" style="color:#64748b">' + escP(c.coEn) + '</span>' : '') +
+          ' <span dir="ltr" style="color:#0e7490;font-size:11px">' + escP(c.cd) + '</span></div>';
+      }).join('')
+    : '<div style="padding:10px;color:#94a3b8;font-size:12px">مشتری‌ای با این عبارت پیدا نشد</div>';
+  box.style.display = 'block';
+};
+window.offerBuyerAcPick = function (cd) {
+  var sel = document.getElementById('ofBuyer'), inp = document.getElementById('ofBuyerAc'), box = document.getElementById('ofBuyerAcBox');
+  if (sel) sel.value = cd;
+  if (box) box.style.display = 'none';
+  var c = null;
+  try { c = getData('ptf_crm_customers').filter(function (x) { return x.cd === cd; })[0]; } catch (eC2) {}
+  if (inp) inp.value = window.offerBuyerAcLabel(c) || cd;
+  offerPickBuyer(cd);
+};
+window.offerBuyerToggleFull = function () {
+  var sel = document.getElementById('ofBuyer'), box = document.getElementById('ofBuyerAcBox');
+  if (box) box.style.display = 'none';
+  if (!sel) return;
+  sel.style.display = sel.style.display === 'none' ? '' : 'none';
+  if (sel.style.display !== 'none') sel.focus();
+};
+document.addEventListener('click', function (e) {
+  var box = document.getElementById('ofBuyerAcBox');
+  if (!box || box.style.display === 'none') return;
+  if (e.target && (e.target.id === 'ofBuyerAc' || (e.target.closest && e.target.closest('#ofBuyerAcBox')))) return;
+  box.style.display = 'none';
+});
 function offerForm() {
   /* v14.2 (US-364): فقط یک فرم پیشنهادِ قابل‌مشاهده — فرم‌های باز قبلی بسته می‌شوند
      (مینیمایزشده‌های modalx با display:none دست نمی‌خورند) */
@@ -1096,7 +1146,13 @@ function offerForm() {
     /* v34.7.57: نظم بصری فرم — اول هویت سند (کارفرما/درخواست/تاریخ)، بعد تنظیمات چاپ و
        اعتبار در یک ردیف متوازن، بعد امضا (طبق MOB-041 همچنان پیش از اقلام)، بعد اقلام. */
     '<div class="fr">' +
-    '<div class="fld"><label>کارفرما (خریدار) *</label><select id="ofBuyer" onchange="offerPickBuyer(this.value)">' + custOpts + '</select>' +
+    '<div class="fld"><label>کارفرما (خریدار) *</label><div style="position:relative;display:flex;gap:6px;align-items:flex-start">' +
+      '<input type="text" id="ofBuyerAc" autocomplete="off" placeholder="نام مشتری… (تایپ کنید و از فهرست انتخاب کنید)" oninput="offerBuyerAcSearch()" onfocus="offerBuyerAcSearch()" style="flex:1;min-width:0;padding:8px 10px;border:1px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px"' +
+        (o.buyerCd || o.buyerCo ? ' value="' + escP((function () { try { var cc = getData('ptf_crm_customers').filter(function (x) { return x.cd === o.buyerCd; })[0]; return (cc && window.offerBuyerAcLabel(cc)) || o.buyerCo || ''; } catch (eV) { return o.buyerCo || ''; } })()) + '"' : '') + '>' +
+      '<button type="button" class="bt bt-o" style="padding:8px 10px;white-space:nowrap;font-size:11.5px" onclick="offerBuyerToggleFull()" title="نمایش لیست کشویی کامل مشتریان">📋 لیست کامل</button>' +
+      '<div id="ofBuyerAcBox" dir="rtl" style="position:absolute;top:100%;right:0;left:76px;z-index:3000;background:#fff;border:1px solid var(--brd);border-radius:10px;box-shadow:0 10px 24px rgba(15,23,42,.16);max-height:240px;overflow:auto;display:none"></div>' +
+    '</div>' +
+    '<select id="ofBuyer" onchange="offerPickBuyer(this.value)" style="display:none;margin-top:6px">' + custOpts + '</select>' +
     '<div id="ofBuyerChip" style="margin-top:8px;padding:8px 10px;border-radius:12px;background:#f8fafc;border:1px solid var(--brd);font-size:12.5px;line-height:1.6">' +
     (o.buyerCd || o.buyerCo
       ? ('🏢 کارفرما انتخاب‌شده: ' + (typeof ptfOfferBuyerLabel === 'function'

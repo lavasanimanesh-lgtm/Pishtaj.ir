@@ -585,7 +585,7 @@
     var last = null;
     try { last = JSON.parse(localStorage.getItem('ptf_backup_last') || 'null'); } catch (e) {}
     return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
-      '<h4 style="margin:0 0 8px">🗄 بک‌آپ و بازگردانی</h4>' +
+      '<h4 style="margin:0 0 8px">🗄 بک‌آپ و بازگردانی + وضعیت دستگاه</h4>' + /* v34.9.2: عنوان ردیف گویا (پین تستر8 حفظ شد) */
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:12.5px;margin-bottom:10px">' +
       '⏱ بک‌آپ خودکار <b>هر ۱ ساعت</b> روی سرور و فضای ابری انجام می‌شود (نسخه‌های قدیمی چرخشی و خودکار هرس می‌شوند).<br>' +
       '📥 <b>وظیفه ماهانه:</b> ادمین ابتدای هر ماه یک فایل بک‌آپ را دانلود و خارج از سامانه نگه می‌دارَد (یادآور خودکار در کارتابل می‌آید).<br>' +

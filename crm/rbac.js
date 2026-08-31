@@ -895,7 +895,9 @@ function refToInvoice(offerNo) {
 
 function buildInvoices() {
   /* v34.7.80 (TAX-RETURNS-SEPARATION): اظهارنامه‌ها از فاکتورها جدا شد — دیگر اینجا رندر نمی‌شوند. */
-  return '<div class="ph"><h3>🧾 فاکتورها (پیش‌فاکتورهای ارجاع‌شده)</h3></div><div id="invWrap"></div>';
+  /* v34.9.2: جستجو در فاکتورها (شماره/مشتری/شماره فاکتور) + نام دوگانهٔ مشتری */
+  return '<div class="ph"><h3>🧾 فاکتورها (پیش‌فاکتورهای ارجاع‌شده)</h3>' +
+    '<div class="sb2"><input type="text" id="invSrch" placeholder="جستجو: شماره CO، فاکتور، نام مشتری (فارسی/انگلیسی)…" oninput="renderInvoices()" style="flex:1;max-width:420px;padding:8px 10px;border:1px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px"></div></div><div id="invWrap"></div>';
 }
 /* مبلغ دریافت‌شدهٔ فاکتور از SSOT مطالبات می‌آید. در معماری v2 هیچ تصمیم
    ویرایش/ابطال نباید با خواندن مستقیم payments[] فاکتور گرفته شود. */
@@ -921,14 +923,23 @@ function renderInvoices() {
   if (!ptfCanSeeLedger('unofficial')) {
     invs = invs.filter(function (i) { return !i.isUnofficial; });
   }
+  var iq = ((document.getElementById('invSrch')||{}).value || '').trim().toLowerCase();
+  if (iq) {
+    refd = refd.filter(function (o) {
+      var inv = invs.filter(function (i) { return i.offerNo === o.no; })[0];
+      var en = (typeof ptfCustEnByCd === 'function') ? ptfCustEnByCd(o.buyerCd) : '';
+      return ((o.no||'')+' '+(o.buyerCo||'')+' '+(en||'')+' '+(o.inqNo||'')+' '+((inv&&inv.no)||'')).toLowerCase().indexOf(iq) > -1;
+    });
+  }
   var h = '';
   refd.forEach(function (o) {
     var inv = invs.filter(function (i) { return i.offerNo === o.no; })[0];
+    var oEn = (typeof ptfCustEnByCd === 'function') ? ptfCustEnByCd(o.buyerCd) : '';
     var total = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
     var invPaidSum = inv ? ptfInvoiceReceivedIRR(inv) : 0;
     h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
       '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
-      '<div style="font-size:13px"><b>' + escP(o.no) + '</b> — ' + escP(o.buyerCo || '-') +
+      '<div style="font-size:13px"><b>' + escP(o.no) + '</b> — ' + escP(o.buyerCo || '-') + (oEn ? ' <span dir="ltr" style="color:#64748b">(' + escP(oEn) + ')</span>' : '') +
       '<div style="font-size:11.5px;color:#64748b">مبلغ CO: ' + (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : total.toLocaleString('fa-IR') + ' ریال') + (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <span style="color:#0e7490">| مبنا: ' + escP(o.currency || inv.offerCurrency) + (o.fxBasis ? ' / ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') : '') + (o.fxRateRef ? ' / ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</span>' : '') + ' | ارجاع: ' + escP(o.invRef.t) + ' توسط ' + escP(o.invRef.by) + ' (' + escP(o.invRef.role) + ')</div>' + /* v17.4 US-416 */
       (inv ? '<div style="font-size:12px;color:#10b981;margin-top:3px">🧾 فاکتور ' + escP(inv.no) + ' — ' + escP(inv.t) + ' — ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال' +
         (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <small style="color:#0e7490">| فاکتور ریالیِ درخواست ' + escP(o.currency || inv.offerCurrency) + '</small>' : '') +

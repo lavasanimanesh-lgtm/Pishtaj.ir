@@ -416,6 +416,8 @@
     var msg = String((err && err.message) || err || '');
     var code = +(err && err.status) || 0;
     if (st8.state === 'acked') return '';
+    if (/entity_id_exists/.test(msg)) /* v34.9.2: برخورد کد — رکورد دیگری بازنویسی نشد */
+      return label + ': کد تولیدی تکراری بود (دادهٔ محلی شما به‌روز نیست) — صفحه را همگام‌سازی کنید و دوباره ثبت کنید';
     if (code === 403 || /permission_denied|entity_collection_not_enabled|role/i.test(msg))
       return label + ': دسترسی لازم را ندارید — با مدیر سامانه تماس بگیرید (تلاش مجدد فایده ندارد)';
     if (code === 401 || /needLogin|Authentication required|token/i.test(msg))
@@ -435,6 +437,9 @@
     return window.ptfSalesDomainCommand('entity_upsert', {
       collection: collection,
       record: record,
+      /* v34.9.2 (RCA برخورد کد CUST): درجِ موردانتظار اگر به شناسهٔ موجود بخورد باید
+         صریحاً رد شود، نه اینکه رکورد دیگری را بی‌صدا آپدیت کند. */
+      expectCreate: !!opts.expectCreate,
       idempotencyKey: 'ENT|' + collection + '|' + idv + '|' + String(opts.operationId || Date.now())
     }, { apiOptions: { autoReplay: true } }).then(function (state) {
       if (state && state.state === 'acked') {
@@ -496,10 +501,10 @@
     base.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okPrev = false; return; } prevByCd[r.cd] = r; });
     nextArr.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okNext = false; return; } nextByCd[r.cd] = r; });
     if (!okPrev || !okNext) return legacyFallback('records-without-cd');
-    var ups = [], dels = [];
+    var ups = [], dels = [], newCds = {}; /* v34.9.2: رکوردهای تازه = درج موردانتظار */
     Object.keys(nextByCd).forEach(function (cd) {
       var pv = prevByCd[cd], nx = nextByCd[cd];
-      if (!pv) { ups.push(nx); return; }
+      if (!pv) { newCds[cd] = 1; ups.push(nx); return; }
       try { if (JSON.stringify(pv) !== JSON.stringify(nx)) ups.push(nx); } catch (eJ) { ups.push(nx); }
     });
     Object.keys(prevByCd).forEach(function (cd) { if (!nextByCd[cd]) dels.push(cd); });
@@ -557,7 +562,7 @@
       } catch (eAckEmpty) {}
     }
     if (!cbTotal && typeof opts.cb === 'function' && !cbDone) { cbDone = true; try { opts.cb({ state: 'acked', upserts: 0, deletes: 0 }); } catch (eCbEmpty) {} }
-    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { cb: function (st) { if (st && st.state !== 'acked') { failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } settleCb(st); } }); } catch (eU) { errors.push(eU); failDirty(); settleCb({ state: 'rejected', error: String(eU) }); } });
+    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { expectCreate: !!newCds[r.cd], cb: function (st) { if (st && st.state !== 'acked') { failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } settleCb(st); } }); } catch (eU) { errors.push(eU); failDirty(); settleCb({ state: 'rejected', error: String(eU) }); } });
     dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff', cb: function (st) { if (st && st.state !== 'acked') failDirty(); settleCb(st); } }); } catch (eD) { errors.push(eD); failDirty(); settleCb({ state: 'rejected', error: String(eD) }); } });
     try {
       window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
