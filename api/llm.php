@@ -271,6 +271,10 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
     if ($provider === 'gemini') {
         $parts = [['text' => $system . "\n\n" . $userText]];
         if ($inlineB64) $parts[] = ['inline_data' => ['mime_type' => $inlineMime, 'data' => $inlineB64]];
+        /* v34.15.0 (S5/ALT): چند تصویر در یک فراخوانی (بینایی گروهی) */
+        foreach ((array)($opts['images'] ?? []) as $imI) {
+            if (is_array($imI) && !empty($imI[0])) $parts[] = ['inline_data' => ['mime_type' => $imI[1] ?? 'image/jpeg', 'data' => $imI[0]]];
+        }
         $payload = json_encode([
             'contents' => [['parts' => $parts]],
             'generationConfig' => ['temperature' => 0.15, 'maxOutputTokens' => $maxTok, 'responseMimeType' => 'application/json']
@@ -283,6 +287,13 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
         $content = $inlineB64
             ? [['type' => 'text', 'text' => $userText], ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $inlineMime . ';base64,' . $inlineB64]]]
             : $userText;
+        if (!empty($opts['images'])) { /* v34.15.0 (S5/ALT) */
+            $arrI = [['type' => 'text', 'text' => $userText]];
+            foreach ((array)$opts['images'] as $imI) {
+                if (is_array($imI) && !empty($imI[0])) $arrI[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . ($imI[1] ?? 'image/jpeg') . ';base64,' . $imI[0]]];
+            }
+            $content = $arrI;
+        }
         $payload = json_encode([
             'model' => $model,
             'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $content]],
@@ -296,7 +307,7 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
     if ($payload === false) return ['ok' => false, 'http' => 0, 'error' => 'ساخت payload درخواست AI ناموفق بود'];
 
     $dataDir = llm_data_dir();
-    $cacheKey = hash('sha256', $provider . '|' . $model . '|' . $system . '|' . $userText . '|' . ($inlineB64 ? hash('sha256', $inlineB64) : '') . '|' . ($inlineMime ?? ''));
+    $cacheKey = hash('sha256', $provider . '|' . $model . '|' . $system . '|' . $userText . '|' . ($inlineB64 ? hash('sha256', $inlineB64) : '') . '|' . ($inlineMime ?? '') . '|' . (!empty($opts['images']) ? hash('sha256', json_encode($opts['images'])) : '')); /* v34.15.0: تصاویر هم در کلید کش */
     $cacheFile = $dataDir . '/ai_cache.json';
     $cacheData = file_exists($cacheFile) ? json_decode(@file_get_contents($cacheFile), true) : [];
     if (!is_array($cacheData)) $cacheData = [];
@@ -760,6 +771,44 @@ switch ($action) {
             . 'LENGTH RULES measured in Persian characters: title 30-65, description 70-165, h1 20-70. '
             . 'Title and h1 must NOT be identical. Description must be a single sentence-pair that a searcher '
             . 'would click, ending without a trailing period. slug = lowercase english kebab-case. ';
+
+        if ($action === 'seo_alt') {
+            /* v34.15.0 (S5/ALT): متن جایگزین فارسی برای تصاویر — بینایی گروهی (تا ۸ تصویر در یک فراخوانی).
+               تصویر روی سرور از دیسک خوانده و اعتبارسنجی می‌شود (realpath زیر ریشهٔ سایت). */
+            $imgs = is_array($in['imgs'] ?? null) ? $in['imgs'] : [];
+            if (!$imgs) { echo json_encode(['ok' => false, 'error' => 'فهرست تصاویر خالی است'], JSON_UNESCAPED_UNICODE); exit; }
+            if (count($imgs) > 8) $imgs = array_slice($imgs, 0, 8);
+            $ROOTL = dirname(__DIR__);
+            $pack = []; $srcs = [];
+            foreach ($imgs as $im) {
+                if (!is_array($im)) continue;
+                $src  = trim((string)($im['src'] ?? ''));
+                $disk = trim((string)($im['disk'] ?? ''));
+                if ($src === '' || $disk === '' || strpos($disk, '..') !== false) continue;
+                $rp = realpath($ROOTL . '/' . ltrim($disk, '/'));
+                if ($rp === false || strpos($rp, realpath($ROOTL)) !== 0) continue;
+                if (!preg_match('#\.(jpe?g|png|webp|gif)$#i', $rp)) continue;
+                $sz = @filesize($rp);
+                if (!$sz || $sz > 3 * 1048576) continue;
+                $b64 = base64_encode((string)file_get_contents($rp));
+                if ($b64 === '') continue;
+                $mime = 'image/jpeg';
+                if (preg_match('#\.png$#i', $rp)) $mime = 'image/png';
+                elseif (preg_match('#\.webp$#i', $rp)) $mime = 'image/webp';
+                elseif (preg_match('#\.gif$#i', $rp)) $mime = 'image/gif';
+                $pack[] = [$b64, $mime];
+                $srcs[] = $src;
+            }
+            if (!$pack) { echo json_encode(['ok' => false, 'error' => 'هیچ تصویر قابل‌پردازشی روی سرور یافت نشد'], JSON_UNESCAPED_UNICODE); exit; }
+            $sys = 'You write Persian alt text for images on an industrial trading company website '
+                . '(valves, fittings, flanges, industrial equipment). '
+                . 'Rules: describe ONLY what is visually present; Persian, 6 to 14 words; '
+                . 'no prefix like «تصویر» or «عکس»; no quotes; no marketing claims; do not invent brand/model text you cannot read. '
+                . 'Reply ONLY valid JSON: {"alts":[{"src":"<same src>","alt":"..."}]} in the SAME order as given.';
+            $user = "تصاویر به ترتیب: " . implode(' | ', $srcs) . "\nبرای هر src یک alt فارسی بنویس — همان ترتیب و همان srcها.";
+            out_json(llm_call($cfg, $sys, $user, null, null, 900, ['images' => $pack]));
+            break;
+        }
 
         if ($action === 'seo_meta') {
             $topic = trim((string)($in['topic'] ?? ''));

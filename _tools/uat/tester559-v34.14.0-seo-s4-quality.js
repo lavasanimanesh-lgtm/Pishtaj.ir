@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester559 — v34.14.0: S4 «کیفیت و مقیاس»
+/* tester559 — v34.15.0: S4 «کیفیت و مقیاس»
    ۱) انتشار زمان‌بندی‌شده (موتور lazy + جریان دومرحله‌ای نویسنده/منتشرکننده)
    ۲) diff/rollback UI روی بک‌آپ‌های موجود
    ۳) داشبورد هزینهٔ AI (شمارنده روی llm.php)
@@ -77,7 +77,7 @@ T('HREF: سه‌گانهٔ hreflang فقط اگر en/ هم‌مسیر روی د�
 T('HREF: بدون نسخهٔ انگلیسی هیچ لینکی به ۴۰۴ ساخته نمی‌شود', RENDER.indexOf('$hreflang = \'\';') > -1);
 
 /* ═══ ۶) بهداشت ═══ */
-T('HYG: page_create همان موتور مشترک را صدا می‌زند', /case 'page_create':\s*\n\s*\/\* v34\.14\.0 \(S4\): رندر به cms_render_public_page منتقل شد \(مشترک با زمان‌بند\) \*\//.test(cmsPhp));
+T('HYG: page_create همان موتور مشترک را صدا می‌زند', /case 'page_create':\s*\n\s*\/\* v[0-9.]+ \(S4\): رندر به cms_render_public_page منتقل شد \(مشترک با زمان‌بند\) \*\//.test(cmsPhp)); /* انکر بدون نسخه — مقاوم به جاروی bump */
 T('HYG: بدون LS مستقیم (A10)', /localStorage\s*\./.test(cmsJs) === false);
 T('HYG: بدون متن غیرفارسی جاافتاده', [cmsPhp, llmPhp, cmsJs].every(function (t) { return !/[а-яА-Я]{3}/.test(t); }));
 

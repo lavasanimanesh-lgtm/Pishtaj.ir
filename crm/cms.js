@@ -598,6 +598,7 @@
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoSearch()">🔍 فیلتر</button>' +
       (_seo.issue ? '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoIssue(\'\')">✖ حذف فیلتر مشکل</button>' : '') +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoRefresh()">⟳ اسکن دوباره</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#d97706" onclick="cmsCanonBulk()" title="صفحات با canonical ناهماهنگ/جاافتاده به آدرس خودشان برمی‌گردند (stubهای ریدایرکت دست نمی‌خورند)">🔧 canonical گروهی</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoExport()">⬇️ CSV</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSitemapDrift()">🧭 انحراف نقشه</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px' + (cmsSitemapAutoOn() ? ';color:#059669' : '') + '" onclick="cmsSitemapAutoToggle(this)">' + (cmsSitemapAutoOn() ? '🔄 ثبت خودکار نقشه: روشن' : '🔄 ثبت خودکار نقشه: خاموش') + '</button>' +
@@ -765,6 +766,8 @@
       '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕘 انتشار زمان‌بندی‌شده</b><div id="qSched" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن صف…</div></div>' +
       '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕰 تاریخچه و بازگشت (۳ نسخهٔ آخر هر فایل)</b><div id="qBk" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن بک‌آپ‌ها…</div></div>' +
       '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">💸 هزینهٔ هوش مصنوعی</b><div id="qCost" style="margin-top:8px;font-size:12px;color:#64748b">در حال محاسبه…</div></div>' +
+      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🌐 hreflang دوطرفه (fa ↔ en)</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#0e7490" onclick="cmsHlSync()">🌐 همگام‌سازی</button><div id="qHl" style="margin-top:8px;font-size:12px;color:#64748b">جفت‌های فارسی/انگلیسی هم‌مسیر را می‌یابد و سه‌گانهٔ hreflang را در هر دو طرف (در صورت نبود/تکرار) یکسان می‌کند. stubهای ریدایرکت دست نمی‌خورند.</div></div>' +
+      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🖼 متن جایگزین تصاویر (alt) با بینایی AI</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#7c3aed" onclick="cmsAltScan()">🔍 اسکن تصاویر</button><div id="qAlt" style="margin-top:8px;font-size:12px;color:#64748b">اسکن تصاویرِ بدون alt → تولید متن فارسی با مدل بینایی → بازبینی → اعمال گروهی.</div></div>' +
       '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px"><b style="font-size:13px">⚡ PageSpeed (موبایل)</b><div id="qPsi" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن تنظیمات…</div></div>';
     cmsQSched(); cmsQBk(); cmsQCost(); cmsQPsi();
   }
@@ -970,6 +973,102 @@
         cmsPsiRunOne(urls[i], function () { i++; setTimeout(step, 400); });
       };
       step();
+    });
+  };
+
+  /* ═══ v34.15.0 (S5/HREFLANG + S5/CANONICAL + S5/ALT) ═══ */
+  window.cmsHlSync = function () {
+    var el = document.getElementById('qHl'); if (!el) return;
+    el.innerHTML = '⏳ در حال همگام‌سازی…';
+    api('hreflang_sync', {}, function (d) {
+      if (!el) return;
+      if (!d || !d.ok) { el.innerHTML = '<span style="color:#b91c1c">⚠️ ' + escP((d && d.error) || 'خطا') + '</span>'; return; }
+      el.innerHTML = '<div style="color:#065f46">✅ <b>' + d.pairs + '</b> جفت fa/en بررسی شد — <b>' + d.changed + '</b> فایل به‌روزرسانی (بک‌آپ گرفته شد)' +
+        (d.en_only ? ' · <span style="color:#b45309">' + d.en_only + ' صفحهٔ انگلیسیِ بدون همتای فارسی</span>' : '') +
+        (d.files && d.files.length ? '<div dir="ltr" style="font:10.5px monospace;color:#64748b;margin-top:4px">' + d.files.map(escP).join('<br>') + '</div>' : '') + '</div>' +
+        (d.changed ? '<div style="font-size:11px;color:#94a3b8;margin-top:4px">کش اسکن سئو نو شد — در تب «🔍 سئوی صفحات» نتیجه را ببینید.</div>' : '');
+    });
+  };
+
+  window.cmsCanonBulk = function () {
+    if (!confirm('🔧 همهٔ صفحات با «canonical ناهماهنگ» یا «بدون canonical» به آدرس خودِشان برگردند؟\n(از هر صفحه بک‌آپ گرفته می‌شود؛ stubهای ریدایرکت با canonical عمدی دست نمی‌خورند)')) return;
+    api('canonical_bulk', {}, function (d) {
+      if (!d || !d.ok) { alert('⚠️ ' + ((d && d.error) || 'خطا')); return; }
+      audit('CMS', 'canonical گروهی: ' + d.fixed + ' فایل', 'skipped:' + d.skipped);
+      alert('✅ ' + d.fixed + ' صفحه خود-کانونیکال شد' + (d.skipped ? ' · ' + d.skipped + ' رد شد' : '') + (d.files && d.files.length ? '\n' + d.files.join('\n') : ''));
+      if (typeof renderCms === 'function') renderCms(document.getElementById('cmsWrap')); /* اسکن نو */
+    });
+  };
+
+  var _altRows = [];
+  window.cmsAltScan = function () {
+    var el = document.getElementById('qAlt'); if (!el) return;
+    el.innerHTML = '⏳ در حال اسکن تصاویر…';
+    api('alt_scan', {}, function (d) {
+      if (!el) return;
+      if (!d || !d.ok) { el.innerHTML = '<span style="color:#b91c1c">⚠️ ' + escP((d && d.error) || 'خطا') + '</span>'; return; }
+      _altRows = (d.rows || []).slice(0, 30);
+      if (!_altRows.length) { el.innerHTML = '<div style="color:#065f46">✅ هیچ تصویرِ بدونِ alt در صفحات عمومی پیدا نشد.</div>'; return; }
+      var h = '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">' + (d.total || _altRows.length) + ' تصویر بدون alt (نمایش ۳۰ مورد) — تولید گروهی فقط برای موارد دارای فایل تصویر روی سرور ممکن است:</div>' +
+        '<div style="max-height:300px;overflow:auto"><table class="tb"><thead><tr><th></th><th>تصویر</th><th>صفحه</th><th>alt پیشنهادی (قابل ویرایش)</th></tr></thead><tbody>';
+      _altRows.forEach(function (r, i) {
+        h += '<tr><td><input type="checkbox" id="altCk' + i + '" checked' + (r.disk ? '' : ' disabled') + '></td>' +
+          '<td dir="ltr" style="font-size:10.5px;max-width:180px;overflow:hidden;text-overflow:ellipsis">' + escP(r.src) + (r.disk ? '' : '<br><small style="color:#b45309">فایل نیست/سنگین</small>') + '</td>' +
+          '<td dir="ltr" style="font-size:10.5px">' + escP(r.page) + '</td>' +
+          '<td><input type="text" id="altV' + i + '" style="width:100%;font-size:11.5px;padding:4px 8px;border:1px solid var(--brd);border-radius:7px" placeholder="' + (r.disk ? 'پس از 🤖 تولید می‌شود' : '—') + '"></td></tr>';
+      });
+      h += '</tbody></table></div>' +
+        '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:8px">' +
+        '<button class="bt" style="background:#7c3aed" onclick="cmsAltAi()">🤖 تولید alt با بینایی AI</button>' +
+        '<span id="altSt" style="font-size:11.5px;color:#6b21a8"></span></div>' +
+        '<label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#374151;margin:8px 0"><input type="checkbox" id="altRv"> ⛔ بازبینی انسانی انجام شد (الزامی برای اعمال)</label>' +
+        '<button class="bt" style="background:#059669" onclick="cmsAltApply()">✅ اعمال گروهی</button>';
+      el.innerHTML = h;
+    });
+  };
+  window.cmsAltAi = function () {
+    var pick = [];
+    _altRows.forEach(function (r, i) {
+      var ck = document.getElementById('altCk' + i);
+      if (ck && ck.checked && r.disk) pick.push({ i: i, src: r.src, disk: r.disk });
+    });
+    if (!pick.length) { alert('تصویر قابل‌پردازشی انتخاب نشده (فقط موارد دارای فایل روی سرور)'); return; }
+    var batches = [];
+    for (var i = 0; i < pick.length; i += 8) batches.push(pick.slice(i, i + 8)); /* حداکثر ۸ تصویر در هر فراخوانی */
+    var st = document.getElementById('altSt');
+    var bi = 0;
+    var run = function () {
+      if (bi >= batches.length) { if (st) st.innerHTML = '✅ پایان — متن‌ها را بازبینی/ویرایش کنید'; return; }
+      if (st) st.innerHTML = '⏳ دستهٔ ' + (bi + 1) + ' از ' + batches.length + '…';
+      cmsLLM('seo_alt', { imgs: batches[bi] }, function (d) {
+        if (d && d.ok && d.data && d.data.alts) {
+          (d.data.alts || []).forEach(function (a) {
+            batches[bi].forEach(function (p) {
+              if (p.src === a.src) { var inp = document.getElementById('altV' + p.i); if (inp && !inp.value) inp.value = a.alt || ''; }
+            });
+          });
+        } else if (st) { st.innerHTML += ' <span style="color:#b91c1c">⚠️ ' + escP((d && d.error) || 'خطا در یک دسته') + '</span>'; }
+        bi++; setTimeout(run, 200);
+      });
+    };
+    run();
+  };
+  window.cmsAltApply = function () {
+    var rv = document.getElementById('altRv');
+    if (!rv || !rv.checked) { alert('⛔ پیش از اعمال باید تیکِ بازبینیِ انسانی زده شود.'); return; }
+    var items = [];
+    _altRows.forEach(function (r, i) {
+      var inp = document.getElementById('altV' + i), ck = document.getElementById('altCk' + i);
+      var v = inp ? inp.value.trim() : '';
+      if (v.length >= 4 && (!ck || ck.checked)) items.push({ page: r.page, src: r.src, alt: v });
+    });
+    if (!items.length) { alert('متن alt معتبری وارد نشده است'); return; }
+    if (!confirm('✅ ' + items.length + ' متن alt روی صفحات اعمال شود؟ (از هر صفحه بک‌آپ گرفته می‌شود)')) return;
+    api('alt_apply', { items: JSON.stringify(items) }, function (d) {
+      if (!d || !d.ok) { alert('⚠️ ' + ((d && d.error) || 'خطا')); return; }
+      audit('CMS', 'alt گروهی: ' + d.applied + ' تصویر', d.pages + ' صفحه');
+      alert('✅ ' + d.applied + ' تصویر alt گرفت (' + d.pages + ' صفحه) — کش اسکن نو شد.');
+      cmsAltScan();
     });
   };
 

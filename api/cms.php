@@ -614,6 +614,73 @@ function cms_psi_http($url) { /* GET با cURL + timeout ۲۵ثانیه؛ خطا
     return [(string)$b, ''];
 }
 
+/* ═══ v34.15.0 (S5/HREFLANG): همگام‌سازی دوطرفهٔ hreflang بین fa و en/ ═══
+   فقط جفت‌هایی که هر دو فایل روی دیسک موجودند لمس می‌شوند؛ stubهای ریدایرکت مستثنا.
+   idempotent: بلوک hreflang قبلی حذف و سه‌گانهٔ درست درج می‌شود؛ تغییر نبود = بدون نوشتن. */
+function cms_hreflang_url($rel) {
+    $u = 'https://pishtaj.ir/' . $rel;
+    if (substr($rel, -10) === 'index.html') $u = 'https://pishtaj.ir/' . substr($rel, 0, -10);
+    return $u;
+}
+function cms_hreflang_block($faUrl, $enUrl) { /* x-default = نسخهٔ فارسی (زبان پیش‌فرض سایت) */
+    return '<link rel="alternate" hreflang="fa-IR" href="' . $faUrl . '" />' . "\n"
+         . '<link rel="alternate" hreflang="en" href="' . $enUrl . '" />' . "\n"
+         . '<link rel="alternate" hreflang="x-default" href="' . $faUrl . '" />';
+}
+function cms_hreflang_apply_file($ROOT, $DATA, $rel, $faUrl, $enUrl) {
+    $f = $ROOT . '/' . $rel;
+    $t = (string)@file_get_contents($f);
+    if ($t === '' || stripos($t, 'ptf-redirect') !== false) return false; /* stub ریدایرکت دست نمی‌خورد */
+    /* حذف hreflangهای موجود (دو نقل‌قولی) برای جلوگیری از تکرار */
+    $n = preg_replace('#<link[^>]*rel=["\']alternate["\'][^>]*hreflang=["\'][^"\']*["\'][^>]*>\s*?#isu', '', $t, -1, $c1);
+    if ($n === null) $n = $t;
+    $n = preg_replace('#<link[^>]*hreflang=["\'][^"\']*["\'][^>]*rel=["\']alternate["\'][^>]*>\s*?#isu', '', $n, -1, $c2);
+    if ($n === null) $n = $t;
+    $block = cms_hreflang_block($faUrl, $enUrl);
+    $isEn = strpos($rel, 'en/') === 0;
+    if (preg_match('#<link[^>]*rel=["\']canonical["\'][^>]*>\s*#isu', $n, $mC, PREG_OFFSET_CAPTURE)) {
+        $ins = $mC[0][1] + strlen($mC[0][0]);
+        $n = substr($n, 0, $ins) . $block . "\n" . substr($n, $ins);
+    } else {
+        $n = preg_replace('#</head>#isu', $block . "\n</head>", $n, 1);
+    }
+    if (trim($n) === trim($t)) return false; /* بدون تغییر — نوشتن لازم نیست */
+    if (strlen($n) > strlen($t) * 1.2 + 5000) return false;
+    cms_backup($DATA, $ROOT, $rel);
+    return file_put_contents($f, $n, LOCK_EX) !== false;
+}
+
+/* ═══ v34.15.0 (S5/ALT): اسکن تصاویرِ بدون صفتِ alt + اعمال گروهی متن جایگزین ═══ */
+function cms_alt_rows($ROOT, $cap = 60) { /* [(page, src, disk)] — فقط نبودِ صفتِ alt (alt="" تزئینی درست است) */
+    $rows = [];
+    foreach (cms_public_pages($ROOT) as $page) {
+        $t = (string)@file_get_contents($ROOT . '/' . $page);
+        if ($t === '') continue;
+        if (preg_match_all('#<img\b[^>]*>#isu', $t, $m)) {
+            foreach ($m[0] as $tag) {
+                if (preg_match('#\balt\s*=#isu', $tag)) continue;
+                if (!preg_match('#\bsrc\s*=\s*["\']([^"\']+)["\']#isu', $tag, $ms)) continue;
+                $src = trim($ms[1]);
+                if ($src === '' || strpos($src, 'data:') === 0 || stripos($src, 'javascript:') === 0) continue;
+                /* مسیر روی دیسک: نسبت به پوشهٔ صفحه + نرمال‌سازی قطعه‌ایِ ./ و ../ */
+                $disk = dirname($page) === '.' ? $src : dirname($page) . '/' . $src;
+                $segs = [];
+                foreach (explode('/', str_replace('\\', '/', $disk)) as $seg) {
+                    if ($seg === '' || $seg === '.') continue;
+                    if ($seg === '..') { array_pop($segs); continue; }
+                    $segs[] = $seg;
+                }
+                $disk = implode('/', $segs);
+                $abs = $ROOT . '/' . ltrim($disk, '/');
+                $ok = is_file($abs) && preg_match('#\.(jpe?g|png|webp|gif)$#i', $abs) && @filesize($abs) > 0 && @filesize($abs) <= 3 * 1048576;
+                $rows[] = ['page' => $page, 'src' => $src, 'disk' => $ok ? ltrim($disk, '/') : ''];
+                if (count($rows) >= $cap) return $rows;
+            }
+        }
+    }
+    return $rows;
+}
+
 /* v34.14.0 (S4/SCHED): قلاب lazy — هر فراخوانی (حتی sched_list)، آیتم‌های موعد‌رسیدهٔ
    تأییدشده را منتشر می‌کند؛ پاسخ همان فراخوانی وضعیت تازه را نشان می‌دهد (بدون cron) */
 cms_sched_due($ROOT, $DATA);
@@ -1400,6 +1467,101 @@ switch ($action) {
             $out[$u] = array_slice($runs, -10);
         }
         jok(['history' => $out]);
+        break;
+
+    /* ═══ v34.15.0 (S5/HREFLANG): همگام‌سازی دوطرفهٔ fa ↔ en/ ═══ */
+    case 'hreflang_sync':
+        $changed = []; $pairs = 0; $enOnly = 0;
+        foreach (cms_public_pages($ROOT) as $en) {
+            if (strpos($en, 'en/') !== 0) continue;
+            $fa = substr($en, 3);
+            if (!is_file($ROOT . '/' . $fa)) { $enOnly++; continue; }
+            $pairs++;
+            $faUrl = cms_hreflang_url($fa);
+            $enUrl = cms_hreflang_url($en);
+            if (cms_hreflang_apply_file($ROOT, $DATA, $fa, $faUrl, $enUrl)) $changed[] = $fa;
+            if (cms_hreflang_apply_file($ROOT, $DATA, $en, $faUrl, $enUrl)) $changed[] = $en;
+        }
+        if ($changed) {
+            if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
+            cms_log('hreflang_sync', 'pairs=' . $pairs . ' changed=' . count($changed));
+        }
+        jok(['pairs' => $pairs, 'changed' => count($changed), 'files' => array_slice($changed, 0, 20), 'en_only' => $enOnly]);
+        break;
+
+    /* ═══ v34.15.0 (S5/CANONICAL): خود-کانونیکال‌سازی گروهی ═══
+       فقط صفحات با ایراد canonical-mismatch/no-canonical؛ stubهای ریدایرکت (canonical عمدی به مقصد) مستثنا. */
+    case 'canonical_bulk':
+        $scan = cms_seo_scan($ROOT, $DATA);
+        $fixed = []; $skipped = 0;
+        foreach ($scan['pages'] as $pg) {
+            $issues = $pg['issues'] ?? [];
+            if (!in_array('canonical-mismatch', $issues, true) && !in_array('no-canonical', $issues, true)) continue;
+            $rel = (string)$pg['path'];
+            $f = $ROOT . '/' . $rel;
+            $t = (string)@file_get_contents($f);
+            if ($t === '' || stripos($t, 'ptf-redirect') !== false) { $skipped++; continue; }
+            $self = 'https://pishtaj.ir/' . $rel;
+            if (substr($rel, -10) === 'index.html') $self = 'https://pishtaj.ir/' . substr($rel, 0, -10);
+            $new = '<link rel="canonical" href="' . $self . '" />';
+            $t2 = preg_match('#<link[^>]*rel=["\']canonical["\'][^>]*>#isu', $t)
+                ? preg_replace('#<link[^>]*rel=["\']canonical["\'][^>]*>#isu', $new, $t, 1)
+                : preg_replace('#</title>#isu', '</title>' . "\n" . $new, $t, 1);
+            if ($t2 === null || trim($t2) === trim($t)) { $skipped++; continue; }
+            cms_backup($DATA, $ROOT, $rel);
+            if (file_put_contents($f, $t2, LOCK_EX) === false) { $skipped++; continue; }
+            $fixed[] = $rel;
+            if (count($fixed) >= 60) break; /* سقف هر اجرا */
+        }
+        if ($fixed) {
+            @unlink($DATA . '/cms-seo-scan.json');
+            cms_log('canonical_bulk', 'fixed=' . count($fixed) . ' skipped=' . $skipped);
+        }
+        jok(['fixed' => count($fixed), 'skipped' => $skipped, 'files' => array_slice($fixed, 0, 20)]);
+        break;
+
+    /* ═══ v34.15.0 (S5/ALT): تصاویر بدون alt — اسکن و اعمال گروهی ═══ */
+    case 'alt_scan':
+        $rows = cms_alt_rows($ROOT, 60);
+        jok(['rows' => $rows, 'total' => count($rows)]);
+        break;
+
+    case 'alt_apply':
+        $items = $_POST['items'] ?? [];
+        if (is_string($items)) { $d = json_decode($items, true); $items = is_array($d) ? $d : []; }
+        if (!is_array($items) || !$items) jerr('فهرست خالی است');
+        if (count($items) > 40) $items = array_slice($items, 0, 40);
+        $applied = 0; $touched = [];
+        foreach ($items as $it) {
+            $page = str_replace('\\', '/', (string)($it['page'] ?? ''));
+            $src  = trim((string)($it['src'] ?? ''));
+            $alt  = trim(strip_tags((string)($it['alt'] ?? '')));
+            $alt  = mb_substr(str_replace(['"', '<', '>', "\n", "\r"], ' ', $alt), 0, 160, 'UTF-8');
+            if ($page === '' || $src === '' || mb_strlen($alt, 'UTF-8') < 4) continue;
+            if (strpos($page, '..') !== false || strpos($src, '..') !== false) continue;
+            $okp = seo_queue_valid_path($ROOT, $page);
+            if ($okp === '') continue;
+            $f = $ROOT . '/' . $okp;
+            $t = (string)@file_get_contents($f);
+            if ($t === '') continue;
+            $srcQ = preg_quote($src, '#');
+            $n = preg_replace_callback('#(<img\b[^>]*\bsrc\s*=\s*["\']' . $srcQ . '["\'][^>]*>)#isu', function ($m) use ($alt) {
+                $tag = $m[1];
+                if (preg_match('#\balt\s*=\s*(["\'])(.*?)\1#isu', $tag)) {
+                    return preg_replace('#\balt\s*=\s*(["\'])(.*?)\1#isu', 'alt="' . $alt . '"', $tag, 1);
+                }
+                return preg_replace('#\s*/?>$#', ' alt="' . $alt . '" />', $tag, 1);
+            }, $t, 1, $cnt);
+            if (!$cnt || $n === null || trim($n) === trim($t)) continue;
+            if (!in_array($okp, $touched, true)) { cms_backup($DATA, $ROOT, $okp); $touched[] = $okp; }
+            if (file_put_contents($f, $n, LOCK_EX) === false) continue;
+            $applied++;
+        }
+        if ($applied) {
+            @unlink($DATA . '/cms-seo-scan.json');
+            cms_log('alt_apply', 'applied=' . $applied . ' pages=' . count($touched));
+        }
+        jok(['applied' => $applied, 'pages' => count($touched)]);
         break;
 
     case 'page_create':
