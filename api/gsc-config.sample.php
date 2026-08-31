@@ -14,8 +14,12 @@
  *      فایل JSON دانلود می‌شود؛ دو مقدار زیر از آن برداشته می‌شود:
  *        client_email  و  private_key
  *   ۵) ایمیلِ client_email را در Search Console → Settings → Users and permissions
- *      با سطح «Restricted» (یا Full برای siteUrlها) اضافه کنید.
+ *      با سطح «Full» اضافه کنید.
  *      ⚠️ بدون این مرحله، API خطای 403 Forbidden می‌دهد.
+ *      ⚠️ سطح «Restricted» فقط خواندن می‌دهد؛ برای ثبتِ نقشه (اکشنِ sitemap_submit)
+ *         حتماً Full لازم است.
+ *      ⚠️ اگر سطح را بعداً عوض کردید، فایل crm/data/gsc-token.json پاک می‌شود و
+ *         توکنِ تازه گرفته می‌شود (کد خودش اسکوپِ کش‌شده را مقایسه می‌کند).
  *   ۶) مقادیر را اینجا بگذارید و فایل را روی هاست کنار api/ قرار دهید.
  *
  * نکته: برای Domain property از 'sc-domain:pishtaj.ir' استفاده کنید؛

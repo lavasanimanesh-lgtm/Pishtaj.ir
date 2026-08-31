@@ -43,6 +43,12 @@ $DATA = $ROOT . '/crm/data';
 if (!is_dir($DATA)) { mkdir($DATA, 0755, true); file_put_contents($DATA . '/.htaccess', "Deny from all\n"); }
 $CACHE_FILE = $DATA . '/gsc-cache.json';
 
+/* اسکوپِ دسترسی. webmasters = خواندن + نوشتن (ثبتِ نقشه).
+   برای سرویس‌اکانت، اسکوپ در خودِ JWT اعلام می‌شود و نیازی به تغییر در
+   کنسولِ گوگل نیست؛ ولی سرویس‌اکانت باید در سرچ کنسول سطحِ Full داشته باشد. */
+define('GSC_SCOPE', 'https://www.googleapis.com/auth/webmasters');
+$COV_FILE   = $DATA . '/gsc-coverage.json';   /* کشِ جدا تا کشِ overview بازنویسی نشود */
+
 $action = $_REQUEST['action'] ?? '';
 
 function jerr($m) { echo json_encode(['ok' => false, 'error' => $m], JSON_UNESCAPED_UNICODE); exit; }
@@ -69,6 +75,12 @@ function gsc_token($cfg) {
     $cacheF = dirname(__DIR__) . '/crm/data/gsc-token.json';
     if (is_file($cacheF)) {
         $j = json_decode((string)@file_get_contents($cacheF), true);
+        /* توکنِ کش‌شده با اسکوپِ قبلی صادر شده؛ اگر اسکوپ عوض شده باشد بی‌اعتبار است
+           وگرنه تا یک ساعت همان توکنِ قدیمی مصرف می‌شود و تغییر اثر نمی‌کند */
+        if (is_array($j) && ($j['scope'] ?? '') !== GSC_SCOPE) {
+            @unlink($cacheF);
+            $j = null;
+        }
         if (is_array($j) && !empty($j['access_token']) && (int)$j['exp'] > time() + 120) {
             $mem = $j['access_token'];
             return $mem;
@@ -80,7 +92,7 @@ function gsc_token($cfg) {
     $hdr = ['alg' => 'RS256', 'typ' => 'JWT'];
     $clm = [
         'iss'   => $cfg['client_email'],
-        'scope' => 'https://www.googleapis.com/auth/webmasters.readonly',
+        'scope' => GSC_SCOPE,
         'aud'   => 'https://oauth2.googleapis.com/token',
         'iat'   => $now,
         'exp'   => $now + 3600,
@@ -119,6 +131,7 @@ function gsc_token($cfg) {
     @file_put_contents($cacheF, json_encode([
         'access_token' => $j['access_token'],
         'exp'          => $now + (int)($j['expires_in'] ?? 3600),
+        'scope'        => GSC_SCOPE,   /* برای تشخیصِ تغییرِ اسکوپ در دفعهٔ بعد */
     ]), LOCK_EX);
     $mem = $j['access_token'];
     return $mem;
@@ -183,6 +196,38 @@ function gsc_cache_read() {
 function gsc_cache_write($d) {
     global $CACHE_FILE;
     @file_put_contents($CACHE_FILE, json_encode($d, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/* ---------- نقشهٔ سایت (تکه‌تکه: sitemap-index.xml → sitemap-*.xml) ---------- */
+function gsc_sitemap_urls($ROOT) {
+    $urls = [];
+    $idx = $ROOT . '/sitemap-index.xml';
+    $files = [];
+    if (is_file($idx)) {
+        $c = (string)@file_get_contents($idx);
+        if (preg_match_all('#<loc>\s*(.*?)\s*</loc>#i', $c, $m)) {
+            foreach ($m[1] as $u) if (preg_match('#\.xml$#i', $u)) $files[] = $u;
+        }
+    }
+    foreach ($files as $u) {
+        $local = preg_replace('#^https?://(www\.)?pishtaj\.ir/#i', '', $u);
+        $p = $ROOT . '/' . $local;
+        if (!is_file($p)) continue;
+        $c = (string)@file_get_contents($p);
+        if (preg_match_all('#<loc>\s*(.*?)\s*</loc>#i', $c, $m2)) {
+            foreach ($m2[1] as $loc) $urls[trim($loc)] = $local;
+        }
+    }
+    return $urls;
+}
+
+/* پیوندِ مستقیم به «URL Inspection» در سرچ کنسول — همان‌جا که دکمهٔ
+   «درخواست ایندکس» وجود دارد. درخواستِ خودکار ممکن نیست (Indexing API فقط
+   JobPosting / BroadcastEvent را می‌پذیرد و اسکوپِ ما readonly است). */
+function gsc_inspect_link($propSite, $url) {
+    if (strpos($propSite, 'sc-domain:') !== 0) $propSite = rtrim($propSite, '/') . '/';
+    return 'https://search.google.com/search-console/inspect?resource_id='
+         . rawurlencode($propSite) . '&id=' . rawurlencode($url);
 }
 
 /* ---------- تحلیل ---------- */
@@ -330,18 +375,62 @@ switch ($action) {
         ]);
         $res = $r['inspectionResult'] ?? [];
         $idx = $res['indexStatusResult'] ?? [];
+
+        // پیوندِ مستقیم به صفحهٔ «URL Inspection» در سرچ کنسول.
+        // چرا پیوند و نه درخواستِ خودکار؟ Indexing API فقط برای صفحاتِ دارای
+        // JobPosting یا BroadcastEvent (داخلِ VideoObject) مجاز است و برای صفحهٔ
+        // مقاله/محصول/خدمت نادیده گرفته می‌شود. این محدودیتِ خودِ API است و با
+        // ارتقای اسکوپ هم حل نمی‌شود. دکمهٔ «درخواست ایندکس» تنها در UI خودِ
+        // سرچ کنسول وجود دارد، پس کاربر را دقیقاً به همان صفحه می‌بریم.
+        // اولویت با inspectionResultLink است که خودِ API برمی‌گرداند (معتبرترین
+        // حالت). ساختِ دستی فقط یدک است و در برابرِ سرچ کنسولِ زنده آزموده نشده.
+        $propSite = (string)$cfg['site_url'];
+        if (strpos($propSite, 'sc-domain:') !== 0) $propSite = rtrim($propSite, '/') . '/';
+        $link = (string)($res['inspectionResultLink'] ?? '');
+        if ($link === '') {
+            $link = 'https://search.google.com/search-console/inspect?resource_id='
+                  . rawurlencode($propSite) . '&id=' . rawurlencode($url);
+        }
         jok([
-            'url'        => $url,
-            'verdict'    => $idx['verdict'] ?? 'UNKNOWN',
-            'coverage'   => $idx['coverageState'] ?? '',
-            'crawled'    => $idx['lastCrawlTime'] ?? '',
-            'robots'     => $idx['robotsTxtState'] ?? '',
-            'indexing'   => $idx['indexingState'] ?? '',
-            'pageFetch'  => $idx['pageFetchState'] ?? '',
-            'crawler'    => $idx['crawledAs'] ?? '',
-            'referring'  => $idx['referringUrls'] ?? '',
-            'sitemap'    => $res['indexStatusResult']['sitemap'] ?? [],
-            'raw'        => $res,
+            'url'         => $url,
+            'verdict'     => $idx['verdict'] ?? 'UNKNOWN',
+            'coverage'    => $idx['coverageState'] ?? '',
+            'crawled'     => $idx['lastCrawlTime'] ?? '',
+            'robots'      => $idx['robotsTxtState'] ?? '',
+            'indexing'    => $idx['indexingState'] ?? '',
+            'pageFetch'   => $idx['pageFetchState'] ?? '',
+            'crawler'     => $idx['crawledAs'] ?? '',
+            'referring'   => $idx['referringUrls'] ?? '',
+            'sitemap'     => $res['indexStatusResult']['sitemap'] ?? [],
+            'inspectLink' => $link,
+            'raw'         => $res,
+        ]);
+        break;
+
+    /* ثبتِ نقشه در سرچ کنسول — نیازمندِ اسکوپِ webmasters و سطحِ Full برای سرویس‌اکانت */
+    case 'sitemap_submit':
+        $cfg = gsc_cfg();
+        if (!$cfg) jerr('gsc_not_configured');
+        $feed = trim((string)($_REQUEST['feed'] ?? 'https://pishtaj.ir/sitemap-index.xml'));
+        if (!preg_match('#^https://(www\.)?pishtaj\.ir/#i', $feed)) jerr('feed_invalid');
+        $site = $cfg['site_url'];
+        if (strpos($site, 'sc-domain:') !== 0) $site = rtrim($site, '/') . '/';
+        /* PUT روی مسیرِ feedpath؛ بدنه لازم نیست چون آدرس در خودِ مسیر است */
+        gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site)
+             . '/sitemaps/' . rawurlencode($feed), null, 'PUT');
+        /* بازخوانیِ فهرست تا نتیجه فوراً دیده شود */
+        $after = gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site) . '/sitemaps');
+        $mine = null;
+        foreach (($after['sitemap'] ?? []) as $sm) {
+            if (rtrim($sm['path'] ?? '', '/') === rtrim($feed, '/')) { $mine = $sm; break; }
+        }
+        jok([
+            'submitted' => $feed,
+            'state'     => $mine['state'] ?? 'pending',
+            'warnings'  => $mine['warnings'] ?? '0',
+            'errors'    => $mine['errors'] ?? '0',
+            'lastDownload' => $mine['lastDownloaded'] ?? '',
+            'sitemaps'  => $after['sitemap'] ?? [],
         ]);
         break;
 
@@ -352,6 +441,86 @@ switch ($action) {
         if (strpos($site, 'sc-domain:') !== 0) $site = rtrim($site, '/') . '/';
         $r = gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site) . '/sitemaps');
         jok(['sitemaps' => $r['sitemap'] ?? []]);
+        break;
+
+    /* صفحاتِ بدونِ داده در سرچ کنسول = کاندیدای «ایندکس‌نشده» + پیوندِ درخواستِ ایندکس */
+    case 'coverage':
+        $cfg = gsc_cfg();
+        if (!$cfg) jerr('gsc_not_configured');
+        $days = (int)($_REQUEST['days'] ?? 90);
+        if ($days < 28) $days = 28;
+        if ($days > 180) $days = 180;
+        $force = !empty($_REQUEST['refresh']);
+
+        if (!$force && is_file($COV_FILE)) {
+            $c = json_decode((string)@file_get_contents($COV_FILE), true);
+            if (is_array($c) && (int)($c['days'] ?? 0) === $days
+                && (int)($c['ts'] ?? 0) > time() - 3600) {
+                $c['cached'] = true;
+                jok($c);
+            }
+        }
+
+        /* ۱) همهٔ URLهای نقشهٔ سایت (کاندیدای ایندکس) */
+        $all = gsc_sitemap_urls($ROOT);
+        if (!$all) jerr('sitemap_not_found');
+
+        /* ۲) URLهایی که در بازهٔ زمانی داده دارند */
+        $p = gsc_query($cfg, ['page'], $days, 25000);
+        $seen = [];
+        foreach (($p['rows'] ?? []) as $r) {
+            if (empty($r['keys'][0])) continue;
+            $seen[rtrim($r['keys'][0], '/')] = [
+                'clicks'      => (float)($r['clicks'] ?? 0),
+                'impressions' => (float)($r['impressions'] ?? 0),
+                'position'    => (float)($r['position'] ?? 0),
+            ];
+        }
+
+        $propSite = (string)$cfg['site_url'];
+        $noData = [];
+        foreach (array_keys($all) as $u) {
+            if (isset($seen[rtrim($u, '/')])) continue;
+            $noData[] = ['url' => $u, 'inspectLink' => gsc_inspect_link($propSite, $u)];
+        }
+
+        /* ۳) تأییدِ قطعی با URL Inspection — فقط به درخواست و حداکثر ۱۰ مورد،
+              چون سهمیهٔ روزانهٔ این API محدود است */
+        $verify = min(10, max(0, (int)($_REQUEST['verify'] ?? 0)));
+        $verified = [];
+        for ($i = 0; $i < $verify && $i < count($noData); $i++) {
+            $u = $noData[$i]['url'];
+            $r = gsc_api($cfg, 'v1/urlInspection/index:inspect', [
+                'inspectionUrl' => $u,
+                'siteUrl'       => $cfg['site_url'],
+            ]);
+            $idx = ($r['inspectionResult'] ?? [])['indexStatusResult'] ?? [];
+            $verified[] = [
+                'url'      => $u,
+                'verdict'  => $idx['verdict'] ?? 'UNKNOWN',
+                'coverage' => $idx['coverageState'] ?? '',
+                'crawled'  => $idx['lastCrawlTime'] ?? '',
+                'robots'   => $idx['robotsTxtState'] ?? '',
+                'fetch'    => $idx['pageFetchState'] ?? '',
+            ];
+        }
+
+        $out = [
+            'kind'          => 'coverage',
+            'days'          => $days,
+            'end'           => date('Y-m-d', strtotime('-2 days')),
+            'ts'            => time(),
+            'sitemap_total' => count($all),
+            'with_data'     => count($seen),
+            'no_data'       => $noData,
+            'verified'      => $verified,
+            /* بدونِ داده ≠ قطعاً ایندکس‌نشده: صفحهٔ ایندکس‌شده با صفر نمایش
+               هم در این فهرست می‌آید. تأییدِ قطعی فقط با «بررسی ایندکس». */
+            'note'          => 'فهرستِ «بدونِ داده» شاملِ هر صفحهٔ نقشه است که در این بازه نمایش/کلیک نداشته؛ '
+                             . 'ایندکس‌نشدنِ قطعی را باید با «بررسی ایندکس» تأیید کرد.',
+        ];
+        @file_put_contents($COV_FILE, json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        jok($out);
         break;
 
     default:

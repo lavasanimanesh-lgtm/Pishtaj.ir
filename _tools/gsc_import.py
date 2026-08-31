@@ -400,13 +400,30 @@ def main():
     print('کوئری‌ها: %d | نمایش: %s | کلیک: %s | CTR: %.2f%%'
           % (len(Q), f'{int(tot_imp):,}', f'{int(tot_clk):,}',
              tot_clk / tot_imp * 100 if tot_imp else 0))
-    print('برندی: %.0f%% نماش / %.0f%% کلیک'
-          % (b_imp / tot_imp * 100 if tot_imp else 0, b_clk / tot_clk * 100 if tot_clk else 0))
-    print('صفحهٔ ۱: %d | صفحهٔ ۲: %d | صفحهٔ ۳: %d | بعد از ۳۰: %d'
-          % (len(b1), len(b2), len(b3), len(b4)))
+    if P:
+        p_imp = sum(r['impressions'] for r in P)
+        p_clk = sum(r['clicks'] for r in P)
+        print('صفحات: %d | نمایش: %s | کلیک: %s'
+              % (len(P), f'{int(p_imp):,}', f'{int(p_clk):,}'))
+    if not Q:
+        # خروجیِ «Pages» به‌تنهایی هیچ کوئری/برند/جایگاهِ کوئری ندارد؛ اگر این
+        # خطوط چاپ شوند، کاربر صفر می‌بیند و فکر می‌کند درون‌ریزی شکست خورده.
+        print('⚠️  این برداشت فقط ستونِ «صفحات» دارد (Queries نبود)؛ آمارِ کوئری، '
+              'برندی و جایگاهِ کوئری معنا ندارد.')
+    else:
+        print('برندی: %.0f%% نمایش / %.0f%% کلیک'
+              % (b_imp / tot_imp * 100 if tot_imp else 0,
+                 b_clk / tot_clk * 100 if tot_clk else 0))
+        print('صفحهٔ ۱: %d | صفحهٔ ۲: %d | صفحهٔ ۳: %d | بعد از ۳۰: %d'
+              % (len(b1), len(b2), len(b3), len(b4)))
     print()
     print('🔥 سریع‌ترین فرصت‌ها:')
     idx = load_site_index()
+    if not Q and P:
+        for i, r in enumerate(sorted(P, key=lambda x: -x['impressions'])[:8], 1):
+            print('  %d. %-52s نمایش %4d | جایگاه %5.1f'
+                  % (i, r['url'].replace('https://pishtaj.ir', '')[:52],
+                     r['impressions'], r['position']))
     for i, r in enumerate(quick[:8], 1):
         print('  %d. %-42s نمایش %4d | جایگاه %5.1f | %s'
               % (i, r['query'][:42], r['impressions'], r['position'],

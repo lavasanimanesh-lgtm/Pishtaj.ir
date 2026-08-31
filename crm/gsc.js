@@ -149,8 +149,72 @@
       'کوئری‌های غیربرندی با نمایشِ بالا و جایگاه ۶ تا ۳۰ — با یک اصلاحِ عنوان/توضیح و لینک داخلی بیشترین بازده را دارند');
     h += queryTable(_data.queries, 'کوئری‌های پربازدید');
     h += pageTable(_data.pages);
+
+    /* --- پوششِ ایندکس: صفحاتِ بدونِ داده + درخواستِ ایندکس --- */
+    h += '<div style="margin-top:14px;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px 14px">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+      '<b>🗂 پوششِ ایندکس</b>' +
+      '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscCoverage(0)">نمایش صفحاتِ بدونِ داده</button>' +
+      '<span style="font-size:11px;color:#94a3b8">صفحاتِ نقشهٔ سایت که در این بازه هیچ نمایش/کلیک نداشته‌اند</span></div>' +
+      '<div id="gscCov" style="margin-top:8px"></div></div>';
+
     el.innerHTML = h;
   }
+
+  /* پوششِ ایندکس — verify>0 یعنی تأییدِ قطعیِ چند مورد با URL Inspection (سهمیهٔ روزانه محدود است) */
+  window.gscCoverage = function (verify) {
+    var box = document.getElementById('gscCov');
+    if (!box) return;
+    box.innerHTML = '<div style="color:#94a3b8;font-size:12px">در حال مقایسهٔ نقشهٔ سایت با دادهٔ سرچ کنسول…</div>';
+    var params = { days: (_data && _data.days) || 90 };
+    if (verify) params.verify = verify;
+    api('coverage', params, function (d) {
+      if (!d || !d.ok) {
+        box.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px;color:#b91c1c;font-size:12px">' +
+          '⚠️ ' + escP((d && d.error) || 'خطا در دریافت پوشش ایندکس') + '</div>';
+        return;
+      }
+      var h = '<div style="font-size:12px;line-height:2;color:#475569">' +
+        'کلِ صفحاتِ نقشه: <b>' + n(d.sitemap_total) + '</b> · دارای داده: <b>' + n(d.with_data) + '</b> · ' +
+        'بدونِ داده: <b style="color:#dc2626">' + n((d.no_data || []).length) + '</b>' +
+        (d.cached ? ' <span style="color:#94a3b8">(کش)</span>' : '') + '</div>' +
+        '<div style="font-size:11px;color:#94a3b8;line-height:1.9;margin:4px 0 8px">' + escP(d.note || '') + '</div>';
+
+      var nd = d.no_data || [];
+      if (!nd.length) {
+        box.innerHTML = h + '<div style="color:#059669;font-size:12.5px">✅ همهٔ صفحاتِ نقشه در این بازه داده داشته‌اند.</div>';
+        return;
+      }
+      h += '<div style="max-height:340px;overflow:auto"><table class="tb"><thead><tr>' +
+        '<th>صفحه</th><th>عملیات</th></tr></thead><tbody>';
+      nd.slice(0, 200).forEach(function (r) {
+        h += '<tr><td style="direction:ltr;font-size:11.5px">' + escP(r.url.replace('https://pishtaj.ir/', '')) + '</td>' +
+          '<td style="white-space:nowrap">' +
+          '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px" onclick="gscInspect(\'' + escP(r.url) + '\')">🔎 بررسی ایندکس</button> ' +
+          '<a class="bt bt-o" style="padding:4px 9px;font-size:11.5px;text-decoration:none" target="_blank" rel="noopener" href="' + escP(r.inspectLink) + '">↗ درخواست ایندکس</a>' +
+          '</td></tr>';
+      });
+      h += '</tbody></table></div>';
+      if (nd.length > 200) h += '<div style="font-size:11px;color:#94a3b8;margin-top:6px">فقط ۲۰۰ مورد نخست نمایش داده شد.</div>';
+      h += '<div style="margin-top:8px"><button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscCoverage(10)">🔬 تأییدِ قطعیِ ۱۰ مورد نخست (URL Inspection)</button></div>';
+      h += '<div id="gscCovV"></div>';
+      box.innerHTML = h;
+
+      var v = d.verified || [];
+      if (v.length) {
+        var vh = '<table class="tb" style="margin-top:8px"><thead><tr><th>صفحه</th><th>وضعیت</th><th>آخرین خزش</th></tr></thead><tbody>';
+        v.forEach(function (r) {
+          var col = r.verdict === 'PASS' ? '#059669' : (r.verdict === 'FAIL' ? '#dc2626' : '#d97706');
+          vh += '<tr><td style="direction:ltr;font-size:11px">' + escP(r.url.replace('https://pishtaj.ir/', '')) + '</td>' +
+            '<td style="font-size:11.5px;color:' + col + '"><b>' + escP(r.verdict) + '</b>' + (r.coverage ? ' — ' + escP(r.coverage) : '') + '</td>' +
+            '<td style="font-size:11px;direction:ltr">' + escP((r.crawled || '—').slice(0, 10)) + '</td></tr>';
+        });
+        vh += '</tbody></table>';
+        var vb = document.getElementById('gscCovV');
+        if (vb) vb.innerHTML = vh;
+      }
+    });
+  };
 
   function loadData() {
     api('overview', { days: _days }, function (d) { _data = d; renderBody(); });
@@ -192,14 +256,44 @@
           'خزش به‌عنوان: ' + escP(d.crawler || '—') + '<br>' +
           (d.referring ? 'صفحات ارجاع‌دهنده: ' + escP(String(d.referring).slice(0, 200)) : '');
       }
+      // پیوندِ مستقیم به صفحهٔ URL Inspection همان نشانی در سرچ کنسول؛
+      // «درخواست ایندکس» فقط در UI خودِ گوگل وجود دارد (Indexing API برای
+      // صفحاتِ غیرِ JobPosting/BroadcastEvent مجاز نیست).
+      var lnk = (d && d.ok && d.inspectLink) ? String(d.inspectLink) : '';
       var box = document.createElement('div');
       box.className = 'md-b';
       box.style.display = 'grid';
       box.onclick = function (e) { if (e.target === box) box.remove(); };
       box.innerHTML = '<div class="md" style="max-width:560px;line-height:2;font-size:13px">' +
         '<h3>🔎 وضعیت ایندکس</h3>' + msg +
+        (lnk ? '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e2e8f0">' +
+          '<a class="bt" href="' + escP(lnk) + '" target="_blank" rel="noopener" style="text-decoration:none">↗ درخواست ایندکس در سرچ کنسول</a>' +
+          '<div style="font-size:11.5px;color:#94a3b8;margin-top:6px">گوگل برای این کار API عمومی ندارد؛ این پیوند شما را به صفحهٔ بازرسیِ همان نشانی می‌برد تا دکمهٔ Request Indexing را بزنید (سهمیهٔ روزانهٔ گوگل محدود است).</div></div>' : '') +
         '<div style="text-align:left;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div>';
       document.getElementById('panels').appendChild(box);
+    });
+  };
+
+  /* ثبتِ نقشه در سرچ کنسول (اکشنِ sitemap_submit — نیازمندِ سطحِ Full) */
+  window.gscSubmitSitemap = function () {
+    if (!confirm('نقشهٔ سایت (sitemap-index.xml) در سرچ کنسول ثبت/به‌روزرسانی شود؟\n\nاین کار فقط به گوگل می‌گوید نقشه کجاست؛ ایندکس‌شدنِ صفحات را تضمین نمی‌کند.')) return;
+    var el = document.getElementById('gscWrap');
+    var mark = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:10px">⏳ در حال ثبت نقشه…</div>';
+    if (el) el.insertAdjacentHTML('afterbegin', mark);
+    api('sitemap_submit', { feed: 'https://pishtaj.ir/sitemap-index.xml' }, function (d) {
+      var box = document.getElementById('gscWrap');
+      if (box) { var f = box.firstElementChild; if (f && f.textContent.indexOf('در حال ثبت نقشه') > -1) f.remove(); }
+      if (!d || !d.ok) {
+        alert('⚠️ ثبت ناموفق: ' + ((d && d.error) || 'خطای نامشخص') +
+          '\n\nاگر خطا 403 است، سطحِ سرویس‌اکانت در سرچ کنسول باید Full باشد.');
+        return;
+      }
+      var err = parseInt(d.errors || '0', 10), wrn = parseInt(d.warnings || '0', 10);
+      var msg = '✅ نقشه ثبت شد\n\nوضعیت: ' + (d.state || '—') +
+        '\nخطا: ' + err + ' · هشدار: ' + wrn +
+        (d.lastDownload ? '\nآخرین دریافتِ گوگل: ' + String(d.lastDownload).slice(0, 10) : '') +
+        '\n\nنکته: «pending» یعنی گوگل هنوز نقشه را نخوانده؛ معمولاً چند ساعت تا چند روز طول می‌کشد.';
+      alert(msg);
     });
   };
 
@@ -219,6 +313,7 @@
         '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscSetDays(90)">۹۰ روز</button>' +
         '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscSetDays(180)">۶ ماه</button>' +
         '<button class="bt" style="padding:5px 11px;font-size:12px" onclick="gscRefresh()">⟳ به‌روزرسانی</button>' +
+        '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscSubmitSitemap()">📤 ثبت نقشه در سرچ کنسول</button>' +
         '<span style="font-size:11px;color:#94a3b8">داده هر ۳۰ دقیقه کش می‌شود</span></div>' +
         '<div id="gscWrap"></div>';
       api('status', null, function (s) {
