@@ -58,7 +58,7 @@
          dirtyهای موقتِ نامجاز تا زمان ورود با نقش درست حفظ می‌شوند و pushDirty طبق
          قرارداد قبلی درباره‌شان تصمیم می‌گیرد. */
       if (k === 'ptf_crm_audit' && !syncAllowedKey(k)) return;
-      clean[k] = true;
+      clean[k] = (typeof raw[k] === 'number' && raw[k] > 0) ? raw[k] : true; /* v34.9.1: حفظ سن dirty */
     });
     try { localStorage.setItem('ptf_sync_dirty', JSON.stringify(clean)); } catch (eSave) {}
     return clean;
@@ -130,7 +130,7 @@
       var merged = (typeof window.ptfSmartMerge === 'function') ? window.ptfSmartMerge(k, rd(k), serverStr) : serverStr;
       if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged);
       state.pulling = true; wr(k, merged); state.pulling = false;
-      state.dirty[k] = true; saveDirty();
+      state.dirty[k] = Date.now(); saveDirty(); /* v34.9.1: سن کلید dirty برای شفافیت */
       try { setSyncBadge('warn'); } catch (eBadge) {}
       return true;
     } catch (eResolve) { return false; }
@@ -156,7 +156,7 @@
         merged = window.ptfMergeProtectedFinanceConflict(k, current, typeof submittedStr === 'string' ? submittedStr : current, serverStr);
       } else merged = serverStr;
       state.pulling = true; wr(k, merged); state.pulling = false;
-      state.dirty[k] = true; saveDirty();
+      state.dirty[k] = Date.now(); saveDirty(); /* v34.9.1 */
       try { setSyncBadge('warn'); } catch (eBadge2) {}
       return true;
     } catch (eResolveP) { return false; }
@@ -176,6 +176,17 @@
   }
 
   function saveDirty() { try { localStorage.setItem('ptf_sync_dirty', JSON.stringify(state.dirty)); } catch (e) {} }
+  /* v34.9.1 (SNAP-PUMP): انقضای snapshotهای پیش-pull — نسخهٔ قدیمی‌تر از ۲۴ ساعت حذف می‌شود؛
+     تا امروز هرگز منقضی نمی‌شدند و در دستگاه فعالِ بی‌آینه، پمپ دائمی پرشدن LS بودند. */
+  function sweepStalePrePullSnaps() {
+    var cutoff = Date.now() - 24 * 3600 * 1000, killed = 0;
+    Object.keys(localStorage).forEach(function (x) {
+      if (x.indexOf('ptf_pre_pull_snap_') !== 0) return;
+      var ts = parseInt(x.slice('ptf_pre_pull_snap_'.length), 10);
+      if (!isNaN(ts) && ts < cutoff) { try { localStorage.removeItem(x); killed++; } catch (eR) {} }
+    });
+    return killed;
+  }
   /* v34.7.39 — فرمان‌های دامنه باید تا ACK سرور، کلیدهای projection خود را از
      مسیر عمومی whole-array sync جدا نگه دارند. وگرنه همان رکورد پیش از
      register_offer از data_push عبور می‌کند و boundary سروری عملاً دور زده می‌شود. */
@@ -207,7 +218,7 @@
   window.ptfSyncAcknowledgeKeys = function (keys, submitted) {
     (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
       if (submitted && Object.prototype.hasOwnProperty.call(submitted, k) && !sameSyncJson(rd(k), submitted[k])) {
-        state.dirty[k] = true;
+        state.dirty[k] = Date.now(); /* v34.9.1 */
         return;
       }
       delete state.dirty[k];
@@ -221,9 +232,24 @@
      گارد را بخوانند؛ اما wrapper setData پایین آخرین سد سراسری است. */
   window.ptfSyncCanWriteKey = function (k) { return SYNC_KEYS.indexOf(k) < 0 || syncAllowedKey(k); };
   window.ptfSyncPendingKeys = function () { return Object.keys(state.dirty); };
+  /* v34.9.1 (TRANSPARENCY): سن کلیدهای در انتظار ارسال + رهایش امنِ کلیدهای لاگ/اعلان که
+     نسخهٔ مرجعشان روی سرور است (union-merge). برای کلید کسب‌وکاری هرگز drop خودکار نیست. */
+  window.ptfSyncDirtyInfo = function () {
+    var now = Date.now();
+    return Object.keys(state.dirty).map(function (k) {
+      var v = state.dirty[k], num = (typeof v === 'number' && v > 0);
+      return { k: k, since: num ? v : 0, ageSec: num ? Math.max(0, Math.round((now - v) / 1000)) : -1 };
+    }).sort(function (a, b) { return b.ageSec - a.ageSec; });
+  };
+  window.ptfSyncDropDirtyKey = function (k) {
+    if (['ptf_crm_audit', 'ptf_crm_notifs', 'ptf_crm_avatars'].indexOf(k) < 0) return false;
+    delete state.dirty[k]; saveDirty();
+    try { setSyncBadge(Object.keys(state.dirty).length ? 'warn' : 'ok'); } catch (eBadgeDrop) {}
+    return true;
+  };
   window.ptfSyncMarkPendingKeys = function (keys) {
     (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
-      if (SYNC_KEYS.indexOf(k) > -1) state.dirty[k] = true;
+      if (SYNC_KEYS.indexOf(k) > -1) state.dirty[k] = Date.now(); /* v34.9.1 */
     });
     saveDirty();
     if (Object.keys(state.dirty).length) { try { setSyncBadge('warn'); } catch (eBadge) {} }
@@ -1296,13 +1322,29 @@
         /* v33.2.1: snapshot خودکار قبل از pull — اگر dirty keys هست و merge اشتباهی انجام شود،
            کاربر از audit log می‌تواند داده‌های قبلی را بازیابی کند */
         var dirtyKeys = Object.keys(state.dirty);
+        /* v34.9.1 (SNAP-PUMP — RCA پرشدن بازگشتی حافظه): snapshot پیش-pull دیگر بی‌سقف
+           در LS نمی‌نشیند. آینهٔ IDB فعال ⇒ فقط نشانگر سبک با کلید ثابت در IDB
+           (مقادیر واقعی خودشان در آینه هستند)؛ آینه خاموش ⇒ همان مسیر LS با سقف
+           ۲۵۶KB و حداکثر ۳ نسخه + انقضای ۲۴ ساعته. */
+        try { sweepStalePrePullSnaps(); } catch (eSweep) {}
         if (dirtyKeys.length > 0) {
           try {
-            var snap = {};
-            dirtyKeys.forEach(function (k) { var v = rd(k); if (v) snap[k] = v; });
-            if (Object.keys(snap).length > 0) {
-              var snapKey = 'ptf_pre_pull_snap_' + Date.now();
-              localStorage.setItem(snapKey, JSON.stringify(snap));
+            var mirrorOn = false;
+            try { mirrorOn = !!(typeof window.ptfBMirrorActive === 'function' && window.ptfBMirrorActive()); } catch (eMir) {}
+            var snap = {}, snapBytes = 0, SNAP_MAX_BYTES = 262144;
+            if (!mirrorOn) {
+              dirtyKeys.forEach(function (k) {
+                var v = rd(k);
+                if (!v || snapBytes + v.length * 2 > SNAP_MAX_BYTES) return;
+                snap[k] = v; snapBytes += v.length * 2;
+              });
+            }
+            if (mirrorOn || Object.keys(snap).length > 0) {
+              if (mirrorOn && typeof window.ptfStorageIdbSet === 'function') {
+                try { window.ptfStorageIdbSet('ptf_snap:prepull:last', JSON.stringify({ at: Date.now(), keys: dirtyKeys.slice(0, 40) }), function () {}); } catch (eIdbSnap) {}
+              } else {
+                localStorage.setItem('ptf_pre_pull_snap_' + Date.now(), JSON.stringify(snap));
+              }
               // فقط ۳ snapshot آخر حفظ شود
               var allSnaps = Object.keys(localStorage).filter(function (x) { return x.indexOf('ptf_pre_pull_snap_') === 0; }).sort();
               while (allSnaps.length > 3) { localStorage.removeItem(allSnaps.shift()); }
@@ -1600,7 +1642,17 @@
       if (failedKeys.length > 0) {
         banner.style.display = 'flex';
         banner.style.background = '#dc2626'; banner.style.color = '#fff';
-        banner.innerHTML = '<span style="flex:1">🔴 ' + failedKeys.length + ' تغییر حتی در حافظهٔ پایدار این دستگاه ذخیره نشد — تب را نبندید؛ فضا/دسترسی را بررسی و ثبت را دوباره انجام دهید. (' + failedKeys.map(function (k) { return k.replace('ptf_crm_', ''); }).join('، ') + ')</span>';
+        /* v34.9.1 (ERR-WHY): علت واقعی شکست نوشتن از دفتر failedWrites + وضعیت آینه؛
+           کاربر موبایل بدون کنسول باید بداند Quota است یا مرورگر اجازهٔ ذخیره نمی‌دهد. */
+        var wfHint = '';
+        try {
+          var fw0 = (typeof window.ptfStorageFailedWrites === 'function' && window.ptfStorageFailedWrites()[0]) || null;
+          var en0 = fw0 ? String(fw0.error || '') : '';
+          var bSt0 = (typeof window.ptfBStatus === 'function') ? (window.ptfBStatus() || {}) : {};
+          if (en0.indexOf('Quota') > -1) wfHint = ' — علت: حافظهٔ مرورگر پر است؛ از تنظیمات «پاک‌سازی کش محلی» را اجرا کنید' + (bSt0.enabled && !bSt0.synced ? ' و «انتقال یک‌باره» را تکمیل کنید' : '');
+          else if (en0.indexOf('Security') > -1 || en0.indexOf('InvalidState') > -1 || en0.indexOf('Denied') > -1) wfHint = ' — علت: این مرورگر اجازهٔ ذخیره‌سازی نمی‌دهد؛ از Chrome/Safari اصلی باز کنید (نه داخل اپ دیگر)';
+        } catch (eHint) {}
+        banner.innerHTML = '<span style="flex:1">🔴 ' + failedKeys.length + ' تغییر حتی در حافظهٔ پایدار این دستگاه ذخیره نشد — تب را نبندید؛ فضا/دسترسی را بررسی و ثبت را دوباره انجام دهید.' + wfHint + ' (' + failedKeys.map(function (k) { return k.replace('ptf_crm_', ''); }).join('، ') + ')</span>';
       } else if (dirtyCount > 0) {
         banner.style.display = 'flex';
         banner.style.background = '#f59e0b'; banner.style.color = '#1e293b';

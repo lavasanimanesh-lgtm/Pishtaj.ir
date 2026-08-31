@@ -685,21 +685,44 @@
          ناسازگار می‌شد (توابع ptfBEnable/ptfBDisable برای سازگاری ابزارها باقی‌اند). */
       (function () {
         var st = (typeof window.ptfBStatus === 'function') ? (window.ptfBStatus() || {}) : {};
-        var on = !!st.enabled;
-        var qN = st.queue || 0;
-        var h2 = '<div style="border-radius:12px;padding:10px 12px;margin-top:10px;font-size:12.5px;line-height:1.9;border:1px solid ' + (on ? '#a7f3d0' : '#fde68a') + ';background:' + (on ? '#ecfdf5' : '#fffbeb') + ';color:' + (on ? '#065f46' : '#92400e') + '">' +
-          '<b>' + (on ? '🖥 وضعیت دستگاه: سرور-محور فعال' : '🖥 وضعیت دستگاه: در انتظار انتقال یک‌باره') + '</b><br>';
-        if (on) {
+        /* v34.9.1 (TRAP-FIX): حالت «سبزِ ناتمام» (enabled && !synced — فعال‌شده با دکمهٔ قدیمی)
+           دکمهٔ «تکمیل انتقال» می‌گیرد؛ پیش از این جعبه سبز بود و هیچ در نجات نداشت. */
+        var on = !!st.enabled, synced = !!st.synced, qN = st.queue || 0;
+        var green = on && synced;
+        var h2 = '<div style="border-radius:12px;padding:10px 12px;margin-top:10px;font-size:12.5px;line-height:1.9;border:1px solid ' + (green ? '#a7f3d0' : '#fde68a') + ';background:' + (green ? '#ecfdf5' : '#fffbeb') + ';color:' + (green ? '#065f46' : '#92400e') + '">' +
+          '<b>' + (green ? '🖥 وضعیت دستگاه: سرور-محور فعال' : (on ? '🖥 وضعیت دستگاه: فعال — در انتظار تکمیل انتقال' : '🖥 وضعیت دستگاه: در انتظار انتقال یک‌باره')) + '</b><br>';
+        if (green) {
           h2 += 'دادهٔ اصلی این سامانه روی <b>سرور</b> است و حافظهٔ مرورگر فقط کش است. نیازی به هیچ تنظیمی نیست.' +
             (qN > 0 ? '<br>⏳ ' + qN + ' تغییر در صف آفلاین است و با اتصال پایدار خودکار ارسال می‌شود.' : '');
+        } else if (on) {
+          h2 += 'حالت سرور-محور روشن شده اما «انتقال یک‌باره» هنوز کامل نشده است؛ تا تکمیل آن، دادهٔ سنگین در همین حافظهٔ کوچک می‌ماند و مرورگر پر می‌شود. تکمیل انتقال چند دقیقه با اینترنت پایدار طول می‌کشد و دادهٔ محلی در تمام مراحل محفوظ می‌ماند.';
         } else {
           h2 += 'داده‌های این دستگاه هنوز یک‌بار به سرور منتقل نشده است (حالت قدیمی). این انتقال <b>یک‌بار برای هر دستگاه</b> لازم است و چند دقیقه با اینترنت پایدار طول می‌کشد؛ دادهٔ محلی شما در تمام مراحل محفوظ می‌ماند.';
         }
         h2 += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
-          (on
+          (green
             ? '<button class="bt bt-o" style="color:#b45309" onclick="if(window.ptfBClearLocalCache)ptfBClearLocalCache()">🗑 پاک‌سازی کش محلی</button>'
-            : '<button class="bt" style="background:#059669" onclick="ptfBConfirmFlush()">⬆️ انتقال یک‌بارهٔ داده‌های این دستگاه</button><span style="align-self:center;font-size:11.5px">پس از انتقال، «پاک‌سازی کش محلی» برای آزادسازی حافظه در دسترس می‌شود.</span>') +
-          '</div></div>'; /* v34.8.52: پاک‌سازی کش فقط برای دستگاه منتقل‌شده (گاردهای سرور) */
+            : '<button class="bt" style="background:#059669" onclick="ptfBConfirmFlush()">⬆️ ' + (on ? 'تکمیل انتقال یک‌باره' : 'انتقال یک‌بارهٔ داده‌های این دستگاه') + '</button><span style="align-self:center;font-size:11.5px">پس از انتقال، «پاک‌سازی کش محلی» برای آزادسازی حافظه در دسترس می‌شود.</span>') +
+          '</div>';
+        /* v34.9.1 (TRANSPARENCY): کلیدهای در انتظار ارسال با سن — بدون کنسول؛
+           «رها کردن امن» فقط برای کلیدهای لاگ/اعلان با مرجع سروری (union-merge). */
+        try {
+          var dInfo = (typeof window.ptfSyncDirtyInfo === 'function') ? (window.ptfSyncDirtyInfo() || []) : [];
+          if (dInfo.length) {
+            var SAFE_DROP = ['ptf_crm_audit', 'ptf_crm_notifs', 'ptf_crm_avatars'];
+            var fmtAge = function (sec) { if (!(sec >= 0)) return 'نامشخص'; if (sec < 90) return 'چند لحظه'; if (sec < 3600) return Math.round(sec / 60) + ' دقیقه'; if (sec < 86400) return Math.round(sec / 3600) + ' ساعت'; return Math.round(sec / 86400) + ' روز'; };
+            h2 += '<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #d97706">⏳ <b>در انتظار ارسال به سرور:</b> ' +
+              dInfo.slice(0, 6).map(function (d) {
+                var nm = String(d.k).replace('ptf_crm_', '');
+                return escP(nm) + ' <small>(از ' + fmtAge(d.ageSec) + ' پیش)</small>' +
+                  (SAFE_DROP.indexOf(d.k) > -1
+                    ? ' <a href="javascript:void(0)" style="color:#b45309;font-weight:700" onclick="if(window.ptfSyncDropDirtyKey&&window.ptfSyncDropDirtyKey(\'' + escP(d.k) + '\')){if(typeof ptfToast===\'function\')ptfToast(\'کلید ' + escP(nm) + ' از صف ارسال آزاد شد\',\'ok\');if(typeof goPanelByName===\'function\')goPanelByName(\'set\');}">↺ رها کردن امن</a>'
+                    : '');
+              }).join('، ') + (dInfo.length > 6 ? ' …' : '') +
+              '<br><small>«رها کردن امن» فقط برای کلیدهای لاگ/اعلان است (نسخهٔ مرجع روی سرور). برای سایر کلیدها «⬆ تلاش مجدد ارسال» را در «تشخیص همگام‌سازی» همان تنظیمات بزنید.</small></div>';
+          }
+        } catch (eDirtyBox) {}
+        h2 += '</div>';
         return h2;
       })();
   };
