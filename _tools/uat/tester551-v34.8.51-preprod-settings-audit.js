@@ -23,7 +23,7 @@ var php = read('api/crm.php');
 /* ═══ ۱) جعبهٔ وضعیت دستگاه ═══ */
 T('backup.js: جعبهٔ وضعیت device-status با ptfBStatus', bak.indexOf('(typeof window.ptfBStatus === \'function\')') > -1 && bak.indexOf('window.ptfBStatus()') > -1);
 T('backup.js: دو حالت سبز/کهربایی بر اساس enabled', bak.indexOf('🖥 وضعیت دستگاه: سرور-محور فعال') > -1 && bak.indexOf('🖥 وضعیت دستگاه: در انتظار انتقال یک‌باره') > -1);
-T('backup.js: CTA «انتقال یک‌باره» فقط در حالت منتقل‌نشده؛ پاک‌سازی کش فقط در حالت سبز (v34.8.52)', (function () { var i = bak.indexOf('انتقال یک‌بارهٔ داده‌های این دستگاه'); var j = bak.indexOf('ptfBClearLocalCache()'); return i > -1 && j > -1 && /\(on\s*\?\s*'[^']*ptfBClearLocalCache[^']*'\s*:\s*'[^']*ptfBConfirmFlush/.test(bak.slice(i - 400, i + 600)); })());
+T('backup.js: پاک‌سازی کش فقط در سبزِ کامل؛ حالت ناتمام/منتقل‌نشده دکمهٔ انتقال دارند (v34.9.1 سه‌حالته)', (function () { var i = bak.indexOf('انتقال یک‌بارهٔ داده‌های این دستگاه'); var j = bak.indexOf('ptfBClearLocalCache()'); var g = bak.indexOf('var green = on && synced;'); var fin = bak.indexOf("'تکمیل انتقال یک‌باره'"); return i > -1 && j > -1 && g > -1 && fin > -1 && /\(green\s*\?\s*'[^']*ptfBClearLocalCache[^']*'\s*:\s*'[^']*ptfBConfirmFlush/.test(bak.slice(g - 100, g + 2400)); })());
 T('backup.js: صف آفلاین در وضعیت سبز شفاف است', bak.indexOf('تغییر در صف آفلاین است و با اتصال پایدار خودکار ارسال می‌شود') > -1);
 T('backup.js: دکمهٔ پاک‌سازی کش محلی موجود (گارد سرور: فقط دستگاه منتقل‌شده)', bak.indexOf('ptfBClearLocalCache()') > -1);
 T('backup.js: هیچ دکمهٔ فعال/غیرفعال‌سازی دستی در UI نیست', bak.indexOf('onclick="ptfBEnable()"') === -1 && bak.indexOf('onclick="ptfBDisable()"') === -1);

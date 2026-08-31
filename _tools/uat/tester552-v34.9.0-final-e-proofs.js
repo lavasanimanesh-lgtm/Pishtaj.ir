@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester552 — v34.9.0 (FINAL): بنر مهاجرت + بستهٔ اثبات اصول E1..E7
+/* tester552 — v34.9.1 (FINAL): بنر مهاجرت + بستهٔ اثبات اصول E1..E7
    E1 سرور منبع حقیقت نوشتن · E2 صفر بایپس جدید لایهٔ داده · E3 LS سبک (هارنس + سنجه)
    · E4 پاک‌کردن حافظه = صفر گم‌شدن · E5 کلیدهای سنگین فقط IDB · E6 آفلاین = outbox
    محدود · E7 یک موتور (فعلاً پرچم‌دار؛ اثبات نهایی = v34.9.1 با تله‌متری ≥۷ روز).
@@ -18,7 +18,7 @@ var php = read('api/crm.php');
 
 /* ═══ ۰) MIGRATION-BANNER ═══ */
 T('بنر: تابع ptfMigBannerTick + تیک ۱۵ث تعریف شد', ih.indexOf('function ptfMigBannerTick()') > -1 && ih.indexOf('setInterval(ptfMigBannerTick, 15000)') > -1);
-T('بنر: فقط دستگاه کهربایی (enabled=false && localPayload) — سبز/تازه هرگز نمی‌بیند', /if \(st\.enabled \|\| !st\.localPayload\) \{ if \(bar\) bar\.remove\(\); return; \}/.test(ih));
+T('بنر: فقط دستگاه کهربایی یا سبزِ ناتمام — سبزِ کامل/تازه هرگز نمی‌بیند (v34.9.1: synced هم لازم شد)', ih.indexOf('if ((st.enabled && st.synced) || !st.localPayload) { if (bar) bar.remove(); return; }') > -1);
 T('بنر: دکمهٔ «رفتن به تنظیمات» و «بعداً» (ساکت فقط تا رفرش)', ih.indexOf("goPanelByName(\\'set\\')") > -1 && ih.indexOf('بعداً') > -1 && ih.indexOf('window._ptfMigDismissed=true') > -1);
 T('بنر: وضعیت صف آفلاین شفاف است', ih.indexOf('تغییر در صف آفلاین هم هست') > -1);
 T('بنر: خارج از CRM حذف می‌شود (صفحهٔ ورود تمیز)', /if \(!crmVisible \|\| window\._ptfMigDismissed\) \{ if \(bar\) bar\.remove\(\); return; \}/.test(ih));
