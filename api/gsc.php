@@ -330,18 +330,35 @@ switch ($action) {
         ]);
         $res = $r['inspectionResult'] ?? [];
         $idx = $res['indexStatusResult'] ?? [];
+
+        // پیوندِ مستقیم به صفحهٔ «URL Inspection» در سرچ کنسول.
+        // چرا پیوند و نه درخواستِ خودکار؟ Indexing API فقط برای صفحاتِ دارای
+        // JobPosting یا BroadcastEvent (داخلِ VideoObject) مجاز است و برای صفحهٔ
+        // مقاله/محصول/خدمت نادیده گرفته می‌شود؛ ضمن آنکه اسکوپِ این فایل
+        // webmasters.readonly است. دکمهٔ «درخواست ایندکس» تنها در UI خودِ
+        // سرچ کنسول وجود دارد، پس کاربر را دقیقاً به همان صفحه می‌بریم.
+        // اولویت با inspectionResultLink است که خودِ API برمی‌گرداند (معتبرترین
+        // حالت). ساختِ دستی فقط یدک است و در برابرِ سرچ کنسولِ زنده آزموده نشده.
+        $propSite = (string)$cfg['site_url'];
+        if (strpos($propSite, 'sc-domain:') !== 0) $propSite = rtrim($propSite, '/') . '/';
+        $link = (string)($res['inspectionResultLink'] ?? '');
+        if ($link === '') {
+            $link = 'https://search.google.com/search-console/inspect?resource_id='
+                  . rawurlencode($propSite) . '&id=' . rawurlencode($url);
+        }
         jok([
-            'url'        => $url,
-            'verdict'    => $idx['verdict'] ?? 'UNKNOWN',
-            'coverage'   => $idx['coverageState'] ?? '',
-            'crawled'    => $idx['lastCrawlTime'] ?? '',
-            'robots'     => $idx['robotsTxtState'] ?? '',
-            'indexing'   => $idx['indexingState'] ?? '',
-            'pageFetch'  => $idx['pageFetchState'] ?? '',
-            'crawler'    => $idx['crawledAs'] ?? '',
-            'referring'  => $idx['referringUrls'] ?? '',
-            'sitemap'    => $res['indexStatusResult']['sitemap'] ?? [],
-            'raw'        => $res,
+            'url'         => $url,
+            'verdict'     => $idx['verdict'] ?? 'UNKNOWN',
+            'coverage'    => $idx['coverageState'] ?? '',
+            'crawled'     => $idx['lastCrawlTime'] ?? '',
+            'robots'      => $idx['robotsTxtState'] ?? '',
+            'indexing'    => $idx['indexingState'] ?? '',
+            'pageFetch'   => $idx['pageFetchState'] ?? '',
+            'crawler'     => $idx['crawledAs'] ?? '',
+            'referring'   => $idx['referringUrls'] ?? '',
+            'sitemap'     => $res['indexStatusResult']['sitemap'] ?? [],
+            'inspectLink' => $link,
+            'raw'         => $res,
         ]);
         break;
 

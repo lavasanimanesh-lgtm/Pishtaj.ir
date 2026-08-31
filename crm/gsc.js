@@ -192,12 +192,19 @@
           'خزش به‌عنوان: ' + escP(d.crawler || '—') + '<br>' +
           (d.referring ? 'صفحات ارجاع‌دهنده: ' + escP(String(d.referring).slice(0, 200)) : '');
       }
+      // پیوندِ مستقیم به صفحهٔ URL Inspection همان نشانی در سرچ کنسول؛
+      // «درخواست ایندکس» فقط در UI خودِ گوگل وجود دارد (Indexing API برای
+      // صفحاتِ غیرِ JobPosting/BroadcastEvent مجاز نیست).
+      var lnk = (d && d.ok && d.inspectLink) ? String(d.inspectLink) : '';
       var box = document.createElement('div');
       box.className = 'md-b';
       box.style.display = 'grid';
       box.onclick = function (e) { if (e.target === box) box.remove(); };
       box.innerHTML = '<div class="md" style="max-width:560px;line-height:2;font-size:13px">' +
         '<h3>🔎 وضعیت ایندکس</h3>' + msg +
+        (lnk ? '<div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e2e8f0">' +
+          '<a class="bt" href="' + escP(lnk) + '" target="_blank" rel="noopener" style="text-decoration:none">↗ درخواست ایندکس در سرچ کنسول</a>' +
+          '<div style="font-size:11.5px;color:#94a3b8;margin-top:6px">گوگل برای این کار API عمومی ندارد؛ این پیوند شما را به صفحهٔ بازرسیِ همان نشانی می‌برد تا دکمهٔ Request Indexing را بزنید (سهمیهٔ روزانهٔ گوگل محدود است).</div></div>' : '') +
         '<div style="text-align:left;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div>';
       document.getElementById('panels').appendChild(box);
     });
