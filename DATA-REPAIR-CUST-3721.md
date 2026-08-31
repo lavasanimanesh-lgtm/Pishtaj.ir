@@ -74,3 +74,52 @@
 - جستجوی هر دو کد در: مشتریان، پیشنهادات (فیلتر مشتری)، فاکتورها (`invSrch`)، مطالبات.
 - ماندهٔ حساب مشتری در «مطالبات» برای هر دو جدا و درست باشد (از receipts/invoices محاسبه می‌شود).
 - یک بار خروج/ورود و sync سبز.
+
+
+---
+
+# 📋 نتایج فاز ۱ (اجرا: ۲۰۲۶-۰۸-۳۱ ~۲۱:۵۵ تهران) — تحلیل به‌روز
+
+## یافته‌های کلیدی
+
+1. **آلودگی مالی: صفر.** هیچ offer/invoice/receipt/deal به CUST-3721 ارجاع ندارد (۰ از ۹۱/۵/۸/۸). مطالبات و خزانه پاک‌اند. دامنهٔ حادثه = خود رکورد مشتری + یک RFQ.
+2. **محتوای فعلی رکورد ۱۰۰٪ «پاسارگاد انرژی پاس» است**: co/coEn/افراد/تماس‌ها همه مال مشتری جدید (ثبت karimi امروز ۱۴۰۵/۶/۹ ۱۸:۳۱ ≈ 15:01 UTC — crAt و createdAt دقیقاً هم‌خوان‌اند).
+3. **RFQ-101550 (امروز، snapshot نام = پاسارگاد) به CUST-3721 وصل است** — یعنی فعلاً به‌درستی مال مشتری جدید است و در جراحی نباید جابه‌جا شود.
+4. **سیگنال مخلوط‌بودن**: `owner: ghadimi` ولی `createdBy: karimi`. دو توضیح ممکن:
+   - **باقی‌مانده از رکورد قدیمی**: سرور در upsert فیلدهای payload را می‌نویسد و بقیه را از قبلی حفظ می‌کند؛ طبق کد `saveCust2` در ایجادِ جدید owner باید خودِ سازنده می‌شد — پس owner=غیرسازنده یا انتخاب عمدی بوده (فیلد ارشد) یا بازماندهٔ رکورد قبلی.
+   - **نکتهٔ ظریف سرور**: در upsert سرور `createdAt`/`createdBy` **قبلی را حفظ می‌کند**؛ رکورد فعلی createdAt=امروز دارد ⇒ یا رکورد قبلی اصلاً createdAt نداشته (رکورد قدیمیِ پیش از این قرارداد)، یا برخوردی نبوده و رکورد تازه است.
+
+## سه سناریوی باقی‌مانده
+
+| سناریو | شاهد قطعی‌کننده | اقدام |
+|---|---|---|
+| **الف — برخورد واقعی**: CUST-3721 قبلاً مشتری دیگری (احتمالاً مال ghadimi) بود و نامش با پاسارگاد بازنویسی شد | نام قبلی در حافظه/بک‌آپ/دستگاه ghadimi | جراحی سبک (پایین) |
+| **ب — ثبت تکراری**: مشتری پاسارگاد قبلاً بود و karimi دوباره ثبتش کرد | رکورد دیگری با نام پاسارگاد در لیست (اسکریپت ۲) | ادغام/حذف dup — بدون بازگردانی |
+| **ج — ثبت تمیز بدون برخورد** | نبودِ هر دو شاهد بالا + owner با انتخاب عمدی karimi | هیچ جراحی لازم نیست — فقط بستن پرونده |
+
+## چرا «جراحی سبک» (به‌جای بازگردانی روی همین کد)
+
+چون مشتری قدیمی (در سناریوی الف) **هیچ ارجاعی ندارد**، جابه‌جاکردن ارجاعات لازم نیست:
+1. CUST-3721 همان بماند (محتوای پاسارگاد + RFQ وصل به او — هر دو درست‌اند)؛ فقط `owner` با واقعیت هم‌راستا شود.
+2. برای مشتری قدیمی رکورد تازه با کد امن (مثلاً CUST-3801) ساخته شود: نام اصلی + owner=ghadimi + یادداشت بازیابی. جزئیات تماس قدیمی از بک‌آپ/حافظهٔ ghadimi تکمیل می‌شود.
+
+## اسکریپت ۲ — تشخیص نهایی (فقط خواندنی)
+
+```js
+(function(){
+  function g(k){try{return getData(k)}catch(e){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e2){return []}}}
+  var custs=g('ptf_crm_customers');
+  var pas=custs.filter(function(c){return c&&/پاسارگاد/.test((c.co||'')+' '+(c.coEn||''))}).map(function(c){return {cd:c.cd,co:c.co,coEn:c.coEn||'',owner:c.owner||'',by:c.createdBy||c.crBy||'',at:c.createdAt||c.crAt||''}});
+  var ghad=custs.filter(function(c){return c&&c.owner==='ghadimi'}).map(function(c){return {cd:c.cd,co:c.co,by:c.createdBy||c.crBy||'',at:c.createdAt||c.crAt||''}}).slice(0,30);
+  var sus=custs.filter(function(c){return c&&c.owner&&c.createdBy&&c.owner!==c.createdBy&&String(c.createdAt||'')>='2026-08-24'}).map(function(c){return {cd:c.cd,co:c.co,owner:c.owner,by:c.createdBy,at:c.createdAt}});
+  var rfq=(g('ptf_crm_rfqs').filter(function(r){return r&&r.cd==='RFQ-101550'})[0])||null;
+  var rq={};if(rfq)['cd','inqNo','co','custCd','st','dt','crBy','createdBy','wfUpdatedAtISO'].forEach(function(k){if(rfq[k]!==undefined)rq[k]=rfq[k]});
+  var ev={};for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('ptf_crm_')===0){var n=(localStorage.getItem(k)||'').split('CUST-3721').length-1;if(n)ev[k]=n;}}
+  var out={count:custs.length,pasargad:pas,ghadimiOwned:ghad,suspiciousRecent:sus,rfq101550:rq,everywhere:ev};
+  var s=JSON.stringify(out,null,1);try{copy(s);console.log('✅ کپی شد ('+s.length+' بایت)')}catch(e){console.log(s)}
+})()
+```
+
+خروجی این اسکریپت پاسخ می‌دهد: (۱) رکورد تکراری پاسارگاد هست؟ (۲) کدام مشتریان مال ghadimi‌اند و کد 3721 در توالی تاریخشان جا می‌خورد؟ (۳) رکوردهای مشکوکِ دیگر (owner≠سازنده در ۷ روز اخیر)؛ (۴) RFQ-101550 را چه کسی ساخت؟ (۵) CUST-3721 در کدام کلیدهای دیگر هست؟
+
+**سرنخ قوی دیگر**: اگر به مرورگر **ghadimi** (یا دستگاهی که از دیروز باز نشده) دسترسی دارید، همین اسکریپت ۲ را آنجا اجرا کنید — اگر دستگاهش هنوز sync نشده، رکورد قدیمی CUST-3721 با نام اصلی ممکن است همان‌جا باشد.
