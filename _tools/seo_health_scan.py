@@ -33,6 +33,7 @@ import csv
 import sys
 import glob
 import collections
+from html.parser import HTMLParser
 import datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -63,6 +64,45 @@ def public_pages():
 
 def strip_tags(s):
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", s)).strip()
+
+
+class _TagBalance(HTMLParser):
+    """توازنِ تگ‌های باز/بسته — markup نامعتبر را پیدا می‌کند.
+
+    مرورگرها `<p>` باز را پیش از عنصرِ بلوکی خودکار می‌بندند، پس این ایرادها
+    نمایش را خراب نمی‌کنند؛ اما پارسرهای سخت‌گیر (استخراجِ متن برای RAG، برخی
+    خزنده‌ها) مرزِ پاراگراف را اشتباه می‌گیرند. در ممیزیِ ۲۰۲۶-۰۸-۳۱، ۱۱۴ صفحه
+    این ایراد را داشتند و با `_tools/fix_unclosed_p.py` بسته شدند.
+    """
+
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
+            "meta", "param", "source", "track", "wbr"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack = []
+        self.errors = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag not in self.VOID:
+            self.stack.append(tag)
+
+    def handle_endtag(self, tag):
+        if tag in self.VOID:
+            return
+        if self.stack and self.stack[-1] == tag:
+            self.stack.pop()
+        elif self.stack:
+            self.errors += 1
+            while self.stack and self.stack.pop() != tag:
+                pass
+
+
+def markup_problems(html):
+    """شمارِ ناهنجاری‌های markup: جفتِ نابجا + تگِ بازِ مانده."""
+    chk = _TagBalance()
+    chk.feed(html)
+    return chk.errors + len(chk.stack)
 
 
 def head_of(html):
@@ -164,8 +204,11 @@ def scan():
         slug = os.path.basename(rel)[:-5]
         canon = re.search(r'rel="canonical"\s+href="([^"]+)"', head)
         canon_val = canon.group(1) if canon else ""
+        # صفحهٔ ۴۰۴ عمداً canonical و لینکِ ورودی ندارد؛ این دو برای آن پرچمِ کاذب‌اند
+        is_404 = rel == "404.html"
         if not canon:
-            flags.append("بدون canonical")
+            if not is_404:
+                flags.append("بدون canonical")
         else:
             if canon_val != expected_url(rel):
                 if slug in redirected:
@@ -182,6 +225,15 @@ def scan():
             flags.append("OG ناقص (%d)" % og)
         if tw == 0:
             flags.append("بدون Twitter card")
+        # بودنِ کارت بدونِ تصویر، پیش‌نمایشِ لینک را در تلگرام/لینکدین/ابزارهای AI
+        # بی‌تصویر می‌کند؛ این دو پرچم پیش‌تر وجود نداشتند و ۱۲۷ صفحه از قلم افتاده بود.
+        if og >= 3 and 'property="og:image"' not in head:
+            flags.append("OG بدون تصویر")
+        if tw > 0 and 'name="twitter:image"' not in head:
+            flags.append("Twitter card بدون تصویر")
+        mp = markup_problems(html)
+        if mp:
+            flags.append("markup نامعتبر (%d)" % mp)
 
         types = sorted(set(re.findall(
             r'"@type"\s*:\s*"?([A-Za-z]+)',
@@ -192,7 +244,7 @@ def scan():
         ins = inbound.get(rel, 0)
         if rel.endswith("index.html"):
             ins += inbound.get(rel[: -len("index.html")], 0) + inbound.get(rel[:-1], 0)
-        if ins == 0 and not rel.endswith(("index.html",)):
+        if ins == 0 and not rel.endswith(("index.html",)) and not is_404:
             flags.append("یتیم (۰ لینک ورودی)")
 
         utext = uniq.get(slug, "") if rel.startswith("knowledge-center/") else ""
