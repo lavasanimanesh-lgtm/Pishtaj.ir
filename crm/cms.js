@@ -168,6 +168,7 @@
   }
 
   window.cmsBlogNew = function () {
+    window._cmsBodyIsHtml = false;   /* خروجیِ AI هنوز تأییدِ انسانی نشده */
     var catOpts = BLOG_CATS.map(function (c) { return '<option value="' + c.v + '">' + c.lb + '</option>'; }).join('');
     var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this&&confirm(\'بستن بدون ذخیره؟\'))hideModal()"><div class="md" style="max-width:760px;max-height:94vh;overflow:auto">' +
       '<h3>📝 مقاله جدید وبلاگ</h3>' +
@@ -181,6 +182,10 @@
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">' +
       '<button class="bt bt-o" onclick="cmsAiArticle()">🤖 نوشتن مقاله با هوش مصنوعی</button>' +
       '<button class="bt bt-o" onclick="cmsAiExpand()">📈 بسط و بهبود متن فعلی</button></div>' +
+      '<div style="margin-top:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px">' +
+      '<label style="display:flex;gap:7px;align-items:center;font-size:12px;cursor:pointer;margin:0">' +
+      '<input type="checkbox" id="cbReviewed" style="width:16px;height:16px;flex:0 0 auto">' +
+      '<span>متن را خواندم و تأیید می‌کنم — تا این تیک زده نشود، انتشارِ خروجیِ هوش مصنوعی ممکن نیست</span></label></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end">' +
       '<button class="bt bt-o" onclick="if(confirm(\'انصراف؟\'))hideModal()">انصراف</button>' +
       '<button class="bt" onclick="cmsBlogPublish()">🚀 انتشار مقاله روی سایت</button></div>' +
@@ -228,6 +233,7 @@
       /* خروجی HTML است؛ در textarea به‌صورت متن گذاشته می‌شود و در انتشار مستقیم مصرف می‌شود */
       cmsSetLen('cbBody', g.body || '');
       window._cmsBodyIsHtml = true;
+      var rvw = document.getElementById('cbReviewed'); if (rvw) rvw.checked = false;
       if (st) st.innerHTML = '<span style="color:#059669">✅ مقاله تولید شد. پیش از انتشار حتماً متن و اعداد فنی را بازبینی کنید.</span>';
     });
   };
@@ -249,6 +255,7 @@
       if (g.desc) cmsSetLen('cbDesc', g.desc);
       cmsSetLen('cbBody', g.body || '');
       window._cmsBodyIsHtml = true;
+      var rve = document.getElementById('cbReviewed'); if (rve) rve.checked = false;
       var ad = (g.added || []);
       if (st) st.innerHTML = '<span style="color:#059669">✅ بسط انجام شد.</span>' +
         (ad.length ? '<br><b>چه چیزی اضافه شد:</b> ' + escP([].concat(ad).join(' · ')) : '');
@@ -263,6 +270,14 @@
     var catLb = BLOG_CATS.filter(function (c) { return c.v === catV; })[0].lb;
     var bodyRaw = document.getElementById('cbBody').value;
     if (!title || !slug || !desc || bodyRaw.trim().length < 100) { alert('همه فیلدها الزامی است (متن حداقل ۱۰۰ حرف)'); return; }
+    /* دروازهٔ بازبینیِ انسانی: خروجیِ AI بدونِ تیکِ تأیید منتشر نمی‌شود */
+    if (window._cmsBodyIsHtml) {
+      var rvB = document.getElementById('cbReviewed');
+      if (!rvB || !rvB.checked) {
+        alert('⛔ این متن را هوش مصنوعی نوشته است.\nپیش از انتشار باید یک انسان آن را بخواند و تیکِ تأیید را بزند.');
+        return;
+      }
+    }
     var body = window._cmsBodyIsHtml ? bodyRaw : cmsMdToHtml(bodyRaw);
     if (!confirm('🚀 مقاله «' + title + '» با آدرس blog/' + slug + '.html روی سایت منتشر شود؟')) return;
     api('blog_create', {
@@ -531,6 +546,8 @@
         if (document.getElementById('csTitle').value.trim() && !confirm('عنوان و توضیح پیشنهادی جایگزین مقادیر فعلی شود؟')) return;
         cmsSetLen('csTitle', g.title); cmsSetLen('csDesc', g.desc); cmsSetLen('csH1', g.h1);
         cmsSeoCount();
+        window._cmsAiTouched = true;
+        var rvc = document.getElementById('csReviewed'); if (rvc) rvc.checked = false;
         if (st) st.innerHTML = '<span style="color:#059669">✅ پیشنهادها جای‌گذاری شد — پیش از ذخیره بازبینی کنید.' +
           (g.keywords ? ' واژگان: ' + escP([].concat(g.keywords).join('، ')) : '') + '</span>';
       });
@@ -570,9 +587,12 @@
     if (!g) return;
     cmsSetLen('csTitle', g.title); cmsSetLen('csDesc', g.desc); cmsSetLen('csH1', g.h1);
     cmsSeoCount();
+    window._cmsAiTouched = true;
+    var rva = document.getElementById('csReviewed'); if (rva) rva.checked = false;
   };
 
   window.cmsSeoEdit = function (i) {
+    window._cmsAiTouched = false;   /* خروجیِ AI هنوز تأییدِ انسانی نشده */
     var p = (window._cmsPages || [])[i];
     if (!p) return;
     var rob = p.robots || '';
@@ -603,6 +623,10 @@
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
       '<button class="bt bt-o" onclick="cmsAiMeta(' + i + ')">✨ پیشنهاد عنوان/توضیح/H1 با AI</button>' +
       '<button class="bt bt-o" onclick="cmsAiFix(' + i + ')">🛠 رفع ایرادها با AI</button></div>' +
+      '<div style="margin-top:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px">' +
+      '<label style="display:flex;gap:7px;align-items:center;font-size:12px;cursor:pointer;margin:0">' +
+      '<input type="checkbox" id="csReviewed" style="width:16px;height:16px;flex:0 0 auto">' +
+      '<span>پیشنهادِ هوش مصنوعی را خواندم و تأیید می‌کنم — تا این تیک زده نشود ذخیره نمی‌شود</span></label></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
       '<a class="bt bt-o" style="text-decoration:none" target="_blank" href="/' + escP(p.path) + '">مشاهده صفحه</a>' +
       '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
@@ -622,6 +646,14 @@
     var rob = document.getElementById('csRob').value;
     if (!title) { alert('عنوان نمی‌تواند خالی باشد'); return; }
     if (!confirm('تغییرات سئو روی «' + p.path + '» اعمال شود؟')) return;
+    /* دروازهٔ بازبینیِ انسانی: پیشنهادِ AI بدونِ تیکِ تأیید ذخیره نمی‌شود */
+    if (window._cmsAiTouched) {
+      var rv = document.getElementById('csReviewed');
+      if (!rv || !rv.checked) {
+        alert('⛔ این مقادیر را هوش مصنوعی پیشنهاد داده است.\nپیش از اعمال باید یک انسان آن‌ها را بخواند و تیکِ تأیید را بزند.');
+        return;
+      }
+    }
     var h1v = (document.getElementById('csH1') || {}).value;
     h1v = h1v ? h1v.trim() : '';
     if (!h1v) { alert('عنوان H1 نمی‌تواند خالی باشد'); return; }
