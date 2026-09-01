@@ -30,6 +30,101 @@ $ROOT = dirname(__DIR__);
 $DATA = $ROOT . '/crm/data';
 if (!is_dir($DATA)) { mkdir($DATA, 0755, true); file_put_contents($DATA . '/.htaccess', "Deny from all\n"); }
 
+/* ═══ v34.26.0 (PROD-INDEX): فهرست محصولات — products/index.html با کارت هر صفحه ═══
+   پیش از این پوشهٔ products هیچ صفحهٔ فهرستی نداشت (403) و محصول جدید «جایی دیده
+   نمی‌شد». با هر انتشار، فهرست از روی همهٔ صفحات محصول (نشانهٔ ptf-product) بازسازی
+   می‌شود: تایتل/توضیح/تصویر از متای همان صفحه، جدیدترین اول. */
+/* ═══ v34.29.0 (SMART-IMG + REL-LINK): عکس پیش‌فرض هوشمند برای صفحات محصول و
+   اصلاح لینک‌های نسبیِ هم‌پوشه هنگام کپی اسکلت مرکز دانش به products/ ═══ */
+function cms_prod_img_guess($hay) {
+    $h = mb_strtolower((string)$hay);
+    if (trim($h) === '') return '';
+    $rules = [
+        ['gate','gate-valve-api600-realistic.jpg'], ['ball','ball-valve-api6d-trunnion-realistic.jpg'],
+        ['butterfly','butterfly-valve-triple-offset-realistic.jpg'], ['check','check-valve-dual-plate-realistic.jpg'],
+        ['control','control-valve-pneumatic-positioner-realistic.jpg'], ['globe','globe-valve-api623-realistic.jpg'],
+        ['elbow','butt-weld-fittings-realistic.jpg'], ['tee','butt-weld-fittings-realistic.jpg'],
+        ['fitting','butt-weld-fittings-realistic.jpg'], ['reducer','butt-weld-fittings-realistic.jpg'],
+        ['forged','forged-fittings-realistic.jpg'], ['flange','welding-neck-flanges-realistic.jpg'],
+        ['gasket','industrial-gaskets-realistic.jpg'], ['bolt','stud-bolts-nuts-realistic.jpg'], ['stud','stud-bolts-nuts-realistic.jpg'],
+        ['a333','a333-low-temperature-pipe-realistic.jpg'], ['a335','alloy-steel-pipe-a335-realistic.jpg'],
+        ['api 5l','api-5l-line-pipe-realistic.jpg'], ['api5l','api-5l-line-pipe-realistic.jpg'],
+        ['a106','seamless-pipe-a106-realistic.jpg'], ['seamless','seamless-pipe-a106-realistic.jpg'],
+        ['stainless','stainless-steel-pipe-long-bundle-realistic.jpg'], ['a312','stainless-steel-pipe-long-bundle-realistic.jpg'],
+        ['pipe','seamless-pipe-a106-realistic.jpg'], ['tube','seamless-pipe-a106-realistic.jpg'],
+        ['strainer','industrial-strainer-filter-realistic.jpg'], ['filter','industrial-strainer-filter-realistic.jpg'],
+        ['pump','api-610-centrifugal-pump-realistic.jpg'], ['compressor','screw-compressor-realistic.jpg'],
+        ['flowmeter','magnetic-flowmeter-flanged-realistic.jpg'], ['flow meter','magnetic-flowmeter-flanged-realistic.jpg'],
+        ['transmitter','pressure-transmitter-industrial-realistic.jpg'], ['gauge','pressure-gauge-safety-realistic.jpg'],
+        ['thermowell','thermowell-flanged-realistic.jpg'], ['level','radar-level-transmitter-realistic.jpg'],
+        ['boiler','fire-tube-boiler-realistic.jpg'], ['heat exchanger','shell-tube-heat-exchanger-realistic.jpg'],
+        ['exchanger','shell-tube-heat-exchanger-realistic.jpg'], ['transformer','power-transformer-realistic.jpg'],
+        ['switchgear','lv-mv-switchgear-realistic.jpg'], ['cable','industrial-cables-realistic.jpg'],
+        ['valve','gate-valve-api600-realistic.jpg'],
+    ];
+    foreach ($rules as $ru) if (mb_strpos($h, $ru[0]) !== false) return 'assets/images/products/generated/' . $ru[1];
+    return '';
+}
+function cms_rel_links_fix($html) {
+    /* لینک/تصویر نسبیِ هم‌پوشه (مثل astm-a312.html) در اسکلت مرکز دانش، از products/ به
+       knowledge-center/ اشاره می‌کند؛ مسیرهای ../، http، //، /، # و tel:/mailto: دست نمی‌خورند. */
+    return preg_replace_callback('/(href|src)=\"([^\"]+)\"/', function ($m) {
+        $u = $m[2];
+        if ($u === '' || $u[0] === '#' || $u[0] === '/' || strpos($u, '../') === 0 || stripos($u, 'http://') === 0 || stripos($u, 'https://') === 0 || stripos($u, 'tel:') === 0 || stripos($u, 'mailto:') === 0) return $m[0];
+        if (preg_match('/^(https?:)?\/\//i', $u) || preg_match('/^[a-z]+:/i', $u)) return $m[0];
+        return $m[1] . '="../knowledge-center/' . $u . '"';
+    }, (string)$html);
+}
+function cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer) {
+    $dir = $ROOT . '/products';
+    $cards = [];
+    foreach ((glob($dir . '/*.html') ?: []) as $pf) {
+        if (basename($pf) === 'index.html') continue;
+        $c = (string)@file_get_contents($pf);
+        if ($c === '' || strpos($c, 'ptf-product') === false) continue;
+        $t = ''; if (preg_match('/<title>(.*?)<\/title>/is', $c, $m)) $t = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+        $d = ''; if (preg_match('/<meta name="description" content="(.*?)"/is', $c, $m2)) $d = trim(html_entity_decode($m2[1], ENT_QUOTES, 'UTF-8'));
+        $im = ''; if (preg_match('/<meta property="og:image" content="(.*?)"/is', $c, $m3)) $im = html_entity_decode($m3[1], ENT_QUOTES, 'UTF-8');
+        $h1t = ''; if (preg_match('/<h1[^>]*>(.*?)<\/h1>/is', $c, $m4)) $h1t = trim(strip_tags($m4[1]));
+        if ($t === '') continue;
+        $cards[] = ['f' => basename($pf), 't' => $t, 'd' => $d, 'im' => $im, 'h' => $h1t !== '' ? $h1t : $t, 'm' => (int)@filemtime($pf)];
+    }
+    usort($cards, function ($a, $b) { return $b['m'] <=> $a['m']; });
+    $items = '';
+    foreach ($cards as $cd2) {
+        $tE = htmlspecialchars($cd2['t'], ENT_QUOTES, 'UTF-8');
+        $dE = htmlspecialchars(mb_substr($cd2['d'], 0, 150, 'UTF-8'), ENT_QUOTES, 'UTF-8');
+        $hE = htmlspecialchars($cd2['h'], ENT_QUOTES, 'UTF-8');
+        $imE = htmlspecialchars($cd2['im'], ENT_QUOTES, 'UTF-8');
+        $items .= '<a href="' . $cd2['f'] . '" style="display:block;background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;text-decoration:none;color:inherit">' .
+            ($imE !== '' ? '<img src="' . $imE . '" alt="' . $hE . '" style="display:block;width:100%;height:170px;object-fit:contain;background:#f8fafc;border-bottom:1px solid #e2e8f0" loading="lazy">' : '') .
+            '<div style="padding:12px 14px"><b style="font-size:13.5px;color:#0f172a">' . $hE . '</b>' .
+            ($dE !== '' ? '<p style="font-size:11.5px;color:#64748b;line-height:1.9;margin:6px 0 0">' . $dE . '</p>' : '') .
+            '<span style="display:inline-block;margin-top:8px;font-size:12px;font-weight:800;color:#ef4b1a">مشاهدهٔ صفحهٔ محصول ←</span></div></a>';
+    }
+    $html = '<!doctype html>' . "\n" . '<html lang="fa" dir="rtl">' . "\n" . '<head>' . "\n"
+        . '<meta charset="utf-8" />' . "\n" . '<meta name="viewport" content="width=device-width, initial-scale=1" />' . "\n"
+        . '<title>محصولات | پیشرو تجهیز فرتاک</title>' . "\n"
+        . '<meta name="description" content="راهنمای فنی و مشخصات کالاهای تامین‌شده توسط پیشرو تجهیز فرتاک — شیرآلات، اتصالات، فلنج، لوله و تجهیزات ابزار دقیق." />' . "\n"
+        . '<meta name="robots" content="index, follow" />' . "\n"
+        . '<link rel="canonical" href="https://pishtaj.ir/products/" />' . "\n"
+        . '<link rel="stylesheet" href="../assets/css/style.css" />' . "\n"
+        . '</head>' . "\n" . $header
+        . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
+        . '<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">تجهیزات صنعتی</span>' . "\n"
+        . '<h1>محصولات و راهنمای فنی کالاها</h1>' . "\n"
+        . '<p style="color:rgba(255,255,255,.75);font-size:14px">راهنمای فنی کالاهای تامین‌شده توسط پیشرو تجهیز فرتاک</p>' . "\n"
+        . '</div>' . "\n" . '</section>' . "\n"
+        . '<div class="article-wrap">' . "\n" . '<div class="article-content">' . "\n"
+        . '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin:18px 0 26px">' . $items . '</div>' . "\n"
+        . '</div>' . "\n" . '</div>' . "\n" . $cta . "\n" . $footer;
+    if (@file_put_contents($dir . '/index.html', $html, LOCK_EX) !== false) {
+        cms_log('products_index', count($cards) . ' کارت');
+        return true;
+    }
+    return false;
+}
+
 $action = $_REQUEST['action'] ?? '';
 
 function jerr($m) { echo json_encode(['ok' => false, 'error' => $m], JSON_UNESCAPED_UNICODE); exit; }
@@ -896,8 +991,8 @@ switch ($action) {
             jerr('ساختارِ قالب مرجع شناخته نشد');
         }
         $header = substr($skel, $pBody, $pHero - $pBody);
-        $cta    = substr($skel, $pCta, $pFoot - $pCta);
-        $footer = substr($skel, $pFoot);
+        $cta    = cms_rel_links_fix(substr($skel, $pCta, $pFoot - $pCta)); /* v34.29.0: لینک نسبی → knowledge-center */
+        $footer = cms_rel_links_fix(substr($skel, $pFoot)); /* v34.29.0 */
 
         $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
         $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
@@ -1194,6 +1289,8 @@ switch ($action) {
 
     /* ═══ v34.11.0 (S2/PRODUCT): مولد صفحهٔ محصول از دیتای CRM با اسکیمای Product ═══ */
     case 'product_create':
+    case 'product_preview': /* v34.26.0: همان رندر، بدون نوشتن — پیش‌نمایش دقیقاً هم‌شکل صفحهٔ نهایی */
+        $preview = ($action === 'product_preview');
         $title = mb_substr(strip_tags($_POST['title'] ?? ''), 0, 200);
         $h1    = mb_substr(strip_tags($_POST['h1'] ?? ''), 0, 200);
         $desc  = mb_substr(strip_tags($_POST['desc'] ?? ''), 0, 300);
@@ -1214,7 +1311,7 @@ switch ($action) {
         $dir = $ROOT . '/products';
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
         $file = $dir . '/' . $slug . '.html';
-        if (file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
+        if (!$preview && file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
 
         /* پاکسازی بدنه — همان لیست سفید kc_create */
         $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
@@ -1232,24 +1329,47 @@ switch ($action) {
         $pFoot = strpos($skel, '<footer');
         if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) jerr('ساختار قالب مرجع شناخته نشد');
         $header = substr($skel, $pBody, $pHero - $pBody);
-        $cta    = substr($skel, $pCta, $pFoot - $pCta);
-        $footer = substr($skel, $pFoot);
+        $cta    = cms_rel_links_fix(substr($skel, $pCta, $pFoot - $pCta)); /* v34.29.0: لینک نسبی → knowledge-center */
+        $footer = cms_rel_links_fix(substr($skel, $pFoot)); /* v34.29.0 */
 
         $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
         $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
         $dEsc = htmlspecialchars($desc, ENT_QUOTES, 'UTF-8');
+
+        /* v34.26.0 (PROD-TIDY): پاراگراف/تیتر نخستِ عیناً برابر H1 یا عنوان حذف می‌شود —
+           ریشهٔ «عبارات اضافی بالای صفحه» (مدل متن را با نام تکراری شروع می‌کرد). */
+        if (preg_match('/^\s*<(p|h2|h3)[^>]*>(.*?)<\/\1>/is', $body, $mP)) {
+            $tP = trim(strip_tags($mP[2]));
+            if ($tP !== '' && ($tP === $h1 || $tP === $title)) {
+                $body = preg_replace('/^\s*<(p|h2|h3)[^>]*>.*?<\/\1>/is', '', $body, 1);
+            }
+        }
+        /* v34.26.0 (DEDUP): اگر متن AI خودش جدول مشخصات یا سوالات متداول دارد،
+           جدول‌های قالب دوباره ساخته نمی‌شوند (رفع تکرار سکشن‌ها). */
+        $hasSpecsInBody = (mb_stripos($body, 'مشخصات فنی') !== false || stripos($body, '<table') !== false);
+        $hasFaqInBody = (mb_stripos($body, 'سوالات متداول') !== false || mb_stripos($body, 'پرسش‌های متداول') !== false || stripos($body, '<details') !== false);
+        /* v34.26.0 (IMG-VIS): تصویر محصول بالای متن صفحه — هم‌شکل پیش‌نمایش (قبلاً فقط og:image بود).
+           v34.29.0 (SMART-IMG): اگر عکس خالی/لوگو بماند، از نام محصول عکس صنعتی متناسب حدس زده می‌شود. */
+        if ($img === '' || substr($img, -12) === 'ptf-logo.png') {
+            $g = cms_prod_img_guess($title . ' ' . $slug . ' ' . $h1 . ' ' . $brand);
+            if ($g !== '') $img = $g;
+        }
+        if ($img !== '') {
+            $imgRel = str_replace('../', '', $img);
+            $body = '<p style="text-align:center;margin:4px 0 18px"><img src="../' . ltrim($imgRel, '/') . '" alt="' . $hEsc . '" style="max-width:560px;width:100%;height:auto;border-radius:14px;border:1px solid #e2e8f0"></p>' . "\n" . $body;
+        }
         $url  = 'https://pishtaj.ir/products/' . $slug . '.html';
         $imgAbs = (strpos($img, 'http') === 0) ? $img : 'https://pishtaj.ir/' . ltrim(str_replace('../', '', $img), '/');
 
         /* جدول مشخصات: آرایهٔ [[کلید,مقدار],…] */
         $specs = json_decode((string)($_POST['specs'] ?? ''), true);
         $specsHtml = '';
-        if (is_array($specs) && $specs) {
+        if (!$hasSpecsInBody && is_array($specs) && $specs) { /* v34.26.0: بدون تکرار */
             $rows = '';
             foreach ($specs as $sp) {
                 if (!is_array($sp) || count($sp) < 2) continue;
                 $k = mb_substr(strip_tags((string)$sp[0]), 0, 80);
-                $v = mb_substr(strip_tags((string)$sp[1]), 0, 300);
+                $v = mb_substr(strip_tags((string)$sp[1]), 0, 160); /* v34.26.0: مقادیر خام طولانی (سطر استاندارد RFQ-مانند) کوتاه می‌شوند */
                 if ($k === '' && $v === '') continue;
                 $rows .= '<tr><th style="text-align:right;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700">' . htmlspecialchars($k, ENT_QUOTES, 'UTF-8') . '</th><td style="padding:8px 12px;border:1px solid #e2e8f0">' . htmlspecialchars($v, ENT_QUOTES, 'UTF-8') . '</td></tr>';
             }
@@ -1259,7 +1379,7 @@ switch ($action) {
         /* سوالات متداول: [{q,a}] */
         $faq = json_decode((string)($_POST['faq'] ?? ''), true);
         $faqHtml = ''; $faqGraph = [];
-        if (is_array($faq) && $faq) {
+        if (!$hasFaqInBody && is_array($faq) && $faq) { /* v34.26.0: بدون تکرار — اسکیما هم فقط از FAQ رندرشده */
             foreach ($faq as $fq) {
                 if (!is_array($fq)) continue;
                 $q = mb_substr(strip_tags((string)($fq['q'] ?? '')), 0, 300);
@@ -1321,12 +1441,14 @@ switch ($action) {
             . '</div>' . "\n" . '</div>' . "\n" . '</div>' . "\n"
             . $cta . "\n" . $footer;
 
+        if ($preview) jok(['html' => $html, 'url' => 'products/' . $slug . '.html']); /* v34.26.0 */
         if (file_exists($file)) cms_backup($DATA, $ROOT, 'products/' . $slug . '.html');
         if (file_put_contents($file, $html, LOCK_EX) === false) jerr('خطای نوشتن فایل محصول (مجوز write?)');
         sitemap_add($url);
         cms_log('product_create', $slug . ($cd !== '' ? ' | cd=' . $cd : ''));
         cms_ai_touch($DATA, 'products/' . $slug . '.html', 'product'); /* v34.17.0 */
-        jok(['url' => 'products/' . $slug . '.html']);
+        $idxOk = cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer); /* v34.26.0: کارت در فهرست محصولات */
+        jok(['url' => 'products/' . $slug . '.html', 'index' => $idxOk ? 'products/index.html' : '']);
         break;
 
     /* ═══ v34.25.0 (IMG-UPLOAD): تصویر از بیرون برای صفحات و محصولات ═══

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.25.0 — فیلد ارزش افزوده فاکتور رسمی تامین‌کننده (SUP-VAT-001).
+/* v34.29.2 — فیلد ارزش افزوده فاکتور رسمی تامین‌کننده (SUP-VAT-001).
    ریشه: بلوک slInvVatWrap/slInvVatPct در HTML فرم ساخته نمی‌شد؛ در نتیجه فیلد
    درصد/ارزش افزوده قابل مشاهده نبود و مشخص نبود مبلغ را با یا بدون ارزش افزوده
    وارد کنیم. حالا:
@@ -18,8 +18,8 @@ var idx = read('crm/index.html');
 var sf = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.25.0', ver.crm_version === 'v34.25.0', ver.crm_version);
-T('supplier-finance.js cache-bust 34.25.0', /supplier-finance\.js\?v=34\.25.0/.test(idx));
+T('VERSION.json = v34.29.2', ver.crm_version === 'v34.29.2', ver.crm_version);
+T('supplier-finance.js cache-bust 34.29.2', /supplier-finance\.js\?v=34\.29.2/.test(idx));
 
 /* ---------- بلوک VAT در HTML فرم ---------- */
 T('slInvVatWrap در HTML ساخته می‌شود', /id="slInvVatWrap"/.test(sf));
@@ -39,6 +39,6 @@ T('پاسخ متن نشان می‌دهد «ارزش افزوده: … جمع ب
 
 T('tester490 در گیت CI', gate.indexOf('tester490-v34.7.91-supplier-vat.js') > -1);
 
-console.log('\n— tester490 (v34.25.0: فیلد ارزش افزوده فاکتور رسمی تامین‌کننده — SUP-VAT-001) —');
+console.log('\n— tester490 (v34.29.2: فیلد ارزش افزوده فاکتور رسمی تامین‌کننده — SUP-VAT-001) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
