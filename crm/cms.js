@@ -670,7 +670,9 @@
       '<div class="fld"><label>عنوان یا موضوع برای AI *</label><input type="text" id="pgTopic" placeholder="مثلاً: خدمات تعمیر و کالیبراسیون شیرآلات صنعتی"></div>' +
       '<div class="fld"><label>مخاطب</label><input type="text" id="pgAud" value="کارشناس خرید و مهندس نگهداری و تعمیر"></div>' +
       '</div>' +
-      '<div style="display:flex;gap:7px;margin:10px 0"><button class="bt" style="background:#7c3aed" onclick="cmsPageAi()">🤖 تولید با هوش مصنوعی</button></div>' +
+      '<div style="display:flex;gap:7px;margin:10px 0;flex-wrap:wrap;align-items:center"><button class="bt" style="background:#7c3aed" onclick="cmsPageAi()">🤖 تولید با هوش مصنوعی</button>' +
+      '<button class="bt bt-o" style="color:#0e7490" onclick="cmsPgExtPrompt()">🌐 هوش مصنوعی خارجی</button>' +
+      '<small style="color:#94a3b8">برای مطالب بلند: پرامپت آماده بساز، در ChatGPT/Claude/Gemini ببر و خروجی را همین‌جا بچسبان</small></div>' +
       '<div class="fld"><label>عنوان سئو (title) <span id="pgTitleLen" style="font-size:11px"></span></label><input type="text" id="pgTitle" oninput="cmsPgCount()"></div>' +
       '<div class="fld"><label>H1</label><input type="text" id="pgH1"></div>' +
       '<div class="fld"><label>توضیح (description) <span id="pgDescLen" style="font-size:11px"></span></label><textarea id="pgDesc" rows="2" oninput="cmsPgCount()"></textarea></div>' +
@@ -781,6 +783,148 @@
       cmsDraftBind(PAGE_FIELDS); cmsPgCount();
       alert('✅ متن گسترش یافت' + (v.added && v.added.length ? ':\n• ' + v.added.join('\n• ') : '') + '\nبازبینی انسانی الزامی است.');
     });
+  };
+
+  /* ═══ v34.21.0 (EXT-AI): دستیار هوش مصنوعی خارجی — پرامپت آماده + تجزیهٔ خروجی ═══
+     برای مطالب بلند (۱۲۰۰+ کلمه) که مدل سروری در سقف توکن می‌برد: پرامپت کامل با
+     داده‌های همین فرم ساخته می‌شود؛ کاربر در ChatGPT/Claude/Gemini می‌برد و خروجی
+     را با نشانگرهای استاندارد برمی‌گرداند؛ تجزیه‌گر آن را خودکار در فیلدها می‌ریزد. */
+  function cmsExtRules() {
+    return 'قواعد مهم:\n' +
+      '۱. متن یگانه و تخصصی بنویس؛ نه مقدمهٔ کلی‌گوی، نه تکرار الگویی.\n' +
+      '۲. فقط از داده‌های داده‌شده استفاده کن؛ هیچ قیمت، موجودی، بُعد، فشار کاری یا گواهی‌ای که داده نشده از خودت نساز.\n' +
+      '۳. فارسی روان؛ اصطلاحات فنی/استاندارد/برند لاتین بمانند.\n' +
+      '۴. بدنه فقط HTML با این تگ‌ها: h2 h3 h4 p ul ol li b strong i em table thead tbody tr th td br blockquote a — بدون style و بدون markdown.\n';
+  }
+  function cmsExtModal(title, prompt, applyFn) {
+    var old = document.getElementById('ptExtModal'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'ptExtModal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:720px;width:100%;max-height:90vh;overflow:auto;padding:16px;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:13.5px">🌐 ' + title + '</b>' +
+      '<button class="bt bt-o" style="padding:5px 12px;font-size:12px;margin-right:auto" onclick="document.getElementById(\'ptExtModal\').remove()">بستن</button></div>' +
+      '<div style="font-size:11.5px;color:#475569;margin-bottom:6px">① پرامپت را کپی کن ② در یکی از سرویس‌های زیر ببر ③ خروجی را در کادر پایین بچسبان و «اعمال» بزن:</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
+      '<a href="https://chatgpt.com" target="_blank" rel="noopener" class="bt bt-o" style="padding:4px 12px;font-size:11.5px;text-decoration:none;color:#0e7490">ChatGPT ↗</a>' +
+      '<a href="https://claude.ai" target="_blank" rel="noopener" class="bt bt-o" style="padding:4px 12px;font-size:11.5px;text-decoration:none;color:#7c3aed">Claude ↗</a>' +
+      '<a href="https://gemini.google.com" target="_blank" rel="noopener" class="bt bt-o" style="padding:4px 12px;font-size:11.5px;text-decoration:none;color:#b45309">Gemini ↗</a></div>' +
+      '<textarea id="ptExtPrompt" readonly rows="9" style="width:100%;font:12px/1.8 inherit;border:1px solid #cbd5e1;border-radius:10px;padding:10px;box-sizing:border-box;background:#f8fafc"></textarea>' +
+      '<button class="bt" style="background:#0e7490;margin-top:6px" onclick="cmsExtCopy()">📋 کپی پرامپت</button>' +
+      '<div style="font-size:11.5px;color:#475569;margin:10px 0 6px">⬇️ خروجی هوش مصنوعی را اینجا بچسبان (همان قالب نشانگردار):</div>' +
+      '<textarea id="ptExtPaste" rows="7" style="width:100%;font:12px/1.8 inherit;border:1px solid #a5b4fc;border-radius:10px;padding:10px;box-sizing:border-box" placeholder="TITLE: ...&#10;H1: ...&#10;DESCRIPTION: ...&#10;SLUG: ...&#10;BODY:&#10;<h2>...</h2>"></textarea>' +
+      '<button class="bt" style="background:#059669;margin-top:6px" onclick="' + applyFn + '">✅ اعمال در فرم</button></div>';
+    document.body.appendChild(ov);
+    document.getElementById('ptExtPrompt').value = prompt;
+  }
+  window.cmsExtCopy = function () {
+    var ta = document.getElementById('ptExtPrompt'); if (!ta) return;
+    function ok() { var b = (document.activeElement || {}); if (b && b.textContent) { var t = b.textContent; b.textContent = '✅ کپی شد'; setTimeout(function () { b.textContent = t; }, 1600); } }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(ta.value).then(ok, function () { fallback(); }); return; }
+    } catch (eC) {}
+    function fallback() { ta.removeAttribute('readonly'); ta.select(); try { document.execCommand('copy'); ok(); } catch (eX) { alert('کپی خودکار نشد — دستی انتخاب و کپی کنید'); } ta.setAttribute('readonly', 'readonly'); }
+    fallback();
+  };
+  window.cmsExtParse = function (text) { /* تجزیهٔ نشانگرها — TITLE/H1/DESCRIPTION/SLUG تک‌خطی، BODY/SPECS/FAQ بلوکی */
+    var out = { title: '', h1: '', desc: '', slug: '', body: '', specs: '', faq: '' };
+    var lines = String(text || '').split(/\r?\n/);
+    var mode = '';
+    var buf = [];
+    function flush() { if (mode === 'BODY') out.body = buf.join('\n').trim(); else if (mode === 'SPECS') out.specs = buf.join('\n').trim(); else if (mode === 'FAQ') out.faq = buf.join('\n').trim(); buf = []; }
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i];
+      var m1 = ln.match(/^(TITLE|H1|DESCRIPTION|SLUG)\s*:\s*(.*)$/i);
+      if (m1) { var k = m1[1].toUpperCase(); var v = m1[2].trim(); if (k === 'TITLE') out.title = v; else if (k === 'H1') out.h1 = v; else if (k === 'DESCRIPTION') out.desc = v; else out.slug = v; continue; }
+      var m2 = ln.match(/^(BODY|SPECS|FAQ)\s*:\s*(.*)$/i);
+      if (m2) { flush(); mode = m2[1].toUpperCase(); var rest = m2[2].trim(); if (rest) buf.push(rest); continue; }
+      if (mode) buf.push(ln);
+    }
+    flush();
+    return out;
+  };
+  function cmsExtFill(fields, v, statusId, okMsg) { /* فقط فیلد خالی؛ در صورت پر بودن، یک‌بار تأیید بازنویسی */
+    var pairs = fields; /* [{id,val}] */
+    var hasFilled = pairs.some(function (p) { var e = document.getElementById(p.id); return e && p.val && e.value.trim(); });
+    var overwrite = hasFilled ? confirm('بعضی فیلدها پر هستند — با خروجی جدید بازنویسی شوند؟\n(«انصراف» = فقط فیلدهای خالی پر شوند)') : true;
+    var n = 0;
+    pairs.forEach(function (p) {
+      var e = document.getElementById(p.id); if (!e || !p.val) return;
+      if (e.value.trim() && !overwrite) return;
+      if (e.value.trim() === p.val) return;
+      e.value = p.val; n++;
+    });
+    var st = document.getElementById(statusId);
+    if (st) st.innerHTML = n ? ('✅ ' + n + ' فیلد از خروجی هوش مصنوعی خارجی پر شد — ' + okMsg) : 'تغییری لازم نبود (فیلدها از قبل پر بودند).';
+    return n;
+  }
+  window.cmsPgExtPrompt = function () {
+    var g = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
+    var folderLb = 'خدمات';
+    (PAGE_FOLDERS || []).forEach(function (f) { if (f.v === g('pgFolder')) folderLb = f.lb; });
+    var topic = g('pgTopic') || g('pgTitle') || '';
+    if (!topic) { alert('ابتدا «موضوع برای AI» یا عنوان را بنویسید تا پرامپت همان موضوع ساخته شود.'); return; }
+    var p = 'تو متخصص محتوای فنی شرکت «پیشرو تجهیز فرتاک» — تامین‌کننده تجهیزات صنعتی (شیرآلات، اتصالات، فلنج، ابزار دقیق، برق صنعتی) برای صنایع نفت، گاز و پتروشیمی ایران — هستی.\n\n' +
+      'وظیفه: نوشتن متن کامل و یگانهٔ یک صفحهٔ وب.\n' +
+      'بخش سایت: ' + folderLb + '\n' +
+      'موضوع صفحه: ' + topic + '\n' +
+      'مخاطب: ' + (g('pgAud') || 'کارشناس خرید و مهندس نگهداری و تعمیر') + '\n\n' +
+      cmsExtRules() +
+      '۵. حداقل ۱۲۰۰ کلمه؛ ساختار پیشنهادی: معرفی → مشخصات/جدول → معیارهای انتخاب → اشتباهات رایج خرید → چک‌لیست خریدار → جمع‌بندی.\n' +
+      '۶. در صورت وجود معیار انتخاب، حداقل یک جدول یا لیست مقایسه‌ای بده.\n\n' +
+      'قالب خروجی — دقیقاً با همین نشانگرها و بدون هیچ متن اضافی قبل/بعد:\n' +
+      'TITLE: (عنوان سئو؛ ۳۰ تا ۶۵ کاراکتر)\n' +
+      'H1: (تیتر اصلی)\n' +
+      'DESCRIPTION: (توضیح متا؛ ۷۰ تا ۱۶۰ کاراکتر)\n' +
+      'SLUG: (نامک انگلیسی؛ فقط حروف a-z و خط تیره)\n' +
+      'BODY:\n(HTML کامل متن از اینجا به بعد)';
+    cmsExtModal('پرامپت صفحهٔ جدید', p, 'cmsPgExtApply()');
+  };
+  window.cmsPgExtApply = function () {
+    var v = cmsExtParse((document.getElementById('ptExtPaste') || {}).value || '');
+    if (!v.body && !v.title) { alert('خروجی معتبر تشخیص داده نشود — مطمئن شو نشانگرها (TITLE:/BODY:) را عیناً کپی کرده‌اید.'); return; }
+    v.slug = (v.slug || '').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var n = cmsExtFill([
+      { id: 'pgTitle', val: v.title }, { id: 'pgH1', val: v.h1 }, { id: 'pgDesc', val: v.desc },
+      { id: 'pgSlug', val: v.slug }, { id: 'pgBody', val: v.body }
+    ], v, 'pgAiSt', '<b>بازبینی انسانی الزامی است.</b>');
+    cmsDraftBind(PAGE_FIELDS); cmsPgCount();
+    if (n) { var m = document.getElementById('ptExtModal'); if (m) m.remove(); }
+  };
+  window.cmsProdExtPrompt = function (cd) {
+    var prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || [];
+    var r = prds.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    var det = '';
+    [['نام', r.nm], ['نام انگلیسی', r.en], ['برند', r.br], ['مدل', r.md], ['دسته', r.ca], ['استاندارد', r.st], ['واحد', r.un], ['توضیحات', r.ds]].forEach(function (x) { if (x[1]) det += x[0] + ': ' + x[1] + '\n'; });
+    var specsPre = [['نام', r.nm || ''], ['نام انگلیسی', r.en || ''], ['برند', r.br || ''], ['مدل', r.md || ''], ['استاندارد', r.st || ''], ['واحد', r.un || '']].filter(function (x) { return x[1]; }).map(function (x) { return x[0] + ' = ' + x[1]; }).join('\n');
+    var p = 'تو متخصص محتوای فنی شرکت «پیشرو تجهیز فرتاک» — تامین‌کننده تجهیزات صنعتی برای صنایع نفت، گاز و پتروشیمی ایران — هستی.\n\n' +
+      'وظیفه: نوشتن متن صفحهٔ محصول زیر.\n' +
+      'داده‌های کالا (تنها منبع مجاز):\n' + det + '\n' +
+      cmsExtRules() +
+      '۵. متن حداقل ۶۰۰ کلمه؛ ساختار: معرفی کالا → ویژگی‌ها → کاربردهای صنعتی → نکات خرید.\n' +
+      '۶. کاربردها عمومی و صنعت‌محور باشند؛ ادعای خاصِ همین کالا ممنوع مگر در داده‌ها باشد.\n\n' +
+      'قالب خروجی — دقیقاً با همین نشانگرها و بدون هیچ متن اضافی قبل/بعد:\n' +
+      'TITLE: (عنوان سئو؛ ۳۰ تا ۶۵ کاراکتر)\n' +
+      'H1: (تیتر اصلی)\n' +
+      'DESCRIPTION: (توضیح متا؛ ۷۰ تا ۱۶۰ کاراکتر)\n' +
+      'SLUG: (نامک انگلیسی؛ فقط a-z و خط تیره)\n' +
+      'SPECS:\n(مشخصات؛ هر خط دقیقاً به شکل «کلید = مقدار» — از داده‌های کالا)\n' +
+      'FAQ:\n(۳ تا ۵ سؤال عملی خرید؛ هر خط دقیقاً به شکل «سؤال | پاسخ»)\n' +
+      'BODY:\n(HTML کامل متن از اینجا تا پایان)';
+    cmsExtModal('پرامپت صفحهٔ محصول — ' + (r.nm || r.cd), p, "cmsProdExtApply('" + ptfOnClickArg(cd) + "')");
+  };
+  window.cmsProdExtApply = function (cd) {
+    var v = cmsExtParse((document.getElementById('ptExtPaste') || {}).value || '');
+    if (!v.body && !v.title) { alert('خروجی معتبر تشخیص داده نشود — مطمئن شو نشانگرها (TITLE:/BODY:) را عیناً کپی کرده‌اید.'); return; }
+    v.slug = (v.slug || '').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var n = cmsExtFill([
+      { id: 'prTitle', val: v.title }, { id: 'prH1', val: v.h1 }, { id: 'prDesc', val: v.desc },
+      { id: 'prSlug', val: v.slug }, { id: 'prBody', val: v.body }, { id: 'prSpecs', val: v.specs }, { id: 'prFaq', val: v.faq }
+    ], v, 'prAiSt', '<b>بازبینی انسانی الزامی است.</b>');
+    cmsDraftBind(PROD_FIELDS);
+    if (n) { var m = document.getElementById('ptExtModal'); if (m) m.remove(); }
   };
 
   window.cmsPageAi = function () {
@@ -1229,6 +1373,7 @@
       '<label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#374151;margin:8px 0"><input type="checkbox" id="prReviewed"> ⛔ بازبینی انسانی انجام شد — متن و اعداد فنی را خوانده‌ام (الزامی)</label>' +
       '<div style="display:flex;gap:7px;justify-content:flex-end;margin-top:10px">' +
       '<button class="bt bt-o" style="color:#6b21a8" onclick="cmsProdAi(\'' + ptfOnClickArg(cd) + '\')">🤖 تولید با هوش مصنوعی</button>' +
+      '<button class="bt bt-o" style="color:#0e7490" onclick="cmsProdExtPrompt(\'' + ptfOnClickArg(cd) + '\')">🌐 خارجی</button>' +
       '<button class="bt bt-o" onclick="if(confirm(\'انصراف؟\'))hideModal()">انصراف</button>' +
       '<button class="bt" onclick="cmsProdPublish(\'' + ptfOnClickArg(cd) + '\')">🚀 انتشار صفحهٔ محصول</button></div>' +
       '<small style="color:#94a3b8;display:block;margin-top:6px">صفحه در products/&lt;slug&gt;.html با اسکیمای Product/Offer/Breadcrumb/FAQ ساخته می‌شود؛ به نقشهٔ سایت (sitemap-products.xml) اضافه و در سرچ کنسول ثبت می‌گردد.</small>' +

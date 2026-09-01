@@ -225,6 +225,7 @@ var SUITE = [
   { g: 'UX (18.0): نام دوگانهٔ مشتری (فارسی+انگلیسی زیر هم) در پیشنهادات/فاکتورها/پرونده‌های فروش', f: '_tools/uat/tester563-v34.18.0-dual-cust-names.js' },
   { g: 'UX (19.0): سطل بازیافت — snapshot در لحظهٔ حذف + entity_restore سروری + مودال بازیافت', f: '_tools/uat/tester564-v34.19.0-recycle-bin.js' },
   { g: 'UX (20.0): سه رفع شکایت CMS — گروه موبایل مدیریت سایت + ابزارهای فرم صفحه + JSON مقاوم AI', f: '_tools/uat/tester565-v34.20.0-cms-complaints.js' },
+  { g: 'UX (21.0): دستیار هوش مصنوعی خارجی — پرامپت آماده + تجزیهٔ خروجی با نشانگر', f: '_tools/uat/tester566-v34.21.0-external-ai-assistant.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
