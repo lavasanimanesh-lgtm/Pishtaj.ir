@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.24.0 — ارزش افزوده فصلی در هاب مالی + نرخ مصوب سال (VAT-LEDGER-001).
+/* v34.25.0 — ارزش افزوده فصلی در هاب مالی + نرخ مصوب سال (VAT-LEDGER-001).
    - تب «ارزش افزوده» در هاب مالی.
    - محاسبه: بدهی VAT فروش رسمی − اعتبار VAT خرید رسمی (واقعی/پوششی) + اعتبار منتقل‌شده.
    - کارمزد فاکتورساز در VAT محاسبه نمی‌شود.
@@ -20,8 +20,8 @@ var off = read('crm/official-invoice-v2.js');
 var sup = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.24.0', ver.crm_version === 'v34.24.0', ver.crm_version);
-T('vat-shared.js و vat-quarterly.js در index', /vat-shared\.js\?v=34\.24.0/.test(idx) && /vat-quarterly\.js\?v=34\.24.0/.test(idx));
+T('VERSION.json = v34.25.0', ver.crm_version === 'v34.25.0', ver.crm_version);
+T('vat-shared.js و vat-quarterly.js در index', /vat-shared\.js\?v=34\.25.0/.test(idx) && /vat-quarterly\.js\?v=34\.25.0/.test(idx));
 
 /* ---------- shared ---------- */
 T('ptfVatRateOf تعریف شده', /window\.ptfVatRateOf = function/.test(shared));
@@ -50,6 +50,6 @@ T('دکمه ذخیره پیش‌فرض از مودال فروش حذف شد', of
 
 T('tester492 در گیت CI', gate.indexOf('tester492-v34.7.91-vat-quarterly.js') > -1);
 
-console.log('\n— tester492 (v34.24.0: ارزش افزوده فصلی + نرخ مصوب سال — VAT-LEDGER-001) —');
+console.log('\n— tester492 (v34.25.0: ارزش افزوده فصلی + نرخ مصوب سال — VAT-LEDGER-001) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

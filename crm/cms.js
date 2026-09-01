@@ -658,6 +658,7 @@
     { v: 'comparisons', lb: 'مقایسهٔ محصولات' }
   ];
   var PAGE_FIELDS = ['pgTitle', 'pgSlug', 'pgH1', 'pgDesc', 'pgBody', 'pgImg'];
+  window.PAGE_FIELDS = PAGE_FIELDS; /* v34.25.0: برای onclick ذخیرهٔ موقت */
 
   function renderCmsPageNew(el) {
     var opts = PAGE_FOLDERS.map(function (f) { return '<option value="' + f.v + '">' + f.lb + '</option>'; }).join('');
@@ -673,7 +674,8 @@
       '</div>' +
       '<div style="display:flex;gap:7px;margin:10px 0;flex-wrap:wrap;align-items:center"><button class="bt" style="background:#7c3aed" onclick="cmsPageAi()">🤖 تولید با هوش مصنوعی</button>' +
       '<button class="bt bt-o" style="color:#0e7490" onclick="cmsPgExtPrompt()">🌐 هوش مصنوعی خارجی</button>' +
-      '<small style="color:#94a3b8">برای مطالب بلند: پرامپت آماده بساز، در ChatGPT/Claude/Gemini ببر و خروجی را همین‌جا بچسبان</small></div>' +
+      '<small style="color:#94a3b8">برای مطالب بلند: پرامپت آماده بساز، در ChatGPT/Claude/Gemini ببر و خروجی را همین‌جا بچسبان</small>' +
+      '<button class="bt bt-o" style="color:#059669" onclick="cmsDraftBtn(PAGE_FIELDS,\'pgAiSt\')">💾 ذخیرهٔ موقت</button></div>' +
       '<div class="fld"><label>عنوان سئو (title) <span id="pgTitleLen" style="font-size:11px"></span></label><input type="text" id="pgTitle" oninput="cmsPgCount()"></div>' +
       '<div class="fld"><label>H1</label><input type="text" id="pgH1"></div>' +
       '<div class="fld"><label>توضیح (description) <span id="pgDescLen" style="font-size:11px"></span></label><textarea id="pgDesc" rows="2" oninput="cmsPgCount()"></textarea></div>' +
@@ -691,7 +693,7 @@
         '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgWrap(\'<blockquote>\',\'</blockquote>\')" title="نقل‌قول">❝</button>' +
       '</div>' +
       '<textarea id="pgBody" rows="12" oninput="cmsPgCount()" style="font-family:inherit"></textarea></div>' +
-      '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت)</label><input type="text" id="pgImg" dir="ltr" value="assets/images/ptf-logo.png"></div>' +
+      '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت) <button type="button" class="bt bt-o" style="padding:2px 10px;font-size:11px;color:#0e7490" onclick="cmsImgPick(\'pgImg\',\'pgBody\',\'pgSlug\')">📂 انتخاب عکس از سیستم (آپلود)</button></label><input type="text" id="pgImg" dir="ltr" value="assets/images/ptf-logo.png" oninput="cmsImgThumb(\'pgImg\')"><img id="pgImgPrev" alt="" style="display:none;max-width:130px;max-height:80px;object-fit:contain;border:1px solid var(--brd);border-radius:8px;margin-top:6px;background:#f8fafc"></div>' +
       '<label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#374151;margin:8px 0"><input type="checkbox" id="pgReviewed"> ⛔ بازبینی انسانی انجام شد (الزامی)</label>' +
       '<div style="display:flex;gap:7px;align-items:center;margin:8px 0;flex-wrap:wrap"><input type="datetime-local" id="pgWhen" dir="ltr" style="padding:7px;border:1px solid var(--brd);border-radius:8px;font-size:12px"><button class="bt bt-o" style="color:#7c3aed" onclick="cmsPageSchedule()">🕘 زمان‌بندی انتشار</button><small style="color:#94a3b8">صف در تب «🛠 کیفیت»</small></div>' +
       '<div style="display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap">' +
@@ -701,6 +703,7 @@
       '</div>';
     cmsDraftRestore(PAGE_FIELDS, 'pgAiSt'); cmsDraftBind(PAGE_FIELDS);
     cmsPgCount(); /* v34.20.0: شمارنده‌ها بلافاصله پس از رندر/بازیابی پیش‌نویس */
+    cmsImgThumb('pgImg'); /* v34.25.0: بندانگشتی تصویر پس از بازیابی پیش‌نویس */
   }
 
   /* ═══ v34.20.0 (PAGE-TOOLS): ابزارهای ویرایش فرم صفحه — شمارنده/نوار ابزار/پیش‌نمایش/گسترش ═══ */
@@ -753,6 +756,75 @@
     ta.focus(); try { ta.setSelectionRange(s0 + html.length, s0 + html.length); } catch (eS2) {}
     cmsDraftBind(PAGE_FIELDS); cmsPgCount();
   };
+  /* ═══ v34.25.0 (IMG/PRODUCT-STUDIO): تصویر از بیرون + پیش‌نمایش محصول + ذخیرهٔ موقت صریح ═══ */
+  window.cmsImgThumb = function (fieldId) {
+    var e = document.getElementById(fieldId), t = document.getElementById(fieldId + 'Prev');
+    if (!t) return;
+    var v = ((e || {}).value || '').trim();
+    if (v) { t.src = v.indexOf('/') === 0 ? v : '/' + v.replace(/^\.\//, ''); t.style.display = ''; t.onerror = function () { t.style.display = 'none'; }; }
+    else t.style.display = 'none';
+  };
+  window.cmsImgPick = function (fieldId, bodyId, nameFromId) {
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/jpeg,image/png,image/webp,image/gif';
+    inp.onchange = function () {
+      var f = inp.files && inp.files[0];
+      if (!f) return;
+      if (f.size > 8 * 1048576) { alert('حجم تصویر بیشتر از ۸MB است'); return; }
+      var host = document.getElementById(fieldId);
+      var st = document.getElementById('prAiSt') || document.getElementById('pgAiSt');
+      if (st) st.innerHTML = '⏳ در حال آپلود تصویر (' + Math.round(f.size / 1024) + 'KB)…';
+      var nm = ((document.getElementById(nameFromId) || {}).value || '').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-');
+      api('image_upload', { file: f, name: nm || f.name.replace(/\.[^.]+$/, '') }, function (d) {
+        if (!d.ok) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'آپلود ناموفق') + '</span>'; return; }
+        if (host) { host.value = d.path; host.dispatchEvent(new Event('input')); }
+        cmsImgThumb(fieldId);
+        if (st) st.innerHTML = '✅ تصویر آپلود شد: <span dir="ltr">' + escP(d.path) + '</span>' + (d.w ? ' (' + d.w + '×' + d.h + ')' : '');
+        var ta = document.getElementById(bodyId);
+        if (ta && confirm('تصویر در متن صفحه هم درج شود؟ (در محل نشانگر)')) {
+          var alt = ((document.getElementById('prH1') || document.getElementById('pgH1') || {}).value || '').replace(/"/g, '');
+          var cur = ta.value, pos = ta.selectionStart || cur.length;
+          var tag = '<img src="' + d.url + '" alt="' + alt + '" style="max-width:100%">';
+          ta.value = cur.slice(0, pos) + (pos > 0 && cur.slice(0, pos).match(/\n$/) === null && pos < cur.length ? '\n' : '') + tag + '\n' + cur.slice(pos);
+          ta.dispatchEvent(new Event('input'));
+        }
+      });
+    };
+    inp.click();
+  };
+  window.cmsDraftBtn = function (fields, stId) {
+    cmsDraftSave(fields);
+    var st = document.getElementById(stId);
+    if (st) st.innerHTML = '💾 ذخیرهٔ موقت انجام شد — تا پیش از انتشار محفوظ است؛ با باز شدن دوبارهٔ فرم بازیابی می‌شود.';
+  };
+  window.cmsPrPreview = function () { /* پیش‌نمایش صفحهٔ محصول، هم‌شکل خروجی نهایی product_create */
+    var g = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
+    var title = g('prTitle') || 'بدون عنوان', h1 = g('prH1') || title, desc = g('prDesc'), body = g('prBody') || '<p>—</p>';
+    var slug = g('prSlug') || 'slug', img = g('prImg'), brand = g('prBrand'), price = g('prPrice'), cur = g('prCur') || 'IRR';
+    var specs = g('prSpecs').split('\n').map(function (ln) { var i = ln.indexOf('='); return i > -1 ? [ln.slice(0, i).trim(), ln.slice(i + 1).trim()] : null; }).filter(Boolean);
+    var faq = g('prFaq').split('\n').map(function (ln) { var i = ln.indexOf('|'); return i > -1 ? { q: ln.slice(0, i).trim(), a: ln.slice(i + 1).trim() } : null; }).filter(function (x) { return x && x.q && x.a; });
+    var specH = specs.length ? '<h2 style="margin:22px 0 8px">مشخصات فنی</h2><table style="width:100%;border-collapse:collapse;font-size:13px;margin:10px 0">' +
+      specs.map(function (sp) { return '<tr><th style="text-align:right;padding:7px 11px;background:#f8fafc;border:1px solid #e2e8f0">' + escP(sp[0]) + '</th><td style="padding:7px 11px;border:1px solid #e2e8f0">' + escP(sp[1]) + '</td></tr>'; }).join('') + '</table>' : '';
+    var faqH = faq.length ? '<h2 style="margin:22px 0 8px">سوالات متداول</h2>' + faq.map(function (fq) {
+      return '<details style="border:1px solid #e2e8f0;border-radius:10px;padding:9px 13px;margin:7px 0"><summary style="font-weight:700;cursor:pointer">' + escP(fq.q) + '</summary><p style="color:#334155;margin:7px 0 0">' + escP(fq.a) + '</p></details>'; }).join('') : '';
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:780px;width:100%;max-height:90vh;overflow:auto;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;gap:8px;align-items:center;margin:16px 16px 0;flex-wrap:wrap"><b style="font-size:13.5px">👁 پیش‌نمایش صفحهٔ محصول</b><span style="font-size:11px;color:#64748b;direction:ltr">products/' + escP(slug) + '.html</span><button class="bt bt-o" style="padding:4px 12px;font-size:12px;margin-right:auto" onclick="this.closest(\'div[style*=fixed]\').parentNode.removeChild(this.closest(\'div[style*=fixed]\'))">بستن</button></div>' +
+      '<div style="margin:10px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:11.5px;color:#475569">title: <b>' + escP(title.slice(0, 70)) + '</b> (' + title.length + ')<br>description: ' + escP(desc.slice(0, 170) || '—') + ' (' + desc.length + ')' + (img ? '<br>og:image: <span dir="ltr">' + escP(img) + '</span>' : '') + '</div>' +
+      '<div style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;padding:26px 22px"><span style="background:rgba(239,75,26,.25);color:#ffb033;padding:5px 13px;border-radius:999px;font-size:12px;font-weight:800">محصولات</span>' +
+      '<h1 style="font-size:21px;margin:12px 0 6px">' + escP(h1) + '</h1>' +
+      '<p style="color:rgba(255,255,255,.72);font-size:13px;margin:0">' + (brand ? escP(brand) + ' · ' : '') + 'واحد تامین پیشرو تجهیز فرتاک' + '</p></div>' +
+      '<div style="padding:16px">' +
+      (img ? '<img src="' + escP(img.indexOf('/') === 0 ? img : '/' + img) + '" alt="' + escP(h1) + '" style="display:block;max-width:420px;max-height:260px;width:100%;object-fit:contain;border:1px solid #e2e8f0;border-radius:12px;margin:0 auto 14px;background:#f8fafc" onerror="this.style.display=\'none\'">' : '') +
+      '<div style="font-size:13px;line-height:2.1;color:#1e293b">' + body + '</div>' + specH + faqH +
+      (price ? '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 13px;margin-top:14px;font-size:13px">💰 قیمت اعلامی: <b>' + escP(price) + ' ' + escP(cur) + '</b>' + (g('prStock') ? ' · موجود' : ' · استعلامی') + '</div>' : '') +
+      '<div style="background:#fff8f0;border:1px solid #f6c17c;border-radius:12px;padding:13px 16px;margin-top:16px;font-size:12.5px"><b>استعلام قیمت این محصول؟</b> قیمت و زمان تامین را همان روز دریافت کنید: <span style="color:#ef4b1a;font-weight:800">ثبت استعلام هوشمند ←</span></div>' +
+      '</div></div>';
+    document.body.appendChild(ov);
+  };
+
   window.cmsPgPreview = function () {
     var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
     var title = g('pgTitle') || 'بدون عنوان', h1 = g('pgH1') || title, desc = g('pgDesc'), body = g('pgBody') || '<p>—</p>';
@@ -1320,6 +1392,7 @@
   /* ═══ v34.11.0 (S2/PRODUCT): تب محصولات — مولد صفحهٔ محصول از دیتای CRM ═══ */
   var _prodSite = null; /* نقشهٔ cd → {slug,title,mtime} از سرور */
   var PROD_FIELDS = ['prTitle', 'prSlug', 'prH1', 'prDesc', 'prBrand', 'prImg', 'prBody', 'prSpecs', 'prFaq'];
+  window.PROD_FIELDS = PROD_FIELDS; /* v34.25.0: برای onclick ذخیرهٔ موقت */
 
   function renderCmsProducts(el) {
     el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:14px">در حال دریافت وضعیت صفحات محصول…</div>';
@@ -1370,17 +1443,20 @@
       '<div class="fld"><label>ارز</label><select id="prCur"><option>IRR</option><option>USD</option><option>EUR</option><option>AED</option></select></div>' +
       '<div class="fld"><label>موجود</label><select id="prStock"><option value="1">بله</option><option value="">خیر/استعلامی</option></select></div>' +
       '</div>' +
-      '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت)</label><input type="text" id="prImg" dir="ltr" value="assets/images/ptf-logo.png"></div>' +
+      '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت) <button type="button" class="bt bt-o" style="padding:2px 10px;font-size:11px;color:#0e7490" onclick="cmsImgPick(\'prImg\',\'prBody\',\'prSlug\')">📂 انتخاب عکس از سیستم (آپلود)</button></label><input type="text" id="prImg" dir="ltr" value="assets/images/ptf-logo.png" oninput="cmsImgThumb(\'prImg\')"><img id="prImgPrev" alt="" style="display:none;max-width:130px;max-height:80px;object-fit:contain;border:1px solid var(--brd);border-radius:8px;margin-top:6px;background:#f8fafc"></div>' +
       '<label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#374151;margin:8px 0"><input type="checkbox" id="prReviewed"> ⛔ بازبینی انسانی انجام شد — متن و اعداد فنی را خوانده‌ام (الزامی)</label>' +
       '<div style="display:flex;gap:7px;justify-content:flex-end;margin-top:10px">' +
       '<button class="bt bt-o" style="color:#6b21a8" onclick="cmsProdAi(\'' + ptfOnClickArg(cd) + '\')">🤖 تولید با هوش مصنوعی</button>' +
       '<button class="bt bt-o" style="color:#0e7490" onclick="cmsProdExtPrompt(\'' + ptfOnClickArg(cd) + '\')">🌐 خارجی</button>' +
       '<button class="bt bt-o" onclick="if(confirm(\'انصراف؟\'))hideModal()">انصراف</button>' +
+      '<button class="bt bt-o" style="color:#0e7490" onclick="cmsPrPreview()">👁 پیش‌نمایش صفحه</button>' +
+      '<button class="bt bt-o" style="color:#059669" onclick="cmsDraftBtn(PROD_FIELDS,\'prAiSt\')">💾 ذخیرهٔ موقت</button>' +
       '<button class="bt" onclick="cmsProdPublish(\'' + ptfOnClickArg(cd) + '\')">🚀 انتشار صفحهٔ محصول</button></div>' +
       '<small style="color:#94a3b8;display:block;margin-top:6px">صفحه در products/&lt;slug&gt;.html با اسکیمای Product/Offer/Breadcrumb/FAQ ساخته می‌شود؛ به نقشهٔ سایت (sitemap-products.xml) اضافه و در سرچ کنسول ثبت می‌گردد.</small>' +
       '</div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     cmsDraftRestore(PROD_FIELDS, 'prAiSt'); cmsDraftBind(PROD_FIELDS); /* v34.11.0: پیش‌نویس ماندگار */
+    cmsImgThumb('prImg'); /* v34.25.0: بندانگشتی تصویر پس از بازیابی پیش‌نویس */
   };
 
   window.cmsProdAi = function (cd) {

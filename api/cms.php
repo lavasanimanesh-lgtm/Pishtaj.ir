@@ -1329,6 +1329,36 @@ switch ($action) {
         jok(['url' => 'products/' . $slug . '.html']);
         break;
 
+    /* ═══ v34.25.0 (IMG-UPLOAD): تصویر از بیرون برای صفحات و محصولات ═══
+       عکس از سیستم کاربر انتخاب و در assets/images سایت ذخیره می‌شود؛ مسیر
+       برگشتی در فیلد تصویر فرم می‌نشیند و می‌توان آن را در متن هم درج کرد. */
+    case 'image_upload':
+        $fu = $_FILES['file'] ?? null;
+        if (!$fu || !is_array($fu) || empty($fu['name'])) jerr('فایلی ارسال نشد');
+        if (!is_uploaded_file($fu['tmp_name'] ?? '')) jerr('فایل به‌درستی دریافت نشد');
+        $isz = (int)($fu['size'] ?? 0);
+        if ($isz < 1 || $isz > 8 * 1048576) jerr('حجم تصویر باید حداکثر ۸MB باشد');
+        $iext = strtolower(pathinfo((string)$fu['name'], PATHINFO_EXTENSION));
+        $imimes = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif'];
+        if (!isset($imimes[$iext])) jerr('فرمت مجاز: JPG، PNG، WebP، GIF');
+        $iinfo = @getimagesize($fu['tmp_name']);
+        if ($iinfo === false || (string)($iinfo['mime'] ?? '') !== $imimes[$iext]) jerr('فایل تصویر معتبر نیست');
+        $ibase = strtolower(trim((string)($_POST['name'] ?? pathinfo((string)$fu['name'], PATHINFO_FILENAME))));
+        $ibase = preg_replace('/[^a-z0-9\-]+/', '-', $ibase) ?? '';
+        $ibase = trim(preg_replace('/-+/', '-', $ibase) ?? '', '-');
+        if ($ibase === '') $ibase = 'img';
+        if (strlen($ibase) > 40) $ibase = substr($ibase, 0, 40);
+        try { $irnd = substr(bin2hex(random_bytes(3)), 0, 4); } catch (Throwable $eR) { $irnd = substr(md5(uniqid('', true)), 0, 4); }
+        $idir = $ROOT . '/assets/images';
+        if (!is_dir($idir)) { @mkdir($idir, 0755, true); }
+        $iname = $ibase . '-' . date('Ymd-His') . '-' . $irnd . '.' . $iext;
+        $idst = $idir . '/' . $iname;
+        if (!move_uploaded_file($fu['tmp_name'], $idst)) jerr('ذخیرهٔ تصویر روی هاست ناموفق بود (مجوز write?)');
+        @chmod($idst, 0644);
+        cms_log('image_upload', $iname . ' (' . $isz . 'B)');
+        jok(['path' => 'assets/images/' . $iname, 'url' => '/assets/images/' . $iname, 'w' => (int)($iinfo[0] ?? 0), 'h' => (int)($iinfo[1] ?? 0)]);
+        break;
+
     /* ═══ v34.13.0 (S2-id/GENERIC-PAGE): مولد صفحهٔ عمومی — services/industries/comparisons ═══ */
     /* ═══ v34.14.0 (S4/SCHED): انتشار زمان‌بندی‌شده + جریان دومرحله‌ای نویسنده/منتشرکننده ═══ */
     case 'sched_add':

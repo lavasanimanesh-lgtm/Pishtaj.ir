@@ -229,6 +229,7 @@ var SUITE = [
   { g: 'UX (22.0): مرتب‌سازی مکاتبات — پیش‌فرض جدیدترین بالا + سورت شماره/تاریخ', f: '_tools/uat/tester567-v34.22.0-letters-sort.js' },
   { g: 'UX (23.0): سه‌گانهٔ درخواست‌ها — سورت تاریخ دو-تقویمی + فیلتر از سایت + ریشه‌کنی حذف files در سرور', f: '_tools/uat/tester568-v34.23.0-rfq-site-fix.js' },
   { g: 'UX (24.0): اصلاح هوشمند گروهی سئو — ویزارد یک‌کلیکی در چهارچوب Google Search Central', f: '_tools/uat/tester569-v34.24.0-seo-batch-ai.js' },
+  { g: 'UX (25.0): استودیو محصول — آپلود عکس از بیرون + پیش‌نمایش قبل از انتشار + ذخیرهٔ موقت صریح', f: '_tools/uat/tester570-v34.25.0-product-image-preview.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
