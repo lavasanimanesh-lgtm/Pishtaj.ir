@@ -808,7 +808,12 @@ switch ($action) {
             . 'Keep standard designations in Latin exactly as written (ASTM A106 Gr.B, ASME B16.5, API 5L X42). '
             . 'LENGTH RULES measured in Persian characters: title 30-65, description 70-165, h1 20-70. '
             . 'Title and h1 must NOT be identical. Description must be a single sentence-pair that a searcher '
-            . 'would click, ending without a trailing period. slug = lowercase english kebab-case. ';
+            . 'would click, ending without a trailing period. slug = lowercase english kebab-case. '
+            /* v34.24.0 (SEO-BATCH): چهارچوب رسمی گوگل — یکتایی، تطابق با محتوا، بدون فریب */
+            . 'GOOGLE SEARCH CENTRAL FRAMEWORK: every title/description must be UNIQUE to that page (no boilerplate '
+            . 'repeated across pages), must faithfully summarize what the page actually says (intent match), no '
+            . 'clickbait, no misleading or exaggerated claims, no ALL-CAPS shouting. When fixing a flagged issue, '
+            . 'produce the corrected value in full — ready to save, not an instruction. ';
 
         if ($action === 'seo_alt') {
             /* v34.15.0 (S5/ALT): متن جایگزین فارسی برای تصاویر — بینایی گروهی (تا ۸ تصویر در یک فراخوانی).

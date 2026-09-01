@@ -42,7 +42,7 @@ function harness(){
     JSON:JSON,Math:Math,Date:Date,Promise:Promise,Array:Array,Object:Object,String:String,Number:Number,RegExp:RegExp,Error:Error,
     getData:function(){return[];},setData:function(){},curRole:function(){return'accountant';},curSession:function(){return{user:'finance'};},
     alert:function(m){alerts.push(String(m));},ptfToast:function(m,k){toasts.push({m:String(m),k:k});},
-    ptfDevKv:{/* v34.23.0 (T5-2b): تشخیصی‌های فرمان از نمای Dev-KV می‌گذرند — هارنس همان LS ساختگی را پشت نما می‌گذارد */set:function(k,v){ls.setItem(k,String(v));},get:function(k,cb){cb(ls.getItem(k));},remove:function(k){ls.removeItem(k);},keys:function(prefix,cb){var out=[];for(var i=0,kk=0;i<Object.keys(ls.d).length;i++){kk=Object.keys(ls.d)[i];if(String(kk).indexOf(prefix)===0)out.push(String(kk));}cb(out);}},
+    ptfDevKv:{/* v34.24.0 (T5-2b): تشخیصی‌های فرمان از نمای Dev-KV می‌گذرند — هارنس همان LS ساختگی را پشت نما می‌گذارد */set:function(k,v){ls.setItem(k,String(v));},get:function(k,cb){cb(ls.getItem(k));},remove:function(k){ls.removeItem(k);},keys:function(prefix,cb){var out=[];for(var i=0,kk=0;i<Object.keys(ls.d).length;i++){kk=Object.keys(ls.d)[i];if(String(kk).indexOf(prefix)===0)out.push(String(kk));}cb(out);}},
     document:{getElementById:function(){return null;},querySelectorAll:function(){return[];},querySelector:function(){return null;},addEventListener:function(){},hidden:true},
     navigator:{},location:{},addEventListener:function(){},setInterval:function(){return 1;},clearInterval:function(){},setTimeout:setTimeout,clearTimeout:clearTimeout,
     fetch:function(url,opt){return new Promise(function(resolve,reject){var body=JSON.parse(opt.body);requests.push({url:url,body:body});pending.push({resolve:resolve,reject:reject});});}

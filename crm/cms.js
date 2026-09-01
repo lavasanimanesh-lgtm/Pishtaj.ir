@@ -599,6 +599,7 @@
       (_seo.issue ? '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoIssue(\'\')">✖ حذف فیلتر مشکل</button>' : '') +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoRefresh()">⟳ اسکن دوباره</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#d97706" onclick="cmsCanonBulk()" title="صفحات با canonical ناهماهنگ/جاافتاده به آدرس خودشان برمی‌گردند (stubهای ریدایرکت دست نمی‌خورند)">🔧 canonical گروهی</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#7c3aed" onclick="cmsSeoAiBatch()" title="هوش مصنوعی همهٔ صفحاتِ دارای ایراد عنوان/توضیح/H1 را طبق قوانین سئو و سرچ کنسول گوگل آنالیز و اصلاح می‌کند">🤖 اصلاح هوشمند گروهی</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoExport()">⬇️ CSV</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSitemapDrift()">🧭 انحراف نقشه</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px' + (cmsSitemapAutoOn() ? ';color:#059669' : '') + '" onclick="cmsSitemapAutoToggle(this)">' + (cmsSitemapAutoOn() ? '🔄 ثبت خودکار نقشه: روشن' : '🔄 ثبت خودکار نقشه: خاموش') + '</button>' +
@@ -1786,6 +1787,144 @@
   }
 
   function cmsSetLen(id, v) { var e = document.getElementById(id); if (e) e.value = v || ''; }
+
+  /* ═══ v34.24.0 (SEO-BATCH-FIX): اصلاح هوشمند گروهی سئو — یک کلیک ═══
+     اسکن موجود ایرادهای هر صفحه را زیرش نشان می‌دهد؛ این ویزارد صفحاتِ دارای ایرادِ
+     قابل اصلاح خودکار (عنوان/توضیح/H1) را یک‌جا برمی‌دارد، برای هر صفحه متن واقعی
+     خوانده می‌شود، seo_fix در چهارچوب قوانین سئو و Google Search Central پیشنهاد
+     می‌سازد، اعتبارسنجی طول انجام می‌شود و پس از یک تأیید انسانی، همهٔ انتخاب‌شده‌ها
+     با page_meta_save روی سایت اعمال می‌شوند. canonical/robots هر صفحه دست‌نخورده
+     می‌ماند (ابزار گروهی خودشان را دارند). */
+  var SEO_FIXABLE = ['no-desc', 'desc-long', 'desc-short', 'no-title', 'title-long', 'title-short', 'no-h1', 'h1-long', 'h1-short'];
+  function cmsSeoFixablePages() {
+    return (window._cmsPages || []).map(function (p, i) {
+      var is = (p.issues || []).filter(function (k) { return SEO_FIXABLE.indexOf(k) > -1; });
+      return is.length ? { i: i, p: p, is: is } : null;
+    }).filter(Boolean);
+  }
+  function seoBatchRows() { return (window._seoBatch || {}).rows || []; }
+  window.cmsSeoAiBatch = function () {
+    var targets = cmsSeoFixablePages();
+    if (!targets.length) { alert('در نمای فعلی صفحه‌ای با ایراد قابل اصلاح خودکار (عنوان/توضیح/H1) نیست ✅\n\nایرادهایی مثل canonical و نقشهٔ سایت و noindex ابزار گروهی خودشان را دارند و متنِ کم/یتیم به محتوا نیاز دارد.'); return; }
+    var capped = targets.length > 30;
+    if (capped) targets = targets.slice(0, 30);
+    window._seoBatch = { rows: targets.map(function (t) { return { i: t.i, p: t.p, is: t.is, on: true, st: 'pending', prop: null, note: '' }; }), phase: 'idle', cancel: false };
+    var html = '<div class="md-b" id="ptSeoBatch" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:860px;max-height:92vh;overflow:auto">' +
+      '<h3>🤖 اصلاح هوشمند گروهی سئو</h3>' +
+      '<div style="font-size:12px;color:#475569;line-height:1.9;margin-bottom:8px">هوش مصنوعی متنِ واقعی هر صفحهٔ انتخاب‌شده را می‌خواند و عنوان/توضیح/H1 را در چهارچوب قوانین سئو (طول استاندارد، یکتایی، تطابق با محتوا — طبق راهنمای Google Search Central) بازنویسی می‌کند. پس از آنالیز، پیشنهادها را یک‌جا می‌بینید و با یک تأیید اعمال می‌شوند.' +
+      (capped ? '<br><b style="color:#b45309">⚠️ هر اجرا حداکثر ۳۰ صفحه — پس از پایان، دوباره بزنید تا بقیه اصلاح شوند.</b>' : '') + '</div>' +
+      '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
+      '<button class="bt" style="background:#7c3aed" id="seoBatchGo" onclick="cmsSeoAiBatchRun()">▶️ آنالیز و ساخت پیشنهادها</button>' +
+      '<button class="bt bt-o" id="seoBatchApply" style="display:none;background:#059669;color:#fff" onclick="cmsSeoAiBatchApply()">✅ تأیید و اعمال انتخاب‌شده‌ها</button>' +
+      '<button class="bt bt-o" id="seoBatchCancel" style="display:none;color:#dc2626" onclick="if(window._seoBatch)window._seoBatch.cancel=true">✖ توقف</button>' +
+      '<span id="seoBatchSt" style="font-size:12px;color:#475569"></span></div>' +
+      '<div id="seoBatchBody" style="max-height:56vh;overflow:auto;font-size:12px"></div>' +
+      '</div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    cmsSeoAiBatchRender();
+  };
+  window.cmsSeoAiBatchRender = function () {
+    var el = document.getElementById('seoBatchBody'); if (!el) return;
+    var rows = seoBatchRows();
+    var LB = { 'no-desc': 'بدون توضیح', 'desc-long': 'توضیح بلند', 'desc-short': 'توضیح کوتاه', 'no-title': 'بدون عنوان', 'title-long': 'عنوان بلند', 'title-short': 'عنوان کوتاه', 'no-h1': 'بدون H1', 'h1-long': 'H1 بلند', 'h1-short': 'H1 کوتاه' };
+    function cell(lb, cur, pro, lo, hi) {
+      var pl = (pro || '').length;
+      var col = pro ? (pl >= lo && pl <= hi ? '#059669' : '#dc2626') : '#94a3b8';
+      return '<div style="padding:4px 0;border-bottom:1px dashed #e2e8f0"><b style="color:#64748b;font-size:11px">' + lb + '</b><br>' +
+        '<span style="color:#94a3b8">اکنون (' + (cur || '').length + '):</span> ' + escP(cur || '—') + '<br>' +
+        (pro != null ? '<span style="color:' + col + '">پیشنهاد (' + pl + '):</span> <b>' + escP(pro || '—') + '</b>' : '<span style="color:#cbd5e1">پیشنهاد: —</span>') + '</div>';
+    }
+    el.innerHTML = rows.map(function (r, idx) {
+      var stMap = { pending: ['⏳ در انتظار', '#94a3b8'], reading: ['📖 خواندن صفحه…', '#0e7490'], llm: ['🤖 تحلیل با AI…', '#7c3aed'], done: ['✅ پیشنهاد آماده', '#059669'], bad: ['⚠️ ' + (r.note || 'ناموفق'), '#dc2626'], applied: ['🚀 اعمال شد', '#059669'], fail: ['❌ ' + (r.note || 'خطا در اعمال'), '#dc2626'], off: ['—', '#94a3b8'] };
+      var sm = stMap[r.st] || stMap.pending;
+      return '<div style="border:1px solid var(--brd);border-radius:10px;padding:8px 10px;margin-bottom:6px' + (r.on ? '' : ';opacity:.55') + '">' +
+        '<div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">' +
+        '<label style="display:flex;gap:6px;align-items:center;flex:1;min-width:230px;cursor:pointer;font-weight:700;direction:ltr;text-align:left;font-size:12px">' +
+        '<input type="checkbox" onchange="cmsSeoAiBatchRow(' + idx + ',this.checked)" ' + (r.on ? 'checked' : '') + '> ' + escP(r.p.path) + '</label>' +
+        '<span style="font-size:11px">' + r.is.map(function (k) { return '<span class="bd" style="background:#fef3c7;color:#b45309">' + (LB[k] || k) + '</span>'; }).join(' ') + '</span>' +
+        '<span style="font-size:11.5px;font-weight:800;color:' + sm[1] + '">' + sm[0] + '</span></div>' +
+        (r.prop ? '<div style="margin-top:6px">' + cell('عنوان', r.p.title, r.prop.title, 30, 65) + cell('توضیح', r.p.desc, r.prop.desc, 70, 165) + cell('H1', r.p.h1, r.prop.h1, 5, 70) + '</div>' : '') +
+        '</div>';
+    }).join('');
+  };
+  window.cmsSeoAiBatchRow = function (idx, on) {
+    var r = seoBatchRows()[idx]; if (!r) return;
+    r.on = !!on; if (!on) r.st = r.st === 'applied' ? r.st : 'off';
+    cmsSeoAiBatchRender();
+  };
+  function seoBatchMsg(t) { var e = document.getElementById('seoBatchSt'); if (e) e.innerHTML = t; }
+  window.cmsSeoAiBatchRun = function () {
+    var B = window._seoBatch; if (!B || B.phase === 'run') return;
+    B.phase = 'run'; B.cancel = false;
+    var go = document.getElementById('seoBatchGo'); if (go) go.disabled = true;
+    var cx = document.getElementById('seoBatchCancel'); if (cx) cx.style.display = '';
+    var rows = seoBatchRows().filter(function (r) { return r.on; });
+    if (!rows.length) { seoBatchMsg('صفحه‌ای انتخاب نشده است'); B.phase = 'idle'; if (go) go.disabled = false; if (cx) cx.style.display = 'none'; return; }
+    var k = 0;
+    function next() {
+      if (B.cancel) { seoBatchMsg('⏹ توقف شد — پیشنهادهای آماده قابل اعمال‌اند'); return fin(); }
+      while (k < rows.length && !rows[k].on) k++;
+      if (k >= rows.length) { seoBatchMsg('✅ آنالیز کامل شد — بازبینی کنید و تأیید بزنید'); return fin(); }
+      var r = rows[k];
+      seoBatchMsg('⏳ صفحهٔ ' + (k + 1) + ' از ' + rows.length + '…');
+      r.st = 'reading'; cmsSeoAiBatchRender();
+      cmsPageText(r.p.path, function (txt) {
+        if (B.cancel) { seoBatchMsg('⏹ توقف شد'); return fin(); }
+        r.st = 'llm'; cmsSeoAiBatchRender();
+        cmsLLM('seo_fix', { issues: r.is.join('، '), content: txt }, function (d) {
+          if (d.ok && d.data) {
+            var g = d.data, notes = [];
+            var tl = (g.title || '').length, dl = (g.desc || '').length, hl = (g.h1 || '').length;
+            if (!tl || tl < 30 || tl > 65) notes.push('عنوان خارج از بازهٔ ۳۰–۶۵');
+            if (!dl || dl < 70 || dl > 165) notes.push('توضیح خارج از بازهٔ ۷۰–۱۶۵');
+            if (!hl) notes.push('H1 خالی');
+            if (notes.length) { r.st = 'bad'; r.note = notes.join(' + ') + ' — پیشنهاد در چهارچوب نیافت؛ دستی ویرایش کنید'; r.prop = null; }
+            else { r.st = 'done'; r.prop = { title: g.title, desc: g.desc, h1: g.h1 }; }
+          } else { r.st = 'bad'; r.note = escP(d.error || 'هوش مصنوعی در دسترس نیست'); r.prop = null; }
+          k++;
+          cmsSeoAiBatchRender();
+          setTimeout(next, 120); /* فاصلهٔ کوتاه بین فراخوانی‌ها */
+        });
+      });
+    }
+    function fin() {
+      B.phase = 'review';
+      var gox = document.getElementById('seoBatchGo'); if (gox) gox.disabled = false;
+      var cxx = document.getElementById('seoBatchCancel'); if (cxx) cxx.style.display = 'none';
+      var ap = document.getElementById('seoBatchApply');
+      if (ap && seoBatchRows().some(function (r) { return r.on && r.st === 'done'; })) ap.style.display = '';
+      cmsSeoAiBatchRender();
+    }
+    next();
+  };
+  window.cmsSeoAiBatchApply = function () {
+    var B = window._seoBatch; if (!B || B.phase === 'run') return;
+    var rows = seoBatchRows().filter(function (r) { return r.on && r.st === 'done' && r.prop; });
+    if (!rows.length) { alert('پیشنهاد آماده‌ای برای اعمال نیست'); return; }
+    if (!confirm('پیشنهادهای هوش مصنوعی برای ' + rows.length + ' صفحه روی فایل‌های سایت اعمال شود؟\n(از هر فایل نسخهٔ پشتیبان در crm/data/cms-backups نگهداری می‌شود)')) return;
+    B.phase = 'run';
+    var ap = document.getElementById('seoBatchApply'); if (ap) ap.disabled = true;
+    var k = 0, okN = 0;
+    function next() {
+      if (k >= rows.length) {
+        B.phase = 'done';
+        if (ap) ap.disabled = false;
+        seoBatchMsg('🚀 ' + okN + ' صفحه از ' + rows.length + ' اصلاح و اعمال شد — برای ثبت سریع‌تر در گوگل، در سرچ کنسول Request Indexing بزنید.');
+        try { audit('CMS', 'اصلاح هوشمند گروهی سئو روی ' + okN + ' صفحه با AI', rows.map(function (r) { return r.p.path; }).join(',')); } catch (eA) {}
+        if (okN) cmsSeoRefresh();
+        return;
+      }
+      var r = rows[k];
+      seoBatchMsg('⏳ اعمال ' + (k + 1) + ' از ' + rows.length + '…');
+      api('page_meta_save', { file: r.p.path, title: r.prop.title, desc: r.prop.desc, canonical: r.p.canonical || '', robots: r.p.robots || '', h1: r.prop.h1 }, function (d) {
+        if (d && d.ok) { r.st = 'applied'; okN++; } else { r.st = 'fail'; r.note = escP((d && d.error) || 'خطای سرور'); }
+        k++;
+        cmsSeoAiBatchRender();
+        next();
+      });
+    }
+    next();
+  };
 
   window.cmsAiMeta = function (i) {
     var p = (window._cmsPages || [])[i];
