@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.29.0'; /* v34.29.0: جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.29.1'; /* v34.29.1: آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -616,6 +616,7 @@
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#d97706" onclick="cmsCanonBulk()" title="صفحات با canonical ناهماهنگ/جاافتاده به آدرس خودشان برمی‌گردند (stubهای ریدایرکت دست نمی‌خورند)">🔧 canonical گروهی</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#7c3aed" onclick="cmsSeoAiBatch()" title="هوش مصنوعی همهٔ صفحاتِ دارای ایراد عنوان/توضیح/H1 را طبق قوانین سئو و سرچ کنسول گوگل آنالیز و اصلاح می‌کند">🤖 اصلاح هوشمند گروهی</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#0e7490" onclick="cmsSeoSitemapPush()" title="نقشهٔ سایت (شامل آخرین صفحات منتشرشده) در سرچ کنسول ثبت/به‌روزرسانی می‌شود">📤 سایت‌مپ + سرچ کنسول</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#7c3aed" onclick="cmsGscSelfTest()" title="اتصال به سرچ کنسول، ایمیل سرویس‌اکانت و فهرست پراپرتی‌های قابل‌دسترسی را زنده بررسی می‌کند و علت خطای ثبت را دقیق می‌گوید">🧪 آزمون اتصال GSC</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#059669" onclick="cmsIndexWizard()" title="بررسی وضعیت ایندکس صفحات + درخواست ایندکس آن‌هایی که ایندکس نشده‌اند">🚀 ایندکس‌یاب</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoExport()">⬇️ CSV</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSitemapDrift()">🧭 انحراف نقشه</button>' +
@@ -1945,11 +1946,72 @@
     var st = document.getElementById('cmsStatus');
     if (st) st.innerHTML = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#1e40af">⏳ ثبت نقشهٔ سایت در سرچ کنسول…</div>';
     cmsGsc('sitemap_submit', { feed: 'https://pishtaj.ir/sitemap-index.xml' }, function (d) {
-      if (!d.ok) { if (st) st.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#b91c1c">⚠️ ثبت نقشه ناموفق: ' + escP(d.error || '') + ' — تنظیمات سرچ کنسول (سطح Full) را بررسی کنید.</div>'; return; }
+      if (!d.ok) { if (st) st.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#b91c1c">⚠️ ثبت نقشه ناموفق: ' + escP(d.error || '') + '</div><button class="bt bt-o" style="margin-top:6px;padding:5px 14px;font-size:12px;color:#7c3aed" onclick="cmsGscSelfTest()">🧪 آزمون اتصال GSC — علت دقیق + راهنمای رفع</button>'; return; }
       if (st) st.innerHTML = '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#065f46">✅ نقشهٔ سایت (sitemap-index + همهٔ زیرنقشه‌ها از جمله محصولات و صفحات جدید) در سرچ کنسول ثبت/به‌روزرسانی شد — وضعیت: ' + escP(d.state || '') + ' · خطا: ' + escP(String(d.errors || 0)) + (d.lastDownload ? ' · آخرین دانلود گوگل: ' + escP(d.lastDownload) : '') + '</div>';
       try { audit('CMS', 'ثبت نقشهٔ سایت در سرچ کنسول از CMS', 'sitemap-index.xml'); } catch (eA) {}
     });
   };
+  /* ═══ v34.29.1 (GSC-SELF-TEST): آزمون اتصال سرچ کنسول — علتِ دقیقِ «ثبت ناموفق» ═══ */
+  window.cmsGscSelfTestHtml = function (d) {
+    d = d || {};
+    var email = d.email || '';
+    var sites = d.sites || [];
+    var v = d.verdict || '';
+    var head = '';
+    function box(color, bg, icon, title, bodyHtml) {
+      return '<div style="background:' + bg + ';border:1px solid ' + color + ';border-radius:12px;padding:10px 14px;font-size:12.5px;line-height:2;margin:8px 0"><b style="color:' + color + '">' + icon + ' ' + title + '</b>' + (bodyHtml || '') + '</div>';
+    }
+    head += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0">' +
+      '<span style="font-size:12px;color:#475569">ایمیل سرویس‌اکانت:</span>' +
+      '<b dir="ltr" id="gscStEmail" style="font-size:12.5px;color:#0f172a">' + escP(email || '—') + '</b>' +
+      (email ? '<button class="bt bt-o" style="padding:3px 10px;font-size:11px;color:#0e7490" onclick="cmsGscCopyEmail()">📋 کپی ایمیل</button>' : '') +
+      '</div>';
+    var sitesHtml = '<div style="margin-top:4px"><b style="font-size:12.5px;color:#0f172a">پراپرتی‌های قابل‌دسترسی در سرچ کنسول (' + sites.length + '):</b>';
+    if (!sites.length) sitesHtml += '<div style="color:#b91c1c;font-size:12.5px;line-height:2;padding:4px 0">— خالی — گوگل می‌گوید این سرویس‌اکانت به هیچ پراپرتی‌ای دسترسی ندارد؛ یعنی افزودنِ «Full» در جای درست اعمال نشده است (مراحل پایین).</div>';
+    else sitesHtml += '<ul style="margin:6px 0;padding-right:18px;font-size:12px">' + sites.map(function (x) {
+      var full = (x.permissionLevel || '').indexOf('Full') > -1 || (x.permissionLevel || '').indexOf('Owner') > -1;
+      return '<li style="margin:3px 0"><span dir="ltr">' + escP(x.siteUrl || '') + '</span> — <span style="color:' + (full ? '#059669' : '#b45309') + ';font-weight:700">' + escP(x.permissionLevel || '?') + '</span></li>';
+    }).join('') + '</ul>';
+    sitesHtml += '</div>';
+    var steps = (d.steps || []).map(function (t, i) { return '<li style="margin:4px 0">' + (i + 1) + '. ' + escP(t) + '</li>'; }).join('');
+    if (steps) steps = '<ol style="margin:8px 0 2px;padding-right:18px;font-size:12.5px;line-height:2;color:#334155">' + steps + '</ol>';
+    var verdict = '';
+    if (v === 'ok') verdict = box('#10b981', '#ecfdf5', '✅', 'اتصال سالم است', '<div style="color:#065f46">پراپرتی منتخب: <b dir="ltr">' + escP(d.site || '') + '</b> — دکمهٔ «📤 سایت‌مپ + سرچ کنسول» باید بدون خطا کار کند.</div>');
+    else if (v === 'no_match') verdict = box('#b91c1c', '#fef2f2', '⛔', 'سرویس‌اکانت هنوز به پراپرتی pishtaj.ir دسترسی ندارد', steps);
+    else if (v === 'low_perm') verdict = box('#b45309', '#fffbeb', '⚠️', 'سطح دسترسی کافی نیست (فقط خواندنی)', steps);
+    else if (v === 'token_error') verdict = box('#b91c1c', '#fef2f2', '⛔', 'توکن گوگل گرفته نشد — کلید/ایمیل در gsc-config.php نادرست است', steps);
+    else if (v === 'no_config') verdict = box('#b45309', '#fffbeb', '⚠️', 'تنظیمات GSC روی سرور کامل نیست (api/gsc-config.php)', steps);
+    else if (v === 'api_error') verdict = box('#b91c1c', '#fef2f2', '⛔', 'خطای فراخوانی گوگل', '<div dir="ltr" style="text-align:left;font-size:11.5px;color:#b91c1c">' + escP(d.error || '') + '</div>' + steps);
+    return head + verdict + sitesHtml;
+  };
+  window.cmsGscCopyEmail = function () {
+    var el = document.getElementById('gscStEmail');
+    var txt = el ? el.textContent : '';
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt);
+      else { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+      var b = el && el.parentNode && el.parentNode.querySelector('button'); if (b) { b.textContent = '✅ کپی شد'; setTimeout(function () { b.textContent = '📋 کپی ایمیل'; }, 1600); }
+    } catch (eC) { prompt('این ایمیل را کپی کنید:', txt); }
+  };
+  window.cmsGscSelfTest = function () {
+    var old = document.getElementById('ptGscSt'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'ptGscSt';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:100001;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:640px;width:100%;max-height:88vh;overflow:auto;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;gap:8px;align-items:center;margin:14px 16px 4px"><b style="font-size:14px">🧪 آزمون اتصال سرچ کنسول</b>' +
+      '<button class="bt bt-o" style="padding:4px 12px;font-size:12px;margin-right:auto" onclick="this.closest(\'div[style*=fixed]\').parentNode.removeChild(this.closest(\'div[style*=fixed]\'))">بستن</button></div>' +
+      '<div id="gscStBody" style="margin:4px 16px 16px;font-size:12.5px;color:#334155">⏳ در حال پرس‌وجو از گوگل…</div></div>';
+    document.body.appendChild(ov);
+    cmsGsc('selftest', null, function (d) {
+      var el = document.getElementById('gscStBody');
+      if (!el) return;
+      try { el.innerHTML = window.cmsGscSelfTestHtml(d); }
+      catch (eR) { el.innerHTML = '<span style="color:#b91c1c">خطای نمایش: ' + escP(eR.message) + '</span>'; }
+    });
+  };
+
   window.cmsIndexWizard = function () {
     var old = document.getElementById('ptIdxWiz'); if (old) old.remove();
     var ov = document.createElement('div');
