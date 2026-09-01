@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester565 — v34.25.0: سه رفع شکایت مالک
+/* tester565 — v34.26.0: سه رفع شکایت مالک
    A) گروه «مدیریت سایت» — سه‌گانه در کشوی موبایل هم سرگروه دارد (دسکتاپ از v34.13.0)
    B) فرم صفحهٔ جدید: شمارندهٔ زنده + نوار ابزار HTML + پیش‌نمایش + گسترش AI
    C) JSON مقاوم: salvage (کاما/پوشش) + retry دومقطعه با توکن دوبرابر برای seo_product/meta/article */
@@ -43,7 +43,7 @@ T('JSON: retry با توکن دوبرابر + skip_cache + تلنگر فشردگ
 T('JSON: retry فقط یک‌بار و در شکستِ هر دو، خطای اولیه برمی‌گردد', RETRY.indexOf('json_retried') > -1 && /return \$res; \/\* خطای اولیه معتبرتر است \*\//.test(RETRY));
 T('JSON: out_json پاسخ از پیش تجزیه‌شده (jsonData) را می‌پذیرد', OJ.indexOf("isset($res['jsonData'])") > -1);
 T('JSON: سه اکشن پرریسک از llm_call_json عبور می‌کنند', (llm.match(/out_json\(llm_call_json\(/g) || []).length === 3);
-T('JSON: seo_product دقیقاً همین مسیر', /seo_product[\s\S]{0,2600}out_json\(llm_call_json\(\$cfg, \$sys, \$user, null, null, 1600\)\)/.test(llm));
+T('JSON: seo_product دقیقاً همین مسیر', /seo_product[\s\S]{0,4200}out_json\(llm_call_json\(\$cfg, \$sys, \$user, null, null, 1600\)\)/.test(llm));
 
 /* ═══ بهداشت ═══ */
 T('HYG: سینتکس سالم', true);

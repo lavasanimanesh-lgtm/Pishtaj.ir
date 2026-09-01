@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester556 — v34.25.0 (فاز S2 سئو): مولد صفحات
+/* tester556 — v34.26.0 (فاز S2 سئو): مولد صفحات
    ۱) مولد صفحهٔ محصول از دیتای CRM (اسکیمای Product/Offer/FAQ/Breadcrumb + سایت‌مپ اختصاصی)
    ۲) ادیتور ریدایرکت (stub امن + بک‌آپ + بازگردانی)
    ۳) ثبت خودکار زیرنقشهٔ جدید در sitemap-index */
@@ -24,7 +24,7 @@ T('S2: زیرنقشهٔ جدید در sitemap-index ثبت می‌شود (sitema
 T('S2: case product_create با اعتبارسنجی (عنوان/نامک/۲۰۰ حرف)', PC.indexOf('عنوان و نامک (slug) الزامی است') > -1 && PC.indexOf('متن صفحه حداقل ۲۰۰ کاراکتر') > -1);
 T('S2: پاکسازی بدنه همان لیست سفید kc (حذف on* و javascript:)', PC.indexOf("strip_tags($body, '<h2><h3><h4><p><ul><ol><li>") > -1 && /javascript\s*:/i.test(PC) === false && /on\\w+\\s*=/.test(PC) === false);
 T('S2: قالب از اسکلت مرکز دانش (هدر/فوتر هم‌شکل)', /case 'product_create'[\s\S]{0,2600}knowledge-center\/astm-a105\.html/.test(cmsPhp));
-T('S2: اسکیمای Product + Offer فقط با قیمت مثبت', /case 'product_create'[\s\S]{0,5200}'@type' => 'Product'[\s\S]{0,500}if \(\$price > 0\)[\s\S]{0,200}'offers'/.test(cmsPhp));
+T('S2: اسکیمای Product + Offer فقط با قیمت مثبت', /case 'product_create'[\s\S]{0,9000}'@type' => 'Product'[\s\S]{0,500}if \(\$price > 0\)[\s\S]{0,200}'offers'/.test(cmsPhp));
 T('S2: FAQPage فقط با faq غیرخالی', /if \(\$faqGraph\) \$graph\[\] = \['@type' => 'FAQPage'/.test(cmsPhp));
 T('S2: BreadcrumbList سه‌سطحی (خانه/محصولات/عنوان)', PC.indexOf("'name' => 'محصولات', 'item' => 'https://pishtaj.ir/products/'") > -1);
 T('S2: نشانهٔ cd محصول در متا (برای اتصال دوطرفه)', cmsPhp.indexOf('ptf-product-cd') > -1);
@@ -43,7 +43,7 @@ T('RD: مبدأ مسیرهای حساس (404/crm) رد می‌شود', /case 'pa
 /* ═══ ۳) llm.php — seo_product ═══ */
 T('AI: case seo_product زیر گیت نقش سئو', /case 'seo_intlinks':\s*\n\s*case 'seo_product':[\s\S]{0,220}\$llmRole, \['admin', 'chairman', 'ceo', 'commercial'\]/.test(llmPhp));
 T('AI: ورودی نام کالا اجباری + دیتای CRM', /seo_product'[\s\S]{0,600}\$prod\['nm'[\s\S]{0,200}نام کالا لازم است/.test(llmPhp));
-T('AI: قانون «عدم اختراع قیمت/موجودی/ابعاد»', /seo_product'[\s\S]{0,1200}never invent prices, stock, dimensions/.test(llmPhp));
+T('AI: قانون «عدم اختراع قیمت/موجودی/ابعاد»', /seo_product'[\s\S]{0,3000}never invent prices, stock, dimensions/.test(llmPhp));
 T('AI: خروجی JSON با intro/features/applications/faq', llmPhp.indexOf('"intro":"...","features":') > -1 && llmPhp.indexOf('{"q":"...","a":"..."}') > -1);
 
 /* ═══ ۴) کلاینت — تب محصولات ═══ */

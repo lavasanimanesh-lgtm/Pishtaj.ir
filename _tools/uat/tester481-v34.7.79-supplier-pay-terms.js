@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.25.0 — شرایط پرداخت تامین‌کننده (نقدی/تعهدی + بازهٔ اعتبار + امتیاز).
+/* v34.26.0 — شرایط پرداخت تامین‌کننده (نقدی/تعهدی + بازهٔ اعتبار + امتیاز).
    درخواست: در فرم ثبت‌نام تامین‌کنندگان، تمایل به همکاری نقدی یا تعهدی درج شود؛
    فیلد کشویی و با انتخاب تعهدی، بازه‌های اعتبار قابل انتخاب شوند؛ و این موضوع امتیاز
    داشته باشد. بازه‌ها بر پایهٔ ارزیابی نرم بازار ایران تعیین شد (ASSESSMENT-SUPPLIER-PAYMENT-TERMS). */
@@ -18,9 +18,9 @@ var brg = read('crm/bridge.js');
 var off = read('crm/offers.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.25.0', ver.crm_version === 'v34.25.0', ver.crm_version);
-T('bridge.js cache-bust 34.25.0', /bridge\.js\?v=34\.25.0/.test(idx));
-T('offers.js cache-bust 34.25.0', /offers\.js\?v=34\.25.0/.test(idx));
+T('VERSION.json = v34.26.0', ver.crm_version === 'v34.26.0', ver.crm_version);
+T('bridge.js cache-bust 34.26.0', /bridge\.js\?v=34\.26.0/.test(idx));
+T('offers.js cache-bust 34.26.0', /offers\.js\?v=34\.26.0/.test(idx));
 
 /* ① فرم سایت */
 T('کشوی روش همکاری (payTerms)', sup.indexOf('name="payTerms" id="sPayTerms"') > -1);
@@ -55,6 +55,6 @@ T('نشان در فهرست تامین‌کنندگان تاییدشده (offers
 
 T('tester481 در گیت CI', gate.indexOf('tester481-v34.7.79-supplier-pay-terms.js') > -1);
 
-console.log('\n— tester481 (v34.25.0: شرایط پرداخت تامین‌کننده — نقدی/تعهدی + امتیاز) —');
+console.log('\n— tester481 (v34.26.0: شرایط پرداخت تامین‌کننده — نقدی/تعهدی + امتیاز) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

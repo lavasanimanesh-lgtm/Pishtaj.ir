@@ -797,7 +797,41 @@
     var st = document.getElementById(stId);
     if (st) st.innerHTML = '💾 ذخیرهٔ موقت انجام شد — تا پیش از انتشار محفوظ است؛ با باز شدن دوبارهٔ فرم بازیابی می‌شود.';
   };
-  window.cmsPrPreview = function () { /* پیش‌نمایش صفحهٔ محصول، هم‌شکل خروجی نهایی product_create */
+  window.cmsPrPreview = function () { /* v34.26.0: پیش‌نمایش از سرور — دقیقاً همان رندرِ صفحهٔ نهایی (قالب/استایل/تصویر) */
+    var g = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
+    var title = g('prTitle'), slug = g('prSlug').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var body = g('prBody');
+    if (!title || !slug || body.trim().length < 200) { alert('عنوان، نامک و متن (حداقل ۲۰۰ حرف) برای پیش‌نمایش لازم است'); return; }
+    var specs = g('prSpecs').split('\n').map(function (ln) { var i = ln.indexOf('='); return i > -1 ? [ln.slice(0, i).trim(), ln.slice(i + 1).trim()] : null; }).filter(Boolean);
+    var faq = g('prFaq').split('\n').map(function (ln) { var i = ln.indexOf('|'); return i > -1 ? { q: ln.slice(0, i).trim(), a: ln.slice(i + 1).trim() } : null; }).filter(function (x) { return x && x.q && x.a; });
+    var payload = {
+      title: title, slug: slug, h1: g('prH1') || title, desc: g('prDesc'), brand: g('prBrand'),
+      catLb: 'محصولات', body: body, specs: JSON.stringify(specs), faq: JSON.stringify(faq),
+      img: g('prImg'), price: g('prPrice').replace(/[^0-9.]/g, ''), priceCur: g('prCur'), inStock: g('prStock') ? '1' : ''
+    };
+    var st = document.getElementById('prAiSt');
+    if (st) st.innerHTML = '⏳ ساخت پیش‌نمایش واقعی روی سرور…';
+    api('product_preview', payload, function (d) {
+      if (st) st.innerHTML = '';
+      if (!d.ok || !d.html) { cmsPrPreviewLocal(); return; } /* جایگزین محلی */
+      var html = String(d.html).replace('</head>', '<base href="/"></head>');
+      var ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px';
+      ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+      ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:1080px;width:100%;max-height:92vh;overflow:auto;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+        '<div style="display:flex;gap:8px;align-items:center;margin:12px 14px;flex-wrap:wrap"><b style="font-size:13.5px">👁 پیش‌نمایش واقعی صفحه</b>' +
+        '<span style="font-size:11px;color:#64748b;direction:ltr">' + escP(d.url || ('products/' + slug + '.html')) + ' — همان قالب و استایل سایت</span>' +
+        '<span style="margin-right:auto;display:flex;gap:5px">' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px" onclick="var f=this.closest(\'div\').parentNode.querySelector(\'iframe\');f.style.width=\'390px\'">📱 موبایل</button>' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px" onclick="var f=this.closest(\'div\').parentNode.querySelector(\'iframe\');f.style.width=\'100%\'">🖥 دسکتاپ</button>' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px" onclick="this.closest(\'div[style*=fixed]\').parentNode.removeChild(this.closest(\'div[style*=fixed]\'))">بستن</button></span></div>' +
+        '<iframe style="width:100%;height:74vh;border:1px solid #e2e8f0;border-radius:12px;background:#fff" srcdoc="' + escP(html).replace(/"/g, '&quot;') + '"></iframe>' +
+        '</div>';
+      document.body.appendChild(ov);
+    });
+  };
+
+  window.cmsPrPreviewLocal = function () { /* جایگزین آفلاین — نسخهٔ اصلی اکنون از سرور می‌آید (v34.26.0) */
     var g = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
     var title = g('prTitle') || 'بدون عنوان', h1 = g('prH1') || title, desc = g('prDesc'), body = g('prBody') || '<p>—</p>';
     var slug = g('prSlug') || 'slug', img = g('prImg'), brand = g('prBrand'), price = g('prPrice'), cur = g('prCur') || 'IRR';
@@ -969,15 +1003,20 @@
     var prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || [];
     var r = prds.filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
+    /* v34.26.0: پاکسازی دادهٔ خام — ارجاع‌های داخلی خرید (RFQ/کد پیگیری/شماره سفارش) و متن‌های بسیار بلند پیش از ساخت پرامپت حذف/کوتاه می‌شوند */
+    function cmsProdClean(v, max) {
+      return String(v || '').replace(/(?:RFQ|ION|PTRN|PTF)[-A-Z0-9\/]{3,}/ig, '').replace(/\s{2,}/g, ' ').trim().slice(0, max || 200);
+    }
     var det = '';
-    [['نام', r.nm], ['نام انگلیسی', r.en], ['برند', r.br], ['مدل', r.md], ['دسته', r.ca], ['استاندارد', r.st], ['واحد', r.un], ['توضیحات', r.ds]].forEach(function (x) { if (x[1]) det += x[0] + ': ' + x[1] + '\n'; });
+    [['نام', r.nm], ['نام انگلیسی', r.en], ['برند', r.br], ['مدل', r.md], ['دسته', r.ca], ['استاندارد', cmsProdClean(r.st, 160)], ['واحد', r.un], ['توضیحات', cmsProdClean(r.ds, 400)]].forEach(function (x) { if (x[1]) det += x[0] + ': ' + x[1] + '\n'; });
     var specsPre = [['نام', r.nm || ''], ['نام انگلیسی', r.en || ''], ['برند', r.br || ''], ['مدل', r.md || ''], ['استاندارد', r.st || ''], ['واحد', r.un || '']].filter(function (x) { return x[1]; }).map(function (x) { return x[0] + ' = ' + x[1]; }).join('\n');
     var p = 'تو متخصص محتوای فنی شرکت «پیشرو تجهیز فرتاک» — تامین‌کننده تجهیزات صنعتی برای صنایع نفت، گاز و پتروشیمی ایران — هستی.\n\n' +
       'وظیفه: نوشتن متن صفحهٔ محصول زیر.\n' +
       'داده‌های کالا (تنها منبع مجاز):\n' + det + '\n' +
       cmsExtRules() +
-      '۵. متن حداقل ۶۰۰ کلمه؛ ساختار: معرفی کالا → ویژگی‌ها → کاربردهای صنعتی → نکات خرید.\n' +
-      '۶. کاربردها عمومی و صنعت‌محور باشند؛ ادعای خاصِ همین کالا ممنوع مگر در داده‌ها باشد.\n\n' +
+      '۵. این یک «راهنمای فنی محصول» است نه معرفی یک قلم کالای داخلی: معرفی و کاربرد → جدول مشخصات فنی (پارامترهای مهندسی همان خانوادهٔ کالا) → معیارهای انتخاب → نکات نصب و نگهداری → اشتباهات رایج خرید → چک‌لیست مدارک قابل درخواست. حداقل ۸۰۰ کلمه.\n' +
+      '۶. کاربردها عمومی و صنعت‌محور باشند؛ ادعای خاصِ همین کالا ممنوع مگر در داده‌ها باشد.\n' +
+      '۷. شماره‌های RFQ، کد پیگیری، شماره استعلام/سفارش و هر ارجاع داخلی سیستم خرید که در داده‌ها دیده شد متعلق به محتوا نیست — کاملاً نادیده بگیر و هرگز در متن نیاور.\n\n' +
       'قالب خروجی — دقیقاً با همین نشانگرها و بدون هیچ متن اضافی قبل/بعد:\n' +
       'TITLE: (عنوان سئو؛ ۳۰ تا ۶۵ کاراکتر)\n' +
       'H1: (تیتر اصلی)\n' +
@@ -1421,8 +1460,10 @@
     var prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || [];
     var r = prds.filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
-    var specsPre = [['نام', r.nm || ''], ['نام انگلیسی', r.en || ''], ['برند', r.br || ''], ['مدل', r.md || ''], ['استاندارد', r.st || ''], ['واحد', r.un || '']].filter(function (x) { return x[1]; })
-      .map(function (x) { return x[0] + ' = ' + x[1]; }).join('\n');
+    /* v34.26.0: سطر استانداردِ طولانی (سطرِ کامل استعلام/RFQ در فیلد استاندارد CRM) به‌عنوان مشخصه خام دمپ نمی‌شود */
+    var specsPre = [['نام', r.nm || ''], ['نام انگلیسی', r.en || ''], ['برند', r.br || ''], ['مدل', r.md || ''], ['استاندارد', r.st || ''], ['واحد', r.un || '']]
+      .filter(function (x) { return x[1] && !(x[0] === 'استاندارد' && String(x[1]).length > 120); })
+      .map(function (x) { return x[0] + ' = ' + (String(x[1]).length > 160 ? String(x[1]).slice(0, 160) : x[1]); }).join('\n');
     var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:780px;max-height:94vh;overflow:auto">' +
       '<h3>🛒 صفحهٔ محصول — ' + escP((r.nm || '').slice(0, 50)) + ' <small dir="ltr" style="color:#94a3b8">' + escP(r.cd) + '</small></h3>' +
       '<div id="prAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +

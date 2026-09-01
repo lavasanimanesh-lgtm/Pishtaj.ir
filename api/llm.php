@@ -924,17 +924,27 @@ switch ($action) {
             if (!is_array($prod)) $prod = [];
             $nm = trim((string)($prod['nm'] ?? ''));
             if ($nm === '') { echo json_encode(['ok' => false, 'error' => 'نام کالا لازم است'], JSON_UNESCAPED_UNICODE); exit; }
+            /* v34.26.0: پاکسازی دادهٔ خام CRM — ارجاع‌های داخلی خرید (RFQ/پیگیری/سفارش) و متن بلند سطر استاندارد پیش از پرامپت حذف/کوتاه می‌شوند */
             $det = '';
             foreach (['en'=>'نام انگلیسی','br'=>'برند','md'=>'مدل','ca'=>'دسته','st'=>'استاندارد','un'=>'واحد','ds'=>'توضیحات'] as $k => $lb) {
                 $v = trim((string)($prod[$k] ?? ''));
+                if ($k === 'st' || $k === 'ds' || $k === 'md') {
+                    $v = preg_replace('/(?:RFQ|ION|PTRN|PTF)[-A-Z0-9\/]{3,}/i', '', $v) ?? $v;
+                    $cap = ($k === 'ds') ? 400 : 160;
+                    if (mb_strlen($v, 'UTF-8') > $cap) $v = mb_substr($v, 0, $cap, 'UTF-8');
+                    $v = trim(preg_replace('/\s{2,}/', ' ', $v) ?? $v);
+                }
                 if ($v !== '') $det .= $lb . ': ' . $v . "\n";
             }
             $sys = $SEO_RULES
-                . 'Task: write the on-page content for a product page of an industrial supplier. '
-                . 'Use ONLY the given product data — never invent prices, stock, dimensions, pressure ratings or certifications not present in the input. '
+                . 'Task: write a TECHNICAL PRODUCT GUIDE (راهنمای فنی محصول) page for an industrial supplier — an educational, buyer-oriented page about THIS TYPE of product, '
+                . 'NOT a listing page for an internal stock item. '
+                . 'The product data comes from an internal procurement system: IGNORE and NEVER mention RFQ numbers, inquiry/tracking/order codes, lot numbers or purchase notes — they are procurement metadata, not page content. '
+                . 'Use ONLY the given product data for facts — never invent prices, stock, dimensions, pressure ratings or certifications not present in the input. '
                 . 'Structure: intro (2-3 sentences, what it is and who uses it), features (4-6 short bullets, factual: material/brand/model/standard/unit if given), '
                 . 'applications (3-5 short bullets, typical industries where this product type is used — generic industry knowledge allowed, product-specific claims NOT). '
                 . 'faq: 3 practical buyer questions with short factual answers (supply, standard compliance, how to order — no price promises). '
+                . 'Do NOT open the body with a standalone line repeating the product name — start directly with the intro sentence. '
                 . 'Everything in natural Persian except standard designations/brand/model in Latin. Each feature/application max 90 chars. '
                 . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","intro":"...","features":["..."],"applications":["..."],"faq":[{"q":"...","a":"..."}]}';
             $user = "کالا: $nm\n$det";

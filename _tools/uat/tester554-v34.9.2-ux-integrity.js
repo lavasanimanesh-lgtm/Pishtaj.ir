@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester554 — v34.25.0: اصلاحات یکپارچگی داده + UX (درخواست مالک ۲۰۲۶-۰۸-۳۱)
+/* tester554 — v34.26.0: اصلاحات یکپارچگی داده + UX (درخواست مالک ۲۰۲۶-۰۸-۳۱)
    A) اتحاد ضمایم شیءدسته‌ای در merge (RCA ضمایم گم‌شده)
    B) مشتریان: sort جدیدترین‌اول + گارد برخورد کد + expectCreate سروری (RCA ثبت‌کنندهٔ اشتباه)
    C) خزانه: نرمال‌سازی تاریخ + مرتب‌سازی زمانی
@@ -92,7 +92,7 @@ T('D: هلپر ptfCustDualName + ptfCustEnByCd تعریف شد', ih.indexOf('fun
 T('D: لیست مشتریان نام انگلیسی را نشان می‌دهد', ih.indexOf("escP(ptfCustDualName(c))") > -1);
 T('D: جستجوی مشتری شامل coEn', ih.indexOf("(c.coEn||'')+' '+(c.ind||'')") > -1);
 T('D: فاکتورها نام دوگانه + coEn در جستجو', rb.indexOf('ptfCustEnByCd(o.buyerCd)') > -1 && rb.indexOf('id="invSrch"') > -1);
-T('D: ردیف پیشنهاد نام انگلیسی زیر خریدار', of.indexOf('ptfCustNamePair(o.buyerCd, o.buyerCo)') > -1 && of.indexOf('ptfCustCellHtml(p.fa, p.en, o.buyerCd)') > -1); /* v34.25.0: سلول دوگانه فارسی+انگلیسی */
+T('D: ردیف پیشنهاد نام انگلیسی زیر خریدار', of.indexOf('ptfCustNamePair(o.buyerCd, o.buyerCo)') > -1 && of.indexOf('ptfCustCellHtml(p.fa, p.en, o.buyerCd)') > -1); /* v34.26.0: سلول دوگانه فارسی+انگلیسی */
 T('D: مطالبات (customer-finance) نام انگلیسی زیر نام', cf.indexOf("ptfCustEnByCd(r.cd):''") > -1);
 
 /* ═══ E) جستجوی فاکتورها ═══ */
