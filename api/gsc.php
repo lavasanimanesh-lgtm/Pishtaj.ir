@@ -170,6 +170,90 @@ function gsc_api($cfg, $path, $payload = null, $method = 'GET') {
     return is_array($j) ? $j : [];
 }
 
+/* ═══ v34.12.0 (S3/SNAPSHOT): اسنپ‌شات روزانهٔ lazy — بدون cron؛ هر بازکردن پنل GSC
+   اگر از آخرین اسنپ‌شات بیش از ۲۰ ساعت گذشته، وضعیت روز ذخیره می‌شود (سری زمانی برای
+   روند و مقایسهٔ دوره‌ها). ═══ */
+$GSC_SNAP_DIR = $DATA . '/gsc-snaps';
+function gsc_snap_maybe($dir, $days, $sum, $dates) {
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    $existing = glob($dir . '/*.json') ?: [];
+    usort($existing, function ($a, $b) { return strcmp($b, $a); }); /* جدیدترین اول */
+    $today = date('Y-m-d');
+    if ($existing && basename($existing[0], '.json') === $today) return; /* امروز گرفته شده */
+    if ($existing && is_file($existing[0]) && time() - (int)@filemtime($existing[0]) < 20 * 3600) return; /* هنوز ۲۰ ساعت نشده */
+    $top = function ($rows, $key, $lim) {
+        $out = [];
+        foreach (array_slice($rows, 0, $lim) as $r) {
+            if (empty($r['keys'][0])) continue;
+            $out[] = ['k' => $r['keys'][0], 'clicks' => (float)($r['clicks'] ?? 0), 'impressions' => (float)($r['impressions'] ?? 0), 'position' => round((float)($r['position'] ?? 0), 1)];
+        }
+        return $out;
+    };
+    $snap = [
+        'date' => $today, 'days' => $days, 'ts' => date('c'),
+        'clicks' => (float)($sum['totals']['clicks'] ?? 0),
+        'impressions' => (float)($sum['totals']['impressions'] ?? 0),
+        'topQueries' => $top($sum['queries'] ?? [], 'query', 30),
+        'topPages' => $top($sum['pages'] ?? [], 'page', 30),
+    ];
+    @file_put_contents($dir . '/' . $today . '.json', json_encode($snap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    /* نگهداری ۱۸۰ روز */
+    if (count($existing) > 180) foreach (array_slice($existing, 180) as $old) @unlink($old);
+}
+
+/* ═══ v34.16.0 (S3-id/WATCH): واچ‌لیست جایگاه — روند از اسنپ‌شات‌های موجود (بدون دادهٔ جدید) ═══ */
+function gsc_watch_file($DATA) { return $DATA . '/gsc-watchlist.json'; }
+function gsc_watch_load($DATA) {
+    $j = is_file(gsc_watch_file($DATA)) ? json_decode((string)@file_get_contents(gsc_watch_file($DATA)), true) : null;
+    return (is_array($j) && isset($j['items']) && is_array($j['items'])) ? $j : ['items' => []];
+}
+function gsc_watch_save($DATA, $w) {
+    @file_put_contents(gsc_watch_file($DATA), json_encode($w, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/* v34.17.0 (S3-id/AI-IMPACT): نرمال‌سازی مسیر صفحه برای تطبیق رجیستری AI با GSC */
+function gsc_page_norm($p) {
+    $p = preg_replace('#^https?://[^/]+#i', '', (string)$p);
+    $p = ltrim(trim($p), '/');
+    if ($p === '') $p = 'index.html';
+    if (substr($p, -1) === '/') $p .= 'index.html';
+    return $p;
+}
+
+/* v34.12.0 (S3/SUBMIT-FIX): تشخیص خودکار پراپرتی + سطح دسترسی — ریشهٔ «ثبت نقشه ناموفق»:
+   PUT sitemaps فقط با سطح Full مجاز است و site_url کانفیگ ممکن است با نوع پراپرتی واقعی
+   (sc-domain در برابر URL-prefix) نخواند. اینجا فهرست سایت‌های قابل‌دسترسی را می‌گیریم،
+   بهترین تطبیق را انتخاب و اگر سطح کافی نیست علت را صریح برمی‌گردانیم. */
+function gsc_resolve_site($cfg, $needWrite = true) {
+    $list = gsc_api($cfg, 'webmasters/v3/sites');
+    $sites = $list['site'] ?? [];
+    $want = (string)$cfg['site_url'];
+    $host = 'pishtaj.ir';
+    $m = [];
+    if (preg_match('#https?://([^/]+)/?#', $want, $m)) $host = strtolower($m[1]);
+    $exact = null; $domain = null; $prefix = null;
+    foreach ($sites as $st) {
+        $u = (string)($st['siteUrl'] ?? '');
+        $perm = (string)($st['permissionLevel'] ?? '');
+        if ($u === $want) $exact = $st;
+        if ($u === 'sc-domain:' . $host) $domain = $st;
+        if (stripos($u, 'https://' . $host) === 0) $prefix = $st;
+    }
+    $chosen = $exact ?: ($domain ?: $prefix);
+    if (!$chosen) {
+        $names = array_map(function ($st) { return ($st['siteUrl'] ?? '') . ' (' . ($st['permissionLevel'] ?? '?') . ')'; }, $sites);
+        jerr('property_not_found: سرویس‌اکانت به هیچ پراپرتیِ ' . $host . ' دسترسی ندارد. پراپرتی‌های قابل‌دسترسی: '
+            . ($names ? implode('، ', $names) : 'هیچ') . ' — در Search Console ← Settings ← Users and permissions ایمیل '
+            . $cfg['client_email'] . ' را با سطح Full اضافه کنید.');
+    }
+    $perm = (string)($chosen['permissionLevel'] ?? '');
+    if ($needWrite && ($perm === 'siteRestrictedUser' || $perm === 'siteUnverifiedUser')) {
+        jerr('permission_' . $perm . ': سرویس‌اکانت (' . $cfg['client_email'] . ') روی پراپرتی ' . $chosen['siteUrl']
+            . ' سطح «' . $perm . '» دارد؛ ثبت نقشه فقط با سطح Full مجاز است. در Search Console ← Settings ← Users and permissions این ایمیل را به Full ارتقا دهید.');
+    }
+    return $chosen['siteUrl'];
+}
+
 function gsc_query($cfg, $dimensions, $days, $rowLimit = 500) {
     $end = date('Y-m-d', strtotime('-2 days'));   /* دادهٔ دو روز اخیر هنوز نهایی نیست */
     $start = date('Y-m-d', strtotime('-' . (int)$days . ' days'));
@@ -224,6 +308,24 @@ function gsc_sitemap_urls($ROOT) {
 /* پیوندِ مستقیم به «URL Inspection» در سرچ کنسول — همان‌جا که دکمهٔ
    «درخواست ایندکس» وجود دارد. درخواستِ خودکار ممکن نیست (Indexing API فقط
    JobPosting / BroadcastEvent را می‌پذیرد و اسکوپِ ما readonly است). */
+/* v34.10.0 (S1/INDEX-LOOP): تاریخچهٔ بررسی ایندکس — برای دیدن «تغییر وضعیت از دفعهٔ قبل» */
+$GSC_HIST = $DATA . '/gsc-inspect-history.json';
+function gsc_hist_load($file) {
+    $j = is_file($file) ? json_decode((string)@file_get_contents($file), true) : null;
+    return (is_array($j) && isset($j['byUrl']) && is_array($j['byUrl'])) ? $j : ['byUrl' => []];
+}
+function gsc_hist_add($file, $url, $entry) {
+    $j = gsc_hist_load($file);
+    if (!isset($j['byUrl'][$url]) || !is_array($j['byUrl'][$url])) $j['byUrl'][$url] = [];
+    $j['byUrl'][$url][] = $entry;
+    if (count($j['byUrl'][$url]) > 5) $j['byUrl'][$url] = array_slice($j['byUrl'][$url], -5);
+    if (count($j['byUrl']) > 400) { /* سقف کل: قدیمی‌ترین URLها حذف */
+        foreach (array_keys($j['byUrl']) as $u) { unset($j['byUrl'][$u]); if (count($j['byUrl']) <= 350) break; }
+    }
+    @file_put_contents($file, json_encode($j, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    return $j['byUrl'][$url];
+}
+
 function gsc_inspect_link($propSite, $url) {
     if (strpos($propSite, 'sc-domain:') !== 0) $propSite = rtrim($propSite, '/') . '/';
     return 'https://search.google.com/search-console/inspect?resource_id='
@@ -322,8 +424,7 @@ switch ($action) {
             ];
         }
         usort($dates, function ($a, $b) { return strcmp($a['date'], $b['date']); });
-
-        /* فرصت‌ها: غیربرندی، نمایشِ بالا، نزدیک به صفحهٔ اول */
+        gsc_snap_maybe($GSC_SNAP_DIR, $days, $sum, $dates); /* v34.12.0 (S3): اسنپ‌شات lazy روزانه */
         $wins = [];
         foreach ($sum['queries'] as $r) {
             if ($r['brand']) continue;
@@ -391,8 +492,25 @@ switch ($action) {
             $link = 'https://search.google.com/search-console/inspect?resource_id='
                   . rawurlencode($propSite) . '&id=' . rawurlencode($url);
         }
+        /* v34.10.0 (S1/INDEX-LOOP): ثبت در تاریخچه (اگر log=1) و برگرداندن وضعیتِ قبلی برای مقایسه */
+        $prevEntry = null;
+        $hist = gsc_hist_load($GSC_HIST);
+        if (!empty($hist['byUrl'][$url])) {
+            $arr = $hist['byUrl'][$url];
+            $prevEntry = end($arr);
+        }
+        if (!empty($_REQUEST['log'])) {
+            gsc_hist_add($GSC_HIST, $url, [
+                'ts'      => date('c'),
+                'verdict' => (string)($idx['verdict'] ?? 'UNKNOWN'),
+                'coverage'=> (string)($idx['coverageState'] ?? ''),
+                'crawled' => (string)($idx['lastCrawlTime'] ?? ''),
+                'by'      => (string)($identity['user'] ?? '?'),
+            ]);
+        }
         jok([
             'url'         => $url,
+            'prev'        => $prevEntry,
             'verdict'     => $idx['verdict'] ?? 'UNKNOWN',
             'coverage'    => $idx['coverageState'] ?? '',
             'crawled'     => $idx['lastCrawlTime'] ?? '',
@@ -407,14 +525,133 @@ switch ($action) {
         ]);
         break;
 
+    /* v34.12.0 (S3): سری زمانی اسنپ‌شات‌ها + دلتای آخرین دو نقطه */
+    case 'snaps':
+        $files = glob($GSC_SNAP_DIR . '/*.json') ?: [];
+        sort($files);
+        $series = []; $lastTwo = [];
+        foreach ($files as $i => $f) {
+            $j = json_decode((string)@file_get_contents($f), true);
+            if (!is_array($j) || empty($j['date'])) continue;
+            $series[] = ['date' => $j['date'], 'clicks' => (float)($j['clicks'] ?? 0), 'impressions' => (float)($j['impressions'] ?? 0)];
+            $lastTwo[] = $j;
+            if (count($lastTwo) > 2) array_shift($lastTwo);
+        }
+        $delta = null;
+        if (count($lastTwo) === 2) {
+            $a = $lastTwo[0]; $b = $lastTwo[1];
+            $df = function ($x, $y) use ($a, $b) { return $a[$x] > 0 ? round((($b[$x] - $a[$x]) / $a[$x]) * 100, 1) : 0; };
+            $delta = ['from' => $a['date'], 'to' => $b['date'], 'clicks' => $df('clicks', 0), 'impressions' => $df('impressions', 0)];
+        }
+        jok(['series' => array_slice($series, -60), 'total_snaps' => count($series), 'delta' => $delta]);
+        break;
+
+    /* v34.16.0 (S3-id/WATCH): افزودن/حذف کلمه از واچ‌لیست (سقف ۳۰) */
+    case 'watch_toggle':
+        $q = trim((string)($_POST['q'] ?? ''));
+        if ($q === '' || mb_strlen($q, 'UTF-8') > 120) jerr('کلمهٔ نامعتبر');
+        $w = gsc_watch_load($DATA);
+        $on = false;
+        if (isset($w['items'][$q])) { unset($w['items'][$q]); }
+        else {
+            if (count($w['items']) >= 30) jerr('واچ‌لیست پر است (۳۰ کلمه)');
+            $w['items'][$q] = ['added_at' => date('c')];
+            $on = true;
+        }
+        gsc_watch_save($DATA, $w);
+        jok(['on' => $on, 'total' => count($w['items'])]);
+        break;
+
+    /* v34.17.0 (S3-id/AI-IMPACT): صفحات AI-لمس‌شده در برابر بقیه — از اسنپ‌شات‌های موجود
+       (فقط ۳۰ صفحهٔ برترِ هر روز در اسنپ‌شات هست؛ مقایسه صادقانه در همان دامنه). */
+    case 'ai_pages':
+        $aiFile = $DATA . '/ai-touched.json';
+        $reg = is_file($aiFile) ? json_decode((string)@file_get_contents($aiFile), true) : null;
+        $reg = (is_array($reg) && is_array($reg['paths'] ?? null)) ? $reg['paths'] : [];
+        $aiSet = [];
+        foreach ($reg as $rel => $m) { if (is_array($m)) $aiSet[gsc_page_norm($rel)] = $m; }
+        $files = glob($GSC_SNAP_DIR . '/*.json') ?: [];
+        sort($files);
+        $days = []; $tot = ['aC' => 0.0, 'aI' => 0.0, 'rC' => 0.0, 'rI' => 0.0];
+        $firstShare = null; $lastShare = null;
+        $lastPages = []; /* سنجهٔ صفحات AI در آخرین اسنپ‌شات */
+        foreach ($files as $f) {
+            $j = json_decode((string)@file_get_contents($f), true);
+            if (!is_array($j) || empty($j['date'])) continue;
+            $aC = $aI = $aW = 0.0; $rC = $rI = $rW = 0.0; /* W = مجموع وزنِ جایگاه */
+            $dayAi = [];
+            foreach (($j['topPages'] ?? []) as $tp) {
+                $k = gsc_page_norm($tp['k'] ?? '');
+                $c = (float)($tp['clicks'] ?? 0); $im = (float)($tp['impressions'] ?? 0); $po = (float)($tp['position'] ?? 0);
+                if (isset($aiSet[$k])) {
+                    $aC += $c; $aI += $im; $aW += $po * max($im, 1);
+                    $dayAi[] = ['path' => $k, 'clicks' => $c, 'imp' => $im, 'pos' => $po];
+                } else { $rC += $c; $rI += $im; $rW += $po * max($im, 1); }
+            }
+            $days[] = ['d' => $j['date'], 'aC' => round($aC, 1), 'aI' => (int)$aI, 'aP' => $aI > 0 ? round($aW / $aI, 1) : null, 'rC' => round($rC, 1), 'rI' => (int)$rI, 'rP' => $rI > 0 ? round($rW / $rI, 1) : null];
+            $tot['aC'] += $aC; $tot['aI'] += $aI; $tot['rC'] += $rC; $tot['rI'] += $rI;
+            $sum = $aC + $rC;
+            if ($sum > 0) { $share = $aC / $sum; if ($firstShare === null) $firstShare = $share; $lastShare = $share; }
+            $lastPages = $dayAi ?: $lastPages;
+        }
+        $all = $tot['aC'] + $tot['rC'];
+        jok([
+            'days' => array_slice($days, -60),
+            'tot' => ['aC' => round($tot['aC'], 1), 'aI' => (int)$tot['aI'], 'rC' => round($tot['rC'], 1), 'rI' => (int)$tot['rI'],
+                      'share' => $all > 0 ? round($tot['aC'] / $all * 100, 1) : 0,
+                      'shareFirst' => $firstShare !== null ? round($firstShare * 100, 1) : null,
+                      'shareLast' => $lastShare !== null ? round($lastShare * 100, 1) : null],
+            'aiTotal' => count($aiSet),
+            'pages' => array_slice($lastPages, 0, 15),
+            'note' => 'مقایسه در محدودهٔ ۳۰ صفحهٔ برترِ هر روز (اسنپ‌شات) انجام می‌شود',
+        ]);
+        break;
+
+    /* v34.16.0 (S3-id/WATCH): روند جایگاه واچ‌لیست — از اسنپ‌شات‌های موجود (topQueries هر روز) */
+    case 'watch_list':
+        $w = gsc_watch_load($DATA);
+        $files = glob($GSC_SNAP_DIR . '/*.json') ?: [];
+        sort($files); /* قدیمی → جدید */
+        $out = []; $totalSnaps = 0;
+        foreach ($w['items'] as $q => $meta) {
+            $series = [];
+            foreach ($files as $f) {
+                $j = json_decode((string)@file_get_contents($f), true);
+                if (!is_array($j) || empty($j['date'])) continue;
+                foreach (($j['topQueries'] ?? []) as $tq) {
+                    if ((string)($tq['k'] ?? '') === (string)$q) {
+                        $series[] = ['d' => $j['date'], 'pos' => (float)($tq['position'] ?? 0), 'clicks' => (float)($tq['clicks'] ?? 0), 'imp' => (float)($tq['impressions'] ?? 0)];
+                        break;
+                    }
+                }
+            }
+            $totalSnaps = max($totalSnaps, count($series));
+            $last = $series ? end($series) : null;
+            $prev = count($series) > 1 ? $series[count($series) - 2] : null;
+            $delta = ($last && $prev && (float)$prev['pos'] > 0) ? round((float)$prev['pos'] - (float)$last['pos'], 1) : null; /* مثبت = بهبود */
+            $out[] = ['q' => $q, 'added_at' => $meta['added_at'] ?? '', 'series' => array_slice($series, -60), 'last' => $last, 'prev' => $prev, 'delta' => $delta];
+        }
+        jok(['items' => $out, 'total_snaps' => $totalSnaps]);
+        break;
+
+    /* v34.10.0 (S1/INDEX-LOOP): تاریخچهٔ بررسی‌های ایندکس */
+    case 'inspect_log':
+        $hist = gsc_hist_load($GSC_HIST);
+        $u = trim((string)($_REQUEST['url'] ?? ''));
+        if ($u !== '') jok(['entries' => $hist['byUrl'][$u] ?? []]);
+        /* بدون url: فقط URLs دارای تاریخچه + آخرین وضعیت هرکدام */
+        $last = [];
+        foreach ($hist['byUrl'] as $hu => $arr) { $last[$hu] = end($arr); }
+        jok(['last' => $last, 'total' => count($last)]);
+        break;
+
     /* ثبتِ نقشه در سرچ کنسول — نیازمندِ اسکوپِ webmasters و سطحِ Full برای سرویس‌اکانت */
     case 'sitemap_submit':
         $cfg = gsc_cfg();
         if (!$cfg) jerr('gsc_not_configured');
         $feed = trim((string)($_REQUEST['feed'] ?? 'https://pishtaj.ir/sitemap-index.xml'));
         if (!preg_match('#^https://(www\.)?pishtaj\.ir/#i', $feed)) jerr('feed_invalid');
-        $site = $cfg['site_url'];
-        if (strpos($site, 'sc-domain:') !== 0) $site = rtrim($site, '/') . '/';
+        $site = gsc_resolve_site($cfg); /* v34.12.0: پراپرتی واقعی + گیت سطح Full */
         /* PUT روی مسیرِ feedpath؛ بدنه لازم نیست چون آدرس در خودِ مسیر است */
         gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site)
              . '/sitemaps/' . rawurlencode($feed), null, 'PUT');
@@ -426,6 +663,7 @@ switch ($action) {
         }
         jok([
             'submitted' => $feed,
+            'site'      => $site,
             'state'     => $mine['state'] ?? 'pending',
             'warnings'  => $mine['warnings'] ?? '0',
             'errors'    => $mine['errors'] ?? '0',
@@ -437,8 +675,7 @@ switch ($action) {
     case 'sitemaps':
         $cfg = gsc_cfg();
         if (!$cfg) jerr('gsc_not_configured');
-        $site = $cfg['site_url'];
-        if (strpos($site, 'sc-domain:') !== 0) $site = rtrim($site, '/') . '/';
+        $site = gsc_resolve_site($cfg, false); /* v34.12.0: پراپرتی خودکار */
         $r = gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site) . '/sitemaps');
         jok(['sitemaps' => $r['sitemap'] ?? []]);
         break;

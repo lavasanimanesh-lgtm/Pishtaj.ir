@@ -1213,6 +1213,12 @@
       '<option value="none">بدون پیشنهاد</option>' +
       '<option value="has">دارای پیشنهاد</option>' +
       '</select>' +
+      /* v34.23.0: فیلتر منبع درخواست — شکایت مالک: درخواست‌های ثبت‌شده از سایت باید جدا فیلتر شوند */
+      '<select id="rSrcFlt" onchange="ptfRfqSrcFlt(this.value)" title="فیلتر منبع" style="padding:8px 10px;border:2px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px;background:#f8fafc;max-width:180px">' +
+      '<option value="">همهٔ منابع</option>' +
+      '<option value="site">🌐 از سایت</option>' +
+      '<option value="internal">🏢 داخلی</option>' +
+      '</select>' +
       ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfOrphanReview()" title="رکوردهای اشاره‌کننده به درخواست حذف‌شده">🧹 یتیم‌ها</button>' : '') +
       '<button class="bt" onclick="showModal(\'rMd\')">+ جدید</button></div></div>' +
       '<div class="rfq-offer-bar" id="rOfferBar" role="tablist" aria-label="فیلتر پیشنهاد">' +
@@ -1370,7 +1376,19 @@
     return { cl: '#64748b', bg: '', lb: '⏳ مهلت: ' + _dueFa, over: false };
   };
   window.renderRfq = function () {
+    /* v34.23.0: خودترمیمی پیوست‌های گم‌شدهٔ درخواست‌های سایت (نتیجهٔ زدودن files در
+       پاک‌ساز قدیمی سرور) — idempotent؛ فقط وقتی می‌نویسد که رکوردی درمان شود. */
+    try { if (typeof window.ptfRfqHealSiteFiles === 'function') window.ptfRfqHealSiteFiles(); } catch (eHl) {}
+    /* v34.23.0: پیش‌فرض فهرست = تاریخ نزولی — درخواست تازه (تاییدِ سایت یا ثبت داخلی)
+       همیشه بالای فهرست می‌نشیند؛ ترتیب آرایه پس از همگام‌سازی چنددستگاهه معتبر نیست. */
+    if (!window.ptfSortState.rfq) window.ptfSortState.rfq = { key: 'dt', dir: 'desc' };
     var rfqs = getData('ptf_crm_rfqs');
+    /* v34.23.0: فیلتر منبع (همه / از سایت / داخلی) */
+    var _srcSel = document.getElementById('rSrcFlt');
+    var _srcFlt = _srcSel ? String(_srcSel.value || '') : (window._ptfRfqSrcFlt || '');
+    window._ptfRfqSrcFlt = _srcFlt;
+    if (_srcFlt === 'site') rfqs = rfqs.filter(function (r0) { return r0.src === 'site'; });
+    else if (_srcFlt === 'internal') rfqs = rfqs.filter(function (r0) { return r0.src !== 'site'; });
     var offers = getData('ptf_crm_offers');
     var offerInq = window.ptfRfqOfferInqSet(offers);
     var tb = document.getElementById('rTb');
@@ -1570,9 +1588,43 @@
     return newC;
   }
 
+  window.ptfRfqSrcFlt = function (v) {
+    window._ptfRfqSrcFlt = v || '';
+    if (typeof window.renderRfq === 'function') window.renderRfq();
+  };
+
+  /* v34.23.0 (RFQ-ATT-HEAL): درخواست تاییدشدهٔ سایت پیوستش را در files.oth می‌گیرد؛ اما
+     تا پیش از اصلاح sd_entity_sanitize_row (سرور)، مقدار لیستیِ داخل map هنگام
+     entity_upsert بی‌صدا حذف می‌شد → پس از همگام‌سازی/بازخوانی، ضمیمه «وجود نداشت».
+     siteAttachment (map اسکالر) زنده مانده و خودِ فایل در فضای ابری است → اینجا
+     files.oth بازسازی می‌شود. فقط رکوردِ در مانده را می‌نویسد (بدون حلقهٔ سینک). */
+  window.ptfRfqHealSiteFiles = function () {
+    var rfqs = getData('ptf_crm_rfqs');
+    var healed = 0;
+    /* گارد حلقه: روی سرورِ هنوز به‌روز-نشده، projection پس از upsert دوباره files را
+       می‌زدود و درمان در هر رندر تکرار می‌شد — هر رکورد در هر جلسه فقط یک‌بار. */
+    var tried = window._ptfRfqHealTried = window._ptfRfqHealTried || {};
+    (rfqs || []).forEach(function (r) {
+      if (!r || r.src !== 'site' || tried[r.cd]) return;
+      var hasFiles = Object.keys(r.files || {}).some(function (k) { return (r.files[k] || []).length; });
+      if (hasFiles) return;
+      var a = siteAttachmentMeta(r.siteAttachment != null ? r.siteAttachment : r.attachment);
+      if (!a || !a.cloud) return; /* پیوست قدیمیِ هاست یا بدون پیوست — بازسازی ممکن نیست */
+      r.files = { oth: [{ key: a.key, name: a.name, size: a.size, mode: 'arvan', t: r.siteSubmittedAt || r.dt || '', source: 'site', healedAt: faDateTime() }] };
+      tried[r.cd] = 1;
+      healed++;
+    });
+    if (!healed) return 0;
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'site-rfq-heal' });
+    else setData('ptf_crm_rfqs', rfqs);
+    try { audit('استعلامات', 'بازسازی پیوست گم‌شدهٔ ' + healed + ' درخواست سایت از فضای ابری', 'heal'); } catch (eA) {}
+    return healed;
+  };
+
   window.rfqApprove = function (code) {
     var r = siteRfqs().filter(function (x) { return x.code === code; })[0];
     if (!r) return;
+    try { if (typeof window.ptfRfqHealSiteFiles === 'function') window.ptfRfqHealSiteFiles(); } catch (eHl2) {}
     /* v14.7 (US-380 AC2): مشتری خودکار ساخته/متصل می‌شود */
     var cust = null;
     try { cust = rfqSiteEnsureCustomer(r); } catch (eC) {}

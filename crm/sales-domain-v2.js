@@ -456,6 +456,21 @@
   window.ptfEntityDelete = function (collection, id, opts) {
     opts = opts || {};
     if (!window.PTF_ENTITY_CMD_ENABLED[collection]) { if (opts.cb) opts.cb({ state: 'legacy' }); return null; }
+    /* v34.19.0 (RECYCLE): پیش از حذف، snapshot رکورد در آرشیو (kind=recycle) ذخیره
+       می‌شود تا از «سطل بازیافت» قابل بازگردانی باشد. fire-and-forget — حذف اصلی
+       هرگز به کتاب‌گذاریِ بازیافت بلوکه نمی‌شود. */
+    try {
+      if (collection !== 'ptf_crm_deleted_archive') {
+        var rcRows = (typeof getData === 'function' ? getData(collection) : []) || [];
+        var rcVictim = rcRows.filter(function (r) { return r && (String(r.cd) === String(id) || String(r._id) === String(id) || String(r.no) === String(id) || String(r.id) === String(id)); })[0];
+        if (rcVictim) {
+          var rcArch = (typeof getData === 'function' ? getData('ptf_crm_deleted_archive') : []) || [];
+          rcArch.unshift({ _id: 'RC-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8), kind: 'recycle', collection: collection, id: String(id), cd: String(id), reason: opts.reason || 'entity_delete', by: (typeof curSession === 'function' && curSession().name) || '?', t: (typeof faDateTime === 'function' ? faDateTime() : ''), snapshot: JSON.parse(JSON.stringify(rcVictim)) });
+          if (rcArch.length > 500) rcArch = rcArch.slice(0, 500);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', rcArch, { reason: 'recycle-snapshot' }); else if (typeof setData === 'function') setData('ptf_crm_deleted_archive', rcArch);
+        }
+      }
+    } catch (eRcSnap) { try { console.warn('recycle-snapshot failed (حذف ادامه می‌یابد)', eRcSnap); } catch (eW) {} }
     return window.ptfSalesDomainCommand('entity_delete', {
       collection: collection,
       id: id,
@@ -474,6 +489,81 @@
       return state;
     });
   };
+  /* ═══ v34.19.0 (RECYCLE): سطل بازیافت — فهرست snapshotهای حذف + بازگردانی اتمی ═══ */
+  var RC_COLLECTIONS = [
+    ['ptf_crm_offers', 'پیشنهادات'], ['ptf_crm_rfqs', 'استعلام‌ها'], ['ptf_crm_customers', 'مشتریان'],
+    ['ptf_crm_suppliers', 'تامین‌کنندگان'], ['ptf_crm_products', 'کالاها'], ['ptf_crm_deals', 'پرونده‌های فروش'],
+    ['ptf_crm_projects', 'پروژه‌ها'], ['ptf_crm_letters', 'نامه‌ها'], ['ptf_crm_contracts', 'قراردادها'], ['ptf_crm_invoices', 'فاکتورها']
+  ];
+  function rcLabel(coll) { for (var i = 0; i < RC_COLLECTIONS.length; i++) if (RC_COLLECTIONS[i][0] === coll) return RC_COLLECTIONS[i][1]; return coll; }
+  function rcSnapTitle(coll, snap) {
+    if (!snap || typeof snap !== 'object') return '—';
+    if (coll === 'ptf_crm_offers') return String(snap.no || snap.cd || '—') + (snap.buyerCo ? ' — ' + snap.buyerCo : '');
+    return String(snap.cd || snap.no || snap.co || snap.nm || snap.name || snap._id || '—');
+  }
+  window.ptfRecycleClose = function () { var m = document.getElementById('ptRecycleModal'); if (m) m.remove(); };
+  window.ptfRecycleRestore = function (coll, id) {
+    if (!confirm('↩️ این رکورد به «' + rcLabel(coll) + '» بازگردانی شود؟\n(تجهیزات دیگر هم در همگام‌سازی بعدی آن را می‌بینند)')) return;
+    var st = document.getElementById('ptRecycleSt'); if (st) st.textContent = '⏳ در حال بازیافت…';
+    window.ptfSalesDomainCommand('entity_restore', {
+      collection: coll, id: id,
+      idempotencyKey: 'ENT-R|' + coll + '|' + id + '|' + String(Date.now())
+    }, { apiOptions: { autoReplay: true } }).then(function (state) {
+      if (state && state.state === 'acked') {
+        var resp = state.response || {}, data = resp.data || {};
+        Object.keys(data).forEach(function (k) { if (typeof entityApplyProjection === 'function') entityApplyProjection(k, data[k], resp.rev); });
+        try { audit('سیستم', 'بازیافت از سطل بازیافت: ' + rcLabel(coll), String(id)); } catch (eA) {}
+        if (st) st.textContent = '';
+        window.ptfRecycleClose();
+        alert('✅ رکورد بازیافت شد و به فهرست برگشت.');
+      } else {
+        var err = (state && state.error && (state.error.error || state.error.detail || state.error)) || 'خطا';
+        if (String(err) === 'recycle_snapshot_not_found') err = 'نسخه‌ای از این رکورد در سطل بازیافت نیست (حذف قدیمی قبل از این قابلیت).';
+        if (String(err) === 'entity_id_exists') err = 'رکوردی با این شناسه هم‌اکنون زنده است — ابتدا آن را بررسی کنید.';
+        if (st) st.textContent = '';
+        alert('⚠️ ' + err);
+      }
+    });
+  };
+  window.ptfRecycleBin = function (coll) {
+    window.ptfRecycleClose();
+    var arch = [];
+    try { arch = (typeof getData === 'function' ? getData('ptf_crm_deleted_archive') : []) || []; } catch (eG) {}
+    coll = coll || 'ptf_crm_offers';
+    function render(sel) {
+      var rows = arch.filter(function (a) { return a && a.kind === 'recycle' && a.collection === sel && !a.restoredAt; });
+      var done = arch.filter(function (a) { return a && a.kind === 'recycle' && a.collection === sel && a.restoredAt; });
+      var h = '<div style="max-height:52vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
+        '<thead><tr style="color:#64748b;font-size:11px;border-bottom:1px solid #e2e8f0"><th style="text-align:right;padding:4px 8px">رکورد</th><th>حذف در</th><th>علت</th><th></th></tr></thead><tbody>';
+      if (!rows.length) h += '<tr><td colspan="4" style="padding:14px;text-align:center;color:#94a3b8">سطل برای این بخش خالی است.</td></tr>';
+      rows.slice(0, 100).forEach(function (a) {
+        h += '<tr><td style="padding:5px 8px;text-align:right"><b>' + escP(rcSnapTitle(sel, a.snapshot)) + '</b><br><small dir="ltr" style="color:#94a3b8">' + escP(String(a.id || '')) + '</small></td>' +
+          '<td style="padding:5px 8px;font-size:11px">' + escP(a.t || '') + '<br><small>' + escP(a.by || '') + '</small></td>' +
+          '<td style="padding:5px 8px;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escP(a.reason || '') + '</td>' +
+          '<td style="padding:5px 8px"><button class="bt" style="padding:4px 12px;font-size:11.5px;background:#059669" onclick="ptfRecycleRestore(&#39;' + ptfOnClickArg(a.collection) + '&#39;,&#39;' + ptfOnClickArg(String(a.id || '')) + '&#39;)">↩️ بازیافت</button></td></tr>';
+      });
+      h += '</tbody></table></div>';
+      if (done.length) h += '<div style="font-size:11px;color:#94a3b8;margin-top:8px">' + done.length + ' رکوردِ بازیافتیِ قبلی هم در آرشیو ثبت است (تاریخچه).</div>';
+      h += '<div style="font-size:10.5px;color:#94a3b8;margin-top:4px">📌 فقط حذف‌هایی که از این پس انجام می‌شوند snapshot دارند؛ حذف‌های قدیمی‌تر (قبل از این نسخه) قابل بازیافت از این مسیر نیستند — برای آنها از بکاپ کمک بگیرید.</div>';
+      return h;
+    }
+    var opts = RC_COLLECTIONS.map(function (c) { return '<option value="' + c[0] + '"' + (c[0] === coll ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('');
+    var ov = document.createElement('div');
+    ov.id = 'ptRecycleModal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.onclick = function (e) { if (e.target === ov) window.ptfRecycleClose(); };
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:680px;width:100%;padding:16px;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">' +
+      '<b style="font-size:14px">🗑 سطل بازیافت</b>' +
+      '<select id="ptRecycleSel" style="padding:5px 9px;border:1px solid #cbd5e1;border-radius:8px;font-size:12px;font-family:inherit">' + opts + '</select>' +
+      '<span id="ptRecycleSt" style="font-size:11.5px;color:#7c3aed"></span>' +
+      '<button class="bt bt-o" style="padding:5px 12px;font-size:12px;margin-right:auto" onclick="ptfRecycleClose()">بستن</button></div>' +
+      '<div id="ptRecycleBody">' + render(coll) + '</div></div>';
+    document.body.appendChild(ov);
+    var sel = document.getElementById('ptRecycleSel');
+    if (sel) sel.onchange = function () { var b = document.getElementById('ptRecycleBody'); if (b) b.innerHTML = render(sel.value); };
+  };
+
   /* ============ v34.8.22 (W1): روتر diff-محور مجموعه‌ای ============
      به‌جای ویرایش ۴۹ نقطهٔ نوشتن پراکنده، یک نقطهٔ عبور: کلاینت آرایهٔ بعدی را
      می‌دهد؛ روتر نسبت به آخرین snapshot نوشته‌شدهٔ همین کلاینت diff می‌گیرد و

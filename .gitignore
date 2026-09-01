@@ -27,3 +27,4 @@ __pycache__/
 api/gsc-config.php
 crm/data/gsc-token.json
 crm/data/gsc-cache.json
+node_modules/

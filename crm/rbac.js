@@ -939,7 +939,10 @@ function renderInvoices() {
     var invPaidSum = inv ? ptfInvoiceReceivedIRR(inv) : 0;
     h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
       '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
-      '<div style="font-size:13px"><b>' + escP(o.no) + '</b> — ' + escP(o.buyerCo || '-') + (oEn ? ' <span dir="ltr" style="color:#64748b">(' + escP(oEn) + ')</span>' : '') +
+      '<div style="font-size:13px"><b>' + escP(o.no) + '</b> — ' + (function () { /* v34.18.0: نام فارسی + انگلیسی زیر هم */
+          var p = (typeof ptfCustNamePair === 'function') ? ptfCustNamePair(o.buyerCd, o.buyerCo) : { fa: o.buyerCo || '-', en: oEn };
+          return (typeof ptfCustCellHtml === 'function') ? ptfCustCellHtml(p.fa, p.en, o.buyerCd) : escP(p.fa);
+        })() +
       '<div style="font-size:11.5px;color:#64748b">مبلغ CO: ' + (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : total.toLocaleString('fa-IR') + ' ریال') + (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <span style="color:#0e7490">| مبنا: ' + escP(o.currency || inv.offerCurrency) + (o.fxBasis ? ' / ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') : '') + (o.fxRateRef ? ' / ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</span>' : '') + ' | ارجاع: ' + escP(o.invRef.t) + ' توسط ' + escP(o.invRef.by) + ' (' + escP(o.invRef.role) + ')</div>' + /* v17.4 US-416 */
       (inv ? '<div style="font-size:12px;color:#10b981;margin-top:3px">🧾 فاکتور ' + escP(inv.no) + ' — ' + escP(inv.t) + ' — ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال' +
         (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <small style="color:#0e7490">| فاکتور ریالیِ درخواست ' + escP(o.currency || inv.offerCurrency) + '</small>' : '') +
