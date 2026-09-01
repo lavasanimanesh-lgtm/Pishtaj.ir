@@ -232,6 +232,7 @@ var SUITE = [
   { g: 'UX (25.0): استودیو محصول — آپلود عکس از بیرون + پیش‌نمایش قبل از انتشار + ذخیرهٔ موقت صریح', f: '_tools/uat/tester570-v34.25.0-product-image-preview.js' },
   { g: 'UX (26.0): ریشه‌کنی جریان محصول — پیش‌نمایش سروری + تصویر مرئی + حذف تکرار + فهرست محصولات + پرامپت راهنمای فنی', f: '_tools/uat/tester571-v34.26.0-product-pipeline-fix.js' },
   { g: 'UX (26.1): پوستهٔ مقاوم تب‌های CMS — خطای رندر مرئی + فرم جایگزین صفحهٔ جدید', f: '_tools/uat/tester572-v34.26.1-cms-tab-guard.js' },
+  { g: 'UX (27.0): کش‌سنجی cms.js + گارد مسیر CMS + پل سرچ کنسول (ثبت سایت‌مپ و ایندکس‌یاب یک‌کلیکی)', f: '_tools/uat/tester573-v34.27.0-gsc-bridge-cache.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

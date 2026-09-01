@@ -10,6 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
+  window.PTF_CMS_JS_VER = 'v34.27.0'; /* v34.27.0: کش‌سنجی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -605,6 +606,8 @@
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoRefresh()">⟳ اسکن دوباره</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#d97706" onclick="cmsCanonBulk()" title="صفحات با canonical ناهماهنگ/جاافتاده به آدرس خودشان برمی‌گردند (stubهای ریدایرکت دست نمی‌خورند)">🔧 canonical گروهی</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#7c3aed" onclick="cmsSeoAiBatch()" title="هوش مصنوعی همهٔ صفحاتِ دارای ایراد عنوان/توضیح/H1 را طبق قوانین سئو و سرچ کنسول گوگل آنالیز و اصلاح می‌کند">🤖 اصلاح هوشمند گروهی</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#0e7490" onclick="cmsSeoSitemapPush()" title="نقشهٔ سایت (شامل آخرین صفحات منتشرشده) در سرچ کنسول ثبت/به‌روزرسانی می‌شود">📤 سایت‌مپ + سرچ کنسول</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#059669" onclick="cmsIndexWizard()" title="بررسی وضعیت ایندکس صفحات + درخواست ایندکس آن‌هایی که ایندکس نشده‌اند">🚀 ایندکس‌یاب</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoExport()">⬇️ CSV</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSitemapDrift()">🧭 انحراف نقشه</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px' + (cmsSitemapAutoOn() ? ';color:#059669' : '') + '" onclick="cmsSitemapAutoToggle(this)">' + (cmsSitemapAutoOn() ? '🔄 ثبت خودکار نقشه: روشن' : '🔄 ثبت خودکار نقشه: خاموش') + '</button>' +
@@ -1859,6 +1862,80 @@
     });
   }
 
+  /* ═══ v34.27.0 (GSC-BRIDGE): پل CMS → api/gsc.php — ثبت نقشه + ایندکس‌یاب ═══ */
+  function cmsGsc(action, data, cb) {
+    var opt = { method: 'POST', headers: cmsAuthHeaders() };
+    if (data) { var fd = new FormData(); Object.keys(data).forEach(function (k) { fd.append(k, data[k]); }); opt.body = fd; }
+    fetch('../api/gsc.php?action=' + action, opt).then(function (r) { return r.json(); }).then(cb)
+      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به سرچ کنسول' }); });
+  }
+  window.cmsSeoSitemapPush = function () {
+    var st = document.getElementById('cmsStatus');
+    if (st) st.innerHTML = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#1e40af">⏳ ثبت نقشهٔ سایت در سرچ کنسول…</div>';
+    cmsGsc('sitemap_submit', { feed: 'https://pishtaj.ir/sitemap-index.xml' }, function (d) {
+      if (!d.ok) { if (st) st.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#b91c1c">⚠️ ثبت نقشه ناموفق: ' + escP(d.error || '') + ' — تنظیمات سرچ کنسول (سطح Full) را بررسی کنید.</div>'; return; }
+      if (st) st.innerHTML = '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#065f46">✅ نقشهٔ سایت (sitemap-index + همهٔ زیرنقشه‌ها از جمله محصولات و صفحات جدید) در سرچ کنسول ثبت/به‌روزرسانی شد — وضعیت: ' + escP(d.state || '') + ' · خطا: ' + escP(String(d.errors || 0)) + (d.lastDownload ? ' · آخرین دانلود گوگل: ' + escP(d.lastDownload) : '') + '</div>';
+      try { audit('CMS', 'ثبت نقشهٔ سایت در سرچ کنسول از CMS', 'sitemap-index.xml'); } catch (eA) {}
+    });
+  };
+  window.cmsIndexWizard = function () {
+    var old = document.getElementById('ptIdxWiz'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'ptIdxWiz';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:90vh;overflow:auto;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 16px 6px"><b style="font-size:14px">🚀 ایندکس‌یاب</b>' +
+      '<button class="bt bt-o" style="padding:4px 12px;font-size:12px;color:#0e7490;margin-right:auto" onclick="cmsSeoSitemapPush()">📤 بازارسال سایت‌مپ</button>' +
+      '<button class="bt bt-o" style="padding:4px 12px;font-size:12px" onclick="this.closest(\'div[style*=fixed]\').parentNode.removeChild(this.closest(\'div[style*=fixed]\'))">بستن</button></div>' +
+      '<div style="font-size:11.5px;color:#475569;margin:0 16px 8px;line-height:1.9">وضعیت ایندکس صفحات از API رسمی سرچ کنسول خوانده می‌شود؛ برای ایندکس‌نشده‌ها پیوند «درخواست ایندکس» همان صفحهٔ رسمی گوگل را باز می‌کند (گوگل برای Request Indexing API عمومی ندارد — سهمیهٔ روزانه محدود است). هر اجرا حداکثر ۲۵ صفحه بررسی می‌کند.</div>' +
+      '<div style="display:flex;gap:7px;align-items:center;margin:0 16px 8px"><button class="bt" style="background:#059669" onclick="cmsIndexRun()">🔍 بررسی انتخاب‌شده‌ها</button><span id="ptIdxSt" style="font-size:12px;color:#475569"></span></div>' +
+      '<div id="ptIdxBody" style="margin:0 16px 16px;max-height:56vh;overflow:auto;font-size:12px">⏳ در حال خواندن فهرست صفحات…</div></div>';
+    document.body.appendChild(ov);
+    function fill() {
+      var list = (window._cmsPages || []).slice(0, 60);
+      var el = document.getElementById('ptIdxBody'); if (!el) return;
+      if (!list.length) { el.innerHTML = '<span style="color:#94a3b8">صفحه‌ای یافت نشد</span>'; return; }
+      el.innerHTML = list.map(function (p, i) {
+        return '<div style="display:flex;gap:7px;align-items:center;padding:5px 0;border-bottom:1px dashed #e2e8f0">' +
+          '<input type="checkbox" class="ptIdxCb" value="' + escP(p.path) + '"' + (i < 10 ? ' checked' : '') + '>' +
+          '<span dir="ltr" style="flex:1;text-align:left;font-size:11.5px">' + escP(p.path) + '</span>' +
+          '<span class="ptIdxR" id="ptIdxR' + i + '" style="font-size:11px;color:#94a3b8">—</span></div>';
+      }).join('');
+    }
+    if ((window._cmsPages || []).length) fill();
+    else seoLoad(fill);
+  };
+  window.cmsIndexRun = function () {
+    var paths = Array.prototype.slice.call(document.querySelectorAll('#ptIdxWiz .ptIdxCb:checked')).map(function (c) { return c.value; });
+    if (!paths.length) { alert('حداقل یک صفحه انتخاب کنید'); return; }
+    if (paths.length > 25) paths = paths.slice(0, 25);
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#ptIdxWiz .ptIdxR'));
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('#ptIdxWiz .ptIdxCb'));
+    var st = document.getElementById('ptIdxSt');
+    var k = 0, idxN = 0, notN = 0;
+    function next() {
+      if (k >= paths.length) { if (st) st.innerHTML = '✅ ' + idxN + ' ایندکس‌شده · <b style="color:#dc2626">' + notN + ' ایندکس‌نشده</b> — برای آن‌ها «درخواست ایندکس» را باز کنید'; return; }
+      var p = paths[k];
+      var bi = boxes.findIndex(function (b) { return b.value === p; });
+      var ri = bi > -1 ? document.getElementById('ptIdxR' + bi) : null;
+      if (st) st.innerHTML = '⏳ ' + (k + 1) + ' از ' + paths.length + '…';
+      if (ri) ri.innerHTML = '⏳';
+      cmsGsc('inspect', { url: 'https://pishtaj.ir/' + p, log: '1' }, function (d) {
+        if (d.ok) {
+          var isIdx = d.verdict === 'INDEXED';
+          if (isIdx) idxN++; else notN++;
+          if (ri) ri.innerHTML = isIdx
+            ? '<span style="color:#059669;font-weight:700">✅ ایندکس شده</span>'
+            : '<span style="color:#dc2626;font-weight:700">⛔ ' + escP(d.verdict || '') + (d.coverage ? ' — ' + escP(String(d.coverage).slice(0, 60)) : '') + '</span> <a class="bt bt-o" style="padding:2px 9px;font-size:11px;text-decoration:none;color:#b45309" target="_blank" rel="noopener" href="' + escP(d.inspectLink || '') + '">درخواست ایندکس ↗</a>';
+        } else if (ri) ri.innerHTML = '<span style="color:#b45309">⚠️ ' + escP(d.error || 'خطا') + '</span>';
+        k++;
+        setTimeout(next, 250);
+      });
+    }
+    next();
+  };
+
   window.cmsSeoIssue = function (code) { _seo.issue = code; renderCms(document.getElementById('cmsWrap')); };
   window.cmsSeoFolder = function (v) { _seo.folder = v; _seo.offset = 0; renderCms(document.getElementById('cmsWrap')); };
   window.cmsSeoSearch = function () {
@@ -2225,8 +2302,12 @@
       if (btn) btn.classList.add('act');
       document.getElementById('pgTitle').textContent = '🎛 مدیریت سایت';
       _news = null;
-      document.getElementById('panels').innerHTML = buildCms();
-      renderCms();
+      try {
+        document.getElementById('panels').innerHTML = buildCms();
+        renderCms();
+      } catch (eCmsBuild) { /* v34.27.0: خطای ساخت پنل CMS دیگر پنل را خالی نمی‌گذارد */
+        document.getElementById('panels').innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px 16px;font-size:13px;color:#b91c1c;line-height:2">⚠️ <b>خطای ساخت پنل مدیریت سایت:</b> ' + escP(eCmsBuild && eCmsBuild.message) + '<br><small>F12 ← Console جزئیات کامل را نشان می‌دهد؛ اگر بنر «کش قدیمی» بالا می‌بینید ابتدا کش را پاک کنید.</small></div>';
+      }
       return;
     }
     _go(id, btn);
@@ -2304,4 +2385,27 @@
   }, 300);
   var _showCrm = window.showCrm;
   if (_showCrm) { window.showCrm = function () { _showCrm(); setTimeout(hideCmsBtn, 400); }; }
+
+  /* ═══ v34.27.0 (STALE-CACHE): تشخیص cms.js کش‌شدهٔ قدیمی — علت «تب‌های خالی» ═══
+     سرویس‌ورکرِ CRM دارایی‌ها را SWR نگه می‌دارد؛ اگر مرورگر cms.js قدیمی داشته باشد
+     ولی پوسته جدید باشد، تب‌ها بدون هیچ پیامی خالی می‌مانند. اینجا ناهماهنگی آشکار
+     و دکمهٔ پاک‌سازی کش داده می‌شود. */
+  window.cmsCachePurge = function () {
+    try {
+      if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); });
+      if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }).then(function () { setTimeout(function () { location.reload(true); }, 600); });
+      else setTimeout(function () { location.reload(true); }, 600);
+    } catch (eP) { location.reload(true); }
+  };
+  setTimeout(function () {
+    try {
+      if (window.VER && window.PTF_CMS_JS_VER && window.VER !== window.PTF_CMS_JS_VER) {
+        var b = document.createElement('div');
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#7f1d1d;color:#fff;font:13px/1.9 inherit;padding:10px 16px;text-align:center';
+        b.innerHTML = '⚠️ فایل برنامهٔ مدیریت سایت در مرورگر شما قدیمی است (کش: ' + escP(window.PTF_CMS_JS_VER) + ' · سرور: ' + escP(window.VER) + ') — علت احتمالی تب‌های خالی. ' +
+          '<button class="bt" style="padding:4px 14px;font-size:12px;margin-right:8px" onclick="cmsCachePurge()">🧹 پاک‌سازی کش و بارگذاری مجدد</button>';
+        document.body.appendChild(b);
+      }
+    } catch (eV) {}
+  }, 1500);
 })();
