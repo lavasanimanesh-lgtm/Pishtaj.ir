@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.27.0 — حذف قفل مرحله‌ای ارجاع فاکتور.
+/* v34.28.0 — حذف قفل مرحله‌ای ارجاع فاکتور.
    قرارداد: ارجاع فاکتور رسمی در هر مرحله پس از برنده‌شدن ممکن است (نه فقط پس از تحویل
    کارفرما). قفل‌ها: ① نقش ارشد ② پرونده برنده. قفل مرحله (stg < 7) حذف شد؛ دکمهٔ
    «ارجاع فاکتور» در نوار عملیات پرونده همیشه فعال است (وقتی برنده و بدون فاکتور/ارجاع قبلی). */
@@ -15,8 +15,8 @@ var sf = read('crm/salesfiles.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.27.0', ver.crm_version === 'v34.27.0', ver.crm_version);
-T('salesfiles.js cache-bust 34.27.0', /salesfiles\.js\?v=34\.27.0/.test(idx));
+T('VERSION.json = v34.28.0', ver.crm_version === 'v34.28.0', ver.crm_version);
+T('salesfiles.js cache-bust 34.28.0', /salesfiles\.js\?v=34\.28.0/.test(idx));
 
 /* قفل مرحله حذف شد */
 T('قفل مرحله (stg < 7) حذف شد', sf.indexOf('stg < 7') === -1 && sf.indexOf("why: 'stage'") === -1);
@@ -37,6 +37,6 @@ T('SMS: عبارت «تحویل شده» حذف شد', sf.indexOf('کالای پ
 
 T('tester474 در گیت CI', gate.indexOf('tester474-v34.7.72-invoice-ref-stage-unlock.js') > -1);
 
-console.log('\n— tester474 (v34.27.0: حذف قفل مرحله‌ای ارجاع فاکتور) —');
+console.log('\n— tester474 (v34.28.0: حذف قفل مرحله‌ای ارجاع فاکتور) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

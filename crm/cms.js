@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.27.0'; /* v34.27.0: کش‌سنجی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.28.0'; /* v34.28.0: تب‌های مستقیم — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -44,7 +44,16 @@
       '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">' + tb('news', '📰 اخبار') + tb('blog', '📝 وبلاگ') + tb('prod', '🛒 محصولات') + tb('page', '📄 صفحهٔ جدید') + tb('seo', '🔍 سئوی صفحات') + tb('q', '🛠 کیفیت') + '</div>' +
       '<div id="cmsWrap"></div>';
   };
-  window.cmsTab = function (t) { _tab = t; goPanelByName('cms'); };
+  /* v34.28.0 (TAB-DIRECT — ریشه‌کنی تب‌های خالی): رندر مستقیم بدون وابستگی به دکمهٔ
+     سایدبار. ریشهٔ باگ: goPanelByName دکمهٔ cms سایدبار را با تطبیق رشته‌ای onclick
+     می‌جست و کلیک می‌کرد؛ اگر RBAC/بازساز منو دکمه را حذف/مخفی کرده یا فرمت onclick را
+     عوض کرده باشد، یافتن ناموفق و «بی‌صدا» بود — تب عوض می‌شد ولی پنل هرگز رندر نه. */
+  window.cmsTab = function (t) {
+    _tab = t;
+    var el = document.getElementById('cmsWrap');
+    if (el) { renderCms(el); return; }          /* داخل مدیریت سایت هستیم — رندر مستقیم */
+    if (typeof goPanelByName === 'function') goPanelByName('cms'); /* ورود اولیه از بیرون */
+  };
 
   window.renderCms = function () {
     var el = document.getElementById('cmsWrap');
