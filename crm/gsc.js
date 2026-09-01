@@ -148,6 +148,7 @@
 
     h += '<div id="gscTrend"></div>'; /* v34.12.0 (S3): روند اسنپ‌شات‌ها */
     h += '<div id="gscWatch"></div>'; /* v34.16.0 (S3-id): واچ‌لیست جایگاه */
+    h += '<div id="gscAi"></div>'; /* v34.17.0 (S3-id): صفحات AI در برابر بقیه */
     h += trendBars(_data.dates);
     h += '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 12px;margin-top:10px">' + /* v34.12.0 (S3) */
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:12.5px;color:#6b21a8">🧠 برنامهٔ محتوا با هوش مصنوعی</b>' +
@@ -170,6 +171,7 @@
     el.innerHTML = h;
     gscTrendLoad(); /* v34.12.0 (S3) */
     gscWatchLoad(); /* v34.16.0 (S3-id) */
+    gscAiLoad(); /* v34.17.0 (S3-id) */
   }
 
   /* پوششِ ایندکس — verify>0 یعنی تأییدِ قطعیِ چند مورد با URL Inspection (سهمیهٔ روزانه محدود است) */
@@ -384,6 +386,50 @@
         '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:6px 12px;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
         '<thead><tr style="color:#64748b;font-size:11px;border-bottom:1px solid #e2e8f0"><th style="text-align:right;padding:4px 8px">کلمه</th><th>آخرین جایگاه</th><th>دلتا</th><th>کلیک</th><th>نمایش</th><th>روند</th><th></th></tr></thead>' +
         '<tbody>' + rows + '</tbody></table></div>';
+    });
+  };
+
+  /* ═══ v34.17.0 (S3-id/AI-IMPACT): صفحات AI-لمس‌شده در برابر بقیه ═══ */
+  window.gscAiLoad = function () {
+    var box = document.getElementById('gscAi'); if (!box) return;
+    api('ai_pages', {}, function (d) {
+      if (!box) return;
+      if (!d.ok || !(d.days || []).length) { box.innerHTML = ''; return; }
+      var t = d.tot || {};
+      if (!(d.aiTotal > 0)) {
+        box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;background:#fff;border:1px dashed var(--brd);border-radius:12px;padding:9px 12px;font-size:11.5px;color:#64748b">🤖 پس از اولین انتشارِ صفحهٔ هوشمند (مولد صفحه/محصول/متای AI)، مقایسهٔ عملکرد «AI در برابر بقیه» اینجا ظاهر می‌شود.</div>';
+        return;
+      }
+      /* سهم کلیک AI در طول زمان — میله‌ها */
+      var bars = (d.days || []).slice(-30).map(function (x) {
+        var share = (x.aC + x.rC) > 0 ? (x.aC / (x.aC + x.rC)) : 0;
+        var hp = Math.max(3, Math.round(share * 44));
+        return '<div title="' + escP(x.d) + ' — AI: ' + n(x.aC) + ' کلیک / جایگاه ' + (x.aP || '—') + ' · بقیه: ' + n(x.rC) + ' کلیک / جایگاه ' + (x.rP || '—') + '" style="width:7px;height:' + hp + 'px;background:linear-gradient(180deg,#a855f7,#7c3aed);border-radius:2px"></div>';
+      }).join('');
+      var s1 = t.shareFirst, s2 = t.shareLast;
+      var trend = (s1 !== null && s2 !== null && s1 !== s2)
+        ? '<b style="color:' + (s2 > s1 ? '#059669' : '#dc2626') + '">' + (s2 > s1 ? '▲ ' : '▼ ') + Math.abs(s2 - s1).toFixed(1) + ' واحد</b> (از ' + s1 + '٪ به ' + s2 + '٪)'
+        : 'بدون تغییر';
+      var lastDay = (d.days || []).slice(-1)[0] || {};
+      var posCmp = (lastDay.aP && lastDay.rP)
+        ? 'AI: <b style="color:' + gscWatchPosColor(lastDay.aP) + '">' + lastDay.aP + '</b> در برابر بقیه: <b style="color:' + gscWatchPosColor(lastDay.rP) + '">' + lastDay.rP + '</b>'
+        : '—';
+      var rows = (d.pages || []).map(function (p) {
+        return '<tr><td dir="ltr" style="padding:4px 8px;font-size:10.5px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escP(p.path) + '</td>' +
+          '<td style="padding:4px 8px">' + n(p.clicks) + '</td><td style="padding:4px 8px">' + n(p.imp) + '</td>' +
+          '<td style="padding:4px 8px"><b style="color:' + gscWatchPosColor(p.pos) + '">' + p.pos.toFixed(1) + '</b></td></tr>';
+      }).join('');
+      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 12px">' +
+        '<div style="font-size:12.5px;font-weight:800">🤖 صفحات هوش مصنوعی <span style="font-weight:400;color:#94a3b8;font-size:11px">(' + d.aiTotal + ' صفحه)</span></div>' +
+        '<span style="font-size:11.5px;color:#64748b">سهم از کلیک‌ها: <b style="color:#7c3aed">' + (t.share || 0) + '٪</b> · روند سهم: ' + trend + '</span>' +
+        '<span style="font-size:11.5px;color:#64748b;margin-right:auto">میانگین جایگاه (آخرین روز): ' + posCmp + '</span></div>' +
+        '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-top:6px">' +
+        '<div style="display:flex;gap:2px;align-items:flex-end;height:46px">' + bars + '</div>' +
+        '<span style="font-size:11px;color:#94a3b8">سهم کلیکِ صفحات AI از کل (۳۰ روز آخر)</span></div>' +
+        (rows ? '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:6px 12px;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
+          '<thead><tr style="color:#64748b;font-size:11px;border-bottom:1px solid #e2e8f0"><th style="text-align:right;padding:4px 8px">صفحهٔ هوشمند (در آخرین اسنپ‌شات)</th><th>کلیک</th><th>نمایش</th><th>جایگاه</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody></table></div>' : '') +
+        '<div style="font-size:10.5px;color:#94a3b8;margin-top:4px">📌 ' + escP(d.note || '') + ' — منبع: رجیستری صفحات لمس‌شده (مولد صفحه/زمان‌بند/وبلاگ/مرکز دانش/محصول/متای AI/بینایی).</div>';
     });
   };
 

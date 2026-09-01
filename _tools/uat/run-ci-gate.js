@@ -221,6 +221,7 @@ var SUITE = [
   { g: 'سئو S4 (14.0): زمان‌بندی/تأیید دومرحله‌ای + تاریخچه‌بازگشت + هزینهٔ AI + PageSpeed + hreflang', f: '_tools/uat/tester559-v34.14.0-seo-s4-quality.js' },
   { g: 'سئو S5 (15.0): hreflang دوطرفه + canonical گروهی + alt تصویر با بینایی AI', f: '_tools/uat/tester560-v34.15.0-seo-s5-hygiene.js' },
   { g: 'سئو S3-id (16.0): واچ‌لیست جایگاه کلمات با روند از اسنپ‌شات‌ها', f: '_tools/uat/tester561-v34.16.0-seo-watchlist.js' },
+  { g: 'سئو S3-id (17.0): صفحات AI-لمس‌شده در برابر بقیه (رجیستری + مقایسهٔ اسنپ‌شات)', f: '_tools/uat/tester562-v34.17.0-seo-ai-impact.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

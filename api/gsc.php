@@ -211,6 +211,15 @@ function gsc_watch_save($DATA, $w) {
     @file_put_contents(gsc_watch_file($DATA), json_encode($w, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
 }
 
+/* v34.17.0 (S3-id/AI-IMPACT): نرمال‌سازی مسیر صفحه برای تطبیق رجیستری AI با GSC */
+function gsc_page_norm($p) {
+    $p = preg_replace('#^https?://[^/]+#i', '', (string)$p);
+    $p = ltrim(trim($p), '/');
+    if ($p === '') $p = 'index.html';
+    if (substr($p, -1) === '/') $p .= 'index.html';
+    return $p;
+}
+
 /* v34.12.0 (S3/SUBMIT-FIX): تشخیص خودکار پراپرتی + سطح دسترسی — ریشهٔ «ثبت نقشه ناموفق»:
    PUT sitemaps فقط با سطح Full مجاز است و site_url کانفیگ ممکن است با نوع پراپرتی واقعی
    (sc-domain در برابر URL-prefix) نخواند. اینجا فهرست سایت‌های قابل‌دسترسی را می‌گیریم،
@@ -551,6 +560,51 @@ switch ($action) {
         }
         gsc_watch_save($DATA, $w);
         jok(['on' => $on, 'total' => count($w['items'])]);
+        break;
+
+    /* v34.17.0 (S3-id/AI-IMPACT): صفحات AI-لمس‌شده در برابر بقیه — از اسنپ‌شات‌های موجود
+       (فقط ۳۰ صفحهٔ برترِ هر روز در اسنپ‌شات هست؛ مقایسه صادقانه در همان دامنه). */
+    case 'ai_pages':
+        $aiFile = $DATA . '/ai-touched.json';
+        $reg = is_file($aiFile) ? json_decode((string)@file_get_contents($aiFile), true) : null;
+        $reg = (is_array($reg) && is_array($reg['paths'] ?? null)) ? $reg['paths'] : [];
+        $aiSet = [];
+        foreach ($reg as $rel => $m) { if (is_array($m)) $aiSet[gsc_page_norm($rel)] = $m; }
+        $files = glob($GSC_SNAP_DIR . '/*.json') ?: [];
+        sort($files);
+        $days = []; $tot = ['aC' => 0.0, 'aI' => 0.0, 'rC' => 0.0, 'rI' => 0.0];
+        $firstShare = null; $lastShare = null;
+        $lastPages = []; /* سنجهٔ صفحات AI در آخرین اسنپ‌شات */
+        foreach ($files as $f) {
+            $j = json_decode((string)@file_get_contents($f), true);
+            if (!is_array($j) || empty($j['date'])) continue;
+            $aC = $aI = $aW = 0.0; $rC = $rI = $rW = 0.0; /* W = مجموع وزنِ جایگاه */
+            $dayAi = [];
+            foreach (($j['topPages'] ?? []) as $tp) {
+                $k = gsc_page_norm($tp['k'] ?? '');
+                $c = (float)($tp['clicks'] ?? 0); $im = (float)($tp['impressions'] ?? 0); $po = (float)($tp['position'] ?? 0);
+                if (isset($aiSet[$k])) {
+                    $aC += $c; $aI += $im; $aW += $po * max($im, 1);
+                    $dayAi[] = ['path' => $k, 'clicks' => $c, 'imp' => $im, 'pos' => $po];
+                } else { $rC += $c; $rI += $im; $rW += $po * max($im, 1); }
+            }
+            $days[] = ['d' => $j['date'], 'aC' => round($aC, 1), 'aI' => (int)$aI, 'aP' => $aI > 0 ? round($aW / $aI, 1) : null, 'rC' => round($rC, 1), 'rI' => (int)$rI, 'rP' => $rI > 0 ? round($rW / $rI, 1) : null];
+            $tot['aC'] += $aC; $tot['aI'] += $aI; $tot['rC'] += $rC; $tot['rI'] += $rI;
+            $sum = $aC + $rC;
+            if ($sum > 0) { $share = $aC / $sum; if ($firstShare === null) $firstShare = $share; $lastShare = $share; }
+            $lastPages = $dayAi ?: $lastPages;
+        }
+        $all = $tot['aC'] + $tot['rC'];
+        jok([
+            'days' => array_slice($days, -60),
+            'tot' => ['aC' => round($tot['aC'], 1), 'aI' => (int)$tot['aI'], 'rC' => round($tot['rC'], 1), 'rI' => (int)$tot['rI'],
+                      'share' => $all > 0 ? round($tot['aC'] / $all * 100, 1) : 0,
+                      'shareFirst' => $firstShare !== null ? round($firstShare * 100, 1) : null,
+                      'shareLast' => $lastShare !== null ? round($lastShare * 100, 1) : null],
+            'aiTotal' => count($aiSet),
+            'pages' => array_slice($lastPages, 0, 15),
+            'note' => 'مقایسه در محدودهٔ ۳۰ صفحهٔ برترِ هر روز (اسنپ‌شات) انجام می‌شود',
+        ]);
         break;
 
     /* v34.16.0 (S3-id/WATCH): روند جایگاه واچ‌لیست — از اسنپ‌شات‌های موجود (topQueries هر روز) */

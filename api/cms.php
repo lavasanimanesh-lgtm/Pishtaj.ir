@@ -412,6 +412,7 @@ function seo_queue_apply_one($ROOT, $DATA, $file, $title, $desc) {
   if (file_put_contents($f, $s, LOCK_EX) === false) return 'خطای نوشتن';
   if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
   cms_log('seo_queue_apply', $file . ' | title=' . mb_substr($title, 0, 60, 'UTF-8'));
+  cms_ai_touch($DATA, $file, 'meta'); /* v34.17.0: متای AI اعمال شد */
   return ''; /* خالی = موفق */
 }
 
@@ -539,6 +540,7 @@ function cms_sched_publish_item($ROOT, $DATA, $it) { /* نوشتن فایل رن
     sitemap_add((string)$it['url']);
     if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
     cms_log('sched_publish', $rel);
+    cms_ai_touch($DATA, $rel, 'page'); /* v34.17.0 */
     return '';
 }
 function cms_sched_due($ROOT, $DATA) {
@@ -681,6 +683,59 @@ function cms_alt_rows($ROOT, $cap = 60) { /* [(page, src, disk)] — فقط نب
     return $rows;
 }
 
+/* ═══ v34.17.0 (S3-id/AI-IMPACT): رجیستری صفحات AI-لمس‌شده ═══
+   «AI-لمس‌شده» = صفحه‌ای که با یکی از مسیرهای محتوای هوشمند ساخته/ویرایش شده:
+   page (مولد صفحه/زمان‌بند) · blog · kc · product · meta (صف متای AI) · alt (بینایی).
+   ذخیره: crm/data/ai-touched.json — {path:{last,k:{kind:n}}} با سقف ۱۰۰۰ مسیر. */
+function cms_ai_file($DATA) { return $DATA . '/ai-touched.json'; }
+function cms_ai_load($DATA) {
+    $j = is_file(cms_ai_file($DATA)) ? json_decode((string)@file_get_contents(cms_ai_file($DATA)), true) : null;
+    return (is_array($j) && isset($j['paths']) && is_array($j['paths'])) ? $j : ['paths' => [], 'seeded' => 0];
+}
+function cms_ai_save($DATA, $j) {
+    @file_put_contents(cms_ai_file($DATA), json_encode($j, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+function cms_ai_touch($DATA, $rel, $kind) {
+    $rel = ltrim(preg_replace('#\.\./#', '', str_replace('\\', '/', (string)$rel)), '/');
+    if ($rel === '' || strpos($rel, '..') !== false) return;
+    $j = cms_ai_load($DATA);
+    if (!isset($j['paths'][$rel]) || !is_array($j['paths'][$rel])) $j['paths'][$rel] = ['last' => '', 'k' => []];
+    $j['paths'][$rel]['last'] = date('c');
+    $j['paths'][$rel]['k'][$kind] = (int)($j['paths'][$rel]['k'][$kind] ?? 0) + 1;
+    if (count($j['paths']) > 1000) { /* قدیمی‌ترین بر اساس last */
+        uasort($j['paths'], function ($a, $b) { return strcmp((string)($a['last'] ?? ''), (string)($b['last'] ?? '')); });
+        foreach (array_slice(array_keys($j['paths']), 0, count($j['paths']) - 1000) as $drop) unset($j['paths'][$drop]);
+    }
+    cms_ai_save($DATA, $j);
+}
+/* بذر اولیه از cms_log.txt — رجیستری از امروز فعال است؛ تاریخچهٔ لاگ (۲۰هزار خط آخر)
+   بهترین بازسازیِ ممکن برای گذشته است. نقشهٔ اکشن→پوشه همان مولدهاست. */
+function cms_ai_seed_from_log($ROOT, $DATA) {
+    $j = cms_ai_load($DATA);
+    if (!empty($j['seeded'])) return $j;
+    $log = $DATA . '/cms_log.txt';
+    if (is_file($log)) {
+        $map = ['page_create' => 'page', 'sched_publish' => 'page', 'blog_create' => 'blog', 'kc_create' => 'kc', 'product_create' => 'product', 'seo_queue_apply' => 'meta'];
+        foreach (explode("\n", (string)@file_get_contents($log)) as $line) {
+            $parts = array_map('trim', explode('|', $line));
+            if (count($parts) < 4) continue;
+            $act = $parts[2] ?? ''; $ref = $parts[3] ?? '';
+            if (!isset($map[$act])) continue;
+            $rel = trim(explode(' ', $ref)[0]); /* جداکنندهٔ | بعد از مسیر؛ اولین توکن کافی است */
+            if ($act === 'blog_create') $rel = 'blog/' . $rel . '.html';
+            elseif ($act === 'kc_create') $rel = 'knowledge-center/' . $rel . '.html';
+            elseif ($act === 'product_create') $rel = 'products/' . $rel . '.html';
+            if ($rel === '' || strpos($rel, '..') !== false || substr($rel, -5) !== '.html') continue;
+            if (!isset($j['paths'][$rel]) || !is_array($j['paths'][$rel])) $j['paths'][$rel] = ['last' => '', 'k' => []];
+            $j['paths'][$rel]['last'] = substr((string)$parts[0], 0, 19);
+            $j['paths'][$rel]['k'][$map[$act]] = (int)($j['paths'][$rel]['k'][$map[$act]] ?? 0) + 1;
+        }
+    }
+    $j['seeded'] = 1;
+    cms_ai_save($DATA, $j);
+    return $j;
+}
+
 /* v34.14.0 (S4/SCHED): قلاب lazy — هر فراخوانی (حتی sched_list)، آیتم‌های موعد‌رسیدهٔ
    تأییدشده را منتشر می‌کند؛ پاسخ همان فراخوانی وضعیت تازه را نشان می‌دهد (بدون cron) */
 cms_sched_due($ROOT, $DATA);
@@ -803,6 +858,7 @@ switch ($action) {
         }
         sitemap_add($url);
         cms_log('blog_create', $slug);
+        cms_ai_touch($DATA, 'blog/' . $slug . '.html', 'blog'); /* v34.17.0 */
         jok(['url' => 'blog/' . $slug . '.html']);
         break;
 
@@ -942,6 +998,7 @@ switch ($action) {
 
         sitemap_add($url);
         cms_log('kc_create', $slug);
+        cms_ai_touch($DATA, 'knowledge-center/' . $slug . '.html', 'kc'); /* v34.17.0 */
         jok(['url' => 'knowledge-center/' . $slug . '.html', 'listed' => $added]);
         break;
 
@@ -1268,6 +1325,7 @@ switch ($action) {
         if (file_put_contents($file, $html, LOCK_EX) === false) jerr('خطای نوشتن فایل محصول (مجوز write?)');
         sitemap_add($url);
         cms_log('product_create', $slug . ($cd !== '' ? ' | cd=' . $cd : ''));
+        cms_ai_touch($DATA, 'products/' . $slug . '.html', 'product'); /* v34.17.0 */
         jok(['url' => 'products/' . $slug . '.html']);
         break;
 
@@ -1560,8 +1618,20 @@ switch ($action) {
         if ($applied) {
             @unlink($DATA . '/cms-seo-scan.json');
             cms_log('alt_apply', 'applied=' . $applied . ' pages=' . count($touched));
+            foreach ($touched as $relAlt) cms_ai_touch($DATA, $relAlt, 'alt'); /* v34.17.0 */
         }
         jok(['applied' => $applied, 'pages' => count($touched)]);
+        break;
+
+    /* v34.17.0 (S3-id/AI-IMPACT): فهرست صفحات AI-لمس‌شده (با بذر از لاگ در اولین اجرا) */
+    case 'ai_list':
+        $j = cms_ai_seed_from_log($ROOT, $DATA);
+        $paths = [];
+        foreach ($j['paths'] as $rel => $m) {
+            $paths[] = ['path' => $rel, 'last' => $m['last'] ?? '', 'k' => $m['k'] ?? [], 'live' => is_file($ROOT . '/' . $rel) ? 1 : 0];
+        }
+        usort($paths, function ($a, $b) { return strcmp((string)$b['last'], (string)$a['last']); });
+        jok(['paths' => array_slice($paths, 0, 200), 'total' => count($paths)]);
         break;
 
     case 'page_create':
@@ -1575,6 +1645,7 @@ switch ($action) {
         if (file_put_contents($file, $r['html'], LOCK_EX) === false) jerr('خطای نوشتن فایل (مجوز write?)');
         sitemap_add($r['url']);
         cms_log('page_create', $r['rel']);
+        cms_ai_touch($DATA, $r['rel'], 'page'); /* v34.17.0 */
         jok(['url' => $r['rel']]);
         break;
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.16.0 — صفحه‌بندی فهرست تامین‌کنندگان تاییدشده (SUP-PERF-002).
+/* v34.17.0 — صفحه‌بندی فهرست تامین‌کنندگان تاییدشده (SUP-PERF-002).
    بدون تغییر داده/منطق؛ فقط ۵۰ ردیف اول + دکمهٔ «نمایش بیشتر» در renderSuppliers2. */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
@@ -13,9 +13,9 @@ var idx = read('crm/index.html');
 var off = read('crm/offers.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.16.0', ver.crm_version === 'v34.16.0', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.16.0', /window\.PTF_CRM_RELEASE = 'v34\.16.0'/.test(idx));
-T('offers.js cache-bust 34.16.0', /offers\.js\?v=34\.16.0/.test(idx));
+T('VERSION.json = v34.17.0', ver.crm_version === 'v34.17.0', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.17.0', /window\.PTF_CRM_RELEASE = 'v34\.17.0'/.test(idx));
+T('offers.js cache-bust 34.17.0', /offers\.js\?v=34\.17.0/.test(idx));
 
 T('renderSuppliers2 صفحه‌بندی ۵۰تایی دارد', /var per = 50;/.test(off));
 T('renderSuppliers2 فقط صفحهٔ فعلی را می‌سازد', off.indexOf('var shown = list.slice(0, (page + 1) * per);') > -1 && off.indexOf('shown.forEach(function(c) {') > -1);
@@ -26,6 +26,6 @@ T('renderSuppliers = renderSuppliers2 حفظ شده', off.indexOf('renderSupplie
 
 T('tester485 در گیت CI', gate.indexOf('tester485-v34.7.91-supplier-pagination.js') > -1);
 
-console.log('\n— tester485 (v34.16.0: صفحه‌بندی تامین‌کنندگان تاییدشده — SUP-PERF-002) —');
+console.log('\n— tester485 (v34.17.0: صفحه‌بندی تامین‌کنندگان تاییدشده — SUP-PERF-002) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
