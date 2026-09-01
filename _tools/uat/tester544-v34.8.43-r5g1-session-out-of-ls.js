@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester544 — v34.15.0 (R5/T4-1b — SESSION-OUT-OF-LS): توکن/نشست خارج از localStorage
+/* tester544 — v34.16.0 (R5/T4-1b — SESSION-OUT-OF-LS): توکن/نشست خارج از localStorage
    قرارداد: توکن نشست از این نسخه در sessionStorage (فقط همین تب) نگه داشته می‌شود و
    کوکی HttpOnlyِ ptf_token (از v34.8.28) کانال مشترک تب‌هاست؛ سرور در نبود هدر
    X-CRM-Token از کوکی می‌پذیرد. مهاجرت یک‌بارهٔ بوت: LS→SS سپس حذف LS؛ بازسازی نشست
@@ -26,7 +26,7 @@ T('PTF_AUTH_KEYS سه کلید نشست را پوشش می‌دهد', /var PTF_A
 T('نه تابع ptfAuth* تعریف شدند', ['ptfAuthToken','ptfAuthCookieOk','ptfAuthOk','ptfAuthHeaders','ptfAuthSession','ptfAuthSessionStore','ptfAuthLoginWrite','ptfAuthClear','ptfAuthSessionRestore'].every(function (n) { return rbac.indexOf('function ' + n + '(') > -1; }));
 T('ptfAuthToken: مخزن اصلی sessionStorage + مهاجرت LS→SS', /var t = sessionStorage\.getItem\('ptf_crm_token'\);[\s\S]{0,420}ptfAuthMigrate\(\); return l;/.test(rbac));
 T('گارد بازگشتی: خوانش LS داخل خود ptfAuthToken مستقیم است (نه فراخوانی خود)', /function ptfAuthToken\(\) \{[\s\S]{0,400}?try \{ l = localStorage\.getItem\('ptf_crm_token'\); \} catch \(eL2\) \{\}[\s\S]{0,120}?ptfAuthMigrate/.test(rbac) && !/l = \(typeof ptfAuthToken === 'function' \? ptfAuthToken\(\)/.test(rbac));
-T('مهاجرت: حذف LS فقط بعد از تأیید نگه‌داشتِ SS (v34.15.0)', /sessionStorage\.setItem\(_k, _v\);[\s\S]{0,120}if \(sessionStorage\.getItem\(_k\) !== _v\) continue;[\s\S]{0,80}localStorage\.removeItem\(_k\);/.test(rbac));
+T('مهاجرت: حذف LS فقط بعد از تأیید نگه‌داشتِ SS (v34.16.0)', /sessionStorage\.setItem\(_k, _v\);[\s\S]{0,120}if \(sessionStorage\.getItem\(_k\) !== _v\) continue;[\s\S]{0,80}localStorage\.removeItem\(_k\);/.test(rbac));
 T('ptfAuthCookieOk: نشانگر غیرمحرم ptf_token_flag=1', /ptf_token_flag=1/.test(rbac) && /function ptfAuthCookieOk\(\)/.test(rbac));
 T('ptfAuthOk = توکن SS یا نشانگر کوکی', /function ptfAuthOk\(\) \{ return !!ptfAuthToken\(\) \|\| ptfAuthCookieOk\(\); \}/.test(rbac));
 T('ptfAuthSessionRestore: role_verify → نشست SS', /action=role_verify[\s\S]{0,300}?ptfAuthSessionStore\(\{ user: d\.user/.test(rbac));
@@ -40,8 +40,8 @@ jsFiles.forEach(function (x) {
   var m = t.match(/localStorage\.getItem\('ptf_crm_token'\)/g);
   if (m) directReads.push(x + ':' + m.length);
 });
-T('خوانش مستقیم LS توکن فقط در rbac.js (مهاجرت + خواندن-بازِ v34.15.0)', directReads.length === 1 && directReads[0] === 'rbac.js:2', JSON.stringify(directReads));
-T('نوشتن LS توکن فقط fallback خرابی SS (هات‌فیکس v34.15.0)', jsFiles.every(function (x) {
+T('خوانش مستقیم LS توکن فقط در rbac.js (مهاجرت + خواندن-بازِ v34.16.0)', directReads.length === 1 && directReads[0] === 'rbac.js:2', JSON.stringify(directReads));
+T('نوشتن LS توکن فقط fallback خرابی SS (هات‌فیکس v34.16.0)', jsFiles.every(function (x) {
   if (x === 'rbac.js') return true; /* فقط rbac.js و فقط داخل شاخهٔ _ssOk=false */
   return !/localStorage\.setItem\('ptf_crm_(token|token_role)'/.test(fs.readFileSync(path.join(ROOT, 'crm', x), 'utf8'));
 }) && (function () {
@@ -170,7 +170,7 @@ var assert = require('assert');
 })().catch(function (e) { T('زنجیرهٔ بیرونی', false, String(e && e.stack || e)); finish(); });
 
 function finish() {
-  console.log('\n— tester544 (v34.15.0: R5/T4-1b — توکن/نشست خارج از localStorage؛ کوکی HttpOnly + آینهٔ sessionStorage) —');
+  console.log('\n— tester544 (v34.16.0: R5/T4-1b — توکن/نشست خارج از localStorage؛ کوکی HttpOnly + آینهٔ sessionStorage) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   if (f > 0) process.exit(1);
 }

@@ -80,8 +80,10 @@
         '<td style="padding:5px 8px">' + n(r.clicks) + '</td>' +
         '<td style="padding:5px 8px">' + r.position.toFixed(1) + '</td>' +
         '<td style="padding:5px 8px">' + pct(r.ctr) + '</td>' +
-        '<td style="padding:5px 8px"><button class="bt bt-o" style="padding:2px 8px;font-size:11px" ' +
-        'onclick="gscOptimize(\'' + escP(r.q).replace(/'/g, '') + '\')">بهینه‌سازی</button></td>' +
+        '<td style="padding:5px 8px;white-space:nowrap"><button class="bt bt-o" style="padding:2px 8px;font-size:11px" ' +
+        'onclick="gscOptimize(\'' + escP(r.q).replace(/'/g, '') + '\')">بهینه‌سازی</button> ' +
+        '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#b45309" title="افزودن/حذف در واچ‌لیست جایگاه" ' +
+        'onclick="gscWatchToggle(\'' + ptfOnClickArg(r.q) + '\')">⭐</button></td>' +
         '</tr>';
     }).join('');
     return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:10px">' +
@@ -145,6 +147,7 @@
       '</div>';
 
     h += '<div id="gscTrend"></div>'; /* v34.12.0 (S3): روند اسنپ‌شات‌ها */
+    h += '<div id="gscWatch"></div>'; /* v34.16.0 (S3-id): واچ‌لیست جایگاه */
     h += trendBars(_data.dates);
     h += '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 12px;margin-top:10px">' + /* v34.12.0 (S3) */
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:12.5px;color:#6b21a8">🧠 برنامهٔ محتوا با هوش مصنوعی</b>' +
@@ -166,6 +169,7 @@
 
     el.innerHTML = h;
     gscTrendLoad(); /* v34.12.0 (S3) */
+    gscWatchLoad(); /* v34.16.0 (S3-id) */
   }
 
   /* پوششِ ایندکس — verify>0 یعنی تأییدِ قطعیِ چند مورد با URL Inspection (سهمیهٔ روزانه محدود است) */
@@ -327,6 +331,59 @@
       box.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 12px">' +
         '<div style="display:flex;gap:2px;align-items:flex-end;height:48px">' + bars + '</div>' +
         '<span style="font-size:11px;color:#94a3b8">' + ser.length + ' اسنپ‌شات روزانه</span>' + dlH + '</div>';
+    });
+  };
+
+  /* ═══ v34.16.0 (S3-id/WATCH): واچ‌لیست جایگاه — روند از اسنپ‌شات‌های روزانه ═══ */
+  window.gscWatchToggle = function (q) {
+    api('watch_toggle', { q: q }, function (d) {
+      if (!d.ok) { alert('⚠️ ' + (d.error || 'خطا')); return; }
+      audit('GSC', (d.on ? 'افزودن به واچ‌لیست: ' : 'حذف از واچ‌لیست: ') + q, '');
+      gscWatchLoad();
+    });
+  };
+  function gscWatchPosColor(p) { return p <= 3 ? '#059669' : (p <= 10 ? '#b45309' : '#dc2626'); }
+  window.gscWatchLoad = function () {
+    var box = document.getElementById('gscWatch'); if (!box) return;
+    api('watch_list', {}, function (d) {
+      if (!box) return;
+      if (!d.ok) { box.innerHTML = ''; return; }
+      var items = d.items || [];
+      if (!items.length) { box.innerHTML = ''; return; }
+      var rows = items.map(function (it) {
+        var last = it.last, prev = it.prev, ser = it.series || [];
+        var posH = last ? '<b style="color:' + gscWatchPosColor(last.pos) + ';font-size:14px">' + last.pos.toFixed(1) + '</b>' : '<span style="color:#94a3b8">خارج از ۳۰تای برتر</span>';
+        var dlH = '—';
+        if (it.delta !== null && it.delta !== undefined) {
+          var up = it.delta > 0, eq = it.delta === 0;
+          dlH = eq ? 'بدون تغییر' : ('<b style="color:' + (up ? '#059669' : '#dc2626') + '">' + (up ? '▲ ' : '▼ ') + Math.abs(it.delta).toFixed(1) + '</b> <small style="color:#94a3b8">' + (up ? 'بهبود' : 'افت') + '</small>');
+        }
+        /* میله‌های جایگاه: جایگاه بهتر = میلهٔ بلندتر */
+        var bars = '';
+        if (ser.length > 1) {
+          var mx = Math.max.apply(null, ser.map(function (x) { return x.pos; })) || 1;
+          bars = '<div style="display:flex;gap:1.5px;align-items:flex-end;height:26px" title="' + ser.map(function (x) { return x.d + ': ' + x.pos.toFixed(1); }).slice(-12).join(' | ') + '">' +
+            ser.slice(-16).map(function (x) {
+              var hp = Math.max(3, Math.round(((mx - x.pos) / mx) * 26) + 3);
+              return '<div style="width:5px;height:' + hp + 'px;background:' + gscWatchPosColor(x.pos) + ';border-radius:1.5px;opacity:.75"></div>';
+            }).join('') + '</div>';
+        }
+        return '<tr>' +
+          '<td style="padding:5px 8px;text-align:right"><b>' + escP(it.q) + '</b></td>' +
+          '<td style="padding:5px 8px">' + posH + (last ? '<br><small style="color:#94a3b8">' + escP(last.d) + '</small>' : '') + '</td>' +
+          '<td style="padding:5px 8px">' + dlH + '</td>' +
+          '<td style="padding:5px 8px">' + (last ? n(last.clicks) : '—') + '</td>' +
+          '<td style="padding:5px 8px">' + (last ? n(last.imp) : '—') + '</td>' +
+          '<td style="padding:5px 8px">' + bars + '</td>' +
+          '<td style="padding:5px 8px"><button class="bt bt-o" style="padding:2px 8px;font-size:11px;color:#b91c1c" onclick="gscWatchToggle(&#39;' + ptfOnClickArg(it.q) + '&#39;)">✖</button></td>' +
+          '</tr>';
+      }).join('');
+      box.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 12px">' +
+        '<div style="font-size:12.5px;font-weight:800">⭐ واچ‌لیست جایگاه <span style="font-weight:400;color:#94a3b8;font-size:11px">(' + items.length + ')</span></div>' +
+        '<span style="font-size:10.5px;color:#94a3b8">روند جایگاه از اسنپ‌شات‌های روزانه — با ⭐ کنار هر کوئری اضافه/حذف کنید</span></div>' +
+        '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:6px 12px;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
+        '<thead><tr style="color:#64748b;font-size:11px;border-bottom:1px solid #e2e8f0"><th style="text-align:right;padding:4px 8px">کلمه</th><th>آخرین جایگاه</th><th>دلتا</th><th>کلیک</th><th>نمایش</th><th>روند</th><th></th></tr></thead>' +
+        '<tbody>' + rows + '</tbody></table></div>';
     });
   };
 

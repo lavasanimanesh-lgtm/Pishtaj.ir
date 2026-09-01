@@ -201,6 +201,16 @@ function gsc_snap_maybe($dir, $days, $sum, $dates) {
     if (count($existing) > 180) foreach (array_slice($existing, 180) as $old) @unlink($old);
 }
 
+/* ═══ v34.16.0 (S3-id/WATCH): واچ‌لیست جایگاه — روند از اسنپ‌شات‌های موجود (بدون دادهٔ جدید) ═══ */
+function gsc_watch_file($DATA) { return $DATA . '/gsc-watchlist.json'; }
+function gsc_watch_load($DATA) {
+    $j = is_file(gsc_watch_file($DATA)) ? json_decode((string)@file_get_contents(gsc_watch_file($DATA)), true) : null;
+    return (is_array($j) && isset($j['items']) && is_array($j['items'])) ? $j : ['items' => []];
+}
+function gsc_watch_save($DATA, $w) {
+    @file_put_contents(gsc_watch_file($DATA), json_encode($w, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
 /* v34.12.0 (S3/SUBMIT-FIX): تشخیص خودکار پراپرتی + سطح دسترسی — ریشهٔ «ثبت نقشه ناموفق»:
    PUT sitemaps فقط با سطح Full مجاز است و site_url کانفیگ ممکن است با نوع پراپرتی واقعی
    (sc-domain در برابر URL-prefix) نخواند. اینجا فهرست سایت‌های قابل‌دسترسی را می‌گیریم،
@@ -525,6 +535,49 @@ switch ($action) {
             $delta = ['from' => $a['date'], 'to' => $b['date'], 'clicks' => $df('clicks', 0), 'impressions' => $df('impressions', 0)];
         }
         jok(['series' => array_slice($series, -60), 'total_snaps' => count($series), 'delta' => $delta]);
+        break;
+
+    /* v34.16.0 (S3-id/WATCH): افزودن/حذف کلمه از واچ‌لیست (سقف ۳۰) */
+    case 'watch_toggle':
+        $q = trim((string)($_POST['q'] ?? ''));
+        if ($q === '' || mb_strlen($q, 'UTF-8') > 120) jerr('کلمهٔ نامعتبر');
+        $w = gsc_watch_load($DATA);
+        $on = false;
+        if (isset($w['items'][$q])) { unset($w['items'][$q]); }
+        else {
+            if (count($w['items']) >= 30) jerr('واچ‌لیست پر است (۳۰ کلمه)');
+            $w['items'][$q] = ['added_at' => date('c')];
+            $on = true;
+        }
+        gsc_watch_save($DATA, $w);
+        jok(['on' => $on, 'total' => count($w['items'])]);
+        break;
+
+    /* v34.16.0 (S3-id/WATCH): روند جایگاه واچ‌لیست — از اسنپ‌شات‌های موجود (topQueries هر روز) */
+    case 'watch_list':
+        $w = gsc_watch_load($DATA);
+        $files = glob($GSC_SNAP_DIR . '/*.json') ?: [];
+        sort($files); /* قدیمی → جدید */
+        $out = []; $totalSnaps = 0;
+        foreach ($w['items'] as $q => $meta) {
+            $series = [];
+            foreach ($files as $f) {
+                $j = json_decode((string)@file_get_contents($f), true);
+                if (!is_array($j) || empty($j['date'])) continue;
+                foreach (($j['topQueries'] ?? []) as $tq) {
+                    if ((string)($tq['k'] ?? '') === (string)$q) {
+                        $series[] = ['d' => $j['date'], 'pos' => (float)($tq['position'] ?? 0), 'clicks' => (float)($tq['clicks'] ?? 0), 'imp' => (float)($tq['impressions'] ?? 0)];
+                        break;
+                    }
+                }
+            }
+            $totalSnaps = max($totalSnaps, count($series));
+            $last = $series ? end($series) : null;
+            $prev = count($series) > 1 ? $series[count($series) - 2] : null;
+            $delta = ($last && $prev && (float)$prev['pos'] > 0) ? round((float)$prev['pos'] - (float)$last['pos'], 1) : null; /* مثبت = بهبود */
+            $out[] = ['q' => $q, 'added_at' => $meta['added_at'] ?? '', 'series' => array_slice($series, -60), 'last' => $last, 'prev' => $prev, 'delta' => $delta];
+        }
+        jok(['items' => $out, 'total_snaps' => $totalSnaps]);
         break;
 
     /* v34.10.0 (S1/INDEX-LOOP): تاریخچهٔ بررسی‌های ایندکس */
