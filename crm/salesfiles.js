@@ -967,7 +967,7 @@
       /* v16.8 (US-404): پرونده = فقط ابلاغ‌شده (wonOffer) — رکوردهای قدیمی دارای فاکتور هم از باب احتیاط پرونده می‌مانند.
          رکوردهای قدیمی بدون برد حذف نمی‌شوند (مهاجرت نرم) — در تب فرصت‌ها نمایندگی می‌شوند و با برد، همین رکورد پرونده می‌شود. */
       if (!r.wonOffer && !(r.inqNo && sfHasInvoice(r))) return false;
-      return !q || ((r.inqNo || '') + ' ' + (r.buyerCo || '') + ' ' + (r.offerNo || '')).toLowerCase().indexOf(q) > -1;
+      return !q || ((r.inqNo || '') + ' ' + (r.buyerCo || '') + ' ' + ((typeof ptfCustFaByEn === 'function') ? ptfCustFaByEn(r.buyerCo) : '') + ' ' + (r.offerNo || '')).toLowerCase().indexOf(q) > -1; /* v34.18.0: جستجو با نام فارسی هم */
     });
     var h = '';
     list.forEach(function (r) {
@@ -988,7 +988,10 @@
         : '';
       h += '<div id="sfDeal-' + escP(r.cd) + '" data-ptf-nav="deal:' + escP(r.cd) + '" style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;overflow:hidden' + (dueSt === 'red' ? ';border-color:#fca5a5' : '') + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;flex-wrap:wrap' + (dueSt === 'red' ? ';background:#fef2f2' : dueSt === 'orange' ? ';background:#fffbeb' : '') + '" onclick="sfToggle(\'' + ptfOnClickArg(r.cd) + '\')">' +
-        '<div style="font-size:13px"><b dir="ltr">' + escP(inqKey) + '</b> — ' + escP(r.buyerCo || '-') +
+        '<div style="font-size:13px"><b dir="ltr">' + escP(inqKey) + '</b> — ' + (function () { /* v34.18.0: نام فارسی + انگلیسی زیر هم */
+          var p = (typeof ptfCustNamePair === 'function') ? ptfCustNamePair('', r.buyerCo) : { fa: r.buyerCo || '-', en: '' };
+          return (typeof ptfCustCellHtml === 'function') ? ptfCustCellHtml(p.fa, p.en, '') : escP(p.fa);
+        })() +
         '<div style="font-size:11px;color:#64748b;margin-top:2px">' + nDocs + ' سند منضم | ایجاد: ' + escP(r.t || '') + stgBadge + (hasInv ? ' | <span style="color:#059669">🧾 فاکتور ثبت شده</span>' : '') + dueBadge + (lossBadge ? ' | ' + lossBadge : '') + '</div></div>' +
         '<span style="font-size:13px;color:#94a3b8">' + (open ? '▲' : '▼') + '</span></div>' +
         (open ? sfDrawerHtml(r, d, hasInv) : '') +

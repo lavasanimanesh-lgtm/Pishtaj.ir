@@ -149,8 +149,10 @@
     });
     /* v13.0: آیکون‌های رنگی — پالت چرخشی هماهنگ لانچر */
     var PAL = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#d946ef'];
+    /* v34.20.0: سه‌گانهٔ «مدیریت سایت» (cms/gsc/jobs) با سرگروه نمایش می‌یابد — هم‌شکل سایدبار دسکتاپ */
     var grid = items.map(function (it, i) {
-      return '<button type="button" class="mnv-mi" onclick="ptfMnvGo(\'' + it.id + '\')">' +
+      var grp = (it.id === 'cms') ? '<div class="mnv-grp">🌐 مدیریت سایت</div>' : '';
+      return grp + '<button type="button" class="mnv-mi" onclick="ptfMnvGo(\'' + it.id + '\')">' +
         '<span class="mnv-mic" style="color:' + PAL[i % PAL.length] + '">' + it.ic + '</span><span class="mnv-mlb">' + it.lb + '</span></button>';
     }).join('');
     var html =
@@ -305,6 +307,7 @@
     '#tbIcons{gap:5px!important}' +
     '.tb h2{font-size:14px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}' +
     /* جستجوی سراسری: آیکون مربعی هم‌اندازهٔ آیکون‌های هدر */
+    '.mnv-grp{grid-column:1/-1;font-size:11px;font-weight:800;color:#0e7490;border-top:1px dashed #cbd5e1;padding:8px 2px 2px;margin-top:4px}' + /* v34.20.0: سرگروه مدیریت سایت در کشوی بیشتر */
     '.tb button[onclick*="ptfOpenCommandPalette"]{font-size:0!important;padding:0!important;gap:0!important;width:42px!important;height:42px!important;min-height:42px!important;min-width:42px!important;max-height:42px!important;max-width:42px!important;border-radius:12px!important;display:grid!important;place-items:center!important;background:var(--bg,#f4f6f9)!important;border:1px solid var(--brd,#e8ebf0)!important}' +
     '.tb button[onclick*="ptfOpenCommandPalette"] span{display:none!important}' +
     '.tb button[onclick*="ptfOpenCommandPalette"] span[data-ix]{display:inline-flex!important}' +

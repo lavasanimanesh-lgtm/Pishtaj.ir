@@ -124,6 +124,77 @@ file_put_contents($rlFile, json_encode($rl));
 
 $in = json_decode(file_get_contents('php://input'), true) ?: [];
 
+/* ═══ v34.14.0 (S4/COST): شمارندهٔ مصرف/هزینهٔ AI — داشبورد برای نقش‌های ارشد ═══ */
+function llm_price($cfg, $model) { /* دلار به‌ازای ۱M توکن [ورودی، خروجی] — تخمینی؛ با 'pricing' در llm-config.php قابل بازنویسی */
+    $p = $cfg['pricing'] ?? null;
+    if (is_array($p) && isset($p[$model]) && is_array($p[$model]) && count($p[$model]) >= 2) {
+        return [(float)$p[$model][0], (float)$p[$model][1]];
+    }
+    $m = strtolower((string)$model);
+    if (strpos($m, 'flash-lite') !== false) return [0.10, 0.40];
+    if (strpos($m, 'flash') !== false) return [0.30, 2.50];
+    if (strpos($m, 'gemini') !== false && strpos($m, 'pro') !== false) return [1.25, 10.00];
+    if (strpos($m, 'gpt-4o-mini') !== false || strpos($m, 'gpt-4.1-mini') !== false || strpos($m, 'gpt-4.1-nano') !== false) return [0.15, 0.60];
+    if (strpos($m, 'gpt-4o') !== false || strpos($m, 'gpt-4.1') !== false || strpos($m, 'o4-mini') !== false) return [2.50, 10.00];
+    if (strpos($m, 'gpt-4') !== false) return [10.00, 30.00];
+    return [0.0, 0.0];
+}
+function llm_usage_file() { return llm_data_dir() . '/ai-usage.json'; }
+function llm_usage_log($model, $pt, $ct, $ms = 0) { /* فقط فراخوانی‌های واقعی — cache-hitها زودتر return می‌شوند و هزینه ندارند */
+    global $action;
+    $f = llm_usage_file();
+    $j = is_file($f) ? json_decode((string)@file_get_contents($f), true) : [];
+    if (!is_array($j)) $j = [];
+    $d = date('Y-m-d');
+    if (!isset($j[$d]) || !is_array($j[$d])) $j[$d] = ['n' => 0, 'pt' => 0, 'ct' => 0, 'ms' => 0, 'act' => [], 'mod' => []];
+    $day = &$j[$d];
+    $day['n']++; $day['pt'] += (int)$pt; $day['ct'] += (int)$ct; $day['ms'] += (int)$ms;
+    $a = trim((string)$action); if ($a === '') $a = 'other';
+    if (!isset($day['act'][$a]) || !is_array($day['act'][$a])) $day['act'][$a] = ['n' => 0, 'pt' => 0, 'ct' => 0];
+    $day['act'][$a]['n']++; $day['act'][$a]['pt'] += (int)$pt; $day['act'][$a]['ct'] += (int)$ct;
+    if (!isset($day['mod'][$model]) || !is_array($day['mod'][$model])) $day['mod'][$model] = ['n' => 0, 'pt' => 0, 'ct' => 0];
+    $day['mod'][$model]['n']++; $day['mod'][$model]['pt'] += (int)$pt; $day['mod'][$model]['ct'] += (int)$ct;
+    unset($day);
+    $ks = array_keys($j); sort($ks);
+    while (count($ks) > 120) { unset($j[array_shift($ks)]); } /* نگهداری ۱۲۰ روز */
+    @file_put_contents($f, json_encode($j, JSON_UNESCAPED_UNICODE), LOCK_EX);
+}
+if ($action === 'usage_stats') {
+    if (!in_array($llmRole, ['admin', 'chairman', 'ceo'], true)) { /* نقش از توکن تأییدشده — نه هدر خام */
+        echo json_encode(['ok' => false, 'error' => 'مشاهدهٔ هزینهٔ هوش مصنوعی فقط برای مدیر ارشد مجاز است'], JSON_UNESCAPED_UNICODE); exit;
+    }
+    $j = is_file(llm_usage_file()) ? json_decode((string)@file_get_contents(llm_usage_file()), true) : [];
+    if (!is_array($j)) $j = [];
+    ksort($j);
+    $days = array_slice($j, -30, null, true);
+    $tot = ['n' => 0, 'pt' => 0, 'ct' => 0, 'ms' => 0, 'cost' => 0.0];
+    $acts = []; $mods = []; $byDay = [];
+    foreach ($days as $d => $day) {
+        if (!is_array($day)) continue;
+        $dCost = 0.0;
+        foreach ((is_array($day['mod'] ?? null) ? $day['mod'] : []) as $m => $mv) {
+            if (!is_array($mv)) continue;
+            list($pi, $po) = llm_price($cfg, $m);
+            $dCost += ((int)($mv['pt'] ?? 0)) * $pi / 1000000 + ((int)($mv['ct'] ?? 0)) * $po / 1000000;
+            foreach (['n', 'pt', 'ct'] as $k) $mods[$m][$k] = ($mods[$m][$k] ?? 0) + (int)($mv[$k] ?? 0);
+        }
+        foreach ((is_array($day['act'] ?? null) ? $day['act'] : []) as $a => $av) {
+            if (!is_array($av)) continue;
+            foreach (['n', 'pt', 'ct'] as $k) $acts[$a][$k] = ($acts[$a][$k] ?? 0) + (int)($av[$k] ?? 0);
+        }
+        $byDay[] = ['d' => $d, 'n' => (int)($day['n'] ?? 0), 'pt' => (int)($day['pt'] ?? 0), 'ct' => (int)($day['ct'] ?? 0), 'ms' => (int)($day['ms'] ?? 0), 'cost' => round($dCost, 4)];
+        $tot['n'] += (int)($day['n'] ?? 0); $tot['pt'] += (int)($day['pt'] ?? 0);
+        $tot['ct'] += (int)($day['ct'] ?? 0); $tot['ms'] += (int)($day['ms'] ?? 0);
+        $tot['cost'] += $dCost;
+    }
+    uasort($acts, function ($x, $y) { return (int)($y['n'] ?? 0) <=> (int)($x['n'] ?? 0); });
+    $tot['cost'] = round($tot['cost'], 4);
+    echo json_encode(['ok' => true, 'byDay' => $byDay, 'tot' => $tot, 'acts' => $acts, 'mods' => $mods,
+        'prices' => array_map(function ($c) { return ['in' => $c[0], 'out' => $c[1]]; }, array_combine(array_keys($mods), array_map(function ($m) use ($cfg) { return llm_price($cfg, $m); }, array_keys($mods)))),
+        'note' => 'هزینه تخمینی است — قیمت‌های دقیق را با کلید pricing در llm-config.php بازنویسی کنید'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 /* ---------- فراخوانی ارائه‌دهنده: cache صحیح، quota بدون خروجی debug و تشخیص transport ---------- */
 function llm_data_dir() {
     $dir = __DIR__ . '/../crm/data';
@@ -200,6 +271,10 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
     if ($provider === 'gemini') {
         $parts = [['text' => $system . "\n\n" . $userText]];
         if ($inlineB64) $parts[] = ['inline_data' => ['mime_type' => $inlineMime, 'data' => $inlineB64]];
+        /* v34.15.0 (S5/ALT): چند تصویر در یک فراخوانی (بینایی گروهی) */
+        foreach ((array)($opts['images'] ?? []) as $imI) {
+            if (is_array($imI) && !empty($imI[0])) $parts[] = ['inline_data' => ['mime_type' => $imI[1] ?? 'image/jpeg', 'data' => $imI[0]]];
+        }
         $payload = json_encode([
             'contents' => [['parts' => $parts]],
             'generationConfig' => ['temperature' => 0.15, 'maxOutputTokens' => $maxTok, 'responseMimeType' => 'application/json']
@@ -212,6 +287,13 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
         $content = $inlineB64
             ? [['type' => 'text', 'text' => $userText], ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $inlineMime . ';base64,' . $inlineB64]]]
             : $userText;
+        if (!empty($opts['images'])) { /* v34.15.0 (S5/ALT) */
+            $arrI = [['type' => 'text', 'text' => $userText]];
+            foreach ((array)$opts['images'] as $imI) {
+                if (is_array($imI) && !empty($imI[0])) $arrI[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . ($imI[1] ?? 'image/jpeg') . ';base64,' . $imI[0]]];
+            }
+            $content = $arrI;
+        }
         $payload = json_encode([
             'model' => $model,
             'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $content]],
@@ -225,7 +307,7 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
     if ($payload === false) return ['ok' => false, 'http' => 0, 'error' => 'ساخت payload درخواست AI ناموفق بود'];
 
     $dataDir = llm_data_dir();
-    $cacheKey = hash('sha256', $provider . '|' . $model . '|' . $system . '|' . $userText . '|' . ($inlineB64 ? hash('sha256', $inlineB64) : '') . '|' . ($inlineMime ?? ''));
+    $cacheKey = hash('sha256', $provider . '|' . $model . '|' . $system . '|' . $userText . '|' . ($inlineB64 ? hash('sha256', $inlineB64) : '') . '|' . ($inlineMime ?? '') . '|' . (!empty($opts['images']) ? hash('sha256', json_encode($opts['images'])) : '')); /* v34.15.0: تصاویر هم در کلید کش */
     $cacheFile = $dataDir . '/ai_cache.json';
     $cacheData = file_exists($cacheFile) ? json_decode(@file_get_contents($cacheFile), true) : [];
     if (!is_array($cacheData)) $cacheData = [];
@@ -284,6 +366,20 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
 
     $text = preg_replace('/^```(?:json)?\s*/i', '', trim($text));
     $text = preg_replace('/```$/', '', $text);
+    /* v34.14.0 (S4/COST): استخراج توکن‌های واقعی از پاسخ provider — در نبودِ آن تخمین حرفی */
+    $ptTok = $ctTok = 0;
+    if ($provider === 'gemini') {
+        $um = is_array($json['usageMetadata'] ?? null) ? $json['usageMetadata'] : [];
+        $ptTok = (int)($um['promptTokenCount'] ?? 0);
+        $ctTok = (int)($um['candidatesTokenCount'] ?? 0);
+    } else {
+        $um = is_array($json['usage'] ?? null) ? $json['usage'] : [];
+        $ptTok = (int)($um['prompt_tokens'] ?? 0);
+        $ctTok = (int)($um['completion_tokens'] ?? 0);
+    }
+    if ($ptTok <= 0) $ptTok = (int)ceil((mb_strlen($system . $userText, 'UTF-8') + 12) / 3);
+    if ($ctTok <= 0) $ctTok = (int)ceil((mb_strlen($text, 'UTF-8') + 12) / 3);
+    try { llm_usage_log($model, $ptTok, $ctTok, (int)round((microtime(true) - $t0) * 1000)); } catch (Throwable $eUsage) {}
     $result = ['ok' => true, 'text' => trim($text), 'model' => $model, 'transport' => $transport['transport']];
     if (!$skipCache) {
         $cacheData[$cacheKey] = ['t' => time(), 'res' => $result];
@@ -339,16 +435,54 @@ function llm_test_diagnosis($r, $cfg) {
     return 'خطای ارتباط با سرویس AI؛ جزئیات امن transport و پاسخ خام را بررسی کنید.';
 }
 
+/* ═══ v34.20.0 (JSON-ROBUST): نجات خروجی JSON مدل ═══
+   RCA خطای «خروجی AI ساختار JSON معتبر ندارد» در seo_product: پاسخ بلند در سقف
+   توکن بریده می‌شود (JSON ناقص) یا کاماهای انتهایی/پوشش متن دارد. سه لایه:
+   ۱) salvage: استخراج {..} + حذف کاماهای انتهایی ۲) retry یک‌باره با دو برابر
+   توکن + skip_cache ۳) فقط بعد از آن خطا. */
+function llm_json_salvage($text) {
+    $t = trim((string)$text);
+    if ($t === '') return null;
+    $d = json_decode($t, true);
+    if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+    $s = strpos($t, '{'); $e = strrpos($t, '}');
+    if ($s !== false && $e !== false && $e > $s) {
+        $d = json_decode(substr($t, $s, $e - $s + 1), true);
+        if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+    }
+    $t2 = preg_replace('/,\s*([\]}])/', '$1', $t); /* کاماهای انتهایی */
+    if ($t2 !== null && $t2 !== $t) {
+        $d = json_decode($t2, true);
+        if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+        $s = strpos($t2, '{'); $e = strrpos($t2, '}');
+        if ($s !== false && $e !== false && $e > $s) {
+            $d = json_decode(substr($t2, $s, $e - $s + 1), true);
+            if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+        }
+    }
+    return null;
+}
+function llm_call_json($cfg, $sys, $user, $b64 = null, $mime = null, $maxTok = 1200, $opts = []) {
+    $res = llm_call($cfg, $sys, $user, $b64, $mime, $maxTok, $opts);
+    if (empty($res['ok'])) return $res;
+    $d = llm_json_salvage($res['text'] ?? '');
+    if ($d !== null) { $res['jsonData'] = $d; return $res; }
+    /* تلاش دوم: سقف توکن دو برابر + دور زدن کش + تلنگر فشردگی */
+    $res2 = llm_call($cfg, $sys . ' CRITICAL: reply with COMPLETE compact valid JSON only — never truncate.',
+        $user, $b64, $mime, (int)($maxTok * 2), array_merge($opts, ['skip_cache' => true]));
+    if (!empty($res2['ok'])) {
+        $d2 = llm_json_salvage($res2['text'] ?? '');
+        if ($d2 !== null) { $res2['jsonData'] = $d2; $res2['json_retried'] = true; return $res2; }
+        return $res2;
+    }
+    return $res; /* خطای اولیه معتبرتر است */
+}
+
 function out_json($res) {
 
     if (!$res['ok']) { echo json_encode($res, JSON_UNESCAPED_UNICODE); exit; }
-    $data = json_decode($res['text'], true);
-    if ($data === null) {
-        $s = strpos($res['text'], '{');
-        $e = strrpos($res['text'], '}');
-        if ($s !== false && $e !== false && $e > $s) $data = json_decode(substr($res['text'], $s, $e - $s + 1), true);
-    }
-    if ($data === null || json_last_error() !== JSON_ERROR_NONE) { echo json_encode(['ok' => false, 'error' => 'خروجی AI ساختار JSON معتبر ندارد (پاسخ قابل تجزیه نبود)', 'raw' => mb_substr($res['text'], 0, 300)], JSON_UNESCAPED_UNICODE); exit; }
+    $data = isset($res['jsonData']) ? $res['jsonData'] : llm_json_salvage($res['text'] ?? ''); /* v34.20.0 */
+    if ($data === null) { echo json_encode(['ok' => false, 'error' => 'خروجی AI ساختار JSON معتبر ندارد (پاسخ قابل تجزیه نبود)', 'raw' => mb_substr((string)($res['text'] ?? ''), 0, 300)], JSON_UNESCAPED_UNICODE); exit; }
     echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -657,6 +791,9 @@ switch ($action) {
     case 'seo_expand':
     case 'seo_review':
     case 'seo_fix':
+    case 'seo_intlinks':
+    case 'seo_product':
+    case 'seo_clusters':
         if (!in_array($llmRole, ['admin', 'chairman', 'ceo', 'commercial'], true)) {
             http_response_code(403);
             echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
@@ -671,7 +808,50 @@ switch ($action) {
             . 'Keep standard designations in Latin exactly as written (ASTM A106 Gr.B, ASME B16.5, API 5L X42). '
             . 'LENGTH RULES measured in Persian characters: title 30-65, description 70-165, h1 20-70. '
             . 'Title and h1 must NOT be identical. Description must be a single sentence-pair that a searcher '
-            . 'would click, ending without a trailing period. slug = lowercase english kebab-case. ';
+            . 'would click, ending without a trailing period. slug = lowercase english kebab-case. '
+            /* v34.24.0 (SEO-BATCH): چهارچوب رسمی گوگل — یکتایی، تطابق با محتوا، بدون فریب */
+            . 'GOOGLE SEARCH CENTRAL FRAMEWORK: every title/description must be UNIQUE to that page (no boilerplate '
+            . 'repeated across pages), must faithfully summarize what the page actually says (intent match), no '
+            . 'clickbait, no misleading or exaggerated claims, no ALL-CAPS shouting. When fixing a flagged issue, '
+            . 'produce the corrected value in full — ready to save, not an instruction. ';
+
+        if ($action === 'seo_alt') {
+            /* v34.15.0 (S5/ALT): متن جایگزین فارسی برای تصاویر — بینایی گروهی (تا ۸ تصویر در یک فراخوانی).
+               تصویر روی سرور از دیسک خوانده و اعتبارسنجی می‌شود (realpath زیر ریشهٔ سایت). */
+            $imgs = is_array($in['imgs'] ?? null) ? $in['imgs'] : [];
+            if (!$imgs) { echo json_encode(['ok' => false, 'error' => 'فهرست تصاویر خالی است'], JSON_UNESCAPED_UNICODE); exit; }
+            if (count($imgs) > 8) $imgs = array_slice($imgs, 0, 8);
+            $ROOTL = dirname(__DIR__);
+            $pack = []; $srcs = [];
+            foreach ($imgs as $im) {
+                if (!is_array($im)) continue;
+                $src  = trim((string)($im['src'] ?? ''));
+                $disk = trim((string)($im['disk'] ?? ''));
+                if ($src === '' || $disk === '' || strpos($disk, '..') !== false) continue;
+                $rp = realpath($ROOTL . '/' . ltrim($disk, '/'));
+                if ($rp === false || strpos($rp, realpath($ROOTL)) !== 0) continue;
+                if (!preg_match('#\.(jpe?g|png|webp|gif)$#i', $rp)) continue;
+                $sz = @filesize($rp);
+                if (!$sz || $sz > 3 * 1048576) continue;
+                $b64 = base64_encode((string)file_get_contents($rp));
+                if ($b64 === '') continue;
+                $mime = 'image/jpeg';
+                if (preg_match('#\.png$#i', $rp)) $mime = 'image/png';
+                elseif (preg_match('#\.webp$#i', $rp)) $mime = 'image/webp';
+                elseif (preg_match('#\.gif$#i', $rp)) $mime = 'image/gif';
+                $pack[] = [$b64, $mime];
+                $srcs[] = $src;
+            }
+            if (!$pack) { echo json_encode(['ok' => false, 'error' => 'هیچ تصویر قابل‌پردازشی روی سرور یافت نشد'], JSON_UNESCAPED_UNICODE); exit; }
+            $sys = 'You write Persian alt text for images on an industrial trading company website '
+                . '(valves, fittings, flanges, industrial equipment). '
+                . 'Rules: describe ONLY what is visually present; Persian, 6 to 14 words; '
+                . 'no prefix like «تصویر» or «عکس»; no quotes; no marketing claims; do not invent brand/model text you cannot read. '
+                . 'Reply ONLY valid JSON: {"alts":[{"src":"<same src>","alt":"..."}]} in the SAME order as given.';
+            $user = "تصاویر به ترتیب: " . implode(' | ', $srcs) . "\nبرای هر src یک alt فارسی بنویس — همان ترتیب و همان srcها.";
+            out_json(llm_call($cfg, $sys, $user, null, null, 900, ['images' => $pack]));
+            break;
+        }
 
         if ($action === 'seo_meta') {
             $topic = trim((string)($in['topic'] ?? ''));
@@ -683,7 +863,82 @@ switch ($action) {
                 . 'keywords = 3-6 short Persian/Latin search phrases a buyer or engineer would actually type. '
                 . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","keywords":["..."]}';
             $user = "موضوع: $topic\n\nمتن صفحه:\n" . $content;
-            out_json(llm_call($cfg, $sys, $user, null, null, 900));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 900)); /* v34.20.0: salvage+retry */
+            break;
+        }
+
+        if ($action === 'seo_intlinks') {
+            /* v34.10.0 (S1/ORPHAN): پیشنهاد منابع لینک داخلی برای صفحهٔ یتیم */
+            $tgtPath = trim((string)($in['target'] ?? ''));
+            $tgtTitle = trim((string)($in['title'] ?? ''));
+            $cands = $in['candidates'] ?? [];
+            if (!is_array($cands)) $cands = [];
+            if (count($cands) > 40) $cands = array_slice($cands, 0, 40);
+            if ($tgtPath === '') { echo json_encode(['ok' => false, 'error' => 'مسیر صفحهٔ هدف لازم است'], JSON_UNESCAPED_UNICODE); exit; }
+            $candTxt = '';
+            foreach ($cands as $i => $c) {
+                $cp = trim((string)($c['path'] ?? '')); $ct = trim((string)($c['title'] ?? ''));
+                if ($cp === '' || $cp === $tgtPath) continue;
+                $candTxt .= ($i + 1) . '. ' . $cp . ' | ' . $ct . "\n";
+            }
+            if ($candTxt === '') { echo json_encode(['ok' => false, 'error' => 'کاندیدای مناسبی برای لینک‌سازی نیست'], JSON_UNESCAPED_UNICODE); exit; }
+            $sys = $SEO_RULES
+                . 'Task: internal link building. Given a target page (orphan: no internal inbound links) '
+                . 'and a list of candidate existing pages, pick the 3 most topically relevant source pages and write a natural '
+                . 'Persian anchor phrase (5-12 chars, no “اینجا/کلیک کنید”) plus a short suggestion of where/how to place it. '
+                . 'Reply ONLY valid JSON: {"links":[{"from":"<candidate path>","anchor":"...","how":"..."}]}';
+            $user = "صفحهٔ هدف: $tgtPath\nعنوان هدف: $tgtTitle\n\nصفحات کاندید (مسیر | عنوان):\n" . $candTxt;
+            out_json(llm_call($cfg, $sys, $user, null, null, 700));
+            break;
+        }
+
+        if ($action === 'seo_clusters') {
+            /* v34.12.0 (S3): خوشه‌بندی کلمه‌کلید → برنامهٔ محتوا (صفحهٔ جدید یا بهینه‌سازی) */
+            $queries = $in['queries'] ?? [];
+            $pages = $in['pages'] ?? [];
+            if (!is_array($queries)) $queries = [];
+            if (!is_array($pages)) $pages = [];
+            if (count($queries) > 60) $queries = array_slice($queries, 0, 60);
+            if (count($pages) > 60) $pages = array_slice($pages, 0, 60);
+            if (!$queries) { echo json_encode(['ok' => false, 'error' => 'فهرست کلمات لازم است'], JSON_UNESCAPED_UNICODE); exit; }
+            $qt = ''; $i = 0;
+            foreach ($queries as $qr) {
+                $i++;
+                $qt .= $i . '. ' . trim((string)($qr['q'] ?? '')) . ' | نمایش:' . (int)($qr['impressions'] ?? 0) . ' کلیک:' . (int)($qr['clicks'] ?? 0) . ' جایگاه:' . round((float)($qr['position'] ?? 0), 1) . "\n";
+            }
+            $pt = '';
+            foreach ($pages as $pp) { $pt .= '- ' . trim((string)($pp['path'] ?? '')) . ' | نمایش:' . (int)($pp['impressions'] ?? 0) . "\n"; }
+            $sys = $SEO_RULES
+                . 'Task: keyword clustering for content planning. Group the given Persian/Latin search queries into 3-6 topical clusters. '
+                . 'For each cluster decide: action="new" (no good page exists yet — worth a new article) or "optimize" (a listed page already targets it but underperforms: impressions high, clicks low or position 8-30). '
+                . 'Priority = impressions potential. Cluster title = short Persian topic. NEVER suggest a new page for a query the site already ranks position<=5 for. '
+                . 'Reply ONLY valid JSON: {"clusters":[{"topic":"...","action":"new|optimize","why":"...","queries":["..."],"target":"<existing path for optimize or empty>"}]}';
+            $user = "کلمات جست‌وجو:\n$qt\n\nصفحات موجود:\n$pt";
+            out_json(llm_call($cfg, $sys, $user, null, null, 1400));
+            break;
+        }
+
+        if ($action === 'seo_product') {
+            /* v34.11.0 (S2/PRODUCT): مولد محتوای صفحهٔ محصول از دیتای CRM — متن یگانه، بدون قالب تکراری */
+            $prod = $in['product'] ?? [];
+            if (!is_array($prod)) $prod = [];
+            $nm = trim((string)($prod['nm'] ?? ''));
+            if ($nm === '') { echo json_encode(['ok' => false, 'error' => 'نام کالا لازم است'], JSON_UNESCAPED_UNICODE); exit; }
+            $det = '';
+            foreach (['en'=>'نام انگلیسی','br'=>'برند','md'=>'مدل','ca'=>'دسته','st'=>'استاندارد','un'=>'واحد','ds'=>'توضیحات'] as $k => $lb) {
+                $v = trim((string)($prod[$k] ?? ''));
+                if ($v !== '') $det .= $lb . ': ' . $v . "\n";
+            }
+            $sys = $SEO_RULES
+                . 'Task: write the on-page content for a product page of an industrial supplier. '
+                . 'Use ONLY the given product data — never invent prices, stock, dimensions, pressure ratings or certifications not present in the input. '
+                . 'Structure: intro (2-3 sentences, what it is and who uses it), features (4-6 short bullets, factual: material/brand/model/standard/unit if given), '
+                . 'applications (3-5 short bullets, typical industries where this product type is used — generic industry knowledge allowed, product-specific claims NOT). '
+                . 'faq: 3 practical buyer questions with short factual answers (supply, standard compliance, how to order — no price promises). '
+                . 'Everything in natural Persian except standard designations/brand/model in Latin. Each feature/application max 90 chars. '
+                . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","intro":"...","features":["..."],"applications":["..."],"faq":[{"q":"...","a":"..."}]}';
+            $user = "کالا: $nm\n$det";
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 1600)); /* v34.20.0: salvage+retry */
             break;
         }
 
@@ -703,7 +958,7 @@ switch ($action) {
                 . 'If a number is not a widely published standard value, describe the rule instead of inventing a figure. '
                 . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","body":"<h2>...</h2>...","keywords":["..."]}';
             $user = "موضوع مقاله: $topic\nواژگان هدف: $kw\nمخاطب: $aud";
-            out_json(llm_call($cfg, $sys, $user, null, null, 4000));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 4000)); /* v34.20.0: salvage+retry */
             break;
         }
 

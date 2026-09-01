@@ -349,6 +349,41 @@ function buildLetters() {
     '</div></div><div id="ltWrap"></div>';
 }
 
+/* ═══ v34.22.0 (LET-SORT): مرتب‌سازی پایدار فهرست مکاتبات ═══
+   علت: ترتیب آرایه پس از همگام‌سازی چنددستگاهه معتبر نیست — نامه‌های جدید از
+   سرور انتهای فهرست برمی‌گشتند و مرتب‌سازی هم وجود نداشت. کلید مرتب‌سازی هنگام
+   رندر محاسبه می‌شود؛ ذخیره‌سازی دست‌نخورده می‌ماند. */
+var letSortMode = { key: 'date', dir: 'desc' }; /* پیش‌فرض: جدیدترین تاریخ بالا */
+function letFaNums(s) { /* تاریخ شمسی/میلادی (ارقام فارسی یا لاتین) + ساعت اختیاری → عدد قابل مقایسه */
+  var m = letNorm(s || '').replace(/-/g, '/').match(/(\d{4})\/(\d{1,2})\/(\d{1,2})(?:\D+(\d{1,2}):(\d{2}))?/);
+  if (!m) return null;
+  var y = +m[1]; if (y > 1200 && y < 1600) y += 621; /* شمسی → مرتبهٔ میلادی برای مقایسهٔ دو تقویم */
+  return y * 1e8 + (+m[2]) * 1e6 + (+m[3]) * 1e4 + (m[4] != null ? ((+m[4]) * 60 + (+m[5])) : 0);
+}
+function letDateVal(l) {
+  var v = letFaNums(l.t != null && l.t !== '' ? l.t : l.dt) || 0;
+  /* ظرافت در همان روز: آخرین رویداد (ویرایش پیش‌نویس/امضا/ثبت) دقیقه‌ها را می‌دهد */
+  [l.draftUpdatedAt, l.signedT, l.registeredT].forEach(function (st) {
+    var x = letFaNums(st);
+    if (x != null && (v === 0 || Math.floor(x / 1e4) === Math.floor(v / 1e4))) v = Math.max(v, x);
+  });
+  return v;
+}
+function letNoVal(l) { /* دو قالب شماره: 1404/پ/ص/0007 و PTF-OUT-2026-0007 → (سال، سری) */
+  var nums = (letNorm(l.no || '').match(/\d+/g) || []).map(Number);
+  var yr = 0, seq = 0;
+  nums.forEach(function (x) {
+    if ((x > 1200 && x < 1600) || (x >= 2000 && x <= 2100)) { if (x < 1600) x += 621; yr = x; }
+    else seq = x;
+  });
+  return yr * 1e6 + seq;
+}
+window.letSortBy = function (k) {
+  if (letSortMode.key === k) letSortMode.dir = letSortMode.dir === 'asc' ? 'desc' : 'asc';
+  else { letSortMode.key = k; letSortMode.dir = k === 'date' ? 'desc' : 'asc'; }
+  renderLetters();
+};
+
 function renderLetters() {
   var el = document.getElementById('ltWrap');
   if (!el) return;
@@ -360,12 +395,29 @@ function renderLetters() {
     var hay = letNorm((l.no || '') + ' ' + (l.subject || '') + ' ' + (l.to || '') + ' ' + (l.from || '') + ' ' + (l.summary || '') + ' ' + (l.keywords || []).join(' '));
     return hay.indexOf(q) > -1;
   });
+  /* v34.22.0: مرتب‌سازی پایدار — ترتیب ذخیره‌سازی ملاک نیست؛ تساوی = ترتیب فعلی آرایه */
+  var letRank = {};
+  ls.forEach(function (l, i) { letRank[l.cd] = i; });
+  ls.sort(function (a, b) {
+    var va = letSortMode.key === 'no' ? letNoVal(a) : letDateVal(a);
+    var vb = letSortMode.key === 'no' ? letNoVal(b) : letDateVal(b);
+    if (va === vb) return (letRank[a.cd] || 0) - (letRank[b.cd] || 0);
+    return (va < vb ? -1 : 1) * (letSortMode.dir === 'asc' ? 1 : -1);
+  });
   var ST = { draft: '<span class="bd" style="background:#f1f5f9;color:#64748b">پیش‌نویس</span>',
     pending: '<span class="bd" style="background:#fef3c7;color:#b45309">در انتظار امضا</span>',
     signed: '<span class="bd b-st4">امضا شد</span>',
     rejected: '<span class="bd" style="background:#fee2e2;color:#b91c1c">رد شد</span>',
     registered: '<span class="bd b-st4">ثبت شد</span>' };
-  var h = '<div class="tb2"><table><thead><tr><th>شماره</th><th>نوع</th><th>موضوع</th><th>طرف</th><th>تاریخ</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>';
+  var letArr = letSortMode.dir === 'asc' ? '▲' : '▼';
+  var letCap = '<div style="font-size:11.5px;color:#64748b;margin:4px 2px">⇅ مرتب‌سازی: ' +
+    (letSortMode.key === 'date' ? 'تاریخ' : 'شماره') + ' — ' + (letSortMode.dir === 'desc' ? 'نزولی' : 'صعودی') +
+    ' <small style="color:#94a3b8">(روی سرستون «شماره» یا «تاریخ» کلیک کنید)</small></div>';
+  var h = letCap + '<div class="tb2"><table><thead><tr>' +
+    '<th style="cursor:pointer;user-select:none" title="مرتب‌سازی بر اساس شماره" onclick="letSortBy(\'no\')">شماره ' + (letSortMode.key === 'no' ? letArr : '⇅') + '</th>' +
+    '<th>نوع</th><th>موضوع</th><th>طرف</th>' +
+    '<th style="cursor:pointer;user-select:none" title="مرتب‌سازی بر اساس تاریخ" onclick="letSortBy(\'date\')">تاریخ ' + (letSortMode.key === 'date' ? letArr : '⇅') + '</th>' +
+    '<th>وضعیت</th><th>عملیات</th></tr></thead><tbody>';
   ls.forEach(function (l) {
     var canSign = l.st === 'pending' && l.signer === curSession().user;
     h += '<tr><td><b dir="' + (/^PTF-/.test(l.no || '') ? 'ltr' : 'rtl') + '">' + escP(l.no || '—') + '</b></td>' + /* v85.3: شماره فارسی RTL در فهرست */
