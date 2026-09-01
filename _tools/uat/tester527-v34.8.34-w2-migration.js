@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester527 — v34.26.0 (W2): مهاجرت فرمانی درخواست‌ها/پرونده‌ها/پروژه‌ها + اقلام/پکینگ/کارتابل.
+/* tester527 — v34.26.1 (W2): مهاجرت فرمانی درخواست‌ها/پرونده‌ها/پروژه‌ها + اقلام/پکینگ/کارتابل.
    ۸۹ نقطهٔ نوشتن از ۲۳ فایل به روتر فرمانی منتقل شد؛ فقط ۳ مقایسهٔ واقعی برگشت setData
    (جریان کنترل خطای smart-chat/بازرسی) و fallbackهای else عمداً legacy ماندند. */
 var fs = require('fs'), path = require('path');
@@ -55,9 +55,9 @@ T('A11: تطابق کامل ۱۱ کلید کلاینت/سرور', JSON.stringify
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.26.0', ver.crm_version === 'v34.26.0', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.26.0', /window\.PTF_CRM_RELEASE = 'v34\.26.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.26.0'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.26.1', ver.crm_version === 'v34.26.1', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.26.1', /window\.PTF_CRM_RELEASE = 'v34\.26.1'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.26.1'/.test(read('crm/sw.js')));
 
-console.log('\n— tester527 (v34.26.0: W2 migration) —');
+console.log('\n— tester527 (v34.26.1: W2 migration) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

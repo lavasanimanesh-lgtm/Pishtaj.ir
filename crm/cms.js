@@ -58,12 +58,17 @@
           : '<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#92400e">⚠️ ' + escP(d.error || 'اتصال CMS برقرار نشد') + '</div>';
       }
     });
-    if (_tab === 'news') renderCmsNews(el);
-    else if (_tab === 'blog') renderCmsBlog(el);
-    else if (_tab === 'prod') renderCmsProducts(el); /* v34.11.0 (S2) */
-    else if (_tab === 'page') renderCmsPageNew(el); /* v34.13.0 (S2-id) */
-    else if (_tab === 'q') renderCmsQuality(el); /* v34.14.0 (S4) */
-    else renderCmsSeo(el);
+    /* v34.26.1 (TAB-GUARD): خطای رندر هر تب دیگر تب را خالی نمی‌گذارد — پیام مرئی */
+    try {
+      if (_tab === 'news') renderCmsNews(el);
+      else if (_tab === 'blog') renderCmsBlog(el);
+      else if (_tab === 'prod') renderCmsProducts(el); /* v34.11.0 (S2) */
+      else if (_tab === 'page') renderCmsPageNew(el); /* v34.13.0 (S2-id) */
+      else if (_tab === 'q') renderCmsQuality(el); /* v34.14.0 (S4) */
+      else renderCmsSeo(el);
+    } catch (eTab) {
+      el.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px 16px;font-size:13px;color:#b91c1c;line-height:2">⚠️ <b>خطای رندر بخش «' + escP(_tab) + '»</b><br>' + escP(eTab && eTab.message) + '<br><small>این متن را برای رفع نهایی گزارش کنید (F12 ← Console جزئیات بیشتری دارد).</small></div>';
+    }
   };
 
   /* ============ AC1: اخبار ============ */
@@ -660,7 +665,40 @@
   var PAGE_FIELDS = ['pgTitle', 'pgSlug', 'pgH1', 'pgDesc', 'pgBody', 'pgImg'];
   window.PAGE_FIELDS = PAGE_FIELDS; /* v34.25.0: برای onclick ذخیرهٔ موقت */
 
-  function renderCmsPageNew(el) {
+  function renderCmsPageNew(el) { /* v34.26.1: پوستهٔ مقاوم — در خطا، فرم سادهٔ جایگزین بار می‌شود */
+    var _pgErr = null;
+    try { renderCmsPageNewFull(el); return; } catch (ePg) { _pgErr = ePg; }
+    try {
+      var _folds = (typeof PAGE_FOLDERS !== 'undefined' && PAGE_FOLDERS && PAGE_FOLDERS.length)
+        ? PAGE_FOLDERS.map(function (f) { return '<option value="' + f.v + '">' + f.lb + '</option>'; }).join('')
+        : '<option value="services">خدمات</option><option value="industries">صنایع</option><option value="comparisons">مقایسهٔ محصولات</option>';
+      el.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#b91c1c;line-height:2;margin-bottom:10px">⚠️ <b>خطای رندر فرم کامل:</b> ' + escP(_pgErr && _pgErr.message) + '<br><small>نسخهٔ سادهٔ فرم زیر بارگذاری شد — همهٔ امکانات (تولید AI / خارجی / پیش‌نمایش / ذخیرهٔ موقت / انتشار) فعال است. متن خطا را برای رفع نهایی گزارش کنید.</small></div>' +
+        '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px">' +
+        '<div id="pgAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+        '<div class="fld"><label>بخش مقصد *</label><select id="pgFolder">' + _folds + '</select></div>' +
+        '<div class="fld"><label>نامک (slug) * <small>a-z و خط تیره</small></label><input type="text" id="pgSlug" dir="ltr" placeholder="valve-maintenance-services"></div>' +
+        '<div class="fld"><label>عنوان یا موضوع برای AI *</label><input type="text" id="pgTopic" placeholder="مثلاً: خدمات تعمیر و کالیبراسیون شیرآلات صنعتی"></div>' +
+        '<div class="fld"><label>عنوان سئو (title)</label><input type="text" id="pgTitle"></div>' +
+        '<div class="fld"><label>H1</label><input type="text" id="pgH1"></div>' +
+        '<div class="fld"><label>تصویر</label><input type="text" id="pgImg" dir="ltr" value="assets/images/ptf-logo.png"></div>' +
+        '</div>' +
+        '<div class="fld"><label>توضیح (description)</label><textarea id="pgDesc" rows="2"></textarea></div>' +
+        '<div class="fld"><label>متن صفحه (HTML سبک — حداقل ۲۰۰ حرف)</label><textarea id="pgBody" rows="10" placeholder="<h2>معرفی ...</h2><p>...</p>"></textarea></div>' +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">' +
+        '<button class="bt" style="background:#7c3aed" onclick="cmsPageAi()">🤖 تولید با هوش مصنوعی</button>' +
+        '<button class="bt bt-o" style="color:#0e7490" onclick="cmsPgExtPrompt()">🌐 هوش مصنوعی خارجی</button>' +
+        '<button class="bt bt-o" onclick="cmsPgPreview()">👁 پیش‌نمایش</button>' +
+        '<button class="bt bt-o" style="color:#059669" onclick="cmsDraftBtn(PAGE_FIELDS,\'pgAiSt\')">💾 ذخیرهٔ موقت</button>' +
+        '<button class="bt" onclick="cmsPagePublish()">🚀 انتشار صفحه</button></div>' +
+        '</div>';
+      cmsDraftRestore(PAGE_FIELDS, 'pgAiSt'); cmsDraftBind(PAGE_FIELDS);
+      if (typeof cmsPgCount === 'function') { try { cmsPgCount(); } catch (eC2) {} }
+    } catch (e2) {
+      el.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px;font-size:13px;color:#b91c1c">خطای بحرانی رندر فرم صفحه: ' + escP(e2 && e2.message) + '</div>';
+    }
+  }
+  function renderCmsPageNewFull(el) {
     var opts = PAGE_FOLDERS.map(function (f) { return '<option value="' + f.v + '">' + f.lb + '</option>'; }).join('');
     el.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:14px;font-size:12px;color:#475569;line-height:2;margin-bottom:10px">' +
       'مولد صفحهٔ عمومی سایت برای بخش‌های <b>خدمات / صنایع / مقایسه‌ها</b>: متن یگانه با هوش مصنوعی (مثل مرکز دانش) + اسکیمای مناسبِ هر بخش + افزودن خودکار به نقشهٔ سایت و ثبت در سرچ کنسول.</div>' +
