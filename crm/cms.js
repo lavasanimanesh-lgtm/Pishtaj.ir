@@ -671,17 +671,117 @@
       '<div class="fld"><label>مخاطب</label><input type="text" id="pgAud" value="کارشناس خرید و مهندس نگهداری و تعمیر"></div>' +
       '</div>' +
       '<div style="display:flex;gap:7px;margin:10px 0"><button class="bt" style="background:#7c3aed" onclick="cmsPageAi()">🤖 تولید با هوش مصنوعی</button></div>' +
-      '<div class="fld"><label>عنوان سئو (title) <span id="pgTitleLen" style="font-size:11px"></span></label><input type="text" id="pgTitle"></div>' +
+      '<div class="fld"><label>عنوان سئو (title) <span id="pgTitleLen" style="font-size:11px"></span></label><input type="text" id="pgTitle" oninput="cmsPgCount()"></div>' +
       '<div class="fld"><label>H1</label><input type="text" id="pgH1"></div>' +
-      '<div class="fld"><label>توضیح (description) <span id="pgDescLen" style="font-size:11px"></span></label><textarea id="pgDesc" rows="2"></textarea></div>' +
-      '<div class="fld"><label>متن صفحه (HTML سبک — حداقل ۲۰۰ حرف)</label><textarea id="pgBody" rows="10"></textarea></div>' +
+      '<div class="fld"><label>توضیح (description) <span id="pgDescLen" style="font-size:11px"></span></label><textarea id="pgDesc" rows="2" oninput="cmsPgCount()"></textarea></div>' +
+      '<div class="fld"><label>متن صفحه (HTML سبک — حداقل ۲۰۰ حرف) <span id="pgBodyLen" style="font-size:11px"></span></label>' +
+      '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">' + /* v34.20.0: نوار ابزار ویرایش */
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgWrap(\'<h2>\',\'</h2>\')" title="تیتر بخش">H2</button>' +
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgWrap(\'<h3>\',\'</h3>\')" title="تیتر فرعی">H3</button>' +
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgWrap(\'<p>\',\'</p>\')" title="پاراگراف">¶</button>' +
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgWrap(\'<b>\',\'</b>\')" title="بولد">B</button>' +
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgList(\'ul\')" title="لیست نقطه‌ای">• لیست</button>' +
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgList(\'ol\')" title="فهرست شماره‌دار">۱. فهرست</button>' +
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgTable()" title="درج جدول ۳×۳">📊 جدول</button>' +
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgLink()" title="درج لینک">🔗 لینک</button>' +
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgImg()" title="درج تصویر">🖼 تصویر</button>' +
+        '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgWrap(\'<blockquote>\',\'</blockquote>\')" title="نقل‌قول">❝</button>' +
+      '</div>' +
+      '<textarea id="pgBody" rows="12" oninput="cmsPgCount()" style="font-family:inherit"></textarea></div>' +
       '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت)</label><input type="text" id="pgImg" dir="ltr" value="assets/images/ptf-logo.png"></div>' +
       '<label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#374151;margin:8px 0"><input type="checkbox" id="pgReviewed"> ⛔ بازبینی انسانی انجام شد (الزامی)</label>' +
       '<div style="display:flex;gap:7px;align-items:center;margin:8px 0;flex-wrap:wrap"><input type="datetime-local" id="pgWhen" dir="ltr" style="padding:7px;border:1px solid var(--brd);border-radius:8px;font-size:12px"><button class="bt bt-o" style="color:#7c3aed" onclick="cmsPageSchedule()">🕘 زمان‌بندی انتشار</button><small style="color:#94a3b8">صف در تب «🛠 کیفیت»</small></div>' +
-      '<div style="display:flex;gap:7px;justify-content:flex-end"><button class="bt" onclick="cmsPagePublish()">🚀 انتشار صفحه</button></div>' +
+      '<div style="display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap">' +
+        '<button class="bt bt-o" style="color:#0e7490" onclick="cmsPgPreview()">👁 پیش‌نمایش</button>' +
+        '<button class="bt bt-o" style="color:#7c3aed" onclick="cmsPgExpand()">✍️ گسترش متن با AI</button>' +
+        '<button class="bt" onclick="cmsPagePublish()">🚀 انتشار صفحه</button></div>' +
       '</div>';
     cmsDraftRestore(PAGE_FIELDS, 'pgAiSt'); cmsDraftBind(PAGE_FIELDS);
+    cmsPgCount(); /* v34.20.0: شمارنده‌ها بلافاصله پس از رندر/بازیابی پیش‌نویس */
   }
+
+  /* ═══ v34.20.0 (PAGE-TOOLS): ابزارهای ویرایش فرم صفحه — شمارنده/نوار ابزار/پیش‌نمایش/گسترش ═══ */
+  window.cmsPgCount = function () {
+    var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
+    var set = function (id, txt, ok) { var el = document.getElementById(id); if (el) { el.textContent = txt; el.style.color = ok ? '#059669' : '#b45309'; } };
+    var t = g('pgTitle'), d = g('pgDesc'), b = g('pgBody');
+    set('pgTitleLen', t.length + '/۶۰', t.length >= 30 && t.length <= 65);
+    set('pgDescLen', d.length + '/۱۶۰', d.length >= 70 && d.length <= 165);
+    var words = b.trim() ? b.trim().split(/\s+/).length : 0;
+    set('pgBodyLen', words + ' کلمه / ' + b.length + ' حرف' + (b.length >= 200 ? ' ✓' : ' (حداقل ۲۰۰)'), b.length >= 200);
+  };
+  window.cmsPgWrap = function (a, z) {
+    var ta = document.getElementById('pgBody'); if (!ta) return;
+    var v = ta.value, s0 = ta.selectionStart || 0, s1 = ta.selectionEnd || 0;
+    var sel = v.slice(s0, s1) || 'متن';
+    ta.value = v.slice(0, s0) + a + sel + z + v.slice(s1);
+    ta.focus(); try { ta.setSelectionRange(s0 + a.length, s0 + a.length + sel.length); } catch (eS) {}
+    cmsDraftBind(PAGE_FIELDS); cmsPgCount();
+  };
+  window.cmsPgList = function (kind) {
+    var ta = document.getElementById('pgBody'); if (!ta) return;
+    var v = ta.value, s0 = ta.selectionStart || 0, s1 = ta.selectionEnd || 0;
+    var sel = v.slice(s0, s1);
+    var items = sel.trim() ? sel.trim().split('\n') : ['مورد اول', 'مورد دوم', 'مورد سوم'];
+    var html = '<' + kind + '>' + items.map(function (x) { return '<li>' + x.replace(/^[-•*]\s*/, '') + '</li>'; }).join('') + '</' + kind + '>';
+    ta.value = v.slice(0, s0) + html + v.slice(s1);
+    ta.focus(); cmsDraftBind(PAGE_FIELDS); cmsPgCount();
+  };
+  window.cmsPgTable = function () {
+    var ta = document.getElementById('pgBody'); if (!ta) return;
+    var html = '<table><thead><tr><th>مشخصه</th><th>مقدار</th><th>واحد</th></tr></thead><tbody>' +
+      '<tr><td>—</td><td>—</td><td>—</td></tr><tr><td>—</td><td>—</td><td>—</td></tr></tbody></table>';
+    cmsPgWrapAt(ta, html);
+  };
+  window.cmsPgLink = function () {
+    var url = prompt('آدرس لینک (نسبی یا کامل):', '/knowledge-center/'); if (!url) return;
+    var txt = prompt('متن لینک:', 'راهنمای فنی'); if (!txt) return;
+    cmsPgWrapAt(document.getElementById('pgBody'), '<a href="' + url.replace(/"/g, '&quot;') + '">' + txt.replace(/</g, '&lt;') + '</a>');
+  };
+  window.cmsPgImg = function () {
+    var src = prompt('مسیر تصویر (از ریشهٔ سایت):', 'assets/images/ptf-logo.png'); if (!src) return;
+    var alt = prompt('متن جایگزین (alt):', 'تصویر محصول') || '';
+    cmsPgWrapAt(document.getElementById('pgBody'), '<img src="' + src.replace(/"/g, '&quot;') + '" alt="' + alt.replace(/"/g, '&quot;') + '" style="max-width:100%">');
+  };
+  window.cmsPgWrapAt = function (ta, html) {
+    if (!ta) return;
+    var v = ta.value, s0 = ta.selectionStart || v.length;
+    ta.value = v.slice(0, s0) + html + v.slice(s0);
+    ta.focus(); try { ta.setSelectionRange(s0 + html.length, s0 + html.length); } catch (eS2) {}
+    cmsDraftBind(PAGE_FIELDS); cmsPgCount();
+  };
+  window.cmsPgPreview = function () {
+    var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
+    var title = g('pgTitle') || 'بدون عنوان', h1 = g('pgH1') || title, desc = g('pgDesc'), body = g('pgBody') || '<p>—</p>';
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:88vh;overflow:auto;padding:18px;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><b style="font-size:13.5px">👁 پیش‌نمایش صفحه</b><span style="font-size:11px;color:#64748b">' + escP(g('pgSlug') || 'slug') + '.html</span><button class="bt bt-o" style="padding:4px 12px;font-size:12px;margin-right:auto" onclick="this.closest(\'div[style*=fixed]\').parentNode.removeChild(this.closest(\'div[style*=fixed]\'))">بستن</button></div>' +
+      '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:11.5px;color:#475569;margin-bottom:10px">title: <b>' + escP(title.slice(0, 70)) + '</b> (' + title.length + ')<br>description: ' + escP(desc.slice(0, 170) || '—') + ' (' + desc.length + ')</div>' +
+      '<h1 style="font-size:20px;margin:0 0 12px">' + escP(h1) + '</h1>' +
+      '<div style="font-size:13px;line-height:2.1;color:#1e293b">' + body + '</div></div>';
+    document.body.appendChild(ov);
+  };
+  window.cmsPgExpand = function () {
+    var ta = document.getElementById('pgBody'); if (!ta) return;
+    var body = ta.value || '';
+    if (body.trim().length < 100) { alert('برای گسترش، ابتدا متن اولیه (حداقل ۱۰۰ حرف) را داشته باشید — با 🤖 تولید یا تایپ دستی.'); return; }
+    var topic = (document.getElementById('pgTopic') || {}).value || ((document.getElementById('pgTitle') || {}).value || '');
+    if (!confirm('✍️ متن فعلی با نسخهٔ کامل‌تر (استانداردها/معیارهای انتخاب/چک‌لیست خرید) بازنویسی می‌شود. ادامه؟')) return;
+    var st = document.getElementById('pgAiSt'); if (st) st.innerHTML = '⏳ هوش مصنوعی در حال گسترش متن…';
+    cmsLLM('seo_expand', { text: body, topic: topic }, function (d) {
+      if (st) st.innerHTML = '';
+      if (!d.ok || !d.data) { alert('⚠️ ' + (d.error || 'خطا')); return; }
+      var v = d.data;
+      if (v.body) ta.value = v.body;
+      if (v.title && !(document.getElementById('pgTitle') || {}).value) document.getElementById('pgTitle').value = v.title;
+      if (v.desc && !(document.getElementById('pgDesc') || {}).value) document.getElementById('pgDesc').value = v.desc;
+      if (v.h1 && !(document.getElementById('pgH1') || {}).value) document.getElementById('pgH1').value = v.h1;
+      cmsDraftBind(PAGE_FIELDS); cmsPgCount();
+      alert('✅ متن گسترش یافت' + (v.added && v.added.length ? ':\n• ' + v.added.join('\n• ') : '') + '\nبازبینی انسانی الزامی است.');
+    });
+  };
 
   window.cmsPageAi = function () {
     var topic = (document.getElementById('pgTopic').value || '').trim();

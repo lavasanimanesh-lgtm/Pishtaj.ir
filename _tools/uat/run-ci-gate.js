@@ -224,6 +224,7 @@ var SUITE = [
   { g: 'سئو S3-id (17.0): صفحات AI-لمس‌شده در برابر بقیه (رجیستری + مقایسهٔ اسنپ‌شات)', f: '_tools/uat/tester562-v34.17.0-seo-ai-impact.js' },
   { g: 'UX (18.0): نام دوگانهٔ مشتری (فارسی+انگلیسی زیر هم) در پیشنهادات/فاکتورها/پرونده‌های فروش', f: '_tools/uat/tester563-v34.18.0-dual-cust-names.js' },
   { g: 'UX (19.0): سطل بازیافت — snapshot در لحظهٔ حذف + entity_restore سروری + مودال بازیافت', f: '_tools/uat/tester564-v34.19.0-recycle-bin.js' },
+  { g: 'UX (20.0): سه رفع شکایت CMS — گروه موبایل مدیریت سایت + ابزارهای فرم صفحه + JSON مقاوم AI', f: '_tools/uat/tester565-v34.20.0-cms-complaints.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

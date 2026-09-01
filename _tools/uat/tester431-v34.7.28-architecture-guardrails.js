@@ -62,7 +62,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
   var gate = read('_tools/uat/run-ci-gate.js');
   T('G2 نگهبان داخل رانر گیت صدا زده می‌شود', gate.indexOf('arch-guard.js') > -1 && gate.indexOf("failed.push('arch-guard')") > -1);
-  /* v34.19.0 (یافتهٔ F-1 ممیزی ۲۰۲۶-۰۸-۲۸): پاسِ بالا به‌تنهایی گمراه‌کننده بود — فقط
+  /* v34.20.0 (یافتهٔ F-1 ممیزی ۲۰۲۶-۰۸-۲۸): پاسِ بالا به‌تنهایی گمراه‌کننده بود — فقط
      بررسی می‌کرد run-ci-gate.js به arch-guard.js «ارجاع» دارد، در حالی که هیچ workflow
      گیت‌هابی این گیت را اجرا نمی‌کرد. از این پس «اجرا در CI» هم سنجیده می‌شود: یا
      workflowها واقعاً گیت را صدا می‌زنند، یا وصلهٔ معلقی در صف است که این کار را می‌کند

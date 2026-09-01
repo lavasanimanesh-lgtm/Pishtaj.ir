@@ -435,16 +435,54 @@ function llm_test_diagnosis($r, $cfg) {
     return 'خطای ارتباط با سرویس AI؛ جزئیات امن transport و پاسخ خام را بررسی کنید.';
 }
 
+/* ═══ v34.20.0 (JSON-ROBUST): نجات خروجی JSON مدل ═══
+   RCA خطای «خروجی AI ساختار JSON معتبر ندارد» در seo_product: پاسخ بلند در سقف
+   توکن بریده می‌شود (JSON ناقص) یا کاماهای انتهایی/پوشش متن دارد. سه لایه:
+   ۱) salvage: استخراج {..} + حذف کاماهای انتهایی ۲) retry یک‌باره با دو برابر
+   توکن + skip_cache ۳) فقط بعد از آن خطا. */
+function llm_json_salvage($text) {
+    $t = trim((string)$text);
+    if ($t === '') return null;
+    $d = json_decode($t, true);
+    if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+    $s = strpos($t, '{'); $e = strrpos($t, '}');
+    if ($s !== false && $e !== false && $e > $s) {
+        $d = json_decode(substr($t, $s, $e - $s + 1), true);
+        if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+    }
+    $t2 = preg_replace('/,\s*([\]}])/', '$1', $t); /* کاماهای انتهایی */
+    if ($t2 !== null && $t2 !== $t) {
+        $d = json_decode($t2, true);
+        if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+        $s = strpos($t2, '{'); $e = strrpos($t2, '}');
+        if ($s !== false && $e !== false && $e > $s) {
+            $d = json_decode(substr($t2, $s, $e - $s + 1), true);
+            if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+        }
+    }
+    return null;
+}
+function llm_call_json($cfg, $sys, $user, $b64 = null, $mime = null, $maxTok = 1200, $opts = []) {
+    $res = llm_call($cfg, $sys, $user, $b64, $mime, $maxTok, $opts);
+    if (empty($res['ok'])) return $res;
+    $d = llm_json_salvage($res['text'] ?? '');
+    if ($d !== null) { $res['jsonData'] = $d; return $res; }
+    /* تلاش دوم: سقف توکن دو برابر + دور زدن کش + تلنگر فشردگی */
+    $res2 = llm_call($cfg, $sys . ' CRITICAL: reply with COMPLETE compact valid JSON only — never truncate.',
+        $user, $b64, $mime, (int)($maxTok * 2), array_merge($opts, ['skip_cache' => true]));
+    if (!empty($res2['ok'])) {
+        $d2 = llm_json_salvage($res2['text'] ?? '');
+        if ($d2 !== null) { $res2['jsonData'] = $d2; $res2['json_retried'] = true; return $res2; }
+        return $res2;
+    }
+    return $res; /* خطای اولیه معتبرتر است */
+}
+
 function out_json($res) {
 
     if (!$res['ok']) { echo json_encode($res, JSON_UNESCAPED_UNICODE); exit; }
-    $data = json_decode($res['text'], true);
-    if ($data === null) {
-        $s = strpos($res['text'], '{');
-        $e = strrpos($res['text'], '}');
-        if ($s !== false && $e !== false && $e > $s) $data = json_decode(substr($res['text'], $s, $e - $s + 1), true);
-    }
-    if ($data === null || json_last_error() !== JSON_ERROR_NONE) { echo json_encode(['ok' => false, 'error' => 'خروجی AI ساختار JSON معتبر ندارد (پاسخ قابل تجزیه نبود)', 'raw' => mb_substr($res['text'], 0, 300)], JSON_UNESCAPED_UNICODE); exit; }
+    $data = isset($res['jsonData']) ? $res['jsonData'] : llm_json_salvage($res['text'] ?? ''); /* v34.20.0 */
+    if ($data === null) { echo json_encode(['ok' => false, 'error' => 'خروجی AI ساختار JSON معتبر ندارد (پاسخ قابل تجزیه نبود)', 'raw' => mb_substr((string)($res['text'] ?? ''), 0, 300)], JSON_UNESCAPED_UNICODE); exit; }
     echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -820,7 +858,7 @@ switch ($action) {
                 . 'keywords = 3-6 short Persian/Latin search phrases a buyer or engineer would actually type. '
                 . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","keywords":["..."]}';
             $user = "موضوع: $topic\n\nمتن صفحه:\n" . $content;
-            out_json(llm_call($cfg, $sys, $user, null, null, 900));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 900)); /* v34.20.0: salvage+retry */
             break;
         }
 
@@ -895,7 +933,7 @@ switch ($action) {
                 . 'Everything in natural Persian except standard designations/brand/model in Latin. Each feature/application max 90 chars. '
                 . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","intro":"...","features":["..."],"applications":["..."],"faq":[{"q":"...","a":"..."}]}';
             $user = "کالا: $nm\n$det";
-            out_json(llm_call($cfg, $sys, $user, null, null, 1600));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 1600)); /* v34.20.0: salvage+retry */
             break;
         }
 
@@ -915,7 +953,7 @@ switch ($action) {
                 . 'If a number is not a widely published standard value, describe the rule instead of inventing a figure. '
                 . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","body":"<h2>...</h2>...","keywords":["..."]}';
             $user = "موضوع مقاله: $topic\nواژگان هدف: $kw\nمخاطب: $aud";
-            out_json(llm_call($cfg, $sys, $user, null, null, 4000));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 4000)); /* v34.20.0: salvage+retry */
             break;
         }
 
