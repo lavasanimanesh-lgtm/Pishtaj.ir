@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.29.1'; /* v34.29.1: آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.29.2'; /* v34.29.2: راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -652,11 +652,91 @@
     }).join('');
   }
 
+  /* ═══ v34.29.2 (SEO-GUIDE): راهنمای سئو برای کاربرانِ ناآشنا — چک‌لیست زنده + ۶ گام
+     با دکمهٔ اجرای مستقیم همان ابزار. دانش فنی لازم نیست؛ زبان ساده. ═══ */
+  function cmsSeoGuideOpen() {
+    try { return sessionStorage.getItem('ptfSeoGuide') !== '0'; } catch (eG) { return true; }
+  }
+  window.cmsSeoGuideToggle = function () {
+    var to = cmsSeoGuideOpen() ? '0' : '1';
+    try { sessionStorage.setItem('ptfSeoGuide', to); } catch (eG) {}
+    renderCms();
+  };
+  window.cmsSeoGuideGscProbe = function () {
+    var el = document.getElementById('seoGuideGsc'); if (!el) return;
+    if (typeof cmsGsc !== 'function') { el.innerHTML = '<span style="color:#94a3b8">نامشخص</span>'; return; }
+    cmsGsc('selftest', null, function (d) {
+      var el2 = document.getElementById('seoGuideGsc'); if (!el2) return;
+      var v = d && d.verdict;
+      if (v === 'ok') el2.innerHTML = '<b style="color:#059669">✅ وصل است</b> — آمادهٔ ثبت نقشه';
+      else if (v === 'no_match') el2.innerHTML = '<b style="color:#b91c1c">⛔ سرویس‌اکانت هنوز به پراپرتی دسترسی ندارد</b> — با «آزمون اتصال» علت را ببینید';
+      else if (v === 'low_perm') el2.innerHTML = '<b style="color:#b45309">⚠️ سطح دسترسی فقط خواندنی است</b>';
+      else if (v === 'no_config') el2.innerHTML = '<b style="color:#b45309">⚠️ روی سرور تنظیم نشده (gsc-config.php)</b>';
+      else el2.innerHTML = '<b style="color:#b45309">⚠️ نامشخص — با آزمون اتصال بررسی کنید</b>';
+    });
+  };
+  function cmsSeoGuideBox() {
+    var st = _seoMeta.stats || {};
+    var reds = (st['no-desc'] || 0) + (st['no-title'] || 0) + (st['no-h1'] || 0);
+    var ambs = (st['desc-short'] || 0) + (st['desc-long'] || 0) + (st['title-short'] || 0) + (st['title-long'] || 0);
+    var total = st.total || 0, inMap = _seoMeta.sitemap || 0;
+    var outMap = Math.max(0, total - inMap);
+    var open = cmsSeoGuideOpen();
+    function step(n, title, body, btns) {
+      return '<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed #e2e8f0">' +
+        '<span style="flex:none;width:26px;height:26px;border-radius:50%;background:#7c3aed;color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800">' + n + '</span>' +
+        '<div style="flex:1"><div style="font-size:12.5px;font-weight:800;color:#0f172a">' + title + '</div><div style="font-size:12px;color:#475569;line-height:2;margin-top:2px">' + body + '</div>' +
+        (btns ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' + btns + '</div>' : '') + '</div></div>';
+    }
+    function btn(label, onclick, color) {
+      return '<button type="button" class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:' + (color || '#0e7490') + '" onclick="' + onclick + '">' + label + '</button>';
+    }
+    var head = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 6px">' +
+      '<b style="font-size:13.5px;color:#0f172a">📘 راهنمای سئو برای همه — بدون نیاز به دانش فنی</b>' +
+      '<button type="button" class="bt bt-o" style="padding:3px 12px;font-size:11px;margin-right:auto" onclick="cmsSeoGuideToggle()">' + (open ? 'پنهان کردن راهنما ▲' : 'نمایش راهنما ▼') + '</button></div>';
+    if (!open) return '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:8px 14px;margin-bottom:10px">' + head + '</div>';
+    var h = '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 14px;margin-bottom:10px">' + head +
+      '<div style="font-size:12px;color:#475569;line-height:2;padding:2px 2px 8px">سئو یعنی کاری کنیم <b>گوگل صفحات ما را برای جستجوهای مرتبط پیدا کند و نمایش دهد</b>. سه چیز به گوگل نشان می‌دهد صفحهٔ شما ارزشمند است: <b>محتوای یگانه و کامل</b>، <b>عنوان و توضیح دقیق</b>، و <b>سیگنال‌های فنی سالم</b>. با ابزارهای همین بخش می‌توانید هر سه را تقویت کنید — هر ابزار را همین‌جا با یک کلیک اجرا کنید.</div>';
+    /* چک‌لیست زنده */
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;margin:4px 0 10px">' +
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.9"><b>۱) اتصال سرچ کنسول</b><br><span id="seoGuideGsc">⏳ در حال بررسی…</span><br>' + btn('🧪 آزمون اتصال', 'cmsGscSelfTest()', '#7c3aed') + '</div>' +
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.9"><b>۲) صفحات با ایراد عنوان/توضیح</b><br>' +
+      (reds + ambs ? '<span style="color:#b91c1c;font-weight:700">' + reds + ' صفحهٔ ایراد جدی</span>' + (ambs ? ' + <span style="color:#b45309">' + ambs + ' ایراد جزئی</span>' : '') : '<span style="color:#059669;font-weight:700">✅ همهٔ صفحات سالم‌اند</span>') +
+      '<br>' + btn('مشاهدهٔ فهرست ایرادها', "cmsSeoIssue('no-desc')", '#dc2626') + '</div>' +
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.9"><b>۳) صفحات خارج از نقشهٔ سایت</b><br>' +
+      (outMap > 0 ? '<span style="color:#b45309;font-weight:700">' + outMap + ' صفحه هنوز در نقشه نیست</span>' : '<span style="color:#059669;font-weight:700">✅ نقشه کامل است</span>') +
+      '<br>' + btn('📤 ثبت نقشه', 'cmsSeoSitemapPush()') + '</div>' +
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.9"><b>۴) صفحات ایندکس‌نشده</b><br><span style="color:#475569">وضعیت را فقط سرچ کنسول می‌داند — با ایندکس‌یاب بررسی کنید</span><br>' + btn('🚀 ایندکس‌یاب', 'cmsIndexWizard()') + '</div></div>';
+    /* ۶ گام */
+    h += step(1, 'هر هفته نقشهٔ سایت را در سرچ کنسول ثبت کنید', 'نقشهٔ سایت، فهرست رسمی صفحات شماست؛ ثبت هفتگی به گوگل یادآوری می‌کند تازه‌ها را بخواند.',
+      btn('📤 سایت‌مپ + سرچ کنسول', 'cmsSeoSitemapPush()'));
+    h += step(2, 'صفحات ایندکس‌نشده را پیدا و درخواست ایندکس بدهید', 'اگر صفحه‌ای ایندکس نشده باشد، در گوگل دیده نمی‌شود. ایندکس‌یاب تا ۲۵ صفحه را با API رسمی گوگل بررسی می‌کند و برای ایندکس‌نشده‌ها پیوند «درخواست ایندکس» می‌دهد.',
+      btn('🚀 باز کردن ایندکس‌یاب', 'cmsIndexWizard()'));
+    h += step(3, 'عنوان و توضیح ناقص‌ها را کامل کنید', 'عنوان ۳۰ تا ۶۵ حرف و توضیح ۷۰ تا ۱۶۵ حرف — همین دو خط، متن آبیِ زیر عنوان شما در نتایج گوگل است. در فهرست پایین همین تب، دکمهٔ ✏️ هر صفحه را بزنید؛ «اصلاح هوشمند» پیش‌نویس می‌سازد ولی بازبینی شما الزامی است.',
+      btn('فیلتر «بدون توضیح»', "cmsSeoIssue('no-desc')", '#dc2626') + btn('🤖 اصلاح هوشمند گروهی', 'cmsSeoAiBatch()', '#7c3aed'));
+    h += step(4, 'صفحهٔ جدید با متن یگانه بسازید', 'متنِ تکراری به گوگل ارزشی اضافه نمی‌کند. در تب «📄 صفحهٔ جدید» موضوع را بدهید تا هوش مصنوعی پیش‌نویس یگانه بسازد؛ خوانده، اصلاح و تأیید کنید و بعد منتشر کنید (تیک بازبینی انسانی الزامی است).',
+      btn('رفتن به تب صفحهٔ جدید', "cmsTab('page')"));
+    h += step(5, 'به عکس‌ها متن جایگزین (alt) بدهید', 'گوگل عکس را از متن کنارش می‌فهمد؛ alt مناسب، صفحه را در جستجوی تصاویر هم می‌آورد. در تب کیفیت، «اسکن تصاویر» عکس‌های بدون alt را پیدا و با بینایی AI پیشنهاد می‌دهد.',
+      btn('اسکن عکس‌ها در تب کیفیت', "cmsTab('q');setTimeout(cmsAltScan,600)", '#7c3aed'));
+    h += step(6, 'از صفحات دیگر به صفحهٔ جدید لینک بدهید', 'لینک داخلی، مسیر رسیدن گوگل و کاربر به صفحهٔ جدید است. در فهرست پایین همین تب، دکمهٔ 💡 هر صفحه پیشنهاد لینک‌سازی هوشمند می‌دهد.', '');
+    /* نکن‌ها + برنامهٔ هفتگی + واژه‌نامه */
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">' +
+      '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:11.5px;color:#7f1d1d;line-height:2"><b>⛔ این کارها را نکنید</b><br>• کپی متن از سایت‌های دیگر — گوگل صفحهٔ تکراری را نمایش نمی‌دهد<br>• تکرار مصنوعیِ یک کلمه در متن (keyword stuffing)<br>• عنوانِ بی‌ربط یا اغراق‌آمیز برای جذب کلیک<br>• تغییر آدرس صفحهٔ ایندکس‌شده بدون مشورت با مدیر (نیاز به ریدایرکت دارد)</div>' +
+      '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px 12px;font-size:11.5px;color:#064e3b;line-height:2"><b>📅 برنامهٔ ۱۵ دقیقه‌ای هفتگی</b><br>۱) «📤 ثبت نقشه» — ۱ دقیقه<br>۲) «🚀 ایندکس‌یاب» روی ۱۰ صفحه — ۵ دقیقه<br>۳) فیلتر «بدون توضیح» و اصلاح ۲ صفحه — ۷ دقیقه<br>۴) «🤖 اصلاح هوشمند» + بازبینی نتیجه — ۲ دقیقه</div></div>';
+    h += '<details style="margin-top:8px"><summary style="font-size:12px;font-weight:700;color:#0f172a;cursor:pointer">📖 واژه‌نامهٔ کوچک (ایندکس؟ کرال؟ نامک؟)</summary>' +
+      '<div style="font-size:11.5px;color:#475569;line-height:2.1;padding:6px 4px">' +
+      '<b>ایندکس (Index):</b> وقتی گوگل صفحه‌ای را خوانده و در نتایج جستجو نگه داشته است. <b>کرال (Crawl):</b> بازدید ربات گوگل از صفحه. ' +
+      '<b>نقشهٔ سایت (Sitemap):</b> فایلی که فهرست همهٔ صفحات را به گوگل معرفی می‌کند. <b>سرچ کنسول:</b> ابزار رسمی گوگل برای دیدن وضعیت ایندکس و خطاها. ' +
+      '<b>CTR:</b> درصد کسانی که از بین نتایج، روی شما کلیک می‌کنند — عنوان و توضیح بهتر یعنی CTR بیشتر. <b>نامک (slug):</b> بخش انگلیسیِ آدرس صفحه مثل valve-maintenance.</div></details>';
+    h += '</div>';
+    return h;
+  }
+
   function renderCmsSeo(el) {
     el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:14px">در حال اسکن صفحات سایت…</div>';
     seoLoad(function () {
       var list = window._cmsPages || [];
-      el.innerHTML = seoStatsBar() + seoToolbar() + seoQueueBox() + cmsRedirectBox() +
+      el.innerHTML = cmsSeoGuideBox() + seoStatsBar() + seoToolbar() + seoQueueBox() + cmsRedirectBox() +
         '<div id="seoDrift"></div>' +
         '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">نمایش ' + list.length + ' از ' + _seoMeta.matched + ' صفحهٔ منطبق (مرتب‌شده: پر‌ایرادترین اول)</div>' +
         '<div id="seoList" style="max-height:520px;overflow:auto">' + seoRows() + '</div>' +
@@ -666,6 +746,7 @@
         'برای ثبت سریع‌تر در گوگل، صفحه را در سرچ کنسول «Request Indexing» بزنید.' +
         '</div>';
       if (typeof cmsRedirectLoad === 'function') cmsRedirectLoad(); /* v34.11.0 (S2) */
+      cmsSeoGuideGscProbe(); /* v34.29.2: چیپ زندهٔ اتصال سرچ کنسول در راهنما */
     });
   }
 
