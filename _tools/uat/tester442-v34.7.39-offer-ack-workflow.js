@@ -42,10 +42,10 @@ function makeCtx(mode){
     navigator:{},location:{},addEventListener:function(){},setInterval:function(){return 1;},clearInterval:function(){},setTimeout:function(){return 1;},clearTimeout:function(){},
     ptfSyncPendingKeys:function(){return[];},ptfSyncHoldCommandKeys:function(k){held.push(k.slice());},ptfSyncReleaseCommandKeys:function(k){released.push(k.slice());},ptfSyncAcknowledgeCommandKeys:function(k){acked.push(k.slice());},ptfSyncNotifyDirty:function(){},
     ptfSyncApplyServerProjection:function(k,v){ls.setItem(k,JSON.stringify(v));return true;},ptfSyncAcceptServerRevision:function(){},ptfSyncPullNow:function(cb){cb({ok:true});},
-    /* v34.21.0 (READBACK-FIX): روتر حالا مثل پروداکشن محلیِ بی‌صدا می‌نویسد */
+    /* v34.22.0 (READBACK-FIX): روتر حالا مثل پروداکشن محلیِ بی‌صدا می‌نویسد */
     ptfSilentWrite:function(k,str){ls.setItem(k,String(str));},
     ptfOfferAfterServerCommit:function(o,m){post.push({offer:o,meta:m});},
-    ptfDevKv:{/* v34.21.0 (T5-2b): تشخیصی‌های فرمان از نمای Dev-KV می‌گذرند — هارنس همان LS ساختگی را پشت نما می‌گذارد */set:function(k,v){ls.setItem(k,String(v));},get:function(k,cb){cb(ls.getItem(k));},remove:function(k){ls.removeItem(k);},keys:function(prefix,cb){var out=[];for(var i=0;i<ls.length;i++){var kk=ls.key(i);if(String(kk).indexOf(prefix)===0)out.push(String(kk));}cb(out);}},
+    ptfDevKv:{/* v34.22.0 (T5-2b): تشخیصی‌های فرمان از نمای Dev-KV می‌گذرند — هارنس همان LS ساختگی را پشت نما می‌گذارد */set:function(k,v){ls.setItem(k,String(v));},get:function(k,cb){cb(ls.getItem(k));},remove:function(k){ls.removeItem(k);},keys:function(prefix,cb){var out=[];for(var i=0;i<ls.length;i++){var kk=ls.key(i);if(String(kk).indexOf(prefix)===0)out.push(String(kk));}cb(out);}},
     fetch:function(url,opt){requests.push({url:url,body:JSON.parse(opt.body)});if(mode==='manual')return new Promise(function(resolve,reject){deferred.push({resolve:resolve,reject:reject,used:false});});return Promise.resolve({ok:false,status:422,text:function(){return Promise.resolve(JSON.stringify({ok:false,error:'duplicate_offer_no'}));}});}
   };
   ctx.window=ctx;
