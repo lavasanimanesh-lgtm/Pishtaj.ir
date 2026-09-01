@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester520 — v34.17.0 (T0/T1 قراردادهای رودمپ نازک‌سازی):
+/* tester520 — v34.18.0 (T0/T1 قراردادهای رودمپ نازک‌سازی):
    T0-1 قاعدهٔ A10 (بایپس localStorage) + T0-2 قاعدهٔ A11 (تطابق رجیستری) +
    T0-5 رجیستری واحد کلیدها + T1-2 دسته‌بند پیام فرمان + T1-3 sanitizer نرم. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -12,7 +12,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 /* ---------- T0-1/T0-2: قوانین جدید arch-guard ---------- */
 var guard = read('_tools/arch/arch-guard.js');
 T('قاعدهٔ A10 (بایپس localStorage) تعریف شده', /ruleA10/.test(guard) && /A10:\s*\{\s*blocking:\s*true/.test(guard));
-T('A10 فهرست‌سفید لایهٔ داده دارد', /WHITELIST\s*=\s*\['client-server\.js',\s*'storage-quota\.js',\s*'sync\.js',\s*'storage\.js',\s*'backup\.js',\s*'rbac\.js'/.test(guard)); /* v34.17.0: +cheque-print (فلگ‌های رسانه) مجاز */
+T('A10 فهرست‌سفید لایهٔ داده دارد', /WHITELIST\s*=\s*\['client-server\.js',\s*'storage-quota\.js',\s*'sync\.js',\s*'storage\.js',\s*'backup\.js',\s*'rbac\.js'/.test(guard)); /* v34.18.0: +cheque-print (فلگ‌های رسانه) مجاز */
 T('قاعدهٔ A11 (تطابق رجیستری) تعریف شده', /ruleA11/.test(guard) && /A11:\s*\{\s*blocking:\s*true/.test(guard));
 T('A11 فقط بدنهٔ sd_entity_registry را می‌خواند', /function sd_entity_registry\\s\*\\\(\\\s\*\\\)[\s\S]*?sd_entity_registry\\s\*\\\(/.test(guard) || /sd_entity_registry\\s*\\\(\\\s*\\\)/.test(guard) || /var fn = serverSrc\.match\(\/function sd_entity_registry/.test(guard));
 
@@ -30,7 +30,7 @@ T('sw.js رجیستری را precache می‌کند', /'\.\/key-registry\.js' \+
   var R = sandbox.window.PTF_KEY_REGISTRY;
   T('PTF_KEY_REGISTRY ساخته شد', !!R);
   T("ptfKeyCategory('ptf_crm_token') = SESS", sandbox.window.ptfKeyCategory('ptf_crm_token') === 'SESS');
-  T('پیشوند per-user دسته DEV', sandbox.window.ptfKeyCategory('ptf_tour_done_ali') === 'UI' || sandbox.window.ptfKeyCategory('ptf_autodraft_offer_CO') === 'DEV'); /* v34.17.0: personal_cheques از DEV به REC/سینک منتقل شد */
+  T('پیشوند per-user دسته DEV', sandbox.window.ptfKeyCategory('ptf_tour_done_ali') === 'UI' || sandbox.window.ptfKeyCategory('ptf_autodraft_offer_CO') === 'DEV'); /* v34.18.0: personal_cheques از DEV به REC/سینک منتقل شد */
   T("ptfKeyCategory('ptf_autodraft_offer_CO') = DEV", sandbox.window.ptfKeyCategory('ptf_autodraft_offer_CO') === 'DEV');
   T('REC حداقل ۶۰ کلید کسب‌وکار', R.REC.keys.length >= 60, R.REC.keys.length);
   T('ptfBusinessKeys شامل invoices', sandbox.window.ptfBusinessKeys().indexOf('ptf_crm_invoices') > -1);
@@ -77,12 +77,12 @@ T('فیلد null حفظ می‌شود', /\$out\[\$k\] = null; \$n\+\+; \$stats\[
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.17.0', ver.crm_version === 'v34.17.0', ver.crm_version);
+T('VERSION.json = v34.18.0', ver.crm_version === 'v34.18.0', ver.crm_version);
 var idx = read('crm/index.html');
-T('نسخهٔ UI = v34.17.0', /window\.PTF_CRM_RELEASE = 'v34\.17.0'/.test(idx));
+T('نسخهٔ UI = v34.18.0', /window\.PTF_CRM_RELEASE = 'v34\.18.0'/.test(idx));
 var swv = read('crm/sw.js');
-T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.17.0'/.test(swv) && idx.indexOf('?v=34.17.0') > -1);
+T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.18.0'/.test(swv) && idx.indexOf('?v=34.18.0') > -1);
 
-console.log('\n— tester520 (v34.17.0: T0/T1 thin-client contracts) —');
+console.log('\n— tester520 (v34.18.0: T0/T1 thin-client contracts) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

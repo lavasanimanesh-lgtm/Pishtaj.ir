@@ -457,7 +457,7 @@ function renderOffers() {
     if (tab !== 'ALL' && o.kind !== tab && !(tab === 'CO' && o.kind === 'TC')) return false; /* v20.1 US-442: TC قدیمی زیر تب مالی */
     if (custF && typeof ptfOfferMatchCust === 'function' && !ptfOfferMatchCust(o, custF)) return false; /* v21.3 US-450 */
     // US-142 AC1: جستجو شامل شماره درخواست کارفرما (inqNo)
-    return !q || ((o.no||'')+' '+(o.buyerCo||'')+' '+(o.inqNo||'')).toLowerCase().indexOf(q) > -1;
+    return !q || ((o.no||'')+' '+(o.buyerCo||'')+' '+((typeof ptfCustFaByCd==='function'&&o.buyerCd)?ptfCustFaByCd(o.buyerCd):'')+' '+(o.inqNo||'')).toLowerCase().indexOf(q) > -1; /* v34.18.0: جستجو با نام فارسی هم */
   });
   /* UR-2026-08-01-07: سورت ستون‌ها (شماره/خریدار/تاریخ/مبلغ/وضعیت) */
   if (window.ptfRegisterSortable) window.ptfRegisterSortable('off', {
@@ -587,7 +587,10 @@ function renderOffers() {
       (o.altOf ? '<br><span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:10px" title="پیشنهاد جایگزین برای همین درخواست — در کنار ' + escP(o.altOf) + '">⑂ گزینه جایگزین</span>' : '') +
       (vst ? '<br><span class="bd" style="background:' + vst.cl + ';font-size:10px">' + vst.lb + '</span>' : '') + rialInline + '</td>' +
       '<td>' + (o.kind === 'TO' ? '🔧 فنی' : o.kind === 'TC' ? '🤝 فنی-مالی' : '💰 مالی') + '</td>' /* v12.8 */ +
-      '<td>' + escP(o.buyerCo || '-') + (function(){ var en = (typeof ptfCustEnByCd === 'function' && o.buyerCd) ? ptfCustEnByCd(o.buyerCd) : ''; return (en && en !== o.buyerCo) ? '<div style="font-size:10.5px;color:#64748b" dir="ltr">' + escP(en) + '</div>' : ''; })() + (o.buyerCd ? '<div style="font-size:10.5px;color:#94a3b8" dir="ltr">' + escP(o.buyerCd) + '</div>' : '') + '</td>' +
+      '<td>' + (function () { /* v34.18.0: نام فارسی + انگلیسی زیر هم (هم‌شکل فهرست مشتریان) */
+        var p = (typeof ptfCustNamePair === 'function') ? ptfCustNamePair(o.buyerCd, o.buyerCo) : { fa: o.buyerCo || '-', en: '' };
+        return (typeof ptfCustCellHtml === 'function') ? ptfCustCellHtml(p.fa, p.en, o.buyerCd) : escP(p.fa);
+      })() + '</td>' +
       '<td style="direction:ltr;font-size:12px">' + escP(o.inqNo || '—') + '</td>' +
       '<td>' + escP(o.dateFa || '') + '</td>' +
       '<td>' + o.items.length + '</td>' +

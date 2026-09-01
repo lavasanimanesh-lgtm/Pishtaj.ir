@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester558 — v34.17.0: S2-id مولد صفحهٔ عمومی + فیکس‌های توسعه‌ای سئو + زیرمنوی مدیریت سایت
+/* tester558 — v34.18.0: S2-id مولد صفحهٔ عمومی + فیکس‌های توسعه‌ای سئو + زیرمنوی مدیریت سایت
    ۱) page_create عمومی (services/industries/comparisons + اسکیمای Service/Article)
    ۲) باگ‌فیکس: event صریح در cmsSeoLinkSuggest (نه global ضمنی)
    ۳) زیرمنو: ماندگاری وضعیت (ptfDevKv/A10) + هایلایت والد + بازشدن خودکار + CSS
@@ -14,7 +14,7 @@ var cmsPhp = read('api/cms.php');
 var cmsJs = read('crm/cms.js');
 var ih = read('crm/index.html');
 function blk(src, a, b) { var i = src.indexOf(a); var j = src.indexOf(b, i); return i > -1 && j > i ? src.slice(i, j) : ''; }
-/* v34.17.0: رندر به cms_render_public_page منتقل شد (مشترک با زمان‌بند S4) — پنجرهٔ انکر هم‌مسیر شد */
+/* v34.18.0: رندر به cms_render_public_page منتقل شد (مشترک با زمان‌بند S4) — پنجرهٔ انکر هم‌مسیر شد */
 var PG = blk(cmsPhp, 'function cms_page_folders', 'function cms_sched_file');
 
 /* ═══ ۱) مولد صفحهٔ عمومی — سرور ═══ */
