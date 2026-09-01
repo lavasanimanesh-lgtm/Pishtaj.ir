@@ -40,7 +40,7 @@ T('TIDY: قاعدهٔ پرامپت — شروع بدون خط تکراری نا�
 /* ═══ ④ تکرار سکشن‌ها + دامپ خام ═══ */
 T('DEDUP: جدول مشخصات قالب فقط وقتی متن خودش جدول ندارد', SEG.indexOf('$hasSpecsInBody') > -1 && SEG.indexOf('!$hasSpecsInBody && is_array($specs)') > -1);
 T('DEDUP: FAQ قالب و اسکیمای FAQPage فقط وقتی متن FAQ ندارد', SEG.indexOf('$hasFaqInBody') > -1 && SEG.indexOf('!$hasFaqInBody && is_array($faq)') > -1);
-T('DEDUP: مقدار خام مشخصه به ۱۶۰ نویسه کپ می‌شود', SEG.indexOf('0, 160); /* v34.26.1') > -1);
+T('DEDUP: مقدار خام مشخصه به ۱۶۰ نویسه کپ می‌شود', SEG.indexOf('0, 160); /* v34.26.0') > -1);
 T('DEDUP: فرم کلاینت سطر استاندارد بلند (>۱۲۰) را پیش‌پر نمی‌کند', cms.indexOf("!(x[0] === 'استاندارد' && String(x[1]).length > 120)") > -1);
 
 /* ═══ ⑤ فهرست محصولات ═══ */
