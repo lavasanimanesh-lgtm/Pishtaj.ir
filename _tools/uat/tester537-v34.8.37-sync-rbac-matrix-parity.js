@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester537 — v34.22.0 (SYNC-RBAC-PARITY + FORBIDDEN-DROP + ROUTER-CB)
+/* tester537 — v34.23.0 (SYNC-RBAC-PARITY + FORBIDDEN-DROP + ROUTER-CB)
    ریشهٔ نوار زرد پایدار «[personal_cheques]» در استیجینگ (RCA 2026-08-28):
    ۱) ماتریس RBAC سینک سرور (sync_allowed_keys_for_role در api/crm.php) برای
       sales/buyer/collector کلید ptf_crm_personal_cheques را نداشت درحالی‌که

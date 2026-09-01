@@ -11,15 +11,33 @@
     return String(s == null ? '' : s).replace(/[\u200c\u200e\u200f\s\-_.،,؛;()/\\]/g, '').toLowerCase();
   }
 
-  /* تبدیل مقدار به قابل‌مقایسه: عدد (از رشتهٔ عددی/مبلغ) > تاریخ شمسی > رشتهٔ نرمال */
+  /* تبدیل مقدار به قابل‌مقایسه: تاریخ (شمسی/میلادی، ارقام فارسی/عربی/لاتین) > عدد (رشتهٔ عددی/مبلغ) > رشتهٔ نرمال
+     v34.23.0 (RFQ-SORT-FIX): پیش از این تاریخِ ارقام‌فارسیِ بدون صفر پیش‌رو (خروجی
+     toLocaleDateString('fa-IR') مثل «۱۴۰۵/۶/۱۰») به رشتهٔ نرمال می‌رفت و مقایسهٔ
+     رشته‌ای دروغ می‌گفت — ۱۰ شهریور زیر ۹ شهریور و ماه ۶ زیر/بالاOfMonth ۱۰ بی‌معنا
+     می‌نشست. حالا تاریخ به عدد قابل‌مقایسهٔ یکسان تبدیل می‌شود (شمسی +۶۲۱ برای
+     هم‌مرتبه‌شدن با میلادی؛ ساعت اختیاری به دقیقه). */
   window.ptfSortVal = function (v) {
     if (v == null || v === '') return '';
-    var s = String(v);
+    var s0 = String(v);
+    var s = s0
+      .replace(/[۰-۹]/g, function (d) { return '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)]; })
+      .replace(/[٠-٩]/g, function (d) { return '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]; });
+    var dm = s.match(/(\d{4})([-\/])(\d{1,2})\2(\d{1,2})(?!\d)/);
+    if (dm) {
+      var yy = +dm[1], mm = +dm[3], dd = +dm[4];
+      var jalali = yy > 1200 && yy < 1600;
+      if ((jalali || (yy >= 1900 && yy <= 2100)) && mm >= 1 && mm <= (jalali ? 13 : 12) && dd >= 1 && dd <= 32) {
+        if (jalali) yy += 621;
+        var tm = s.match(/(\d{1,2}):(\d{2})/);
+        return yy * 1e8 + mm * 1e6 + dd * 1e4 + (tm ? ((+tm[1]) * 60 + (+tm[2])) : 0);
+      }
+    }
     var num = s.replace(/[^\d.-]/g, '');
     if (num && num !== '-' && num !== '.') { var n = +num; if (!isNaN(n)) return n; }
     var d = s.match(/(?:13|14)\d{2}\/\d{1,2}\/\d{1,2}/);
     if (d) return d[0];
-    return norm(s);
+    return norm(s0);
   };
 
   window.ptfSortRows = function (rows, key, dir, getters) {

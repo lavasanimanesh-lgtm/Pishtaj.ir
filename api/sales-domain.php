@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.22.0';
+const SD_SERVICE_VERSION = '34.23.0';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -270,6 +270,40 @@ function sd_entity_registry(): array {
         ],
     ];
 }
+/* v34.23.0 (RFQ-ATT-FIX): پاک‌ساز مشترک لیست — اسکالرها + نقشه‌های اسکالر یک‌سطحی.
+   پیش‌تر مقدارِ لیستیِ داخل map (مثل files.oth پیوست‌های RFQ تاییدشدهٔ سایت) در
+   sd_entity_sanitize_row بی‌صدا حذف می‌شد → رکورد پس از همگام‌سازی بدون ضمیمه
+   برمی‌گشت و فایلِ موجود در فضای ابری «گم» می‌شد. */
+function sd_entity_sanitize_list(array $v, array &$stats = null): array {
+    $list = [];
+    foreach ($v as $item) {
+        if (is_string($item)) {
+            $stored = sd_text($item, 300);
+            if ($stats !== null && mb_strlen($item, 'UTF-8') > mb_strlen($stored, 'UTF-8')) $stats['trimmed']++;
+            $list[] = $stored;
+            if (count($list) >= 60) break;
+            continue;
+        }
+        if (is_bool($item)) { $list[] = $item; continue; }
+        if (is_int($item) || is_float($item)) { $list[] = $item; continue; }
+        if (is_array($item)) {
+            $subItem = [];
+            foreach ($item as $k3 => $v3) {
+                if (is_string($k3) && strlen($k3) <= 60 && (is_scalar($v3) || $v3 === null)) {
+                    $storedSub = is_string($v3) ? sd_text($v3, 2000) : (is_bool($v3) ? $v3 : ($v3 === null ? null : (int)$v3));
+                    if ($stats !== null && is_string($v3) && mb_strlen($v3, 'UTF-8') > mb_strlen($storedSub, 'UTF-8')) $stats['trimmed']++;
+                    $subItem[$k3] = $storedSub;
+                }
+                if (count($subItem) >= 20) break;
+            }
+            $list[] = $subItem;
+            if (count($list) >= 60) break;
+            continue;
+        }
+    }
+    return $list;
+}
+
 function sd_entity_sanitize_row(array $row, array &$stats = null, int $maxFields = 40): array {
     /* v34.8.34 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
        ۲۰۰۰→۸۰۰۰ و hist ۵۰۰→۲۰۰۰؛ تعداد برش/حذف به‌صورت ساخت‌یافته در پاسخ فرمان
@@ -291,33 +325,18 @@ function sd_entity_sanitize_row(array $row, array &$stats = null, int $maxFields
                map تودرتو با مقادیر اسکالر مجاز است (مثل link/notifiedUsers). */
             $isList = array_keys($v) === range(0, count($v) - 1);
             if ($isList) {
-                $list = [];
-                foreach ($v as $item) {
-                    if (is_string($item)) { $list[] = sd_text($item, 300); if (count($list) >= 60) break; continue; }
-                    if (is_bool($item)) { $list[] = $item; continue; }
-                    if (is_int($item) || is_float($item)) { $list[] = $item; continue; }
-                    /* v34.8.14: لیست نقشه‌های اسکالر (مثل hist سرنخ) یک سطح مجاز است. */
-                    if (is_array($item)) {
-                        $subItem = [];
-                        foreach ($item as $k3 => $v3) {
-                            if (is_string($k3) && strlen($k3) <= 60 && (is_scalar($v3) || $v3 === null)) {
-                                $storedSub = is_string($v3) ? sd_text($v3, 2000) : (is_bool($v3) ? $v3 : ($v3 === null ? null : (int)$v3));
-                                if (is_string($v3)) $trackString($v3, $storedSub);
-                                $subItem[$k3] = $storedSub;
-                            }
-                            if (count($subItem) >= 20) break;
-                        }
-                        $list[] = $subItem;
-                        if (count($list) >= 60) break;
-                        continue;
-                    }
-                }
-                $out[$k] = $list; $n++; continue;
+                /* v34.23.0: بدنهٔ مشترک به sd_entity_sanitize_list منتقل شد (رفع حذف بی‌صدای files). */
+                $out[$k] = sd_entity_sanitize_list($v, $stats); $n++; continue;
             }
             $sub = [];
             foreach ($v as $k2 => $v2) {
                 if (is_string($k2) && strlen($k2) <= 60 && (is_scalar($v2) || $v2 === null)) {
                     $sub[$k2] = is_string($v2) ? sd_text($v2, 300) : (is_bool($v2) ? $v2 : ($v2 === null ? null : (int)$v2));
+                }
+                /* v34.23.0 (RFQ-ATT-FIX): مقدار لیستی داخل map — مثل files.oth — با همان
+                   پاک‌ساز لیست نگه داشته می‌شود (سقف‌های قبلی: ۶۰ قلم/۲۰ فیلد/۲۰۰۰ نویسه). */
+                elseif (is_string($k2) && strlen($k2) <= 60 && is_array($v2)) {
+                    $sub[$k2] = sd_entity_sanitize_list($v2, $stats);
                 }
                 if (count($sub) >= 60) break;
             }
