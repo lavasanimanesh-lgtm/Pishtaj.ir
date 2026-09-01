@@ -34,6 +34,47 @@ if (!is_dir($DATA)) { mkdir($DATA, 0755, true); file_put_contents($DATA . '/.hta
    پیش از این پوشهٔ products هیچ صفحهٔ فهرستی نداشت (403) و محصول جدید «جایی دیده
    نمی‌شد». با هر انتشار، فهرست از روی همهٔ صفحات محصول (نشانهٔ ptf-product) بازسازی
    می‌شود: تایتل/توضیح/تصویر از متای همان صفحه، جدیدترین اول. */
+/* ═══ v34.29.0 (SMART-IMG + REL-LINK): عکس پیش‌فرض هوشمند برای صفحات محصول و
+   اصلاح لینک‌های نسبیِ هم‌پوشه هنگام کپی اسکلت مرکز دانش به products/ ═══ */
+function cms_prod_img_guess($hay) {
+    $h = mb_strtolower((string)$hay);
+    if (trim($h) === '') return '';
+    $rules = [
+        ['gate','gate-valve-api600-realistic.jpg'], ['ball','ball-valve-api6d-trunnion-realistic.jpg'],
+        ['butterfly','butterfly-valve-triple-offset-realistic.jpg'], ['check','check-valve-dual-plate-realistic.jpg'],
+        ['control','control-valve-pneumatic-positioner-realistic.jpg'], ['globe','globe-valve-api623-realistic.jpg'],
+        ['elbow','butt-weld-fittings-realistic.jpg'], ['tee','butt-weld-fittings-realistic.jpg'],
+        ['fitting','butt-weld-fittings-realistic.jpg'], ['reducer','butt-weld-fittings-realistic.jpg'],
+        ['forged','forged-fittings-realistic.jpg'], ['flange','welding-neck-flanges-realistic.jpg'],
+        ['gasket','industrial-gaskets-realistic.jpg'], ['bolt','stud-bolts-nuts-realistic.jpg'], ['stud','stud-bolts-nuts-realistic.jpg'],
+        ['a333','a333-low-temperature-pipe-realistic.jpg'], ['a335','alloy-steel-pipe-a335-realistic.jpg'],
+        ['api 5l','api-5l-line-pipe-realistic.jpg'], ['api5l','api-5l-line-pipe-realistic.jpg'],
+        ['a106','seamless-pipe-a106-realistic.jpg'], ['seamless','seamless-pipe-a106-realistic.jpg'],
+        ['stainless','stainless-steel-pipe-long-bundle-realistic.jpg'], ['a312','stainless-steel-pipe-long-bundle-realistic.jpg'],
+        ['pipe','seamless-pipe-a106-realistic.jpg'], ['tube','seamless-pipe-a106-realistic.jpg'],
+        ['strainer','industrial-strainer-filter-realistic.jpg'], ['filter','industrial-strainer-filter-realistic.jpg'],
+        ['pump','api-610-centrifugal-pump-realistic.jpg'], ['compressor','screw-compressor-realistic.jpg'],
+        ['flowmeter','magnetic-flowmeter-flanged-realistic.jpg'], ['flow meter','magnetic-flowmeter-flanged-realistic.jpg'],
+        ['transmitter','pressure-transmitter-industrial-realistic.jpg'], ['gauge','pressure-gauge-safety-realistic.jpg'],
+        ['thermowell','thermowell-flanged-realistic.jpg'], ['level','radar-level-transmitter-realistic.jpg'],
+        ['boiler','fire-tube-boiler-realistic.jpg'], ['heat exchanger','shell-tube-heat-exchanger-realistic.jpg'],
+        ['exchanger','shell-tube-heat-exchanger-realistic.jpg'], ['transformer','power-transformer-realistic.jpg'],
+        ['switchgear','lv-mv-switchgear-realistic.jpg'], ['cable','industrial-cables-realistic.jpg'],
+        ['valve','gate-valve-api600-realistic.jpg'],
+    ];
+    foreach ($rules as $ru) if (mb_strpos($h, $ru[0]) !== false) return 'assets/images/products/generated/' . $ru[1];
+    return '';
+}
+function cms_rel_links_fix($html) {
+    /* لینک/تصویر نسبیِ هم‌پوشه (مثل astm-a312.html) در اسکلت مرکز دانش، از products/ به
+       knowledge-center/ اشاره می‌کند؛ مسیرهای ../، http، //، /، # و tel:/mailto: دست نمی‌خورند. */
+    return preg_replace_callback('/(href|src)=\"([^\"]+)\"/', function ($m) {
+        $u = $m[2];
+        if ($u === '' || $u[0] === '#' || $u[0] === '/' || strpos($u, '../') === 0 || stripos($u, 'http://') === 0 || stripos($u, 'https://') === 0 || stripos($u, 'tel:') === 0 || stripos($u, 'mailto:') === 0) return $m[0];
+        if (preg_match('/^(https?:)?\/\//i', $u) || preg_match('/^[a-z]+:/i', $u)) return $m[0];
+        return $m[1] . '="../knowledge-center/' . $u . '"';
+    }, (string)$html);
+}
 function cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer) {
     $dir = $ROOT . '/products';
     $cards = [];
@@ -950,8 +991,8 @@ switch ($action) {
             jerr('ساختارِ قالب مرجع شناخته نشد');
         }
         $header = substr($skel, $pBody, $pHero - $pBody);
-        $cta    = substr($skel, $pCta, $pFoot - $pCta);
-        $footer = substr($skel, $pFoot);
+        $cta    = cms_rel_links_fix(substr($skel, $pCta, $pFoot - $pCta)); /* v34.29.0: لینک نسبی → knowledge-center */
+        $footer = cms_rel_links_fix(substr($skel, $pFoot)); /* v34.29.0 */
 
         $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
         $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
@@ -1288,8 +1329,8 @@ switch ($action) {
         $pFoot = strpos($skel, '<footer');
         if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) jerr('ساختار قالب مرجع شناخته نشد');
         $header = substr($skel, $pBody, $pHero - $pBody);
-        $cta    = substr($skel, $pCta, $pFoot - $pCta);
-        $footer = substr($skel, $pFoot);
+        $cta    = cms_rel_links_fix(substr($skel, $pCta, $pFoot - $pCta)); /* v34.29.0: لینک نسبی → knowledge-center */
+        $footer = cms_rel_links_fix(substr($skel, $pFoot)); /* v34.29.0 */
 
         $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
         $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
@@ -1307,7 +1348,12 @@ switch ($action) {
            جدول‌های قالب دوباره ساخته نمی‌شوند (رفع تکرار سکشن‌ها). */
         $hasSpecsInBody = (mb_stripos($body, 'مشخصات فنی') !== false || stripos($body, '<table') !== false);
         $hasFaqInBody = (mb_stripos($body, 'سوالات متداول') !== false || mb_stripos($body, 'پرسش‌های متداول') !== false || stripos($body, '<details') !== false);
-        /* v34.26.0 (IMG-VIS): تصویر محصول بالای متن صفحه — هم‌شکل پیش‌نمایش (قبلاً فقط og:image بود). */
+        /* v34.26.0 (IMG-VIS): تصویر محصول بالای متن صفحه — هم‌شکل پیش‌نمایش (قبلاً فقط og:image بود).
+           v34.29.0 (SMART-IMG): اگر عکس خالی/لوگو بماند، از نام محصول عکس صنعتی متناسب حدس زده می‌شود. */
+        if ($img === '' || substr($img, -12) === 'ptf-logo.png') {
+            $g = cms_prod_img_guess($title . ' ' . $slug . ' ' . $h1 . ' ' . $brand);
+            if ($g !== '') $img = $g;
+        }
         if ($img !== '') {
             $imgRel = str_replace('../', '', $img);
             $body = '<p style="text-align:center;margin:4px 0 18px"><img src="../' . ltrim($imgRel, '/') . '" alt="' . $hEsc . '" style="max-width:560px;width:100%;height:auto;border-radius:14px;border:1px solid #e2e8f0"></p>' . "\n" . $body;
