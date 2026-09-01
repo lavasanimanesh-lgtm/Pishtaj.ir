@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.18.0';
+const SD_SERVICE_VERSION = '34.19.0';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -2476,6 +2476,38 @@ try {
         $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'financial_attachment','entityId'=>$result['attachmentId']??$result['deleted']??'','kind'=>$action,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),'ownerType'=>$ownerType,'ownerId'=>$ownerId];
         $changes=['ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];
     }
+    /* v34.19.0 (RECYCLE): کپی کامل نقشهٔ tombstone از sync_tombstone_kinds_for_key
+       در api/crm.php — برای خنثی‌سازی بلوکِ id هنگام بازیافت. با تغییر آن نقشه اینجا هم همگام شود. */
+    if (!function_exists('sd_tombstone_kinds')) {
+        function sd_tombstone_kinds($key) {
+            $map = [
+                'ptf_crm_offers' => ['offer','offers','to','co','tc'],
+                'ptf_crm_rfqs' => ['rfq','request','inq','inquiry'],
+                'ptf_crm_customers' => ['customer','customers','cust'],
+                'ptf_crm_suppliers' => ['supplier','suppliers','sup'],
+                'ptf_crm_products' => ['product','products','prod'],
+                'ptf_crm_leads' => ['lead','leads'],
+                'ptf_crm_invoices' => ['invoice','invoices','inv'],
+                'ptf_crm_payables' => ['payable','payables','pay'],
+                'ptf_crm_cheques' => ['cheque','check','chq'],
+                'ptf_crm_deals' => ['deal','deals','salesfile'],
+                'ptf_crm_projects' => ['project','projects','salesfile'],
+                'ptf_crm_letters' => ['letter','letters'],
+                'ptf_crm_contracts' => ['contract','contracts'],
+                'ptf_crm_rfqsmart' => ['rfqsmart','supplyrfq'],
+                'ptf_crm_buycmp' => ['buycmp','buycompare'],
+                'ptf_crm_inqitems' => ['inqitem','inqitems','iqi'],
+                'ptf_crm_case_receipts' => ['receipt','case_receipt','rpay'],
+                'ptf_crm_receipt_allocations' => ['allocation','receipt_allocation'],
+                'ptf_crm_fin_attachments' => ['attachment','financial_attachment'],
+                'ptf_crm_sharetx' => ['sharetx','share_transaction','shareholder_salary','chair_in','chair_out','draw','salary','salary_payment'],
+                'ptf_crm_opex' => ['opex','expense','recurring_opex','shareholder_salary'],
+                'ptf_crm_shareholders' => ['shareholder','shareholders'],
+                'ptf_crm_corrections' => ['correction'],
+            ];
+            return $map[$key] ?? [];
+        }
+    }
     elseif ($action === 'entity_upsert' || $action === 'entity_delete') {
         /* v34.8.13 (PHASE-C2): فرمان عمومی موجودیت — سرور مالک رکورد است. */
         $collection = sd_text($body['collection'] ?? '', 60);
@@ -2551,6 +2583,62 @@ try {
             };
             usort($changes[$collection], function ($a, $b) use ($isoOf) { return strcmp($isoOf($b), $isoOf($a)); });
         }
+    }
+    elseif ($action === 'entity_restore') {
+        /* v34.19.0 (RECYCLE): بازیافت رکورد از سطل بازیافت — سه گام اتمی زیر یک قفل:
+           ① درج snapshot (سطر kind=recycle آرشیو) در مجموعه ② خنثی‌سازی tombstoneهای
+           فعالِ همان id (تغییر kind به restored:<kind> — از نقشهٔ kinds خارج می‌شود و
+           purge/archive_purge هم دیگر منطبق نیست) ③ نشانه‌گذاری سطر recycle به restoredAt
+           تا بازیافت دوباره‌ای ممکن نباشد. بدون ② رکورد بازیافتی در sync بعدی توسط
+           sync_apply_tombstones (crm.php) دوباره حذف می‌شد. */
+        $collection = sd_text($body['collection'] ?? '', 60);
+        $registry = sd_entity_registry();
+        if (!isset($registry[$collection])) sd_out(['ok'=>false,'error'=>'entity_collection_not_enabled'],404);
+        $cfg = $registry[$collection];
+        sd_require_role($cfg['roles']);
+        $idField = (string)$cfg['id'];
+        $id = sd_text($body['id'] ?? '', 60);
+        if (!preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $id)) sd_out(['ok'=>false,'error'=>'entity_id_required'],422);
+        $rows = sd_read($collection);
+        foreach ($rows as $r) if (is_array($r) && (string)($r[$idField] ?? '') === $id) sd_out(['ok'=>false,'error'=>'entity_id_exists','hint'=>'record_already_live'],409);
+        $archive = sd_read('ptf_crm_deleted_archive');
+        $recycleRow = null; $recycleIdx = null;
+        foreach ($archive as $ai => $a) {
+            if (!is_array($a)) continue;
+            if ((string)($a['kind'] ?? '') !== 'recycle' || (string)($a['collection'] ?? '') !== $collection) continue;
+            if ((string)($a['id'] ?? $a['cd'] ?? '') !== $id) continue;
+            if (!empty($a['restoredAt'])) continue;
+            $recycleRow = $a; $recycleIdx = $ai; /* آخرین مورد بدون restoredAt */
+        }
+        if ($recycleRow === null || !is_array($recycleRow['snapshot'] ?? null)) sd_out(['ok'=>false,'error'=>'recycle_snapshot_not_found'],404);
+        $snap = $recycleRow['snapshot'];
+        $snap[$idField] = $id;
+        $snap['updatedAt'] = sd_now(); $snap['updatedBy'] = $user; $snap['restoredFrom'] = 'recycle';
+        $rows[] = $snap;
+        $kinds = array_fill_keys(array_map('strtolower', sd_tombstone_kinds($collection)), true);
+        $neutralized = 0;
+        foreach ($archive as $ai => $a) {
+            if (!is_array($a) || $ai === $recycleIdx) continue;
+            $kind = strtolower((string)($a['kind'] ?? ''));
+            $hits = false;
+            if ($kind === 'archive_purge') {
+                $ids = is_array($a['identities'][$collection] ?? null) ? $a['identities'][$collection] : [];
+                foreach ($ids as $pid) if (sd_text((string)$pid, 60) === $id) { $hits = true; break; }
+                if (!$hits && is_array($a['aliases'] ?? null)) foreach ($a['aliases'] as $al) if (sd_text((string)$al, 60) === $id) { $hits = true; break; }
+            } elseif (isset($kinds[$kind])) {
+                if (sd_text((string)($a['id'] ?? $a['no'] ?? $a['cd'] ?? ''), 60) === $id) $hits = true;
+            }
+            if ($hits) {
+                $archive[$ai]['kind'] = 'restored:' . (string)($a['kind'] ?? '');
+                $archive[$ai]['restoredAt'] = sd_now();
+                $archive[$ai]['restoredBy'] = $user;
+                $neutralized++;
+            }
+        }
+        $archive[$recycleIdx]['restoredAt'] = sd_now();
+        $archive[$recycleIdx]['restoredBy'] = $user;
+        $changes = [$collection => $rows, 'ptf_crm_deleted_archive' => $archive];
+        $result = ['collection' => $collection, 'id' => $id, 'restored' => true, 'tombstonesNeutralized' => $neutralized, 'mode' => 'entity-command'];
     }
     else sd_out(['ok'=>false,'error'=>'unknown_action'],404);
 

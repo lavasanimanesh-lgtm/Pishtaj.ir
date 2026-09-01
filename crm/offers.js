@@ -304,6 +304,7 @@ function buildOffers() {
     '</div></div>' +
     '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">' +
     tbtn('TO', '🔧 پیشنهادهای فنی (TO)', '#7c3aed') + tbtn('CO', '💰 پیشنهادهای مالی (CO)', '#0e7490') + tbtn('ALL', 'همه', '#334155') +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#b45309" title="رکوردهای حذف‌شده را ببین و بازگردان" onclick="ptfRecycleBin(&#39;ptf_crm_offers&#39;)">🗑 سطل بازیافت</button>' +
     '<span id="oFcustHint" style="font-size:11.5px;color:#64748b;margin-right:auto"></span>' +
     '</div>' +
     '<div id="oCustTimeline" style="display:none;margin-bottom:12px"></div>' +

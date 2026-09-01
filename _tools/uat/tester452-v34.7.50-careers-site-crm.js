@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.18.0 — فرصت شغلی سایت و CRM: PDF ۵MB، OTP+کپچا، منوی پویا، نقش ارشد */
+/* v34.19.0 — فرصت شغلی سایت و CRM: PDF ۵MB، OTP+کپچا، منوی پویا، نقش ارشد */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
 var p = 0, f = 0;
@@ -27,13 +27,13 @@ var hta = read('api/.htaccess');
 var surplus = read('crm/surplus.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.18.0', ver.crm_version === 'v34.18.0', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.18.0', /window\.PTF_CRM_RELEASE = 'v34\.18.0'/.test(idx));
-T('sw RELEASE/ASSET/CACHE = 34.18.0', sw.indexOf("RELEASE = 'v34.18.0'") > -1 && sw.indexOf("ASSET_VERSION = '34.18.0'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.18.0'") > -1);
-T('shell fallback نسخه 34.18.0', shell.indexOf("'v34.18.0'") > -1);
-T('manifest.version = 34.18.0', man.version === '34.18.0', man.version);
-T('clear-cache VER = v34.18.0', clr.indexOf("window.VER = 'v34.18.0'") > -1 && clr.indexOf('v34.18.0') > -1);
-T('sales-domain SD_SERVICE_VERSION = 34.18.0', sd.indexOf("SD_SERVICE_VERSION = '34.18.0'") > -1);
+T('VERSION.json = v34.19.0', ver.crm_version === 'v34.19.0', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.19.0', /window\.PTF_CRM_RELEASE = 'v34\.19.0'/.test(idx));
+T('sw RELEASE/ASSET/CACHE = 34.19.0', sw.indexOf("RELEASE = 'v34.19.0'") > -1 && sw.indexOf("ASSET_VERSION = '34.19.0'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.19.0'") > -1);
+T('shell fallback نسخه 34.19.0', shell.indexOf("'v34.19.0'") > -1);
+T('manifest.version = 34.19.0', man.version === '34.19.0', man.version);
+T('clear-cache VER = v34.19.0', clr.indexOf("window.VER = 'v34.19.0'") > -1 && clr.indexOf('v34.19.0') > -1);
+T('sales-domain SD_SERVICE_VERSION = 34.19.0', sd.indexOf("SD_SERVICE_VERSION = '34.19.0'") > -1);
 T('tester451 پین v34.7.49 مانده', exists('_tools/uat/tester451-v34.7.49-offer-surplus-compact-hint.js') && read('_tools/uat/tester451-v34.7.49-offer-surplus-compact-hint.js').indexOf('v34.7.49') > -1);
 
 T('api/careers.php موجود است', exists('api/careers.php'));
@@ -57,7 +57,7 @@ T('حقوق بازه‌ای + سایر بدون متن آزاد', php.indexOf("'
 T('نقش CRM فقط admin/chairman/ceo', php.indexOf("['admin', 'chairman', 'ceo']") > -1 && js.indexOf("var JOB_ROLES = ['admin', 'chairman', 'ceo']") > -1);
 T('auth توکن نه X-CRM-Role اجباری سمت سرور', php.indexOf('auth_get_header_token') > -1 && php.indexOf('auth_verify_token') > -1 && php.indexOf('X-CRM-Role') < 0);
 T('پنل jobs در سایدبار و GROUPS', idx.indexOf("goPanel('jobs'") > -1 && idx.indexOf('فرصت شغلی') > -1 && shell.indexOf("'jobs'") > -1);
-T('careers.js در index و SHELL بعد از cms', /cms\.js\?v=34\.18.0/.test(idx) && /careers\.js\?v=34\.18.0/.test(idx) && sw.indexOf("./cms.js") < sw.indexOf("./careers.js"));
+T('careers.js در index و SHELL بعد از cms', /cms\.js\?v=34\.19.0/.test(idx) && /careers\.js\?v=34\.19.0/.test(idx) && sw.indexOf("./cms.js") < sw.indexOf("./careers.js"));
 T('منوی پویا از status.json', disc.indexOf('careers/status.json') > -1 && disc.indexOf('nav-careers') > -1 && disc.indexOf('ensureCareersLink') > -1);
 T('ptf-guard مسیر API بر اساس depth', guard.indexOf('var depth = parts.length') > -1 && guard.indexOf("api/crm.php") > -1);
 T('careers در allow-list htaccess', hta.indexOf('|careers)') > -1 || hta.indexOf('|careers\\)') > -1 || /careers/.test(hta));
@@ -66,6 +66,6 @@ T('surplus بدون setInterval (tester171)', surplus.indexOf('setInterval') ===
 T('دوزبانه FA+EN روی یک صفحه آگهی', php.indexOf('id="en"') > -1 && php.indexOf('titleEn') > -1 && php.indexOf('bodyEn') > -1);
 T('PII جدا از سینک فروش', php.indexOf('ptf_crm_rfqs') < 0 && php.indexOf('data_push') < 0 && js.indexOf('setData(') < 0);
 
-console.log('\n— tester452 (v34.18.0: فرصت شغلی سایت و CRM) —');
+console.log('\n— tester452 (v34.19.0: فرصت شغلی سایت و CRM) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
