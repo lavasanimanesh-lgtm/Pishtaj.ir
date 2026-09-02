@@ -14,7 +14,7 @@ T('کارتابل تفکیک مهم/عادی دارد', rb.indexOf('ntfIsImporta
 T('دکمه «خواندم همه» موجود است', rb.indexOf('ntfReadAll') > -1 && rb.indexOf('خواندم همه') > -1);
 T('هشدار duplicate فقط با تغییر fingerprint (BUG-DUP-NAG-001)', cg.indexOf('ptfDupPlanFingerprint') > -1 && cg.indexOf('ptf_code_duplicate_ack') > -1);
 T('دکمه ack در دیالوگ duplicate', cg.indexOf('ptfDuplicateRepairAck') > -1 && cg.indexOf('دیگر هشدار نده') > -1);
-T('plan خالی ack را پاک می‌کند (خودترمیمی)', /devCacheRemove\('ptf_code_duplicate_ack'\)/.test(cg)); /* v34.29.3 (R2): ack در Dev-KV است */
+T('plan خالی ack را پاک می‌کند (خودترمیمی)', /devCacheRemove\('ptf_code_duplicate_ack'\)/.test(cg)); /* v34.30.0 (R2): ack در Dev-KV است */
 
 SECTION('رفتاری: notify ضدتکرار');
 global.window = global;

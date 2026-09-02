@@ -80,6 +80,17 @@
   };
 
   /* P3: یک مسیر لینک/حذف هزینه روی پرونده — OPEX و تنخواه دوقلو نمانند. */
+  window.ptfDealCostTomb = function (deal, cd) {
+    /* v34.29.8 (COST-EVENT-TOMB): حذف هزینهٔ پرونده باید در merge بین‌دستگاهی
+       بماند — union ساده حذف را برمی‌گرداند. tombstone نقشهٔ {cd: iso} روی خود
+       رکورد پرونده سفر می‌کند و ptfSmartMerge موارد tombstoneشده را از costEvents
+       بیرون می‌اندازد. */
+    try {
+      if (!deal || !cd) return;
+      deal._costTomb = deal._costTomb || {};
+      deal._costTomb[String(cd)] = new Date().toISOString();
+    } catch (eT) {}
+  };
   window.ptfDealCostMatch = function (ev, rec, source) {
     if (!ev || !rec) return false;
     if (source === 'opex') {
@@ -162,6 +173,7 @@
         var ev = findEv(od);
         if (ev) {
           od.costEvents = (od.costEvents || []).filter(function (x) { return x !== ev; });
+          window.ptfDealCostTomb(od, ev.cd); /* v34.29.8: حذف لینک = tombstone — union در merge دیگر آن را برنمی‌گرداند */
           od.timeline = od.timeline || [];
           od.timeline.push({ t: (typeof faDateTime === 'function' ? faDateTime() : ''), by: who, tx: opts.removeTx || '🗑 حذف لینک هزینه از پرونده' });
           dirty = true;
