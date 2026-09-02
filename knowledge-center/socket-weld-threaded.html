@@ -1,186 +1,76 @@
 <!doctype html><html lang="fa" dir="rtl"><head>
-<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico"><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>فلنج Socket Weld یا Threaded؟ مقایسهٔ فنی و راهنمای انتخاب</title><meta name="description" content="مقایسهٔ دقیق اتصال Socket Weld و Threaded در فلنج و فیتینگ؛ مزایا و محدودیت‌ها، خوردگی شیاری، گپ جوشکاری، محدوده سایز و فشار، و چک‌لیست استعلام."/><link rel="canonical" href="https://pishtaj.ir/knowledge-center/socket-weld-threaded.html"/>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>فلنج جوشی ساکت یا رزوه‌ای؟ مقایسه فنی و راهنمای انتخاب</title>
+<meta name="description" content="مقایسه کامل فلنج جوشی ساکت و رزوه‌ای: ساختار، روش نصب، نقاط قوت و ضعف، ریسک‌های هر نوع و معیارهای انتخاب برای خطوط ابزار دقیق، نمونه‌گیری و تخلیه.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/socket-weld-threaded.html">
 <link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/knowledge-center/socket-weld-threaded.html" />
 <link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/knowledge-center/socket-weld-threaded.html" />
-<meta property="og:locale" content="fa_IR" /><meta property="og:site_name" content="پیشرو تجهیز فرتاک" /><meta property="og:title" content="مقایسه فلنج Socket Weld و Threaded" /><meta property="og:description" content="مقایسه فلنج Socket Weld و Threaded؛ کاربردها، استانداردهای کلیدی، نکات انتخاب فنی و خرید برای پروژه‌های صنعتی و EPC." /><meta property="og:type" content="article" /><meta property="og:url" content="https://pishtaj.ir/knowledge-center/socket-weld-threaded.html" /><meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" /><meta name="twitter:card" content="summary_large_image" />
-
-<meta name="twitter:title" content="مقایسه فلنج Socket Weld و Threaded" />
-<meta name="twitter:description" content="مقایسه فلنج Socket Weld و Threaded؛ کاربردها، استانداردهای کلیدی، نکات انتخاب فنی و خرید برای پروژه‌های صنعتی و EPC." />
-<meta name="twitter:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "مقایسه فلنج Socket Weld و Threaded", "description": "مقایسه فلنج Socket Weld و Threaded؛ کاربردها، استانداردهای کلیدی، نکات انتخاب فنی و خرید برای پروژه‌های صنعتی و EPC.", "author": {"@type": "Organization", "name": "تیم مهندسی و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/knowledge-center/socket-weld-threaded.html"}, "publisher": {"@type": "Organization", "name": "Pishro Tajhiz Fartak", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "reviewedBy": {"@type": "Organization", "name": "واحد مهندسی، تضمین کیفیت و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "inLanguage": "fa-IR", "isAccessibleForFree": true, "datePublished": "2026-07-01", "dateModified": "2026-08-21", "articleSection": "لوله و پایپینگ", "about": ["لوله و پایپینگ", "مقایسه", "فلنج", "Socket", "Weld", "Threaded"]}</script><link rel="stylesheet" href="../assets/css/discover.css" />
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"خانه","item":"https://pishtaj.ir/"},{"@type":"ListItem","position":2,"name":"مرکز دانش","item":"https://pishtaj.ir/knowledge-center/"},{"@type":"ListItem","position":3,"name":"مقایسه فلنج Socket Weld و Threaded","item":"https://pishtaj.ir/knowledge-center/socket-weld-threaded.html"}]}</script>
-<script type="application/ld+json">
-{
- "@context": "https://schema.org",
- "@type": "FAQPage",
- "inLanguage": "fa-IR",
- "mainEntity": [
-  {
-   "@type": "Question",
-   "name": "تفاوت فلنج Socket Weld و Threaded چیست؟",
-   "acceptedAnswer": {
-    "@type": "Answer",
-    "text": "مقایسه فلنج Socket Weld و Threaded؛ کاربردها، استانداردهای کلیدی، نکات انتخاب فنی، قیمت و مسیر استعلام برای پروژه‌های صنعتی و EPC."
-   }
-  },
-  {
-   "@type": "Question",
-   "name": "مهم‌ترین نکات فنی تفاوت فلنج Socket Weld و Threaded چیست؟",
-   "acceptedAnswer": {
-    "@type": "Answer",
-    "text": "Socket Weld (جوش فیله, فشار بالا) | Threaded (رزوه, فشار پایین, نصب سریع)"
-   }
-  },
-  {
-   "@type": "Question",
-   "name": "چگونه می‌توان از پیشرو تجهیز فرتاک استعلام قیمت و پیش‌فاکتور گرفت؟",
-   "acceptedAnswer": {
-    "@type": "Answer",
-    "text": "برای دریافت استعلام قیمت و پیش‌فاکتور کافی است فرم استعلام (RFQ) را در سایت پیشرو تجهیز فرتاک ثبت کنید یا با شماره ۰۲۱-۴۶۰۸۷۶۷۹ تماس بگیرید؛ کارشناسان فنی پس از بررسی مشخصات پروژه، قیمت، زمان تحویل و مستندات فنی را اعلام می‌کنند."
-   }
-  }
- ],
- "_ptf": "SEO-B2-FAQ-PASS2-v1"
-}
-</script>
-</head><body>
+<meta property="og:title" content="فلنج جوشی ساکت یا رزوه‌ای؟ مقایسه فنی و راهنمای انتخاب">
+<meta property="og:description" content="مقایسه کامل فلنج جوشی ساکت و رزوه‌ای: ساختار، روش نصب، نقاط قوت و ضعف، ریسک‌های هر نوع و معیارهای انتخاب برای خطوط ابزار دقیق، نمونه‌گیری و تخلیه.">
+<meta property="og:image" content="https://pishtaj.ir/knowledge-center/images/rw-sw-vs-threaded.jpg">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://pishtaj.ir/knowledge-center/socket-weld-threaded.html">
+<meta name="twitter:title" content="فلنج جوشی ساکت یا رزوه‌ای؟ مقایسه فنی و راهنمای انتخاب">
+<meta name="twitter:description" content="مقایسه کامل فلنج جوشی ساکت و رزوه‌ای: ساختار، روش نصب، نقاط قوت و ضعف، ریسک‌های هر نوع و معیارهای انتخاب برای خطوط ابزار دقیق، نمونه‌گیری و تخلیه.">
+<meta name="twitter:image" content="https://pishtaj.ir/knowledge-center/images/rw-sw-vs-threaded.jpg">
+<link rel="stylesheet" href="../assets/css/style.css">
+<style>
+.article-hero{background:radial-gradient(circle at 18% 20%,rgba(247,148,0,.22),transparent 30%),linear-gradient(135deg,#111827,#17233a 62%,#263858);color:#fff;padding:135px 0 55px}.article-hero h1{font-size:clamp(27px,4vw,45px);line-height:1.35;margin:8px 0 12px;color:#fff}.article-hero p{color:#dbeafe;line-height:2;max-width:900px}.article-wrap{max-width:980px;margin:34px auto;padding:0 20px}.article{background:#fff;border:1px solid #e2e8f0;border-radius:28px;padding:34px;line-height:2.15;color:#334155;box-shadow:0 16px 42px rgba(15,23,42,.06)}.article h2{font-size:24px;color:#0f172a;margin:26px 0 10px}.article h3{font-size:18px;color:#ef4b1a;margin:20px 0 8px}.article p,.article li{font-size:15px;color:#475569}.article a{color:#ef4b1a;font-weight:900}.article table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}.article th,.article td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top}.article th{background:#f1f5f9;color:#334155}.article figure{margin:20px 0}.article figure img{width:100%;height:auto;border-radius:16px;border:1px solid #e2e8f0}.article figcaption{font-size:12.5px;color:#64748b;margin-top:8px;text-align:center}.note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:13px 15px;margin:16px 0}.formula{direction:ltr;text-align:left;background:#0f172a;color:#e5e7eb;border-radius:16px;padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow:auto}.cta{background:linear-gradient(135deg,#0f172a,#17233a);color:#fff;border-radius:22px;padding:22px;margin:28px 0}.cta h2{color:#fff;margin-top:0}.cta p{color:#dbeafe}.cta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.cta-row a,.cta-row button{border:0;border-radius:12px;padding:10px 15px;font-weight:900;text-decoration:none;cursor:pointer}.primary{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff}.light{background:#fff;color:#334155}.toc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:14px 18px;margin:16px 0}.toc a{display:block;margin:4px 0;color:#334155;text-decoration:none}.faq details{border:1px solid #e2e8f0;border-radius:16px;padding:12px 14px;margin:8px 0;background:#fff}.faq summary{cursor:pointer;color:#0f172a;font-weight:900}@media(max-width:760px){.article{padding:22px}.article table{font-size:12px}.article-hero{padding-top:100px}}
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مرکز دانش", "item": "https://pishtaj.ir/knowledge-center/"}, {"@type": "ListItem", "position": 3, "name": "فلنج جوشی ساکت یا رزوه‌ای — مقایسه فنی و انتخاب", "item": "https://pishtaj.ir/knowledge-center/socket-weld-threaded.html"}]}, {"@type": "Article", "headline": "فلنج جوشی ساکت یا رزوه‌ای؟ مقایسه فنی و راهنمای انتخاب", "description": "مقایسه کامل فلنج جوشی ساکت و رزوه‌ای: ساختار، روش نصب، نقاط قوت و ضعف، ریسک‌های هر نوع و معیارهای انتخاب برای خطوط ابزار دقیق، نمونه‌گیری و تخلیه.", "image": "https://pishtaj.ir/knowledge-center/images/rw-sw-vs-threaded.jpg", "inLanguage": "fa-IR", "isAccessibleForFree": true, "datePublished": "2026-07-01", "dateModified": "2026-09-02", "articleSection": "اتصالات و فلنج", "about": ["فلنج جوشی ساکت", "فلنج رزوه ای", "اتصال کوچک", "خطوط ابزار دقیق", "دمونتاژ", "انتخاب فلنج"], "author": {"@type": "Organization", "name": "تیم مهندسی و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "publisher": {"@type": "Organization", "name": "Pishro Tajhiz Fartak", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "فلنج جوشی ساکت چگونه نصب می‌شود؟", "acceptedAnswer": {"@type": "Answer", "text": "انتهای لوله داخل کاسه فلنج قرار می‌گیرد و یک جوش گوشه‌ای دور تا دور آن زده می‌شود. پیش از جوش، باید فاصله انبساطی کوچکی بین انتهای لوله و ته کاسه رعایت شود تا در اثر انبساط حرارتی، تنش ایجاد نشود."}}, {"@type": "Question", "name": "فلنج رزوه‌ای چه زمانی انتخاب می‌شود؟", "acceptedAnswer": {"@type": "Answer", "text": "وقتی نیاز به دمونتاژ مکرر بدون جوشکاری باشد یا جوشکاری در محل ممکن نباشد؛ مانند خطوط ابزار دقیق، نقاط نمونه‌گیری و برخی سرویس‌های تاسیساتی."}}, {"@type": "Question", "name": "ریسک اصلی اتصال رزوه‌ای چیست؟", "acceptedAnswer": {"@type": "Answer", "text": "نشتی در سیکل‌های حرارتی و ارتعاشی، و تمرکز تنش در ریشه رزوه. به همین دلیل در خطوط پرفشار با سیکل کاری سنگین، استفاده از رزوه محدود می‌شود."}}, {"@type": "Question", "name": "آیا می‌توان رزوه را جوش کرد؟", "acceptedAnswer": {"@type": "Answer", "text": "تبدیل رزوه به جوش با آب‌بندی کامل تضمین‌پذیر نیست و معمولاً توصیه نمی‌شود؛ بهتر است از ابتدا نوع اتصال متناسب با سرویس انتخاب شود."}}]}]}</script>
+</head>
+<body>
 <a class="ptf-skip" href="#main-content" data-ptf-skip="yes">رفتن به محتوا</a>
-<header class="site-header scrolled"><div class="container nav-wrap">
-<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
-<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
-<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
-<a href="../">خانه</a><span class="nav-drop"><a href="../#about" aria-haspopup="true">درباره ما</a><span class="nav-drop-menu"><a href="../news/">اخبار</a><a href="../blog/">وبلاگ</a></span></span><a href="../services/">خدمات</a><a href="../services/products/">محصولات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a>
-</nav>
-<a class="header-call" href="tel:02146087679">021-46087679</a>
-<a href="../en/" class="lang-switch" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
-</div></header>
-<nav class="ptf-bc" aria-label="مسیر صفحه" data-ptf-bc="yes"><div class="container"><ol><li><a href="/">خانه</a></li><li><a href="/knowledge-center/">مرکز دانش</a></li><li><span aria-current="page">مقایسه فلنج Socket Weld و Threaded</span></li></ol></div></nav>
-
-<section style="background:linear-gradient(135deg,#151517,#2d2d31);min-height:200px;display:flex;align-items:center;padding:130px 0 40px;color:#fff">
-<div class="container"><div style="font-size:13px;color:rgba(255,255,255,.6)"><a href="../" style="color:#ffbd52">خانه</a> › <a href="../knowledge-center/" style="color:#ffbd52">مرکز دانش</a> › <span style="color:rgba(255,255,255,.6)">تفاوت فلنج جوشی سوکتی و رزوه‌ای</span></div>
-<h1 style="font-size:clamp(22px,3vw,34px);margin:8px 0 10px">مقایسه فلنج Socket Weld و Threaded</h1>
-<p style="color:rgba(255,255,255,.7);font-size:14px">لوله و پایپینگ</p></div></section>
-<div style="max-width:900px;margin:40px auto;padding:0 20px">
-<article style="background:#fff;border:1px solid var(--line);border-radius:28px;padding:40px;line-height:2.1;color:#334155"><h2>Socket Weld vs Threaded</h2><p>Socket Weld (جوش فیله, فشار بالا) | Threaded (رزوه, فشار پایین, نصب سریع)</p>
-<div style="background:linear-gradient(135deg,#f8fafc,#fff);border:2px solid var(--line);border-radius:24px;padding:30px;text-align:center;margin:40px 0 0"><!-- kc-enrich:socket-weld-threaded -->
-<div class="kc-body" style="text-align:right">
-<h2>دو راهِ اتصالِ بدونِ جوشِ لب‌به‌لب</h2>
-<p>هر دو روش برای <b>سایزهای کوچک و فشارِ بالا</b> طراحی شده‌اند و در هر دو، فلنج یا فیتینگ روی لوله سوار می‌شود بدونِ نیاز به پخِ (Bevel) جوشِ لب‌به‌لب. تفاوتِ اصلی در <b>دوام</b> است: اتصالِ جوشی یکپارچه است و اتصالِ رزوه‌ای یک مسیرِ نشتیِ بالقوه دارد.</p><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr><th style="background:#f79400;color:#fff;padding:9px;border:1px solid #eee">معیار</th><th style="background:#f79400;color:#fff;padding:9px;border:1px solid #eee">Socket Weld</th><th style="background:#f79400;color:#fff;padding:9px;border:1px solid #eee">Threaded</th></tr></thead><tbody><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">نوعِ اتصال</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">جوشِ گوشه به کاسهٔ فلنج</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">رزوهٔ NPT بدونِ جوش</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">مقاومتِ مکانیکی</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">بالا؛ مناسبِ ارتعاش و سیکل</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">متوسط؛ رزوه در بارِ سیکلیک ضعیف است</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">آب‌بندی</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">یکپارچه پس از جوشکاری</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">وابسته به نوار/خمیرِ رزوه و گشتاورِ صحیح</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">نصب در محلِ ممنوعه برای جوش</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">نیاز به جوشکاری دارد</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">بدونِ جوش — مزیتِ اصلی</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">خطرِ خوردگیِ شیاری</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">در شکافِ پشتِ لوله وجود دارد</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">در رزوه وجود دارد</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">هزینهٔ نصب</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">جوشکارِ ماهر + بازرسیِ جوش</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">سریع‌تر و ارزان‌تر</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">تعمیر و بازکردن</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">برش و جوشِ مجدد</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">باز و بستِ ساده</td></tr></tbody></table></div><p style="background:#fff8ec;border-right:4px solid #f79400;padding:10px 14px;font-size:14px"><b>نکته:</b> قاعدهٔ عملی: در سرویسِ بحرانی، ارتعاشی یا سیکلیک، Socket Weld؛ جایی که جوشکاری مجاز نیست یا اتصال باید بارها باز شود، Threaded.</p>
-
-<h2>جزئیاتِ اجراییِ Socket Weld که اغلب رعایت نمی‌شود</h2>
-<ul><li><b>گپِ لازم:</b> پیش از جوشکاری، لوله باید حدود ۱٫۶ میلی‌متر (۱/۱۶ اینچ) از شانهٔ کاسه فاصله داشته باشد تا انبساطِ حرارتیِ حینِ جوش، ترک نسازد</li><li><b>ابعادِ جوشِ گوشه:</b> باید بر پایهٔ ضخامتِ دیوارهٔ لوله و استانداردِ فلنج/فیتینگ باشد؛ جوشِ کوچک‌تر یعنی مقاومتِ کمتر</li><li><b>شکافِ پشتِ لوله:</b> فضای خالیِ بینِ انتهای لوله و شانه، محلِ تجمعِ سیال و خوردگیِ شیاری است — در سرویسِ خورنده باید ارزیابی شود</li><li><b>بازرسی:</b> جوشِ گوشه با VT و در صورت نیاز PT/MT کنترل می‌شود؛ رادیوگرافیِ جوشِ گوشه محدودیت دارد</li><li>سایزِ رایجِ این اتصال معمولاً تا NPS 2 است؛ در سایزهای بزرگ، WN ترجیح داده می‌شود</li></ul>
-
-<h2>جزئیاتِ اجراییِ اتصالِ رزوه‌ای</h2>
-<ul><li>رزوهٔ استاندارد، مخروطیِ <b>NPT</b> بر پایهٔ ASME B1.20.1 است</li><li>آب‌بندی با نوارِ PTFE یا خمیرِ رزوهٔ سازگار با سیال انجام می‌شود</li><li>سفت‌کردنِ بیش از حد می‌تواند فیتینگِ نازک را ترک بدهد — «دستِ سفت به علاوهٔ دورهایِ مشخص» نه بیشتر</li><li>در سرویسِ ارتعاشی، رزوه مستعدِ شل‌شدن است</li><li>دیوارهٔ لوله در ناحیهٔ رزوه نازک می‌شود؛ در فشارِ خیلی بالا باید ردهٔ ضخامتِ مناسب انتخاب شود</li><li>برای سرویسِ ترش، متریالِ رزوه و پوشش باید با NACE سازگار باشد</li></ul>
-
-<h2>کدام را انتخاب کنیم؟</h2>
-<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr><th style="background:#f79400;color:#fff;padding:9px;border:1px solid #eee">سرویس</th><th style="background:#f79400;color:#fff;padding:9px;border:1px solid #eee">پیشنهاد</th><th style="background:#f79400;color:#fff;padding:9px;border:1px solid #eee">دلیل</th></tr></thead><tbody><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">بخار و خطوطِ پرفشارِ کوچک</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">Socket Weld</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">مقاومتِ حرارتی و ارتعاشیِ بهتر</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">هوای فشرده و ابزارِ دقیق</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">Threaded</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">نصبِ سریع و قابلیتِ تغییر</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">سیالِ خورنده</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">Socket Weld با ارزیابیٔ شکاف</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">حذفِ مسیرِ نشتیِ رزوه</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">محلِ بدونِ مجوزِ جوشکاری</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">Threaded</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">ایمنیِ کارگاه</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">خطوطِ نیازمندِ بازکردنِ مکرر</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">Threaded یا LJ</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">سهولتِ تعمیرات</td></tr><tr><td style="border:1px solid #e8e8ec;padding:8px;text-align:center">سرویسِ سیکلیک و ارتعاشی</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">Socket Weld (یا WN)</td><td style="border:1px solid #e8e8ec;padding:8px;text-align:right">رزوه در سیکل شل می‌شود</td></tr></tbody></table></div>
-
-<h2>اشتباهات رایج</h2>
-<ul><li>جوشکاریِ Socket Weld بدونِ گپِ لازم — علتِ رایجِ ترکِ ریشه</li><li>استفاده از رزوه در خطوطِ ارتعاشیِ پرفشار</li><li>نادیده گرفتنِ خوردگیِ شیاری در شکافِ پشتِ لوله در سرویسِ خورنده</li><li>استفاده از نوارِ رزوهٔ نامناسب با سیال (مثلاً در اکسیژن)</li><li>بازرسی نکردنِ جوشِ گوشه در سرویسِ بحرانی</li><li>انتخابِ ردهٔ ضخامتِ سبک برای فیتینگِ رزوه‌ایِ پرفشار</li></ul>
-
-<h2>چک‌لیست استعلام (RFQ)</h2>
-<p>برای اینکه قیمتِ دریافتی واقعاً قابل مقایسه باشد، این موارد را در استعلام قید کنید:</p><ul><li>نوعِ اتصال: Socket Weld یا Threaded (NPT)</li><li>استاندارد: ASME B16.5 برای فلنج / ASME B16.11 برای فیتینگ فورج</li><li>کلاسِ فشار (3000/6000/9000 برای SW و 2000/3000/6000 برای رزوه‌ای)</li><li>سایز (NPS) و ردهٔ ضخامتِ لوله</li><li>متریال: A105/A105N، A182 F316، A350 LF2</li><li>نوعِ سیال، دما و وجودِ ارتعاش یا سیکل</li><li>الزامات NACE در سرویسِ ترش</li><li>گواهی EN 10204 3.1 و بازرسیِ موردِ انتظار (VT/PT/PMI)</li></ul>
-
-<h2>پرسش‌های متداول</h2>
-<h3>آیا می‌توان فیتینگِ رزوه‌ای را جوش داد؟</h3>
-<p>خیر. حرارتِ جوشکاری رزوه را تخریب می‌کند و آب‌بندی از بین می‌رود. اگر نیاز به اتصالِ جوشی دارید، باید از همان ابتدا فیتینگِ Socket Weld یا Butt Weld سفارش داده شود.</p>
-<h3>چرا در سایزهای بزرگ از Socket Weld استفاده نمی‌شود؟</h3>
-<p>چون طولِ جوشِ گوشه و حجمِ حرارتِ ورودی زیاد می‌شود، اعوجاج افزایش می‌یابد و کنترلِ کیفیتِ جوش دشوارتر است. در سایزهای بزرگ، فلنجِ Weld Neck با جوشِ لب‌به‌لب رفتارِ بهتری دارد.</p>
-<h3>کدام یک در برابرِ خوردگی بهتر است؟</h3>
-<p>هر دو یک نقطهٔ ضعفِ مشابه دارند: شکاف. در Socket Weld شکافِ پشتِ لوله و در رزوه‌ای، فضای بینِ دنده‌ها. در سرویسِ خورنده، طراحیِ صحیح (پر کردنِ شکاف با جوش در SW) و انتخابِ متریالِ مناسب، مهم‌تر از نوعِ اتصال است.</p>
-
-
+<header class="site-header scrolled"><div class="container nav-wrap"><a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a><nav class="main-nav" id="mainNav" aria-label="منوی اصلی"><a href="../">خانه</a><a href="../services/">خدمات</a><a href="../services/products/">محصولات</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a></nav><a class="header-call" href="tel:02146087679">021-46087679</a></div></header>
+<nav class="ptf-bc" aria-label="مسیر صفحه" data-ptf-bc="yes"><div class="container"><ol><li><a href="/">خانه</a></li><li><a href="/knowledge-center/">مرکز دانش</a></li><li><span aria-current="page">فلنج جوشی ساکت یا رزوه‌ای؟ مقایسه فنی و راهنمای انتخاب</span></li></ol></div></nav>
+<section class="article-hero"><div class="container"><div class="breadcrumb"><a href="../" style="color:#bfdbfe">خانه</a> / <a href="../knowledge-center/" style="color:#bfdbfe">مرکز دانش</a> / فلنج جوشی ساکت یا رزوه‌ای — مقایسه فنی و انتخاب</div><h1>فلنج جوشی ساکت یا رزوه‌ای — مقایسه فنی و انتخاب</h1><p>در سایزهای کوچک پرفشار، دو گزینه اصلی اتصال همین دو فلنج هستند. این راهنما انتخاب بین آن‌ها را روشن می‌کند.</p></div></section>
+<main id="main-content"><div class="article-wrap"><article class="article">
+<h2 id="context">جایگاه این دو فلنج</h2>
+<p>در سایزهای کوچک که جوشکاری لب‌به‌لب دشوار است، دو راه‌حل اصلی وجود دارد: اتصال با کاسه جوشی و اتصال رزوه‌ای. هر دو در کلاس‌های فشاری بالا عرضه می‌شوند و انتخاب بین آن‌ها به حساسیت سرویس و نیاز به دمونتاژ بستگی دارد.</p>
+<figure><img src="images/rw-sw-vs-threaded.jpg" alt="عکس واقعی دو فلنج کوچک کنار هم" loading="lazy" width="960" height="540"><figcaption>چپ: فلنج با کاسه جوشی — راست: فلنج رزوه‌ای بدون جوش</figcaption></figure>
+<h2 id="compare">جدول مقایسه</h2>
+<table><thead><tr><th>معیار</th><th>جوشی ساکت</th><th>رزوه‌ای</th></tr></thead><tbody><tr><td>روش اتصال</td><td>جوش گوشه‌ای در کاسه</td><td>پیچیدن روی رزوه لوله</td></tr><tr><td>آب‌بندی</td><td>بسیار خوب</td><td>متوسط؛ وابسته به رزوه و نوار</td></tr><tr><td>دمونتاژ</td><td>با برش جوش</td><td>آسان و مکرر</td></tr><tr><td>ریسک نشتی</td><td>کم</td><td>بیشتر در سیکل حرارتی</td></tr><tr><td>نیاز به جوشکار</td><td>بله</td><td>خیر</td></tr><tr><td>کاربرد رایج</td><td>خطوط پرفشار حساس</td><td>نقاط دمونتاژ و سرویس غیرحساس</td></tr></tbody></table>
+<h2 id="socket">نکات فلنج جوشی ساکت</h2>
+<ul><li>رعایت فاصله انبساطی پیش از جوشکاری الزامی است.</li><li>در سرویس‌های خورنده، شکاف کاسه می‌تواند نقطه شروع خوردگی باشد.</li><li>کیفیت جوش گوشه‌ای باید در بازرسی کنترل شود.</li><li>برای سرویس ترک‌خوردگی حساس، ارزیابی تکمیلی انجام شود.</li></ul>
+<h2 id="thread">نکات فلنج رزوه‌ای</h2>
+<ul><li>جنس رزوه و لوله باید سازگار و از گریپاژ جلوگیری شود.</li><li>در سیکل‌های حرارتی و ارتعاشی، ریسک نشتی افزایش می‌یابد.</li><li>برای آب‌بندی از نوار یا خمیر مناسب استفاده شود.</li><li>در سرویس‌های حساس فرایندی، استفاده محدود شود.</li></ul>
+<h2 id="selection">راهنمای انتخاب</h2>
+<ol><li>سرویس حساس با آب‌بندی مطمئن: جوشی ساکت.</li><li>نیاز به دمونتاژ مکرر بدون جوشکاری: رزوه‌ای.</li><li>سیکل حرارتی سنگین: از رزوه‌ای پرهیز شود.</li><li>در همه حالات، کلاس فشاری و متریال را با خط هماهنگ کنید.</li></ol>
+<h2 id="sizes">محدوده سایز و کلاس</h2>
+<p>این دو فلنج معمولاً در سایزهای کوچک و کلاس‌های فشاری متوسط تا بالا عرضه می‌شوند. در سایزهای بزرگ و سرویس‌های فرایندی اصلی، فلنج‌های جوشی لب‌به‌لب انتخاب استاندارد هستند و کاربرد این دو نوع محدود می‌شود. بنابراین انتخاب آن‌ها بیشتر در خطوط فرعی، ابزار دقیق و نقاط نمونه‌گیری مطرح است.</p>
+<h2 id="checklist">چک‌لیست استعلام</h2>
+<ol><li>سایز و کلاس فشاری را ذکر کنید.</li><li>نوع اتصال را صریح بنویسید.</li><li>متریال هم‌خوان با لوله انتخاب کنید.</li><li>در رزوه‌ای، نوع رزوه را مشخص کنید.</li><li>گواهی مواد با شماره ذوب درخواست کنید.</li></ol>
+<div class="note">در خطوط با ارتعاش مکانیکی یا ضربه قوچ، اتصال رزوه‌ای باید با احتیاط بیشتری استفاده و در صورت امکان با ساپورت مناسب تقویت شود.</div>
+<h2 id="takeaway">جمع‌بندی</h2>
+<p>بین جوشی ساکت و رزوه‌ای، حساسیت سرویس و نیاز به دمونتاژ تصمیم‌گیرنده است. انتخاب درست از ابتدا، از نشتی و دوباره‌کاری جلوگیری می‌کند.</p>
+<h2 id="faq">سوالات رایج</h2><div class="faq">
+<details open><summary>فلنج جوشی ساکت چگونه نصب می‌شود؟</summary><p>انتهای لوله داخل کاسه فلنج قرار می‌گیرد و یک جوش گوشه‌ای دور تا دور آن زده می‌شود. پیش از جوش، باید فاصله انبساطی کوچکی بین انتهای لوله و ته کاسه رعایت شود تا در اثر انبساط حرارتی، تنش ایجاد نشود.</p></details>
+<details><summary>فلنج رزوه‌ای چه زمانی انتخاب می‌شود؟</summary><p>وقتی نیاز به دمونتاژ مکرر بدون جوشکاری باشد یا جوشکاری در محل ممکن نباشد؛ مانند خطوط ابزار دقیق، نقاط نمونه‌گیری و برخی سرویس‌های تاسیساتی.</p></details>
+<details><summary>ریسک اصلی اتصال رزوه‌ای چیست؟</summary><p>نشتی در سیکل‌های حرارتی و ارتعاشی، و تمرکز تنش در ریشه رزوه. به همین دلیل در خطوط پرفشار با سیکل کاری سنگین، استفاده از رزوه محدود می‌شود.</p></details>
+<details><summary>آیا می‌توان رزوه را جوش کرد؟</summary><p>تبدیل رزوه به جوش با آب‌بندی کامل تضمین‌پذیر نیست و معمولاً توصیه نمی‌شود؛ بهتر است از ابتدا نوع اتصال متناسب با سرویس انتخاب شود.</p></details>
 </div>
-<!-- /kc-enrich -->
-<h3 style="margin:0 0 8px;color:#1e293b">📋 نیاز به استعلام یا مشاوره دارید؟</h3><p style="color:#64748b;font-size:14px">کارشناسان ما آماده پاسخگویی هستند.</p><a href="../rfq/" class="btn btn-primary" style="padding:14px 32px">ثبت استعلام هوشمند (RFQ) ←</a></div>
-
-<h2>اهمیت موضوع در صنایع نفت، گاز و پتروشیمی</h2>
-<p>این موضوع یکی از مباحث کلیدی و حیاتی در صنایع نفت، گاز، پتروشیمی، فولاد و نیروگاهی محسوب می‌شود. انتخاب صحیح و آگاهانه تجهیزات و مواد مطابق با استانداردهای بین‌المللی نقش مستقیمی در افزایش بهره‌وری، کاهش هزینه‌های تعمیر و نگهداری و بهبود ایمنی تاسیسات صنعتی دارد. مهندسان و کارشناسان خرید باید با آخرین ویرایش استانداردهای ASME، API، ASTM و ISO آشنا باشند و توانایی تطبیق نیازهای پروژه با مشخصات فنی تجهیزات را داشته باشند.</p>
-<h2>راهنمای خرید و نکات فنی برای مهندسان و کارشناسان خرید صنعتی</h2>
-<p>در فرآیند خرید تجهیزات صنعتی، رعایت چند نکته کلیدی می‌تواند تفاوت قابل توجهی در کیفیت نهایی پروژه ایجاد کند. نخستین و مهم‌ترین نکته، تطابق کامل مشخصات فنی تجهیزات با الزامات پروژه است. همواره اطمینان حاصل کنید که تجهیزات خریداری شده دارای گواهی MTC (Mill Test Certificate) معتبر مطابق استاندارد EN 10204 (نوع ۳.۱ یا ۳.۲) هستند. این گواهی تضمین می‌کند که مواد به کار رفته در ساخت تجهیزات از نظر ترکیب شیمیایی و خواص مکانیکی با استانداردهای درخواستی مطابقت کامل دارند.</p>
-<p>دومین نکته حیاتی، انتخاب تامین‌کننده معتبر است. در پروژه‌های بالادستی نفت و گاز که وندورلیست (Vendor List) توسط کارفرما یا شرکت مهندسی مشاور تعیین می‌شود، تامین‌کننده باید در لیست تایید شده NIOC (شرکت ملی نفت ایران)، NIGC (شرکت ملی گاز ایران) یا NPC (شرکت ملی صنایع پتروشیمی) قرار داشته باشد. انطباق با وندورلیست یکی از الزامات حیاتی در پروژه‌های EPC است و عدم تطابق می‌تواند منجر به رد کالا در مرحله بازرسی و تحویل شود.</p>
-<p>سومین نکته، بازرسی فنی (Technical Inspection) است. توصیه می‌شود فرآیند بازرسی در سه مرحله انجام شود: بازرسی حین ساخت (In-Process Inspection)، بازرسی نهایی قبل از بارگیری (Final Inspection) و بازرسی در محل پروژه (Site Inspection). شرکت‌های بازرسی شخص ثالث (TPI) مانند Bureau Veritas، SGS، DNV و TÜV می‌توانند خدمات بازرسی را مطابق استانداردهای بین‌المللی ارائه دهند. هزینه بازرسی TPI معمولاً بین ۲ تا ۵ درصد ارزش کالا است که در مقابل ریسک دریافت کالای نامرغوب، سرمایه‌گذاری بسیار منطقی محسوب می‌شود.</p>
-<p>چهارمین نکته، بسته‌بندی و حمل و نقل است. تجهیزات صنعتی باید با بسته‌بندی مناسب برای جلوگیری از آسیب‌های مکانیکی، نفوذ رطوبت و خوردگی در طول حمل و نقل بسته‌بندی شوند. لوله‌ها باید با محافظ انتهایی (End Cap) و بسته‌بندی چوبی یا فلزی بسته‌بندی شوند. شیرآلات باید در وضعیت نیمه‌باز (Partially Open) برای جلوگیری از آسیب به نشیمنگاه حمل شوند. تجهیزات ابزار دقیق حساس باید با بسته‌بندی ضد ضربه و همراه با ژل سیلیکا (Silica Gel) برای جذب رطوبت بسته‌بندی شوند.</p>
-<p>پنجمین نکته، مستندات فنی است. تمامی تجهیزات صنعتی باید همراه با مدارک فنی کامل شامل دیتاشیت (Data Sheet)، نقشه‌های ابعادی (Dimension Drawing)، گواهی MTC، گواهی کالیبراسیون (برای تجهیزات ابزار دقیق)، گزارش تست هیدرواستاتیک (برای لوله و مخازن)، دفترچه راهنمای نصب و بهره‌برداری (Installation & Operation Manual) و گواهی مبدا (Certificate of Origin) تحویل داده شوند. نداشتن هر یک از این مدارک می‌تواند فرآیند ترخیص گمرکی و تحویل نهایی را با مشکل مواجه کند.</p>
-<h2>استانداردهای بین‌المللی مرتبط</h2>
-<p>استانداردهای بین‌المللی نقش حیاتی در تضمین کیفیت و ایمنی تجهیزات صنعتی دارند. برخی از مهم‌ترین استانداردها عبارتند از: ASME (انجمن مهندسان مکانیک آمریکا) برای طراحی و ساخت مخازن تحت فشار و خطوط لوله، API (موسسه نفت آمریکا) برای تجهیزات صنایع نفت و گاز، ASTM (انجمن مواد و آزمون آمریکا) برای مشخصات مواد و متریال، ISO (سازمان بین‌المللی استاندارد) برای سیستم‌های مدیریت کیفیت و IEC (کمیسیون بین‌المللی الکتروتکنیک) برای تجهیزات برق و ابزار دقیق. رعایت این استانداردها برای تمامی پروژه‌های صنعتی الزامی بوده و عدم تطابق با آنها می‌تواند منجر به رد شدن کالا در مرحله بازرسی و تحویل شود.</p>
-<h2>نتیجه‌گیری و توصیه‌های نهایی</h2>
-<p>با توجه به اهمیت موضوع در صنایع نفت، گاز، پتروشیمی، فولاد و نیروگاهی، توصیه می‌شود مهندسان و کارشناسان خرید همواره آخرین نسخه استانداردهای بین‌المللی را مطالعه کرده و از مشاوران فنی معتبر در انتخاب تجهیزات کمک بگیرند. رعایت استانداردها و استفاده از تجهیزات با کیفیت اصلی (Original) تضمین‌کننده طول عمر مفید تجهیزات و کاهش هزینه‌های تعمیر و نگهداری خواهد بود. شرکت پیشرو تجهیز فرتاک (Pishro Tajhiz Fartak) با بیش از یک دهه تجربه موفق در تامین تجهیزات پروژه‌های ملی صنایع نفت، گاز، پتروشیمی، فولاد و نیروگاهی، کلیه محموله‌های خود را با گواهی MTC 3.1 معتبر، مستندات فنی کامل و در صورت درخواست کارفرما همراه با بازرسی TPI توسط شرکت‌های بازرسی معتبر بین‌المللی تحویل می‌دهد. برای استعلام قیمت، مشاوره فنی و ثبت سفارش، می‌توانید از طریق سامانه استعلام هوشمند (RFQ) به آدرس pishtaj.ir/rfq اقدام کنید یا با شماره تلفن ۰۲۱-۴۶۰۸۷۶۷۹ تماس حاصل فرمایید. کارشناسان مهندسی فروش ما در کوتاه‌ترین زمان ممکن پاسخگوی شما خواهند بود.</p>
-
-
-<h2>راهنمای انتخاب تامین‌کننده معتبر در صنایع نفت و گاز</h2>
-<p>یکی از مهم‌ترین تصمیمات در فرآیند خرید تجهیزات صنعتی، انتخاب تامین‌کننده مناسب است. یک تامین‌کننده معتبر باید دارای گواهی ISO 9001 (سیستم مدیریت کیفیت) باشد و سابقه موفق در تامین پروژه‌های مشابه را داشته باشد. همچنین دسترسی به برندهای اصلی (Original Brands) و توانایی تامین در کوتاه‌ترین زمان ممکن از دیگر ویژگی‌های یک تامین‌کننده حرفه‌ای است. شرکت پیشرو تجهیز فرتاک با بیش از یک دهه سابقه درخشان در تامین تجهیزات پروژه‌های صنعتی و دارا بودن گواهی ISO 29001 (نفت و پتروشیمی)، ISO 9001، ISO 14001 و ISO 45001، یکی از معتبرترین تامین‌کنندگان صنایع نفت، گاز و پتروشیمی در ایران است.</p>
-<h2>اهمیت مستندات فنی در تامین تجهیزات صنعتی</h2>
-<p>یکی دیگر از جنبه‌های حیاتی در فرآیند تامین تجهیزات صنعتی، ارائه مستندات فنی کامل و دقیق است. کلیه تجهیزات صنعتی باید همراه با مدارک فنی کامل شامل دیتاشیت (Data Sheet)، نقشه‌های ابعادی (Dimension Drawing)، گواهی MTC مطابق EN 10204، گواهی کالیبراسیون (برای تجهیزات ابزار دقیق)، گزارش تست هیدرواستاتیک (برای لوله و مخازن تحت فشار)، دفترچه راهنمای نصب و بهره‌برداری (IOM Manual)، گواهی مبدا (Certificate of Origin) و بسته‌بندی مناسب برای حمل و نقل بین‌المللی تحویل داده شوند. فقدان هر یک از این مدارک می‌تواند فرآیند ترخیص گمرکی و تحویل نهایی را با تاخیر و مشکل مواجه کند.</p>
-<p>شرکت پیشرو تجهیز فرتاک (Pishro Tajhiz Fartak) با شماره ثبت ۵۷۸۸۳۱ و شناسه ملی ۱۴۰۱۰۰۷۷۵۵۸، مفتخر است با بهره‌گیری از تیم مهندسی مجرب و ارتباط مستقیم با سازندگان معتبر اروپایی و آسیایی، خدمات جامع تامین تجهیزات صنعتی را به کارفرمایان محترم ارائه دهد. برای ثبت استعلام و دریافت پیشنهاد فنی-مالی، از سامانه هوشمند استعلام (RFQ) در وب‌سایت pishtaj.ir استفاده کنید. کارشناسان ما در اسرع وقت پاسخگوی شما خواهند بود.</p>
-
-
-<p>کلیه تجهیزات تامین شده توسط شرکت پیشرو تجهیز فرتاک دارای ضمانت اصالت کالا (Originality Guarantee) و گارانتی تعویض در صورت وجود نقص در مواد یا ساخت هستند. فرآیند تضمین کیفیت در این شرکت شامل سه مرحله اصلی است: کنترل کیفی ورودی (Incoming QC) شامل بررسی مدارک فنی و گواهی MTC در بدو ورود کالا به انبار، کنترل کیفی حین فرآیند (In-Process QC) شامل بازرسی ابعادی و چشمی توسط کارشناسان فنی مجرب، و کنترل کیفی خروجی (Outgoing QC) شامل بسته‌بندی استاندارد و صدور گواهی انطباق نهایی (Certificate of Compliance). این فرآیند سه مرحله‌ای تضمین می‌کند که کالای تحویلی به کارفرما کاملاً مطابق با سفارش و استانداردهای درخواستی است. تیم مهندسی شرکت پیشرو تجهیز فرتاک با بیش از ۱۲ سال تجربه موفق در تامین تجهیزات پروژه‌های صنایع نفت، گاز، پتروشیمی، فولاد و نیروگاهی، همواره آماده ارائه خدمات مشاوره فنی رایگان، هماهنگی بازرسی توسط شرکت‌های شخص ثالث TPI (مانند Bureau Veritas، SGS و DNV)، پشتیبانی فنی در مرحله نصب و راه‌اندازی و خدمات پس از فروش و گارانتی به کارفرمایان محترم می‌باشد. برای اطلاعات بیشتر و ثبت استعلام به وب‌سایت pishtaj.ir مراجعه کرده یا با شماره ۰۲۱-۴۶۰۸۷۶۷۹ تماس بگیرید.</p>
-
-
-<p>شرکت پیشرو تجهیز فرتاک با هدف ارائه خدمات تخصصی در حوزه تامین تجهیزات صنایع نفت، گاز، پتروشیمی، فولاد، نیروگاهی و سیمان فعالیت می‌کند. این شرکت با بهره‌گیری از تیم مهندسی مجرب، ارتباط مستقیم با سازندگان معتبر داخلی و خارجی و آشنایی کامل با الزامات فنی پروژه‌های EPC و وندورلیست‌های NIOC، NIGC و NPC، قادر به تامین انواع لوله‌های کربن استیل و استینلس استیل (A106, A333, API 5L, A312)، فلنج‌های صنعتی (WN, SO, Blind, SW مطابق ASME B16.5)، شیرآلات صنعتی (Gate, Globe, Ball, Check مطابق API 600, API 602, API 6D)، تجهیزات ابزار دقیق (ترانسمیتر فشار، دما، سطح و فلومتر از برندهای Rosemount, Yokogawa, Endress+Hauser) و تجهیزات برق صنعتی (تابلو، کلید، PLC از برندهای Siemens, ABB, Schneider Electric) با بهترین کیفیت و قیمت رقابتی است. کلیه تجهیزات تامین شده همراه با گواهی MTC 3.1 معتبر و قابل رهگیری (Traceable) تحویل داده می‌شوند. برای استعلام قیمت و مشاوره فنی، با کارشناسان ما تماس بگیرید.</p>
-
+<h2>مطالب مرتبط</h2><ul><li><a href="asme-b16-11-socket-weld-threaded.html">راهنمای اتصالات فورج جوشی ساکت و رزوه‌ای</a></li><li><a href="asme-b16-5.html">استاندارد فلنج‌های جوشی (ASME B16.5)</a></li><li><a href="flange-material-selection-guide.html">راهنمای جنس و متریال فلنج صنعتی</a></li><li><a href="gasket-types-guide.html">راهنمای انواع گسکت صنعتی</a></li><li><a href="pipe-fittings-guide.html">راهنمای اتصالات فیتینگ پایپینگ</a></li></ul>
+<div class="ptf-product-linkbox" data-ptf-product-link="small-flanges">
+  <b>مسیر خرید و استعلام: فلنج سایز کوچک</b>
+  <p>با ذکر سایز، کلاس و نوع اتصال، فلنج جوشی ساکت یا رزوه‌ای با گواهی مواد کامل عرضه می‌شود. برای خطوط ابزار دقیق، جوشی ساکت پیشنهاد می‌گردد.</p>
+  <a href="../services/products/welding-flanges.html">مشاهده صفحه محصول ←</a>
+  <a class="secondary" href="../rfq/?product=small-flanges">ثبت RFQ همین محصول</a>
+</div>
 <section class="kc-supply-cta" style="margin:38px 0 6px;padding:26px 28px;border:1px solid #e2e8f0;border-left:4px solid #ef4b1a;border-radius:18px;background:linear-gradient(135deg,#f8fafc,#fff)">
 <h2 style="margin:0 0 8px;font-size:19px;color:#0f2744">تامین این تجهیزات را به پیشرو تجهیز فرتاک بسپارید</h2>
 <p style="margin:0 0 16px;font-size:14.5px;color:#475569;line-height:1.9">شرکت پیشرو تجهیز فرتاک <strong>تامین‌کننده تخصصی تجهیزات صنعتی</strong> برای پروژه‌های نفت، گاز، پتروشیمی، فولاد و نیروگاهی است. برای دریافت پیشنهاد فنی و قیمت، استعلام (RFQ) خود را ثبت کنید تا کارشناسان مهندسی فروش در کوتاه‌ترین زمان پاسخ دهند.</p>
 <ul style="list-style:none;padding:0;margin:0 0 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
-<li style="margin:0"><a href="../services/piping-supply.html" style="color:#0f2744;font-weight:800;text-decoration:none">تامین تجهیزات پایپینگ</a><span style="display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:2px">تامین‌کننده لوله، فلنج، فیتینگ و گسکت مطابق ASME و API</span></li>
-<li style="margin:0"><a href="../services/" style="color:#0f2744;font-weight:800;text-decoration:none">خدمات تامین تجهیزات صنعتی</a><span style="display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:2px">تامین‌کننده یکپارچه تجهیزات پروژه‌های صنعتی</span></li>
-<li style="margin:0"><a href="../services/pumps/" style="color:#0f2744;font-weight:800;text-decoration:none">تامین پمپ و کمپرسور</a><span style="display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:2px">تامین‌کننده پمپ API 610، کمپرسور و تجهیزات دوار</span></li>
-<li style="margin:0"><a href="../industries/petrochemical/" style="color:#0f2744;font-weight:800;text-decoration:none">تامین تجهیزات پتروشیمی</a><span style="display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:2px">تامین‌کننده تجهیزات صنایع پتروشیمی، الفین و پلیمر</span></li>
+<li style="margin:0"><a href="../suppliers/piping-supplier.html" style="color:#0f2744;font-weight:800;text-decoration:none">تامین فلنج</a><span style="display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:2px">فلنج‌های سایز کوچک با گواهی مواد</span></li><li style="margin:0"><a href="../services/piping-supply.html" style="color:#0f2744;font-weight:800;text-decoration:none">تامین تجهیزات پایپینگ</a><span style="display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:2px">لوله و اتصالات هماهنگ با فلنج</span></li>
 </ul>
 <div style="display:flex;gap:10px;flex-wrap:wrap">
 <a href="../rfq/" style="display:inline-block;padding:11px 22px;border-radius:999px;background:#ef4b1a;color:#fff;font-weight:800;font-size:14px;text-decoration:none">ثبت استعلام آنلاین (RFQ)</a>
 <a href="tel:02146087679" style="display:inline-block;padding:11px 22px;border-radius:999px;background:#0f2744;color:#fff;font-weight:800;font-size:14px;text-decoration:none">تماس: ۰۲۱-۴۶۰۸۷۶۷۹</a>
 </div>
 </section>
-</article></div>
-<div class="kc-supply-cta" style="max-width:900px;margin:0 auto;padding:0 20px 28px"><div style="background:linear-gradient(135deg,#fffcf9,#fff5eb);border:1px solid rgba(239,75,26,.22);border-radius:16px;padding:16px 22px;font-size:14px;color:#475569;line-height:1.9"><b style="color:#1e293b">نیاز به تامین لوله، فلنج و اتصالات صنعتی دارید؟</b> پیشرو تجهیز فرتاک به‌عنوان <a href="../suppliers/piping-supplier.html" style="color:#ef4b1a;font-weight:900">تامین‌کننده پایپینگ</a> با مستندات کامل و انطباق Vendor List آماده همکاری است. <a href="../rfq/" style="color:#0e7490;font-weight:900">ثبت استعلام ←</a></div></div>
-<footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
-    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
-      <div>
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
-          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px;" style="object-fit:contain">
-          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
-        </div>
-        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
-      </div>
-      <div>
-        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
-        <div style="display:grid; gap:10px; font-size:14px;">
-          <a href="../suppliers/" style="color:#cbd5e1; transition:.2s;">• تامین‌کننده تجهیزات صنعتی</a>
-          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">01</span> سامانه استعلام هوشمند (RFQ)</a>
-          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">02</span> رهگیری آنلاین وضعیت پرونده</a>
-          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">03</span> ثبت‌نام تامین‌کنندگان و انبارداران</a>
-          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">04</span> مرکز دانلود کاتالوگ و دیتاشیت</a>
-          <a href="../assistant/" style="color:#ffb033; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">05</span> مشاور هوشمند انتخاب تجهیزات</a>
-        </div>
-      </div>
-      <div>
-        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
-        <div style="display:grid; gap:10px; font-size:14px;">
-          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
-          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
-          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
-          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
-        </div>
-      </div>
-      <div>
-        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
-        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">کنترل انطباق فنی بر اساس RFQ، وندورلیست کارفرما، MTC/COC، تست‌های لازم و امکان هماهنگی TPI در صورت الزام قرارداد.</p>
-        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
-      </div>
-    </div>
-    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
-      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
-      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
-      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">CRM</span> ورود همکاران (CRM)</a>
-    </div>
-  </footer>
-<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
-<script src="../assets/js/ptf-chat.js" defer></script>
+</article></div></main>
+<footer class="footer" style="background:#111113;color:#cbd5e1;padding:3rem 0 1.5rem;border-top:4px solid var(--red)"><div class="container" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><span>© 2026 Pishro Tajhiz Fartak</span><a href="../rfq/" style="color:#e2e8f0;font-weight:800;text-decoration:none">ثبت استعلام</a></div></footer>
 <script src="../assets/js/ptf-metrics.js" defer></script>
 <script src="../assets/js/ptf-discover.js" defer></script>
 <script defer src="../assets/js/ptf-analytics.js"></script>
