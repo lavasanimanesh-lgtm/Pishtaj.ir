@@ -10,6 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
+  window.PTF_CMS_JS_VER = 'v34.29.3'; /* v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -43,7 +44,16 @@
       '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">' + tb('news', '📰 اخبار') + tb('blog', '📝 وبلاگ') + tb('prod', '🛒 محصولات') + tb('page', '📄 صفحهٔ جدید') + tb('seo', '🔍 سئوی صفحات') + tb('q', '🛠 کیفیت') + '</div>' +
       '<div id="cmsWrap"></div>';
   };
-  window.cmsTab = function (t) { _tab = t; goPanelByName('cms'); };
+  /* v34.28.0 (TAB-DIRECT — ریشه‌کنی تب‌های خالی): رندر مستقیم بدون وابستگی به دکمهٔ
+     سایدبار. ریشهٔ باگ: goPanelByName دکمهٔ cms سایدبار را با تطبیق رشته‌ای onclick
+     می‌جست و کلیک می‌کرد؛ اگر RBAC/بازساز منو دکمه را حذف/مخفی کرده یا فرمت onclick را
+     عوض کرده باشد، یافتن ناموفق و «بی‌صدا» بود — تب عوض می‌شد ولی پنل هرگز رندر نه. */
+  window.cmsTab = function (t) {
+    _tab = t;
+    var el = document.getElementById('cmsWrap');
+    if (el) { renderCms(el); return; }          /* داخل مدیریت سایت هستیم — رندر مستقیم */
+    if (typeof goPanelByName === 'function') goPanelByName('cms'); /* ورود اولیه از بیرون */
+  };
 
   window.renderCms = function () {
     var el = document.getElementById('cmsWrap');
@@ -58,12 +68,17 @@
           : '<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#92400e">⚠️ ' + escP(d.error || 'اتصال CMS برقرار نشد') + '</div>';
       }
     });
-    if (_tab === 'news') renderCmsNews(el);
-    else if (_tab === 'blog') renderCmsBlog(el);
-    else if (_tab === 'prod') renderCmsProducts(el); /* v34.11.0 (S2) */
-    else if (_tab === 'page') renderCmsPageNew(el); /* v34.13.0 (S2-id) */
-    else if (_tab === 'q') renderCmsQuality(el); /* v34.14.0 (S4) */
-    else renderCmsSeo(el);
+    /* v34.26.1 (TAB-GUARD): خطای رندر هر تب دیگر تب را خالی نمی‌گذارد — پیام مرئی */
+    try {
+      if (_tab === 'news') renderCmsNews(el);
+      else if (_tab === 'blog') renderCmsBlog(el);
+      else if (_tab === 'prod') renderCmsProducts(el); /* v34.11.0 (S2) */
+      else if (_tab === 'page') renderCmsPageNew(el); /* v34.13.0 (S2-id) */
+      else if (_tab === 'q') renderCmsQuality(el); /* v34.14.0 (S4) */
+      else renderCmsSeo(el);
+    } catch (eTab) {
+      el.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px 16px;font-size:13px;color:#b91c1c;line-height:2">⚠️ <b>خطای رندر بخش «' + escP(_tab) + '»</b><br>' + escP(eTab && eTab.message) + '<br><small>این متن را برای رفع نهایی گزارش کنید (F12 ← Console جزئیات بیشتری دارد).</small></div>';
+    }
   };
 
   /* ============ AC1: اخبار ============ */
@@ -600,6 +615,9 @@
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoRefresh()">⟳ اسکن دوباره</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#d97706" onclick="cmsCanonBulk()" title="صفحات با canonical ناهماهنگ/جاافتاده به آدرس خودشان برمی‌گردند (stubهای ریدایرکت دست نمی‌خورند)">🔧 canonical گروهی</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#7c3aed" onclick="cmsSeoAiBatch()" title="هوش مصنوعی همهٔ صفحاتِ دارای ایراد عنوان/توضیح/H1 را طبق قوانین سئو و سرچ کنسول گوگل آنالیز و اصلاح می‌کند">🤖 اصلاح هوشمند گروهی</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#0e7490" onclick="cmsSeoSitemapPush()" title="نقشهٔ سایت (شامل آخرین صفحات منتشرشده) در سرچ کنسول ثبت/به‌روزرسانی می‌شود">📤 سایت‌مپ + سرچ کنسول</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#7c3aed" onclick="cmsGscSelfTest()" title="اتصال به سرچ کنسول، ایمیل سرویس‌اکانت و فهرست پراپرتی‌های قابل‌دسترسی را زنده بررسی می‌کند و علت خطای ثبت را دقیق می‌گوید">🧪 آزمون اتصال GSC</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px;color:#059669" onclick="cmsIndexWizard()" title="بررسی وضعیت ایندکس صفحات + درخواست ایندکس آن‌هایی که ایندکس نشده‌اند">🚀 ایندکس‌یاب</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoExport()">⬇️ CSV</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSitemapDrift()">🧭 انحراف نقشه</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px' + (cmsSitemapAutoOn() ? ';color:#059669' : '') + '" onclick="cmsSitemapAutoToggle(this)">' + (cmsSitemapAutoOn() ? '🔄 ثبت خودکار نقشه: روشن' : '🔄 ثبت خودکار نقشه: خاموش') + '</button>' +
@@ -634,11 +652,91 @@
     }).join('');
   }
 
+  /* ═══ v34.29.2 (SEO-GUIDE): راهنمای سئو برای کاربرانِ ناآشنا — چک‌لیست زنده + ۶ گام
+     با دکمهٔ اجرای مستقیم همان ابزار. دانش فنی لازم نیست؛ زبان ساده. ═══ */
+  function cmsSeoGuideOpen() {
+    try { return sessionStorage.getItem('ptfSeoGuide') !== '0'; } catch (eG) { return true; }
+  }
+  window.cmsSeoGuideToggle = function () {
+    var to = cmsSeoGuideOpen() ? '0' : '1';
+    try { sessionStorage.setItem('ptfSeoGuide', to); } catch (eG) {}
+    renderCms();
+  };
+  window.cmsSeoGuideGscProbe = function () {
+    var el = document.getElementById('seoGuideGsc'); if (!el) return;
+    if (typeof cmsGsc !== 'function') { el.innerHTML = '<span style="color:#94a3b8">نامشخص</span>'; return; }
+    cmsGsc('selftest', null, function (d) {
+      var el2 = document.getElementById('seoGuideGsc'); if (!el2) return;
+      var v = d && d.verdict;
+      if (v === 'ok') el2.innerHTML = '<b style="color:#059669">✅ وصل است</b> — آمادهٔ ثبت نقشه';
+      else if (v === 'no_match') el2.innerHTML = '<b style="color:#b91c1c">⛔ سرویس‌اکانت هنوز به پراپرتی دسترسی ندارد</b> — با «آزمون اتصال» علت را ببینید';
+      else if (v === 'low_perm') el2.innerHTML = '<b style="color:#b45309">⚠️ سطح دسترسی فقط خواندنی است</b>';
+      else if (v === 'no_config') el2.innerHTML = '<b style="color:#b45309">⚠️ روی سرور تنظیم نشده (gsc-config.php)</b>';
+      else el2.innerHTML = '<b style="color:#b45309">⚠️ نامشخص — با آزمون اتصال بررسی کنید</b>';
+    });
+  };
+  function cmsSeoGuideBox() {
+    var st = _seoMeta.stats || {};
+    var reds = (st['no-desc'] || 0) + (st['no-title'] || 0) + (st['no-h1'] || 0);
+    var ambs = (st['desc-short'] || 0) + (st['desc-long'] || 0) + (st['title-short'] || 0) + (st['title-long'] || 0);
+    var total = st.total || 0, inMap = _seoMeta.sitemap || 0;
+    var outMap = Math.max(0, total - inMap);
+    var open = cmsSeoGuideOpen();
+    function step(n, title, body, btns) {
+      return '<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed #e2e8f0">' +
+        '<span style="flex:none;width:26px;height:26px;border-radius:50%;background:#7c3aed;color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800">' + n + '</span>' +
+        '<div style="flex:1"><div style="font-size:12.5px;font-weight:800;color:#0f172a">' + title + '</div><div style="font-size:12px;color:#475569;line-height:2;margin-top:2px">' + body + '</div>' +
+        (btns ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' + btns + '</div>' : '') + '</div></div>';
+    }
+    function btn(label, onclick, color) {
+      return '<button type="button" class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:' + (color || '#0e7490') + '" onclick="' + onclick + '">' + label + '</button>';
+    }
+    var head = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 6px">' +
+      '<b style="font-size:13.5px;color:#0f172a">📘 راهنمای سئو برای همه — بدون نیاز به دانش فنی</b>' +
+      '<button type="button" class="bt bt-o" style="padding:3px 12px;font-size:11px;margin-right:auto" onclick="cmsSeoGuideToggle()">' + (open ? 'پنهان کردن راهنما ▲' : 'نمایش راهنما ▼') + '</button></div>';
+    if (!open) return '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:8px 14px;margin-bottom:10px">' + head + '</div>';
+    var h = '<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 14px;margin-bottom:10px">' + head +
+      '<div style="font-size:12px;color:#475569;line-height:2;padding:2px 2px 8px">سئو یعنی کاری کنیم <b>گوگل صفحات ما را برای جستجوهای مرتبط پیدا کند و نمایش دهد</b>. سه چیز به گوگل نشان می‌دهد صفحهٔ شما ارزشمند است: <b>محتوای یگانه و کامل</b>، <b>عنوان و توضیح دقیق</b>، و <b>سیگنال‌های فنی سالم</b>. با ابزارهای همین بخش می‌توانید هر سه را تقویت کنید — هر ابزار را همین‌جا با یک کلیک اجرا کنید.</div>';
+    /* چک‌لیست زنده */
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;margin:4px 0 10px">' +
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.9"><b>۱) اتصال سرچ کنسول</b><br><span id="seoGuideGsc">⏳ در حال بررسی…</span><br>' + btn('🧪 آزمون اتصال', 'cmsGscSelfTest()', '#7c3aed') + '</div>' +
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.9"><b>۲) صفحات با ایراد عنوان/توضیح</b><br>' +
+      (reds + ambs ? '<span style="color:#b91c1c;font-weight:700">' + reds + ' صفحهٔ ایراد جدی</span>' + (ambs ? ' + <span style="color:#b45309">' + ambs + ' ایراد جزئی</span>' : '') : '<span style="color:#059669;font-weight:700">✅ همهٔ صفحات سالم‌اند</span>') +
+      '<br>' + btn('مشاهدهٔ فهرست ایرادها', "cmsSeoIssue('no-desc')", '#dc2626') + '</div>' +
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.9"><b>۳) صفحات خارج از نقشهٔ سایت</b><br>' +
+      (outMap > 0 ? '<span style="color:#b45309;font-weight:700">' + outMap + ' صفحه هنوز در نقشه نیست</span>' : '<span style="color:#059669;font-weight:700">✅ نقشه کامل است</span>') +
+      '<br>' + btn('📤 ثبت نقشه', 'cmsSeoSitemapPush()') + '</div>' +
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.9"><b>۴) صفحات ایندکس‌نشده</b><br><span style="color:#475569">وضعیت را فقط سرچ کنسول می‌داند — با ایندکس‌یاب بررسی کنید</span><br>' + btn('🚀 ایندکس‌یاب', 'cmsIndexWizard()') + '</div></div>';
+    /* ۶ گام */
+    h += step(1, 'هر هفته نقشهٔ سایت را در سرچ کنسول ثبت کنید', 'نقشهٔ سایت، فهرست رسمی صفحات شماست؛ ثبت هفتگی به گوگل یادآوری می‌کند تازه‌ها را بخواند.',
+      btn('📤 سایت‌مپ + سرچ کنسول', 'cmsSeoSitemapPush()'));
+    h += step(2, 'صفحات ایندکس‌نشده را پیدا و درخواست ایندکس بدهید', 'اگر صفحه‌ای ایندکس نشده باشد، در گوگل دیده نمی‌شود. ایندکس‌یاب تا ۲۵ صفحه را با API رسمی گوگل بررسی می‌کند و برای ایندکس‌نشده‌ها پیوند «درخواست ایندکس» می‌دهد.',
+      btn('🚀 باز کردن ایندکس‌یاب', 'cmsIndexWizard()'));
+    h += step(3, 'عنوان و توضیح ناقص‌ها را کامل کنید', 'عنوان ۳۰ تا ۶۵ حرف و توضیح ۷۰ تا ۱۶۵ حرف — همین دو خط، متن آبیِ زیر عنوان شما در نتایج گوگل است. در فهرست پایین همین تب، دکمهٔ ✏️ هر صفحه را بزنید؛ «اصلاح هوشمند» پیش‌نویس می‌سازد ولی بازبینی شما الزامی است.',
+      btn('فیلتر «بدون توضیح»', "cmsSeoIssue('no-desc')", '#dc2626') + btn('🤖 اصلاح هوشمند گروهی', 'cmsSeoAiBatch()', '#7c3aed'));
+    h += step(4, 'صفحهٔ جدید با متن یگانه بسازید', 'متنِ تکراری به گوگل ارزشی اضافه نمی‌کند. در تب «📄 صفحهٔ جدید» موضوع را بدهید تا هوش مصنوعی پیش‌نویس یگانه بسازد؛ خوانده، اصلاح و تأیید کنید و بعد منتشر کنید (تیک بازبینی انسانی الزامی است).',
+      btn('رفتن به تب صفحهٔ جدید', "cmsTab('page')"));
+    h += step(5, 'به عکس‌ها متن جایگزین (alt) بدهید', 'گوگل عکس را از متن کنارش می‌فهمد؛ alt مناسب، صفحه را در جستجوی تصاویر هم می‌آورد. در تب کیفیت، «اسکن تصاویر» عکس‌های بدون alt را پیدا و با بینایی AI پیشنهاد می‌دهد.',
+      btn('اسکن عکس‌ها در تب کیفیت', "cmsTab('q');setTimeout(cmsAltScan,600)", '#7c3aed'));
+    h += step(6, 'از صفحات دیگر به صفحهٔ جدید لینک بدهید', 'لینک داخلی، مسیر رسیدن گوگل و کاربر به صفحهٔ جدید است. در فهرست پایین همین تب، دکمهٔ 💡 هر صفحه پیشنهاد لینک‌سازی هوشمند می‌دهد.', '');
+    /* نکن‌ها + برنامهٔ هفتگی + واژه‌نامه */
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">' +
+      '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:11.5px;color:#7f1d1d;line-height:2"><b>⛔ این کارها را نکنید</b><br>• کپی متن از سایت‌های دیگر — گوگل صفحهٔ تکراری را نمایش نمی‌دهد<br>• تکرار مصنوعیِ یک کلمه در متن (keyword stuffing)<br>• عنوانِ بی‌ربط یا اغراق‌آمیز برای جذب کلیک<br>• تغییر آدرس صفحهٔ ایندکس‌شده بدون مشورت با مدیر (نیاز به ریدایرکت دارد)</div>' +
+      '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px 12px;font-size:11.5px;color:#064e3b;line-height:2"><b>📅 برنامهٔ ۱۵ دقیقه‌ای هفتگی</b><br>۱) «📤 ثبت نقشه» — ۱ دقیقه<br>۲) «🚀 ایندکس‌یاب» روی ۱۰ صفحه — ۵ دقیقه<br>۳) فیلتر «بدون توضیح» و اصلاح ۲ صفحه — ۷ دقیقه<br>۴) «🤖 اصلاح هوشمند» + بازبینی نتیجه — ۲ دقیقه</div></div>';
+    h += '<details style="margin-top:8px"><summary style="font-size:12px;font-weight:700;color:#0f172a;cursor:pointer">📖 واژه‌نامهٔ کوچک (ایندکس؟ کرال؟ نامک؟)</summary>' +
+      '<div style="font-size:11.5px;color:#475569;line-height:2.1;padding:6px 4px">' +
+      '<b>ایندکس (Index):</b> وقتی گوگل صفحه‌ای را خوانده و در نتایج جستجو نگه داشته است. <b>کرال (Crawl):</b> بازدید ربات گوگل از صفحه. ' +
+      '<b>نقشهٔ سایت (Sitemap):</b> فایلی که فهرست همهٔ صفحات را به گوگل معرفی می‌کند. <b>سرچ کنسول:</b> ابزار رسمی گوگل برای دیدن وضعیت ایندکس و خطاها. ' +
+      '<b>CTR:</b> درصد کسانی که از بین نتایج، روی شما کلیک می‌کنند — عنوان و توضیح بهتر یعنی CTR بیشتر. <b>نامک (slug):</b> بخش انگلیسیِ آدرس صفحه مثل valve-maintenance.</div></details>';
+    h += '</div>';
+    return h;
+  }
+
   function renderCmsSeo(el) {
     el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:14px">در حال اسکن صفحات سایت…</div>';
     seoLoad(function () {
       var list = window._cmsPages || [];
-      el.innerHTML = seoStatsBar() + seoToolbar() + seoQueueBox() + cmsRedirectBox() +
+      el.innerHTML = cmsSeoGuideBox() + seoStatsBar() + seoToolbar() + seoQueueBox() + cmsRedirectBox() +
         '<div id="seoDrift"></div>' +
         '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">نمایش ' + list.length + ' از ' + _seoMeta.matched + ' صفحهٔ منطبق (مرتب‌شده: پر‌ایرادترین اول)</div>' +
         '<div id="seoList" style="max-height:520px;overflow:auto">' + seoRows() + '</div>' +
@@ -648,6 +746,7 @@
         'برای ثبت سریع‌تر در گوگل، صفحه را در سرچ کنسول «Request Indexing» بزنید.' +
         '</div>';
       if (typeof cmsRedirectLoad === 'function') cmsRedirectLoad(); /* v34.11.0 (S2) */
+      cmsSeoGuideGscProbe(); /* v34.29.2: چیپ زندهٔ اتصال سرچ کنسول در راهنما */
     });
   }
 
@@ -660,11 +759,44 @@
   var PAGE_FIELDS = ['pgTitle', 'pgSlug', 'pgH1', 'pgDesc', 'pgBody', 'pgImg'];
   window.PAGE_FIELDS = PAGE_FIELDS; /* v34.25.0: برای onclick ذخیرهٔ موقت */
 
-  function renderCmsPageNew(el) {
+  function renderCmsPageNew(el) { /* v34.26.1: پوستهٔ مقاوم — در خطا، فرم سادهٔ جایگزین بار می‌شود */
+    var _pgErr = null;
+    try { renderCmsPageNewFull(el); return; } catch (ePg) { _pgErr = ePg; }
+    try {
+      var _folds = (typeof PAGE_FOLDERS !== 'undefined' && PAGE_FOLDERS && PAGE_FOLDERS.length)
+        ? PAGE_FOLDERS.map(function (f) { return '<option value="' + f.v + '">' + f.lb + '</option>'; }).join('')
+        : '<option value="services">خدمات</option><option value="industries">صنایع</option><option value="comparisons">مقایسهٔ محصولات</option>';
+      el.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#b91c1c;line-height:2;margin-bottom:10px">⚠️ <b>خطای رندر فرم کامل:</b> ' + escP(_pgErr && _pgErr.message) + '<br><small>نسخهٔ سادهٔ فرم زیر بارگذاری شد — همهٔ امکانات (تولید AI / خارجی / پیش‌نمایش / ذخیرهٔ موقت / انتشار) فعال است. متن خطا را برای رفع نهایی گزارش کنید.</small></div>' +
+        '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px">' +
+        '<div id="pgAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+        '<div class="fld"><label>بخش مقصد *</label><select id="pgFolder">' + _folds + '</select></div>' +
+        '<div class="fld"><label>نامک (slug) * <small>a-z و خط تیره</small></label><input type="text" id="pgSlug" dir="ltr" placeholder="valve-maintenance-services"></div>' +
+        '<div class="fld"><label>عنوان یا موضوع برای AI *</label><input type="text" id="pgTopic" placeholder="مثلاً: خدمات تعمیر و کالیبراسیون شیرآلات صنعتی"></div>' +
+        '<div class="fld"><label>عنوان سئو (title)</label><input type="text" id="pgTitle"></div>' +
+        '<div class="fld"><label>H1</label><input type="text" id="pgH1"></div>' +
+        '<div class="fld"><label>تصویر</label><input type="text" id="pgImg" dir="ltr" value="assets/images/ptf-logo.png"></div>' +
+        '</div>' +
+        '<div class="fld"><label>توضیح (description)</label><textarea id="pgDesc" rows="2"></textarea></div>' +
+        '<div class="fld"><label>متن صفحه (HTML سبک — حداقل ۲۰۰ حرف)</label><textarea id="pgBody" rows="10" placeholder="<h2>معرفی ...</h2><p>...</p>"></textarea></div>' +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">' +
+        '<button class="bt" style="background:#7c3aed" onclick="cmsPageAi()">🤖 تولید با هوش مصنوعی</button>' +
+        '<button class="bt bt-o" style="color:#0e7490" onclick="cmsPgExtPrompt()">🌐 هوش مصنوعی خارجی</button>' +
+        '<button class="bt bt-o" onclick="cmsPgPreview()">👁 پیش‌نمایش</button>' +
+        '<button class="bt bt-o" style="color:#059669" onclick="cmsDraftBtn(PAGE_FIELDS,\'pgAiSt\')">💾 ذخیرهٔ موقت</button>' +
+        '<button class="bt" onclick="cmsPagePublish()">🚀 انتشار صفحه</button></div>' +
+        '</div>';
+      cmsDraftRestore(PAGE_FIELDS, 'pgAiSt'); cmsDraftBind(PAGE_FIELDS);
+      if (typeof cmsPgCount === 'function') { try { cmsPgCount(); } catch (eC2) {} }
+    } catch (e2) {
+      el.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px;font-size:13px;color:#b91c1c">خطای بحرانی رندر فرم صفحه: ' + escP(e2 && e2.message) + '</div>';
+    }
+  }
+  function renderCmsPageNewFull(el) {
     var opts = PAGE_FOLDERS.map(function (f) { return '<option value="' + f.v + '">' + f.lb + '</option>'; }).join('');
     el.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:14px;font-size:12px;color:#475569;line-height:2;margin-bottom:10px">' +
       'مولد صفحهٔ عمومی سایت برای بخش‌های <b>خدمات / صنایع / مقایسه‌ها</b>: متن یگانه با هوش مصنوعی (مثل مرکز دانش) + اسکیمای مناسبِ هر بخش + افزودن خودکار به نقشهٔ سایت و ثبت در سرچ کنسول.</div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px">' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px">' +
       '<div id="pgAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
       '<div class="fld"><label>بخش مقصد *</label><select id="pgFolder">' + opts + '</select></div>' +
@@ -797,7 +929,41 @@
     var st = document.getElementById(stId);
     if (st) st.innerHTML = '💾 ذخیرهٔ موقت انجام شد — تا پیش از انتشار محفوظ است؛ با باز شدن دوبارهٔ فرم بازیابی می‌شود.';
   };
-  window.cmsPrPreview = function () { /* پیش‌نمایش صفحهٔ محصول، هم‌شکل خروجی نهایی product_create */
+  window.cmsPrPreview = function () { /* v34.26.0: پیش‌نمایش از سرور — دقیقاً همان رندرِ صفحهٔ نهایی (قالب/استایل/تصویر) */
+    var g = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
+    var title = g('prTitle'), slug = g('prSlug').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var body = g('prBody');
+    if (!title || !slug || body.trim().length < 200) { alert('عنوان، نامک و متن (حداقل ۲۰۰ حرف) برای پیش‌نمایش لازم است'); return; }
+    var specs = g('prSpecs').split('\n').map(function (ln) { var i = ln.indexOf('='); return i > -1 ? [ln.slice(0, i).trim(), ln.slice(i + 1).trim()] : null; }).filter(Boolean);
+    var faq = g('prFaq').split('\n').map(function (ln) { var i = ln.indexOf('|'); return i > -1 ? { q: ln.slice(0, i).trim(), a: ln.slice(i + 1).trim() } : null; }).filter(function (x) { return x && x.q && x.a; });
+    var payload = {
+      title: title, slug: slug, h1: g('prH1') || title, desc: g('prDesc'), brand: g('prBrand'),
+      catLb: 'محصولات', body: body, specs: JSON.stringify(specs), faq: JSON.stringify(faq),
+      img: g('prImg'), price: g('prPrice').replace(/[^0-9.]/g, ''), priceCur: g('prCur'), inStock: g('prStock') ? '1' : ''
+    };
+    var st = document.getElementById('prAiSt');
+    if (st) st.innerHTML = '⏳ ساخت پیش‌نمایش واقعی روی سرور…';
+    api('product_preview', payload, function (d) {
+      if (st) st.innerHTML = '';
+      if (!d.ok || !d.html) { cmsPrPreviewLocal(); return; } /* جایگزین محلی */
+      var html = String(d.html).replace('</head>', '<base href="/"></head>');
+      var ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px';
+      ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+      ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:1080px;width:100%;max-height:92vh;overflow:auto;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+        '<div style="display:flex;gap:8px;align-items:center;margin:12px 14px;flex-wrap:wrap"><b style="font-size:13.5px">👁 پیش‌نمایش واقعی صفحه</b>' +
+        '<span style="font-size:11px;color:#64748b;direction:ltr">' + escP(d.url || ('products/' + slug + '.html')) + ' — همان قالب و استایل سایت</span>' +
+        '<span style="margin-right:auto;display:flex;gap:5px">' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px" onclick="var f=this.closest(\'div\').parentNode.querySelector(\'iframe\');f.style.width=\'390px\'">📱 موبایل</button>' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px" onclick="var f=this.closest(\'div\').parentNode.querySelector(\'iframe\');f.style.width=\'100%\'">🖥 دسکتاپ</button>' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px" onclick="this.closest(\'div[style*=fixed]\').parentNode.removeChild(this.closest(\'div[style*=fixed]\'))">بستن</button></span></div>' +
+        '<iframe style="width:100%;height:74vh;border:1px solid #e2e8f0;border-radius:12px;background:#fff" srcdoc="' + escP(html).replace(/"/g, '&quot;') + '"></iframe>' +
+        '</div>';
+      document.body.appendChild(ov);
+    });
+  };
+
+  window.cmsPrPreviewLocal = function () { /* جایگزین آفلاین — نسخهٔ اصلی اکنون از سرور می‌آید (v34.26.0) */
     var g = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
     var title = g('prTitle') || 'بدون عنوان', h1 = g('prH1') || title, desc = g('prDesc'), body = g('prBody') || '<p>—</p>';
     var slug = g('prSlug') || 'slug', img = g('prImg'), brand = g('prBrand'), price = g('prPrice'), cur = g('prCur') || 'IRR';
@@ -969,15 +1135,20 @@
     var prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || [];
     var r = prds.filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
+    /* v34.26.0: پاکسازی دادهٔ خام — ارجاع‌های داخلی خرید (RFQ/کد پیگیری/شماره سفارش) و متن‌های بسیار بلند پیش از ساخت پرامپت حذف/کوتاه می‌شوند */
+    function cmsProdClean(v, max) {
+      return String(v || '').replace(/(?:RFQ|ION|PTRN|PTF)[-A-Z0-9\/]{3,}/ig, '').replace(/\s{2,}/g, ' ').trim().slice(0, max || 200);
+    }
     var det = '';
-    [['نام', r.nm], ['نام انگلیسی', r.en], ['برند', r.br], ['مدل', r.md], ['دسته', r.ca], ['استاندارد', r.st], ['واحد', r.un], ['توضیحات', r.ds]].forEach(function (x) { if (x[1]) det += x[0] + ': ' + x[1] + '\n'; });
+    [['نام', r.nm], ['نام انگلیسی', r.en], ['برند', r.br], ['مدل', r.md], ['دسته', r.ca], ['استاندارد', cmsProdClean(r.st, 160)], ['واحد', r.un], ['توضیحات', cmsProdClean(r.ds, 400)]].forEach(function (x) { if (x[1]) det += x[0] + ': ' + x[1] + '\n'; });
     var specsPre = [['نام', r.nm || ''], ['نام انگلیسی', r.en || ''], ['برند', r.br || ''], ['مدل', r.md || ''], ['استاندارد', r.st || ''], ['واحد', r.un || '']].filter(function (x) { return x[1]; }).map(function (x) { return x[0] + ' = ' + x[1]; }).join('\n');
     var p = 'تو متخصص محتوای فنی شرکت «پیشرو تجهیز فرتاک» — تامین‌کننده تجهیزات صنعتی برای صنایع نفت، گاز و پتروشیمی ایران — هستی.\n\n' +
       'وظیفه: نوشتن متن صفحهٔ محصول زیر.\n' +
       'داده‌های کالا (تنها منبع مجاز):\n' + det + '\n' +
       cmsExtRules() +
-      '۵. متن حداقل ۶۰۰ کلمه؛ ساختار: معرفی کالا → ویژگی‌ها → کاربردهای صنعتی → نکات خرید.\n' +
-      '۶. کاربردها عمومی و صنعت‌محور باشند؛ ادعای خاصِ همین کالا ممنوع مگر در داده‌ها باشد.\n\n' +
+      '۵. این یک «راهنمای فنی محصول» است نه معرفی یک قلم کالای داخلی: معرفی و کاربرد → جدول مشخصات فنی (پارامترهای مهندسی همان خانوادهٔ کالا) → معیارهای انتخاب → نکات نصب و نگهداری → اشتباهات رایج خرید → چک‌لیست مدارک قابل درخواست. حداقل ۸۰۰ کلمه.\n' +
+      '۶. کاربردها عمومی و صنعت‌محور باشند؛ ادعای خاصِ همین کالا ممنوع مگر در داده‌ها باشد.\n' +
+      '۷. شماره‌های RFQ، کد پیگیری، شماره استعلام/سفارش و هر ارجاع داخلی سیستم خرید که در داده‌ها دیده شد متعلق به محتوا نیست — کاملاً نادیده بگیر و هرگز در متن نیاور.\n\n' +
       'قالب خروجی — دقیقاً با همین نشانگرها و بدون هیچ متن اضافی قبل/بعد:\n' +
       'TITLE: (عنوان سئو؛ ۳۰ تا ۶۵ کاراکتر)\n' +
       'H1: (تیتر اصلی)\n' +
@@ -1080,12 +1251,12 @@
   function renderCmsQuality(el) {
     el.innerHTML =
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:12px;color:#475569;line-height:1.9;margin-bottom:10px"><b>کیفیت و مقیاس (S4):</b> انتشار زمان‌بندی‌شده با تأیید دومرحله‌ای · تاریخچه/بازگشت روی بک‌آپ‌های موجود · شمارندهٔ هزینهٔ هوش مصنوعی · PageSpeed صفحات پول‌ساز.</div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕘 انتشار زمان‌بندی‌شده</b><div id="qSched" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن صف…</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕰 تاریخچه و بازگشت (۳ نسخهٔ آخر هر فایل)</b><div id="qBk" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن بک‌آپ‌ها…</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">💸 هزینهٔ هوش مصنوعی</b><div id="qCost" style="margin-top:8px;font-size:12px;color:#64748b">در حال محاسبه…</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🌐 hreflang دوطرفه (fa ↔ en)</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#0e7490" onclick="cmsHlSync()">🌐 همگام‌سازی</button><div id="qHl" style="margin-top:8px;font-size:12px;color:#64748b">جفت‌های فارسی/انگلیسی هم‌مسیر را می‌یابد و سه‌گانهٔ hreflang را در هر دو طرف (در صورت نبود/تکرار) یکسان می‌کند. stubهای ریدایرکت دست نمی‌خورند.</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🖼 متن جایگزین تصاویر (alt) با بینایی AI</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#7c3aed" onclick="cmsAltScan()">🔍 اسکن تصاویر</button><div id="qAlt" style="margin-top:8px;font-size:12px;color:#64748b">اسکن تصاویرِ بدون alt → تولید متن فارسی با مدل بینایی → بازبینی → اعمال گروهی.</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px"><b style="font-size:13px">⚡ PageSpeed (موبایل)</b><div id="qPsi" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن تنظیمات…</div></div>';
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕘 انتشار زمان‌بندی‌شده</b><div id="qSched" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن صف…</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕰 تاریخچه و بازگشت (۳ نسخهٔ آخر هر فایل)</b><div id="qBk" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن بک‌آپ‌ها…</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">💸 هزینهٔ هوش مصنوعی</b><div id="qCost" style="margin-top:8px;font-size:12px;color:#64748b">در حال محاسبه…</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🌐 hreflang دوطرفه (fa ↔ en)</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#0e7490" onclick="cmsHlSync()">🌐 همگام‌سازی</button><div id="qHl" style="margin-top:8px;font-size:12px;color:#64748b">جفت‌های فارسی/انگلیسی هم‌مسیر را می‌یابد و سه‌گانهٔ hreflang را در هر دو طرف (در صورت نبود/تکرار) یکسان می‌کند. stubهای ریدایرکت دست نمی‌خورند.</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🖼 متن جایگزین تصاویر (alt) با بینایی AI</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#7c3aed" onclick="cmsAltScan()">🔍 اسکن تصاویر</button><div id="qAlt" style="margin-top:8px;font-size:12px;color:#64748b">اسکن تصاویرِ بدون alt → تولید متن فارسی با مدل بینایی → بازبینی → اعمال گروهی.</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px"><b style="font-size:13px">⚡ PageSpeed (موبایل)</b><div id="qPsi" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن تنظیمات…</div></div>';
     cmsQSched(); cmsQBk(); cmsQCost(); cmsQPsi();
   }
 
@@ -1098,7 +1269,7 @@
       var items = d.items || [];
       if (!items.length) { el.innerHTML = '<span style="color:#94a3b8">صف خالی است — از فرم «📄 صفحهٔ جدید» با دکمهٔ «🕘 زمان‌بندی انتشار» اضافه کنید.</span>'; return; }
       var sen = cmsSenior();
-      var h = '<table class="tb"><thead><tr><th>عنوان</th><th>مسیر</th><th>موعد</th><th>وضعیت</th><th>سازنده</th><th></th></tr></thead><tbody>';
+      var h = '<table class="cms-tbl"><thead><tr><th>عنوان</th><th>مسیر</th><th>موعد</th><th>وضعیت</th><th>سازنده</th><th></th></tr></thead><tbody>';
       items.forEach(function (it) {
         var st = it.done ? (it.err ? '<span style="color:#b91c1c">خطا: ' + escP(it.err) + '</span>' : '<span style="color:#059669">✅ منتشر شد ' + (it.done_at ? '(' + cmsQFaTs(it.done_at) + ')' : '') + '</span>')
           : (it.st === 'approved' ? '<span style="color:#2563eb">⏳ تأییدشده — در انتظار موعد</span>' : '<span style="color:#b45309">🟡 منتظر تأیید مدیر ارشد</span>');
@@ -1166,7 +1337,7 @@
       var pick = function (t, re) { var m = (t || '').match(re); return m ? m[1].trim().slice(0, 120) : '—'; };
       var meta = [['عنوان (title)', /<title>([\s\S]*?)<\/title>/i], ['توضیح (description)', /<meta\s+name=["']description["']\s+content=["']([\s\S]*?)["']/i], ['H1', /<h1[^>]*>([\s\S]*?)<\/h1>/i]];
       var h = '<div style="font-size:11.5px;margin-bottom:6px">حجم: بک‌آپ <b>' + (d.bak_size / 1024).toFixed(1) + 'KB</b> · نسخهٔ زنده <b>' + (d.live_size / 1024).toFixed(1) + 'KB</b></div>' +
-        '<table class="tb"><thead><tr><th>فیلد</th><th>بک‌آپ (' + escP(stamp) + ')</th><th>نسخهٔ زنده</th></tr></thead><tbody>';
+        '<table class="cms-tbl"><thead><tr><th>فیلد</th><th>بک‌آپ (' + escP(stamp) + ')</th><th>نسخهٔ زنده</th></tr></thead><tbody>';
       meta.forEach(function (m) {
         var b = pick(d.bak, m[1]), l = pick(d.live, m[1]);
         h += '<tr><td>' + m[0] + '</td><td style="' + (b !== l ? 'background:#fef2f2' : '') + '">' + escP(b) + '</td><td style="' + (b !== l ? 'background:#ecfdf5' : '') + '">' + escP(l) + '</td></tr>';
@@ -1217,7 +1388,7 @@
       }
       var bd = (d.byDay || []).slice(-14).reverse();
       if (bd.length) {
-        h += '<details><summary style="font-size:11.5px;color:#0e7490;cursor:pointer">روزبه‌روز (۱۴ روز آخر)</summary><table class="tb"><thead><tr><th>روز</th><th>درخواست</th><th>ورودی</th><th>خروجی</th><th>هزینه</th></tr></thead><tbody>';
+        h += '<details><summary style="font-size:11.5px;color:#0e7490;cursor:pointer">روزبه‌روز (۱۴ روز آخر)</summary><table class="cms-tbl"><thead><tr><th>روز</th><th>درخواست</th><th>ورودی</th><th>خروجی</th><th>هزینه</th></tr></thead><tbody>';
         bd.forEach(function (r) { h += '<tr><td dir="ltr">' + escP(r.d) + '</td><td>' + (r.n || 0) + '</td><td>' + (r.pt || 0) + '</td><td>' + (r.ct || 0) + '</td><td>$' + (r.cost || 0).toFixed(3) + '</td></tr>'; });
         h += '</tbody></table></details>';
       }
@@ -1238,7 +1409,7 @@
         var h = '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' +
           '<button class="bt" style="background:#0e7490" onclick="cmsPsiRunAll()">⚡ اندازه‌گیری همه</button>' +
           '<span id="psiProg" style="font-size:11.5px;color:#64748b"></span></div>' +
-          '<table class="tb"><thead><tr><th>مسیر</th><th>امتیاز</th><th>LCP</th><th>CLS</th><th>TBT</th><th>سئو</th><th>روند</th><th></th></tr></thead><tbody>';
+          '<table class="cms-tbl"><thead><tr><th>مسیر</th><th>امتیاز</th><th>LCP</th><th>CLS</th><th>TBT</th><th>سئو</th><th>روند</th><th></th></tr></thead><tbody>';
         urls.forEach(function (u) {
           var runs = hist[u] || [];
           var last = runs.length ? runs[runs.length - 1] : null;
@@ -1327,7 +1498,7 @@
       _altRows = (d.rows || []).slice(0, 30);
       if (!_altRows.length) { el.innerHTML = '<div style="color:#065f46">✅ هیچ تصویرِ بدونِ alt در صفحات عمومی پیدا نشد.</div>'; return; }
       var h = '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">' + (d.total || _altRows.length) + ' تصویر بدون alt (نمایش ۳۰ مورد) — تولید گروهی فقط برای موارد دارای فایل تصویر روی سرور ممکن است:</div>' +
-        '<div style="max-height:300px;overflow:auto"><table class="tb"><thead><tr><th></th><th>تصویر</th><th>صفحه</th><th>alt پیشنهادی (قابل ویرایش)</th></tr></thead><tbody>';
+        '<div style="max-height:300px;overflow:auto"><table class="cms-tbl"><thead><tr><th></th><th>تصویر</th><th>صفحه</th><th>alt پیشنهادی (قابل ویرایش)</th></tr></thead><tbody>';
       _altRows.forEach(function (r, i) {
         h += '<tr><td><input type="checkbox" id="altCk' + i + '" checked' + (r.disk ? '' : ' disabled') + '></td>' +
           '<td dir="ltr" style="font-size:10.5px;max-width:180px;overflow:hidden;text-overflow:ellipsis">' + escP(r.src) + (r.disk ? '' : '<br><small style="color:#b45309">فایل نیست/سنگین</small>') + '</td>' +
@@ -1394,6 +1565,71 @@
   var PROD_FIELDS = ['prTitle', 'prSlug', 'prH1', 'prDesc', 'prBrand', 'prImg', 'prBody', 'prSpecs', 'prFaq'];
   window.PROD_FIELDS = PROD_FIELDS; /* v34.25.0: برای onclick ذخیرهٔ موقت */
 
+  /* ═══ v34.29.0 (PROD-SEARCH + SMART-IMG): جستجوی زنده در فهرست محصولات CMS و عکس پیش‌فرض هوشمند ═══ */
+  var CMS_PROD_IMG_RULES = [
+    ['gate', 'gate-valve-api600-realistic.jpg'], ['ball', 'ball-valve-api6d-trunnion-realistic.jpg'],
+    ['butterfly', 'butterfly-valve-triple-offset-realistic.jpg'], ['check', 'check-valve-dual-plate-realistic.jpg'],
+    ['control', 'control-valve-pneumatic-positioner-realistic.jpg'], ['globe', 'globe-valve-api623-realistic.jpg'],
+    ['elbow', 'butt-weld-fittings-realistic.jpg'], ['tee', 'butt-weld-fittings-realistic.jpg'],
+    ['fitting', 'butt-weld-fittings-realistic.jpg'], ['reducer', 'butt-weld-fittings-realistic.jpg'],
+    ['forged', 'forged-fittings-realistic.jpg'], ['flange', 'welding-neck-flanges-realistic.jpg'],
+    ['gasket', 'industrial-gaskets-realistic.jpg'], ['bolt', 'stud-bolts-nuts-realistic.jpg'], ['stud', 'stud-bolts-nuts-realistic.jpg'],
+    ['a333', 'a333-low-temperature-pipe-realistic.jpg'], ['a335', 'alloy-steel-pipe-a335-realistic.jpg'],
+    ['api 5l', 'api-5l-line-pipe-realistic.jpg'], ['api5l', 'api-5l-line-pipe-realistic.jpg'],
+    ['a106', 'seamless-pipe-a106-realistic.jpg'], ['seamless', 'seamless-pipe-a106-realistic.jpg'],
+    ['stainless', 'stainless-steel-pipe-long-bundle-realistic.jpg'], ['a312', 'stainless-steel-pipe-long-bundle-realistic.jpg'],
+    ['pipe', 'seamless-pipe-a106-realistic.jpg'], ['tube', 'seamless-pipe-a106-realistic.jpg'],
+    ['strainer', 'industrial-strainer-filter-realistic.jpg'], ['filter', 'industrial-strainer-filter-realistic.jpg'],
+    ['pump', 'api-610-centrifugal-pump-realistic.jpg'], ['compressor', 'screw-compressor-realistic.jpg'],
+    ['flowmeter', 'magnetic-flowmeter-flanged-realistic.jpg'], ['flow meter', 'magnetic-flowmeter-flanged-realistic.jpg'],
+    ['transmitter', 'pressure-transmitter-industrial-realistic.jpg'], ['gauge', 'pressure-gauge-safety-realistic.jpg'],
+    ['thermowell', 'thermowell-flanged-realistic.jpg'], ['level', 'radar-level-transmitter-realistic.jpg'],
+    ['boiler', 'fire-tube-boiler-realistic.jpg'], ['heat exchanger', 'shell-tube-heat-exchanger-realistic.jpg'],
+    ['exchanger', 'shell-tube-heat-exchanger-realistic.jpg'], ['transformer', 'power-transformer-realistic.jpg'],
+    ['switchgear', 'lv-mv-switchgear-realistic.jpg'], ['cable', 'industrial-cables-realistic.jpg'],
+    ['valve', 'gate-valve-api600-realistic.jpg']
+  ];
+  function cmsProdImgGuess(r) {
+    var hay = '';
+    try { hay = ((r && r.nm) || '') + ' ' + ((r && r.en) || '') + ' ' + ((r && r.br) || '') + ' ' + ((r && r.md) || '') + ' ' + ((r && r.cd) || ''); } catch (eI) {}
+    hay = hay.toLowerCase();
+    if (!hay.trim()) return '';
+    for (var i = 0; i < CMS_PROD_IMG_RULES.length; i++) if (hay.indexOf(CMS_PROD_IMG_RULES[i][0]) > -1) return 'assets/images/products/generated/' + CMS_PROD_IMG_RULES[i][1];
+    return '';
+  }
+  window.cmsProdImgGuess = cmsProdImgGuess;
+
+  var _prodQ = '';
+  var _prodAll = null;
+  window.cmsProdSearch = function (q) {
+    _prodQ = String(q || '').trim().toLowerCase();
+    _prodDraw();
+  };
+  function _prodDraw() {
+    var box = document.getElementById('prodTbl'); if (!box) return;
+    var prds = _prodAll || [];
+    var q = _prodQ;
+    var list = prds;
+    if (q) list = prds.filter(function (r) {
+      return (((r.nm || '') + ' ' + (r.en || '') + ' ' + (r.br || '') + ' ' + (r.md || '') + ' ' + (r.cd || '')).toLowerCase().indexOf(q) > -1);
+    });
+    var cap = q ? 400 : 200; /* بدون جستجو ۲۰۰ نخست (کارایی)؛ با جستجو تا ۴۰۰ نتیجه */
+    var cnt = document.getElementById('prodCnt');
+    if (cnt) cnt.textContent = q ? (list.length + ' نتیجه برای «' + q + '»' + (list.length > cap ? ' — ' + cap + ' مورد نخست نمایش داده می‌شود' : '')) : (prds.length + ' کالا در CRM');
+    var h = '<table class="cms-tbl"><thead><tr><th>کالا</th><th>برند/مدل</th><th>کد</th><th>صفحهٔ سایت</th><th></th></tr></thead><tbody>';
+    list.slice(0, cap).forEach(function (r) {
+      var site = (_prodSite || {})[r.cd] || null;
+      h += '<tr><td><b>' + escP((r.nm || '').slice(0, 60)) + '</b>' + (r.en ? '<br><small dir="ltr" style="color:#64748b">' + escP(r.en.slice(0, 50)) + '</small>' : '') + '</td>' +
+        '<td>' + escP(r.br || '—') + (r.md ? '<br><small dir="ltr">' + escP(r.md) + '</small>' : '') + '</td>' +
+        '<td dir="ltr" style="font-size:11px">' + escP(r.cd || '') + '</td>' +
+        '<td>' + (site ? '<a href="/products/' + escP(site.slug) + '.html" target="_blank" rel="noopener" style="color:#059669;text-decoration:none">products/' + escP(site.slug) + '.html ↗</a><br><small style="color:#94a3b8">' + escP(site.mtime || '') + '</small>' : '<span style="color:#94a3b8">—</span>') + '</td>' +
+        '<td><button class="bt" style="padding:4px 10px;font-size:11.5px;' + (site ? '' : 'background:#059669') + '" onclick="cmsProdForm(\'' + ptfOnClickArg(r.cd) + '\')">' + (site ? '🔁 بازنویسی' : '🌍 ساخت صفحه') + '</button></td></tr>';
+    });
+    h += '</tbody></table>';
+    if (!list.length) h = '<div style="padding:14px;text-align:center;color:#94a3b8">کالایی مطابق جستجو یافت نشد.</div>';
+    box.innerHTML = h;
+  }
+
   function renderCmsProducts(el) {
     el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:14px">در حال دریافت وضعیت صفحات محصول…</div>';
     api('product_list', {}, function (d) {
@@ -1402,18 +1638,16 @@
       var prds = [];
       try { prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || []; } catch (eP) {}
       if (!prds.length) { el.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:14px;font-size:12.5px;color:#475569">هنوز کالایی در CRM ثبت نشده است — از پنل «کالاها» کالا ثبت کنید تا صفحهٔ سایتش را بسازید.</div>'; return; }
-      var h = '<div style="font-size:11.5px;color:#64748b;margin-bottom:8px">کل کالاها: <b>' + prds.length + '</b> · دارای صفحهٔ سایت: <b style="color:#059669">' + Object.keys(_prodSite).length + '</b> — برای هر کالا یک صفحهٔ سئوشده با اسکیمای Product/FAQ ساخته می‌شود (متن یگانه با AI + بازبینی انسانی).</div>';
-      h += '<div style="max-height:520px;overflow:auto"><table class="tb"><thead><tr><th>کالا</th><th>برند/مدل</th><th>کد</th><th>صفحهٔ سایت</th><th></th></tr></thead><tbody>';
-      prds.slice(0, 200).forEach(function (r) {
-        var site = _prodSite[r.cd] || null;
-        h += '<tr><td><b>' + escP((r.nm || '').slice(0, 60)) + '</b>' + (r.en ? '<br><small dir="ltr" style="color:#64748b">' + escP(r.en.slice(0, 50)) + '</small>' : '') + '</td>' +
-          '<td>' + escP(r.br || '—') + (r.md ? '<br><small dir="ltr">' + escP(r.md) + '</small>' : '') + '</td>' +
-          '<td dir="ltr" style="font-size:11px">' + escP(r.cd || '') + '</td>' +
-          '<td>' + (site ? '<a href="/products/' + escP(site.slug) + '.html" target="_blank" rel="noopener" style="color:#059669;text-decoration:none">products/' + escP(site.slug) + '.html ↗</a><br><small style="color:#94a3b8">' + escP(site.mtime || '') + '</small>' : '<span style="color:#94a3b8">—</span>') + '</td>' +
-          '<td><button class="bt" style="padding:4px 10px;font-size:11.5px;' + (site ? '' : 'background:#059669') + '" onclick="cmsProdForm(\'' + ptfOnClickArg(r.cd) + '\')">' + (site ? '🔁 بازنویسی' : '🌍 ساخت صفحه') + '</button></td></tr>';
-      });
-      h += '</tbody></table></div>';
+      _prodAll = prds;
+      var h = '<div style="font-size:11.5px;color:#64748b;margin-bottom:8px">کل کالاها: <b>' + prds.length + '</b> · دارای صفحهٔ سایت: <b style="color:#059669">' + Object.keys(_prodSite).length + '</b> — برای هر کالا یک صفحهٔ سئوشده با اسکیمای Product/FAQ ساخته می‌شود (متن یگانه با AI + بازبینی انسانی).</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' +
+        '<input type="text" id="prodQ" placeholder="🔍 جستجو در نام / نام انگلیسی / برند / مدل / کد کالا…" oninput="cmsProdSearch(this.value)" style="flex:1;min-width:220px;padding:8px 12px;border:1px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px" value="' + escP(_prodQ) + '">' +
+        '<span id="prodCnt" style="font-size:11.5px;color:#64748b"></span></div>' +
+        '<div id="prodTbl" style="max-height:520px;overflow:auto"></div>';
       el.innerHTML = h;
+      _prodDraw();
+      var inp = document.getElementById('prodQ');
+      if (inp && _prodQ) { try { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); } catch (eF) {} }
     });
   }
 
@@ -1421,8 +1655,10 @@
     var prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || [];
     var r = prds.filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
-    var specsPre = [['نام', r.nm || ''], ['نام انگلیسی', r.en || ''], ['برند', r.br || ''], ['مدل', r.md || ''], ['استاندارد', r.st || ''], ['واحد', r.un || '']].filter(function (x) { return x[1]; })
-      .map(function (x) { return x[0] + ' = ' + x[1]; }).join('\n');
+    /* v34.26.0: سطر استانداردِ طولانی (سطرِ کامل استعلام/RFQ در فیلد استاندارد CRM) به‌عنوان مشخصه خام دمپ نمی‌شود */
+    var specsPre = [['نام', r.nm || ''], ['نام انگلیسی', r.en || ''], ['برند', r.br || ''], ['مدل', r.md || ''], ['استاندارد', r.st || ''], ['واحد', r.un || '']]
+      .filter(function (x) { return x[1] && !(x[0] === 'استاندارد' && String(x[1]).length > 120); })
+      .map(function (x) { return x[0] + ' = ' + (String(x[1]).length > 160 ? String(x[1]).slice(0, 160) : x[1]); }).join('\n');
     var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:780px;max-height:94vh;overflow:auto">' +
       '<h3>🛒 صفحهٔ محصول — ' + escP((r.nm || '').slice(0, 50)) + ' <small dir="ltr" style="color:#94a3b8">' + escP(r.cd) + '</small></h3>' +
       '<div id="prAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
@@ -1443,7 +1679,7 @@
       '<div class="fld"><label>ارز</label><select id="prCur"><option>IRR</option><option>USD</option><option>EUR</option><option>AED</option></select></div>' +
       '<div class="fld"><label>موجود</label><select id="prStock"><option value="1">بله</option><option value="">خیر/استعلامی</option></select></div>' +
       '</div>' +
-      '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت) <button type="button" class="bt bt-o" style="padding:2px 10px;font-size:11px;color:#0e7490" onclick="cmsImgPick(\'prImg\',\'prBody\',\'prSlug\')">📂 انتخاب عکس از سیستم (آپلود)</button></label><input type="text" id="prImg" dir="ltr" value="assets/images/ptf-logo.png" oninput="cmsImgThumb(\'prImg\')"><img id="prImgPrev" alt="" style="display:none;max-width:130px;max-height:80px;object-fit:contain;border:1px solid var(--brd);border-radius:8px;margin-top:6px;background:#f8fafc"></div>' +
+      '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت) <button type="button" class="bt bt-o" style="padding:2px 10px;font-size:11px;color:#0e7490" onclick="cmsImgPick(\'prImg\',\'prBody\',\'prSlug\')">📂 انتخاب عکس از سیستم (آپلود)</button></label><input type="text" id="prImg" dir="ltr" value="' + escP(cmsProdImgGuess(r) || 'assets/images/ptf-logo.png') + '" oninput="cmsImgThumb(\'prImg\')"><img id="prImgPrev" alt="" style="display:none;max-width:130px;max-height:80px;object-fit:contain;border:1px solid var(--brd);border-radius:8px;margin-top:6px;background:#f8fafc"></div>' +
       '<label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#374151;margin:8px 0"><input type="checkbox" id="prReviewed"> ⛔ بازبینی انسانی انجام شد — متن و اعداد فنی را خوانده‌ام (الزامی)</label>' +
       '<div style="display:flex;gap:7px;justify-content:flex-end;margin-top:10px">' +
       '<button class="bt bt-o" style="color:#6b21a8" onclick="cmsProdAi(\'' + ptfOnClickArg(cd) + '\')">🤖 تولید با هوش مصنوعی</button>' +
@@ -1538,7 +1774,7 @@
         '<input type="text" id="rdTo" dir="ltr" placeholder="مقصد مثلاً /knowledge-center/new.html" style="flex:1;min-width:200px;padding:5px 9px;border:1px solid var(--brd);border-radius:8px;font-size:11.5px">' +
         '<button class="bt" style="padding:5px 11px;font-size:11.5px" onclick="cmsRedirectAdd()">➕ ریدایرکت 301-سبک</button></div>';
       if (rs.length) {
-        h += '<div style="max-height:160px;overflow:auto;margin-top:8px"><table class="tb" style="font-size:11.5px"><thead><tr><th>مبدأ</th><th>مقصد</th><th>تاریخ</th><th></th></tr></thead><tbody>';
+        h += '<div style="max-height:160px;overflow:auto;margin-top:8px"><table class="cms-tbl" style="font-size:11.5px"><thead><tr><th>مبدأ</th><th>مقصد</th><th>تاریخ</th><th></th></tr></thead><tbody>';
         rs.forEach(function (r) {
           h += '<tr><td dir="ltr" style="font-size:10.5px">' + escP(r.from) + '</td><td dir="ltr" style="font-size:10.5px;color:#059669">' + escP(r.to) + '</td><td style="font-size:10.5px">' + escP(String(r.ts || '').slice(0, 10)) + '</td>' +
             '<td><button class="bt bt-o" style="padding:2px 8px;font-size:11px;color:#dc2626" onclick="cmsRedirectRemove(\'' + ptfOnClickArg(r.from) + '\')">↩️ بازگردانی</button></td></tr>';
@@ -1596,7 +1832,7 @@
     if (!items.length) { el.innerHTML = ''; return; }
     var h = '<div style="font-size:11.5px;color:#475569;margin:4px 0">پیشنهادهای آمادهٔ اعمال — بازبینی کن، تیک تأیید بزن:</div>' +
       '<div style="max-height:300px;overflow:auto;border:1px solid #e9d5ff;border-radius:10px;background:#fff">' +
-      '<table class="tb" style="font-size:11.5px"><thead><tr><th></th><th>صفحه</th><th>عنوان (قدیم → جدید)</th><th>توضیح جدید</th></tr></thead><tbody>';
+      '<table class="cms-tbl" style="font-size:11.5px"><thead><tr><th></th><th>صفحه</th><th>عنوان (قدیم → جدید)</th><th>توضیح جدید</th></tr></thead><tbody>';
     items.forEach(function (it) {
       var tOld = (it.title_cur || '').slice(0, 40), tNew = it.title_new || '';
       var changed = it.title_new !== it.title_cur || it.desc_new !== it.desc_cur;
@@ -1779,6 +2015,141 @@
       });
     });
   }
+
+  /* ═══ v34.27.0 (GSC-BRIDGE): پل CMS → api/gsc.php — ثبت نقشه + ایندکس‌یاب ═══ */
+  function cmsGsc(action, data, cb) {
+    var opt = { method: 'POST', headers: cmsAuthHeaders() };
+    if (data) { var fd = new FormData(); Object.keys(data).forEach(function (k) { fd.append(k, data[k]); }); opt.body = fd; }
+    fetch('../api/gsc.php?action=' + action, opt).then(function (r) { return r.json(); }).then(cb)
+      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به سرچ کنسول' }); });
+  }
+  window.cmsSeoSitemapPush = function () {
+    var st = document.getElementById('cmsStatus');
+    if (st) st.innerHTML = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#1e40af">⏳ ثبت نقشهٔ سایت در سرچ کنسول…</div>';
+    cmsGsc('sitemap_submit', { feed: 'https://pishtaj.ir/sitemap-index.xml' }, function (d) {
+      if (!d.ok) { if (st) st.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#b91c1c">⚠️ ثبت نقشه ناموفق: ' + escP(d.error || '') + '</div><button class="bt bt-o" style="margin-top:6px;padding:5px 14px;font-size:12px;color:#7c3aed" onclick="cmsGscSelfTest()">🧪 آزمون اتصال GSC — علت دقیق + راهنمای رفع</button>'; return; }
+      if (st) st.innerHTML = '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#065f46">✅ نقشهٔ سایت (sitemap-index + همهٔ زیرنقشه‌ها از جمله محصولات و صفحات جدید) در سرچ کنسول ثبت/به‌روزرسانی شد — وضعیت: ' + escP(d.state || '') + ' · خطا: ' + escP(String(d.errors || 0)) + (d.lastDownload ? ' · آخرین دانلود گوگل: ' + escP(d.lastDownload) : '') + '</div>';
+      try { audit('CMS', 'ثبت نقشهٔ سایت در سرچ کنسول از CMS', 'sitemap-index.xml'); } catch (eA) {}
+    });
+  };
+  /* ═══ v34.29.1 (GSC-SELF-TEST): آزمون اتصال سرچ کنسول — علتِ دقیقِ «ثبت ناموفق» ═══ */
+  window.cmsGscSelfTestHtml = function (d) {
+    d = d || {};
+    var email = d.email || '';
+    var sites = d.sites || [];
+    var v = d.verdict || '';
+    var head = '';
+    function box(color, bg, icon, title, bodyHtml) {
+      return '<div style="background:' + bg + ';border:1px solid ' + color + ';border-radius:12px;padding:10px 14px;font-size:12.5px;line-height:2;margin:8px 0"><b style="color:' + color + '">' + icon + ' ' + title + '</b>' + (bodyHtml || '') + '</div>';
+    }
+    head += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0">' +
+      '<span style="font-size:12px;color:#475569">ایمیل سرویس‌اکانت:</span>' +
+      '<b dir="ltr" id="gscStEmail" style="font-size:12.5px;color:#0f172a">' + escP(email || '—') + '</b>' +
+      (email ? '<button class="bt bt-o" style="padding:3px 10px;font-size:11px;color:#0e7490" onclick="cmsGscCopyEmail()">📋 کپی ایمیل</button>' : '') +
+      '</div>';
+    var sitesHtml = '<div style="margin-top:4px"><b style="font-size:12.5px;color:#0f172a">پراپرتی‌های قابل‌دسترسی در سرچ کنسول (' + sites.length + '):</b>';
+    if (!sites.length) sitesHtml += '<div style="color:#b91c1c;font-size:12.5px;line-height:2;padding:4px 0">— خالی — گوگل می‌گوید این سرویس‌اکانت به هیچ پراپرتی‌ای دسترسی ندارد؛ یعنی افزودنِ «Full» در جای درست اعمال نشده است (مراحل پایین).</div>';
+    else sitesHtml += '<ul style="margin:6px 0;padding-right:18px;font-size:12px">' + sites.map(function (x) {
+      var full = (x.permissionLevel || '').indexOf('Full') > -1 || (x.permissionLevel || '').indexOf('Owner') > -1;
+      return '<li style="margin:3px 0"><span dir="ltr">' + escP(x.siteUrl || '') + '</span> — <span style="color:' + (full ? '#059669' : '#b45309') + ';font-weight:700">' + escP(x.permissionLevel || '?') + '</span></li>';
+    }).join('') + '</ul>';
+    sitesHtml += '</div>';
+    var steps = (d.steps || []).map(function (t, i) { return '<li style="margin:4px 0">' + (i + 1) + '. ' + escP(t) + '</li>'; }).join('');
+    if (steps) steps = '<ol style="margin:8px 0 2px;padding-right:18px;font-size:12.5px;line-height:2;color:#334155">' + steps + '</ol>';
+    var verdict = '';
+    if (v === 'ok') verdict = box('#10b981', '#ecfdf5', '✅', 'اتصال سالم است', '<div style="color:#065f46">پراپرتی منتخب: <b dir="ltr">' + escP(d.site || '') + '</b> — دکمهٔ «📤 سایت‌مپ + سرچ کنسول» باید بدون خطا کار کند.</div>');
+    else if (v === 'no_match') verdict = box('#b91c1c', '#fef2f2', '⛔', 'سرویس‌اکانت هنوز به پراپرتی pishtaj.ir دسترسی ندارد', steps);
+    else if (v === 'low_perm') verdict = box('#b45309', '#fffbeb', '⚠️', 'سطح دسترسی کافی نیست (فقط خواندنی)', steps);
+    else if (v === 'token_error') verdict = box('#b91c1c', '#fef2f2', '⛔', 'توکن گوگل گرفته نشد — کلید/ایمیل در gsc-config.php نادرست است', steps);
+    else if (v === 'no_config') verdict = box('#b45309', '#fffbeb', '⚠️', 'تنظیمات GSC روی سرور کامل نیست (api/gsc-config.php)', steps);
+    else if (v === 'api_error') verdict = box('#b91c1c', '#fef2f2', '⛔', 'خطای فراخوانی گوگل', '<div dir="ltr" style="text-align:left;font-size:11.5px;color:#b91c1c">' + escP(d.error || '') + '</div>' + steps);
+    return head + verdict + sitesHtml;
+  };
+  window.cmsGscCopyEmail = function () {
+    var el = document.getElementById('gscStEmail');
+    var txt = el ? el.textContent : '';
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt);
+      else { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+      var b = el && el.parentNode && el.parentNode.querySelector('button'); if (b) { b.textContent = '✅ کپی شد'; setTimeout(function () { b.textContent = '📋 کپی ایمیل'; }, 1600); }
+    } catch (eC) { prompt('این ایمیل را کپی کنید:', txt); }
+  };
+  window.cmsGscSelfTest = function () {
+    var old = document.getElementById('ptGscSt'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'ptGscSt';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:100001;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:640px;width:100%;max-height:88vh;overflow:auto;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;gap:8px;align-items:center;margin:14px 16px 4px"><b style="font-size:14px">🧪 آزمون اتصال سرچ کنسول</b>' +
+      '<button class="bt bt-o" style="padding:4px 12px;font-size:12px;margin-right:auto" onclick="this.closest(\'div[style*=fixed]\').parentNode.removeChild(this.closest(\'div[style*=fixed]\'))">بستن</button></div>' +
+      '<div id="gscStBody" style="margin:4px 16px 16px;font-size:12.5px;color:#334155">⏳ در حال پرس‌وجو از گوگل…</div></div>';
+    document.body.appendChild(ov);
+    cmsGsc('selftest', null, function (d) {
+      var el = document.getElementById('gscStBody');
+      if (!el) return;
+      try { el.innerHTML = window.cmsGscSelfTestHtml(d); }
+      catch (eR) { el.innerHTML = '<span style="color:#b91c1c">خطای نمایش: ' + escP(eR.message) + '</span>'; }
+    });
+  };
+
+  window.cmsIndexWizard = function () {
+    var old = document.getElementById('ptIdxWiz'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'ptIdxWiz';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:14px';
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    ov.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:760px;width:100%;max-height:90vh;overflow:auto;direction:rtl;font-family:inherit" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 16px 6px"><b style="font-size:14px">🚀 ایندکس‌یاب</b>' +
+      '<button class="bt bt-o" style="padding:4px 12px;font-size:12px;color:#0e7490;margin-right:auto" onclick="cmsSeoSitemapPush()">📤 بازارسال سایت‌مپ</button>' +
+      '<button class="bt bt-o" style="padding:4px 12px;font-size:12px" onclick="this.closest(\'div[style*=fixed]\').parentNode.removeChild(this.closest(\'div[style*=fixed]\'))">بستن</button></div>' +
+      '<div style="font-size:11.5px;color:#475569;margin:0 16px 8px;line-height:1.9">وضعیت ایندکس صفحات از API رسمی سرچ کنسول خوانده می‌شود؛ برای ایندکس‌نشده‌ها پیوند «درخواست ایندکس» همان صفحهٔ رسمی گوگل را باز می‌کند (گوگل برای Request Indexing API عمومی ندارد — سهمیهٔ روزانه محدود است). هر اجرا حداکثر ۲۵ صفحه بررسی می‌کند.</div>' +
+      '<div style="display:flex;gap:7px;align-items:center;margin:0 16px 8px"><button class="bt" style="background:#059669" onclick="cmsIndexRun()">🔍 بررسی انتخاب‌شده‌ها</button><span id="ptIdxSt" style="font-size:12px;color:#475569"></span></div>' +
+      '<div id="ptIdxBody" style="margin:0 16px 16px;max-height:56vh;overflow:auto;font-size:12px">⏳ در حال خواندن فهرست صفحات…</div></div>';
+    document.body.appendChild(ov);
+    function fill() {
+      var list = (window._cmsPages || []).slice(0, 60);
+      var el = document.getElementById('ptIdxBody'); if (!el) return;
+      if (!list.length) { el.innerHTML = '<span style="color:#94a3b8">صفحه‌ای یافت نشد</span>'; return; }
+      el.innerHTML = list.map(function (p, i) {
+        return '<div style="display:flex;gap:7px;align-items:center;padding:5px 0;border-bottom:1px dashed #e2e8f0">' +
+          '<input type="checkbox" class="ptIdxCb" value="' + escP(p.path) + '"' + (i < 10 ? ' checked' : '') + '>' +
+          '<span dir="ltr" style="flex:1;text-align:left;font-size:11.5px">' + escP(p.path) + '</span>' +
+          '<span class="ptIdxR" id="ptIdxR' + i + '" style="font-size:11px;color:#94a3b8">—</span></div>';
+      }).join('');
+    }
+    if ((window._cmsPages || []).length) fill();
+    else seoLoad(fill);
+  };
+  window.cmsIndexRun = function () {
+    var paths = Array.prototype.slice.call(document.querySelectorAll('#ptIdxWiz .ptIdxCb:checked')).map(function (c) { return c.value; });
+    if (!paths.length) { alert('حداقل یک صفحه انتخاب کنید'); return; }
+    if (paths.length > 25) paths = paths.slice(0, 25);
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#ptIdxWiz .ptIdxR'));
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('#ptIdxWiz .ptIdxCb'));
+    var st = document.getElementById('ptIdxSt');
+    var k = 0, idxN = 0, notN = 0;
+    function next() {
+      if (k >= paths.length) { if (st) st.innerHTML = '✅ ' + idxN + ' ایندکس‌شده · <b style="color:#dc2626">' + notN + ' ایندکس‌نشده</b> — برای آن‌ها «درخواست ایندکس» را باز کنید'; return; }
+      var p = paths[k];
+      var bi = boxes.findIndex(function (b) { return b.value === p; });
+      var ri = bi > -1 ? document.getElementById('ptIdxR' + bi) : null;
+      if (st) st.innerHTML = '⏳ ' + (k + 1) + ' از ' + paths.length + '…';
+      if (ri) ri.innerHTML = '⏳';
+      cmsGsc('inspect', { url: 'https://pishtaj.ir/' + p, log: '1' }, function (d) {
+        if (d.ok) {
+          var isIdx = d.verdict === 'INDEXED';
+          if (isIdx) idxN++; else notN++;
+          if (ri) ri.innerHTML = isIdx
+            ? '<span style="color:#059669;font-weight:700">✅ ایندکس شده</span>'
+            : '<span style="color:#dc2626;font-weight:700">⛔ ' + escP(d.verdict || '') + (d.coverage ? ' — ' + escP(String(d.coverage).slice(0, 60)) : '') + '</span> <a class="bt bt-o" style="padding:2px 9px;font-size:11px;text-decoration:none;color:#b45309" target="_blank" rel="noopener" href="' + escP(d.inspectLink || '') + '">درخواست ایندکس ↗</a>';
+        } else if (ri) ri.innerHTML = '<span style="color:#b45309">⚠️ ' + escP(d.error || 'خطا') + '</span>';
+        k++;
+        setTimeout(next, 250);
+      });
+    }
+    next();
+  };
 
   window.cmsSeoIssue = function (code) { _seo.issue = code; renderCms(document.getElementById('cmsWrap')); };
   window.cmsSeoFolder = function (v) { _seo.folder = v; _seo.offset = 0; renderCms(document.getElementById('cmsWrap')); };
@@ -2146,8 +2517,12 @@
       if (btn) btn.classList.add('act');
       document.getElementById('pgTitle').textContent = '🎛 مدیریت سایت';
       _news = null;
-      document.getElementById('panels').innerHTML = buildCms();
-      renderCms();
+      try {
+        document.getElementById('panels').innerHTML = buildCms();
+        renderCms();
+      } catch (eCmsBuild) { /* v34.27.0: خطای ساخت پنل CMS دیگر پنل را خالی نمی‌گذارد */
+        document.getElementById('panels').innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px 16px;font-size:13px;color:#b91c1c;line-height:2">⚠️ <b>خطای ساخت پنل مدیریت سایت:</b> ' + escP(eCmsBuild && eCmsBuild.message) + '<br><small>F12 ← Console جزئیات کامل را نشان می‌دهد؛ اگر بنر «کش قدیمی» بالا می‌بینید ابتدا کش را پاک کنید.</small></div>';
+      }
       return;
     }
     _go(id, btn);
@@ -2225,4 +2600,27 @@
   }, 300);
   var _showCrm = window.showCrm;
   if (_showCrm) { window.showCrm = function () { _showCrm(); setTimeout(hideCmsBtn, 400); }; }
+
+  /* ═══ v34.27.0 (STALE-CACHE): تشخیص cms.js کش‌شدهٔ قدیمی — علت «تب‌های خالی» ═══
+     سرویس‌ورکرِ CRM دارایی‌ها را SWR نگه می‌دارد؛ اگر مرورگر cms.js قدیمی داشته باشد
+     ولی پوسته جدید باشد، تب‌ها بدون هیچ پیامی خالی می‌مانند. اینجا ناهماهنگی آشکار
+     و دکمهٔ پاک‌سازی کش داده می‌شود. */
+  window.cmsCachePurge = function () {
+    try {
+      if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); });
+      if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }).then(function () { setTimeout(function () { location.reload(true); }, 600); });
+      else setTimeout(function () { location.reload(true); }, 600);
+    } catch (eP) { location.reload(true); }
+  };
+  setTimeout(function () {
+    try {
+      if (window.VER && window.PTF_CMS_JS_VER && window.VER !== window.PTF_CMS_JS_VER) {
+        var b = document.createElement('div');
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#7f1d1d;color:#fff;font:13px/1.9 inherit;padding:10px 16px;text-align:center';
+        b.innerHTML = '⚠️ فایل برنامهٔ مدیریت سایت در مرورگر شما قدیمی است (کش: ' + escP(window.PTF_CMS_JS_VER) + ' · سرور: ' + escP(window.VER) + ') — علت احتمالی تب‌های خالی. ' +
+          '<button class="bt" style="padding:4px 14px;font-size:12px;margin-right:8px" onclick="cmsCachePurge()">🧹 پاک‌سازی کش و بارگذاری مجدد</button>';
+        document.body.appendChild(b);
+      }
+    } catch (eV) {}
+  }, 1500);
 })();
