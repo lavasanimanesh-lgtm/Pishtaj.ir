@@ -68,7 +68,7 @@ function gsc_cfg() {
 /* ---------- کمک‌تابع‌های JWT ---------- */
 function gsc_b64($d) { return rtrim(strtr(base64_encode($d), '+/', '-_'), '='); }
 
-function gsc_token($cfg) {
+function gsc_token($cfg, $silent = false) {
     static $mem = null;
     if ($mem) return $mem;
 
@@ -86,7 +86,7 @@ function gsc_token($cfg) {
             return $mem;
         }
     }
-    if (!function_exists('openssl_sign')) jerr('openssl_missing');
+    if (!function_exists('openssl_sign')) { if ($silent) return false; jerr('openssl_missing'); }
 
     $now = time();
     $hdr = ['alg' => 'RS256', 'typ' => 'JWT'];
@@ -103,8 +103,8 @@ function gsc_token($cfg) {
     /* کلیدهایی که در تنظیمات با \n ذخیره شده‌اند (تک‌خطی) به PEM واقعی تبدیل می‌شوند */
     if (strpos($pem, "\n") === false) $pem = str_replace('\\n', "\n", $pem);
     $key = @openssl_pkey_get_private($pem);
-    if (!$key) jerr('private_key_invalid');
-    if (!openssl_sign($input, $sig, $key, OPENSSL_ALGO_SHA256)) jerr('sign_failed');
+    if (!$key) { if ($silent) return false; jerr('private_key_invalid'); }
+    if (!openssl_sign($input, $sig, $key, OPENSSL_ALGO_SHA256)) { if ($silent) return false; jerr('sign_failed'); }
     $jwt = $input . '.' . gsc_b64($sig);
 
     $ch = curl_init('https://oauth2.googleapis.com/token');
@@ -122,10 +122,11 @@ function gsc_token($cfg) {
     $err = curl_error($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    if ($res === false) jerr('token_http_failed: ' . $err);
+    if ($res === false) { if ($silent) return false; jerr('token_http_failed: ' . $err); }
 
     $j = json_decode((string)$res, true);
     if (!is_array($j) || empty($j['access_token'])) {
+        if ($silent) return false;
         jerr('token_failed' . ($code ? ' (HTTP ' . $code . ')' : '') . ': ' . mb_substr((string)$res, 0, 200));
     }
     @file_put_contents($cacheF, json_encode([
@@ -138,8 +139,9 @@ function gsc_token($cfg) {
 }
 
 /* ---------- فراخوانیِ API ---------- */
-function gsc_api($cfg, $path, $payload = null, $method = 'GET') {
-    $tok = gsc_token($cfg);
+function gsc_api($cfg, $path, $payload = null, $method = 'GET', $silent = false) {
+    $tok = gsc_token($cfg, $silent);
+    if ($tok === false) return ['__error' => 'token_failed'];
     $url = 'https://searchconsole.googleapis.com/' . $path;
     $ch = curl_init($url);
     $opts = [
@@ -161,10 +163,11 @@ function gsc_api($cfg, $path, $payload = null, $method = 'GET') {
     $err = curl_error($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    if ($res === false) jerr('api_http_failed: ' . $err);
+    if ($res === false) { if ($silent) return ['__error' => 'api_http_failed: ' . $err]; jerr('api_http_failed: ' . $err); }
     $j = json_decode((string)$res, true);
     if ($code >= 400) {
         $msg = is_array($j) && isset($j['error']['message']) ? $j['error']['message'] : mb_substr((string)$res, 0, 200);
+        if ($silent) return ['__error' => 'api_error_' . $code . ': ' . $msg];
         jerr('api_error_' . $code . ': ' . $msg);
     }
     return is_array($j) ? $j : [];
@@ -224,34 +227,55 @@ function gsc_page_norm($p) {
    PUT sitemaps فقط با سطح Full مجاز است و site_url کانفیگ ممکن است با نوع پراپرتی واقعی
    (sc-domain در برابر URL-prefix) نخواند. اینجا فهرست سایت‌های قابل‌دسترسی را می‌گیریم،
    بهترین تطبیق را انتخاب و اگر سطح کافی نیست علت را صریح برمی‌گردانیم. */
-function gsc_resolve_site($cfg, $needWrite = true) {
-    $list = gsc_api($cfg, 'webmasters/v3/sites');
+function gsc_pick_site($cfg, $needWrite = true, $silent = false) {
+    /* v34.29.1: نسخهٔ بدونِ توقفِ تشخیص پراپرتی — خروجی ساختاریافته برای «آزمون اتصال GSC» */
+    $list = gsc_api($cfg, 'webmasters/v3/sites', null, 'GET', $silent);
+    if (isset($list['__error'])) return ['verdict' => 'api_error', 'error' => $list['__error'], 'sites' => [], 'host' => ''];
     $sites = $list['site'] ?? [];
     $want = (string)$cfg['site_url'];
     $host = 'pishtaj.ir';
     $m = [];
     if (preg_match('#https?://([^/]+)/?#', $want, $m)) $host = strtolower($m[1]);
+    elseif (strpos($want, 'sc-domain:') === 0) $host = substr($want, 10);
     $exact = null; $domain = null; $prefix = null;
     foreach ($sites as $st) {
         $u = (string)($st['siteUrl'] ?? '');
-        $perm = (string)($st['permissionLevel'] ?? '');
         if ($u === $want) $exact = $st;
         if ($u === 'sc-domain:' . $host) $domain = $st;
         if (stripos($u, 'https://' . $host) === 0) $prefix = $st;
     }
     $chosen = $exact ?: ($domain ?: $prefix);
-    if (!$chosen) {
-        $names = array_map(function ($st) { return ($st['siteUrl'] ?? '') . ' (' . ($st['permissionLevel'] ?? '?') . ')'; }, $sites);
-        jerr('property_not_found: سرویس‌اکانت به هیچ پراپرتیِ ' . $host . ' دسترسی ندارد. پراپرتی‌های قابل‌دسترسی: '
-            . ($names ? implode('، ', $names) : 'هیچ') . ' — در Search Console ← Settings ← Users and permissions ایمیل '
-            . $cfg['client_email'] . ' را با سطح Full اضافه کنید.');
-    }
+    $out = [
+        'want' => $want, 'host' => $host,
+        'sites' => array_values(array_map(function ($st) {
+            return ['siteUrl' => (string)($st['siteUrl'] ?? ''), 'permissionLevel' => (string)($st['permissionLevel'] ?? '')];
+        }, (array)$sites)),
+    ];
+    if (!$chosen) { $out['verdict'] = 'no_match'; $out['site'] = ''; return $out; }
     $perm = (string)($chosen['permissionLevel'] ?? '');
-    if ($needWrite && ($perm === 'siteRestrictedUser' || $perm === 'siteUnverifiedUser')) {
-        jerr('permission_' . $perm . ': سرویس‌اکانت (' . $cfg['client_email'] . ') روی پراپرتی ' . $chosen['siteUrl']
-            . ' سطح «' . $perm . '» دارد؛ ثبت نقشه فقط با سطح Full مجاز است. در Search Console ← Settings ← Users and permissions این ایمیل را به Full ارتقا دهید.');
+    $out['perm'] = $perm;
+    $out['site'] = (string)$chosen['siteUrl'];
+    if ($needWrite && ($perm === 'siteRestrictedUser' || $perm === 'siteUnverifiedUser')) { $out['verdict'] = 'low_perm'; return $out; }
+    $out['verdict'] = 'ok';
+    return $out;
+}
+
+function gsc_resolve_site($cfg, $needWrite = true) {
+    /* v34.12.0 (S3/SUBMIT-FIX) + v34.29.1 (SELF-TEST): تشخیص خودکار پراپرتی + سطح دسترسی.
+       پیامِ no_match حالا علت‌های رایج را صریح فهرست می‌کند (IAM گوگل‌کلود ≠ سرچ کنسول،
+       ایمیل ناقص، پراپرتی اشتباه مثل staging، افزودنِ Owner-محور به‌جای User). */
+    $d = gsc_pick_site($cfg, $needWrite);
+    if ($d['verdict'] === 'no_match') {
+        $names = array_map(function ($st) { return $st['siteUrl'] . ' (' . ($st['permissionLevel'] ?: '?') . ')'; }, $d['sites']);
+        jerr('property_not_found: سرویس‌اکانت به هیچ پراپرتیِ ' . $d['host'] . ' دسترسی ندارد — فهرستِ قابل‌دسترسی: ' . ($names ? implode('، ', $names) : 'خالی (هیچ)') . '\n'
+            . '☑ راه‌حل — دقیقاً این مسیر: Search Console ← انتخاب همان پراپرتی (' . $d['host'] . ') ← Settings ← Users and permissions ← Add user ← عیناً این ایمیل: ' . $cfg['client_email'] . ' ← Permission: Full ← Add\n'
+            . 'علت‌های رایج «با وجودِ افزودن، باز خالی»: ۱) دسترسی در Google Cloud/IAM داده شده (اشتباه است — باید در خودِ Search Console باشد)؛ ۲) ایمیل ناقص یا غلط تایپ شده — از همین پیام کپی کنید (پایانش iam.gserviceaccount.com است)؛ ۳) روی پراپرتیِ دیگری (مثلاً staging) اضافه شده — باید روی پراپرتی ' . $d['host'] . ' باشد؛ ۴) فقط از مسیر Owners/Verification اضافه شده — یک‌بار هم به‌عنوان User با سطح Full اضافه کنید. اعمال معمولاً تا ۱-۲ دقیقه؛ سپس «🧪 آزمون اتصال GSC» در تب سئو را بزنید.');
     }
-    return $chosen['siteUrl'];
+    if ($d['verdict'] === 'low_perm') {
+        jerr('permission_' . ($d['perm'] ?? '') . ': سرویس‌اکانت (' . $cfg['client_email'] . ') روی پراپرتی ' . $d['site']
+            . ' سطح «' . ($d['perm'] ?? '') . '» دارد؛ ثبت نقشه فقط با سطح Full مجاز است. در Search Console ← Settings ← Users and permissions این ایمیل را به Full ارتقا دهید.');
+    }
+    return $d['site'];
 }
 
 function gsc_query($cfg, $dimensions, $days, $rowLimit = 500) {
@@ -391,6 +415,48 @@ switch ($action) {
             'email'      => $cfg ? $cfg['client_email'] : '',
             'openssl'    => function_exists('openssl_sign'),
             'curl'       => function_exists('curl_init'),
+        ]);
+        break;
+
+    /* ═══ v34.29.1 (SELF-TEST): آزمون اتصال GSC — ایمیل سرویس‌اکانت + فهرست زندهٔ
+       پراپرتی‌های قابل‌دسترسی + تشخیص علت (بدون ثبت/نوشتن چیزی) ═══ */
+    case 'selftest':
+        $cfg = gsc_cfg();
+        if (!$cfg) jok([
+            'configured' => false, 'email' => '', 'sites' => [], 'verdict' => 'no_config',
+            'steps' => ['فایل api/gsc-config.php مطابق gsc-config.sample.php ساخته شود (client_email و private_key از روی JSON سرویس‌اکانت).',
+                        'در پروژهٔ Google Cloud، «Search Console API»Enable باشد.'],
+        ]);
+        $tok = gsc_token($cfg, true);
+        if ($tok === false) jok([
+            'configured' => true, 'email' => $cfg['client_email'], 'sites' => [], 'verdict' => 'token_error',
+            'steps' => ['توکن گوگل گرفته نشد — client_email یا private_key در gsc-config.php نادرست است.',
+                        'private_key را عیناً با \\nها از فایل JSON کپی کنید و مطمئن شوید Search Console API در همان پروژه Enable است.'],
+        ]);
+        $d = gsc_pick_site($cfg, true, true);
+        $steps = [];
+        if (($d['verdict'] ?? '') === 'api_error') {
+            jok(['configured' => true, 'email' => $cfg['client_email'], 'sites' => [], 'verdict' => 'api_error', 'error' => $d['error'],
+                 'steps' => ['فراخوانی API گوگل خطا داد — یک‌بار دیگر امتحان کنید؛ اگر ادامه داشت پیام بالا را گزارش کنید.']]);
+        }
+        if ($d['verdict'] === 'no_match') {
+            $steps = ['در Search Console پراپرتی ' . $d['host'] . ' را انتخاب کنید (همان که می‌خواهید نقشه‌اش ثبت شود).',
+                      'Settings ← Users and permissions ← Add user.',
+                      'عیناً این ایمیل را کپی کنید: ' . $cfg['client_email'],
+                      'Permission را «Full» بگذارید و Add بزنید (نه از Google Cloud/IAM — آن‌جا نقش معنی‌دار نیست).',
+                      'اگر قبلاً از صفحهٔ Owners/Verification اضافه شده بود، یک‌بار هم به‌عنوان User با Full اضافه کنید.',
+                      '۱-۲ دقیقه صبر کنید و دوباره «آزمون اتصال» بزنید.'];
+        } elseif ($d['verdict'] === 'low_perm') {
+            $steps = ['سطح فعلی «' . ($d['perm'] ?? '') . '» فقط خواندنی است.',
+                      'در Search Console ← Users and permissions ایمیل ' . $cfg['client_email'] . ' را به «Full» ارتقا دهید.'];
+        }
+        jok([
+            'configured' => true,
+            'email'      => $cfg['client_email'],
+            'site'       => $d['site'] ?? '',
+            'verdict'    => $d['verdict'],
+            'sites'      => $d['sites'],
+            'steps'      => $steps,
         ]);
         break;
 

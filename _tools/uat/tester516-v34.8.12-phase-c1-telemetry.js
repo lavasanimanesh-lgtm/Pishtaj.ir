@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.25.0 — PHASE-C1: اندازه‌گیری مبنای نازک‌سازی.
+/* v34.29.3 — PHASE-C1: اندازه‌گیری مبنای نازک‌سازی.
    ۱) تله‌متری push سمت سرور به تفکیک کلید (زیر flock موجود data_push)
    ۲) endpoint فقط‌خواندنی sync_stats (ادمین/رئیس)
    ۳) سند رتبه‌بندی مجموعه‌های داغ از تحلیل ایستا */
@@ -14,7 +14,7 @@ var ver = JSON.parse(read('VERSION.json'));
 var api = read('api/crm.php');
 var doc = read('PHASE-C1-HOT-COLLECTIONS.md');
 
-T('VERSION.json = v34.25.0', ver.crm_version === 'v34.25.0', ver.crm_version);
+T('VERSION.json = v34.29.3', ver.crm_version === 'v34.29.3', ver.crm_version);
 T('تله‌متری push در data_push نوشته می‌شود', /PHASE-C1 — اندازه‌گیری[\s\S]{0,200}push_stats\.json/.test(api));
 T('شمارش تعارض و reject تفکیک‌شده ثبت می‌شود', /\$row\['conflicts'\][\s\S]{0,200}\$row\['rejects'\]/.test(api));
 T('نوشتن stats اتمیک است (tmp+rename)', /tmpS = \$statsFile \. '\.tmp\.'[\s\S]{0,200}@rename\(\$tmpS, \$statsFile\)/.test(api));
@@ -48,6 +48,6 @@ T('sync_stats avgBytes محاسبه می‌کند', /avgBytes/.test(api));
 T('سند C1 با رتبه‌بندی ایستا موجود است', /ptf_crm_invoices[\s\S]{0,80}۲۹/.test(doc) || doc.indexOf('ptf_crm_invoices') > -1);
 T('سند C1 تأکید می‌کند مالی فرمان‌محور است', /فرمان‌محور از v34\.8\.6/.test(doc));
 
-console.log('\n— tester516 (v34.25.0: PHASE-C1 اندازه‌گیری) —');
+console.log('\n— tester516 (v34.29.3: PHASE-C1 اندازه‌گیری) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
