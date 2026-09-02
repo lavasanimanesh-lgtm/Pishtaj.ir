@@ -932,11 +932,24 @@ function renderInvoices() {
     });
   }
   var h = '';
+  var _allOffersForRialBasis = getData('ptf_crm_offers'); /* v34.30.0 (FX-RIAL-REF): نمایش مبنای ریالی ارجاع‌های ارزی */
   refd.forEach(function (o) {
     var inv = invs.filter(function (i) { return i.offerNo === o.no; })[0];
     var oEn = (typeof ptfCustEnByCd === 'function') ? ptfCustEnByCd(o.buyerCd) : '';
     var total = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
     var invPaidSum = inv ? ptfInvoiceReceivedIRR(inv) : 0;
+    /* v34.30.0 (FX-RIAL-REF): سند ریالی ضمیمهٔ ارجاع (پیشنهاد ریالی ثبت‌شده/نسخهٔ همراه) + نرخ تسعیر */
+    var rialBasisHtml = '';
+    if (o.invRef && o.invRef.rialBasis) {
+      var compO = _allOffersForRialBasis.filter(function (x) { return x && x.no === o.invRef.rialBasis; })[0];
+      var rbRate = (compO && compO.fxConvert && +compO.fxConvert.rate > 0) ? +compO.fxConvert.rate : (+o.invRef.rialRate || 0);
+      var rbTotal = compO ? (compO.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : (+o.invRef.rialTotal || 0);
+      var rbKind = o.invRef.rialBasisKind === 'registered' ? ' — پیشنهاد ریالی ثبت‌شدهٔ پرونده' : o.invRef.rialBasisKind === 'companion' ? ' — نسخهٔ ریالی همراه (ابزار تبدیل)' : '';
+      rialBasisHtml = '<div style="font-size:11.5px;color:#065f46;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:9px;padding:5px 9px;margin-top:5px">💱 <b>مبنای ریالی صدور فاکتور:</b> <b dir="ltr">' + escP(o.invRef.rialBasis) + '</b>' + escP(rbKind) +
+        (rbRate ? ' — نرخ تسعیر ' + (+rbRate).toLocaleString('fa-IR') + ' ریال' + (o.invRef.rialRateDerived ? ' <small>(برگرفته از جمع سند ریالی)</small>' : '') : '') +
+        (rbTotal ? ' — جمع ریالی ' + (+rbTotal).toLocaleString('fa-IR') + ' ریال' : '') +
+        (compO ? ' — <a href="javascript:void(0)" onclick="offerPrint(\'' + ptfOnClickArg(compO.no) + '\')" style="color:#047857">⬇️ PDF نسخه ریالی</a>' : '') + '</div>';
+    }
     h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
       '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
       '<div style="font-size:13px"><b>' + escP(o.no) + '</b> — ' + (function () { /* v34.18.0: نام فارسی + انگلیسی زیر هم */
@@ -968,6 +981,7 @@ function renderInvoices() {
           }
           return (Math.abs(inv.amount - total) > 0.5 && total ? ' <span style="color:#dc2626">⚠️ مغایرت با CO: ' + Math.round(Math.abs(inv.amount - total) * 100 / total) + '٪</span>' : '');
         })() + '</div>' : '') +
+      rialBasisHtml + /* v34.30.0 (FX-RIAL-REF): نسخهٔ ریالی ارجاع‌شده در دید حسابدار */
       '</div>' +
       '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
       /* v19.3 (US-436 AC3/US-435 AC3): اگر ارجاع از پرونده فروش آمده، سند ضمیمه = snapshot قطعی برد (US-432) */
