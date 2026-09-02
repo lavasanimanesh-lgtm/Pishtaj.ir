@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.29.2'; /* v34.29.2: راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.29.3'; /* v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -767,7 +767,7 @@
         ? PAGE_FOLDERS.map(function (f) { return '<option value="' + f.v + '">' + f.lb + '</option>'; }).join('')
         : '<option value="services">خدمات</option><option value="industries">صنایع</option><option value="comparisons">مقایسهٔ محصولات</option>';
       el.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#b91c1c;line-height:2;margin-bottom:10px">⚠️ <b>خطای رندر فرم کامل:</b> ' + escP(_pgErr && _pgErr.message) + '<br><small>نسخهٔ سادهٔ فرم زیر بارگذاری شد — همهٔ امکانات (تولید AI / خارجی / پیش‌نمایش / ذخیرهٔ موقت / انتشار) فعال است. متن خطا را برای رفع نهایی گزارش کنید.</small></div>' +
-        '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px">' +
+        '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px">' +
         '<div id="pgAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
         '<div class="fld"><label>بخش مقصد *</label><select id="pgFolder">' + _folds + '</select></div>' +
@@ -796,7 +796,7 @@
     var opts = PAGE_FOLDERS.map(function (f) { return '<option value="' + f.v + '">' + f.lb + '</option>'; }).join('');
     el.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:14px;font-size:12px;color:#475569;line-height:2;margin-bottom:10px">' +
       'مولد صفحهٔ عمومی سایت برای بخش‌های <b>خدمات / صنایع / مقایسه‌ها</b>: متن یگانه با هوش مصنوعی (مثل مرکز دانش) + اسکیمای مناسبِ هر بخش + افزودن خودکار به نقشهٔ سایت و ثبت در سرچ کنسول.</div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px">' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px">' +
       '<div id="pgAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
       '<div class="fld"><label>بخش مقصد *</label><select id="pgFolder">' + opts + '</select></div>' +
@@ -1251,12 +1251,12 @@
   function renderCmsQuality(el) {
     el.innerHTML =
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:12px;color:#475569;line-height:1.9;margin-bottom:10px"><b>کیفیت و مقیاس (S4):</b> انتشار زمان‌بندی‌شده با تأیید دومرحله‌ای · تاریخچه/بازگشت روی بک‌آپ‌های موجود · شمارندهٔ هزینهٔ هوش مصنوعی · PageSpeed صفحات پول‌ساز.</div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕘 انتشار زمان‌بندی‌شده</b><div id="qSched" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن صف…</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕰 تاریخچه و بازگشت (۳ نسخهٔ آخر هر فایل)</b><div id="qBk" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن بک‌آپ‌ها…</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">💸 هزینهٔ هوش مصنوعی</b><div id="qCost" style="margin-top:8px;font-size:12px;color:#64748b">در حال محاسبه…</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🌐 hreflang دوطرفه (fa ↔ en)</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#0e7490" onclick="cmsHlSync()">🌐 همگام‌سازی</button><div id="qHl" style="margin-top:8px;font-size:12px;color:#64748b">جفت‌های فارسی/انگلیسی هم‌مسیر را می‌یابد و سه‌گانهٔ hreflang را در هر دو طرف (در صورت نبود/تکرار) یکسان می‌کند. stubهای ریدایرکت دست نمی‌خورند.</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🖼 متن جایگزین تصاویر (alt) با بینایی AI</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#7c3aed" onclick="cmsAltScan()">🔍 اسکن تصاویر</button><div id="qAlt" style="margin-top:8px;font-size:12px;color:#64748b">اسکن تصاویرِ بدون alt → تولید متن فارسی با مدل بینایی → بازبینی → اعمال گروهی.</div></div>' +
-      '<div class="pn" style="padding:14px;border:1px solid var(--brd);border-radius:12px"><b style="font-size:13px">⚡ PageSpeed (موبایل)</b><div id="qPsi" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن تنظیمات…</div></div>';
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕘 انتشار زمان‌بندی‌شده</b><div id="qSched" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن صف…</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🕰 تاریخچه و بازگشت (۳ نسخهٔ آخر هر فایل)</b><div id="qBk" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن بک‌آپ‌ها…</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">💸 هزینهٔ هوش مصنوعی</b><div id="qCost" style="margin-top:8px;font-size:12px;color:#64748b">در حال محاسبه…</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🌐 hreflang دوطرفه (fa ↔ en)</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#0e7490" onclick="cmsHlSync()">🌐 همگام‌سازی</button><div id="qHl" style="margin-top:8px;font-size:12px;color:#64748b">جفت‌های فارسی/انگلیسی هم‌مسیر را می‌یابد و سه‌گانهٔ hreflang را در هر دو طرف (در صورت نبود/تکرار) یکسان می‌کند. stubهای ریدایرکت دست نمی‌خورند.</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px;margin-bottom:10px"><b style="font-size:13px">🖼 متن جایگزین تصاویر (alt) با بینایی AI</b> <button class="bt bt-o" style="padding:4px 12px;font-size:11.5px;color:#7c3aed" onclick="cmsAltScan()">🔍 اسکن تصاویر</button><div id="qAlt" style="margin-top:8px;font-size:12px;color:#64748b">اسکن تصاویرِ بدون alt → تولید متن فارسی با مدل بینایی → بازبینی → اعمال گروهی.</div></div>' +
+      '<div class="cms-card" style="background:var(--crd);padding:14px;border:1px solid var(--brd);border-radius:12px"><b style="font-size:13px">⚡ PageSpeed (موبایل)</b><div id="qPsi" style="margin-top:8px;font-size:12px;color:#64748b">در حال خواندن تنظیمات…</div></div>';
     cmsQSched(); cmsQBk(); cmsQCost(); cmsQPsi();
   }
 
@@ -1269,7 +1269,7 @@
       var items = d.items || [];
       if (!items.length) { el.innerHTML = '<span style="color:#94a3b8">صف خالی است — از فرم «📄 صفحهٔ جدید» با دکمهٔ «🕘 زمان‌بندی انتشار» اضافه کنید.</span>'; return; }
       var sen = cmsSenior();
-      var h = '<table class="tb"><thead><tr><th>عنوان</th><th>مسیر</th><th>موعد</th><th>وضعیت</th><th>سازنده</th><th></th></tr></thead><tbody>';
+      var h = '<table class="cms-tbl"><thead><tr><th>عنوان</th><th>مسیر</th><th>موعد</th><th>وضعیت</th><th>سازنده</th><th></th></tr></thead><tbody>';
       items.forEach(function (it) {
         var st = it.done ? (it.err ? '<span style="color:#b91c1c">خطا: ' + escP(it.err) + '</span>' : '<span style="color:#059669">✅ منتشر شد ' + (it.done_at ? '(' + cmsQFaTs(it.done_at) + ')' : '') + '</span>')
           : (it.st === 'approved' ? '<span style="color:#2563eb">⏳ تأییدشده — در انتظار موعد</span>' : '<span style="color:#b45309">🟡 منتظر تأیید مدیر ارشد</span>');
@@ -1337,7 +1337,7 @@
       var pick = function (t, re) { var m = (t || '').match(re); return m ? m[1].trim().slice(0, 120) : '—'; };
       var meta = [['عنوان (title)', /<title>([\s\S]*?)<\/title>/i], ['توضیح (description)', /<meta\s+name=["']description["']\s+content=["']([\s\S]*?)["']/i], ['H1', /<h1[^>]*>([\s\S]*?)<\/h1>/i]];
       var h = '<div style="font-size:11.5px;margin-bottom:6px">حجم: بک‌آپ <b>' + (d.bak_size / 1024).toFixed(1) + 'KB</b> · نسخهٔ زنده <b>' + (d.live_size / 1024).toFixed(1) + 'KB</b></div>' +
-        '<table class="tb"><thead><tr><th>فیلد</th><th>بک‌آپ (' + escP(stamp) + ')</th><th>نسخهٔ زنده</th></tr></thead><tbody>';
+        '<table class="cms-tbl"><thead><tr><th>فیلد</th><th>بک‌آپ (' + escP(stamp) + ')</th><th>نسخهٔ زنده</th></tr></thead><tbody>';
       meta.forEach(function (m) {
         var b = pick(d.bak, m[1]), l = pick(d.live, m[1]);
         h += '<tr><td>' + m[0] + '</td><td style="' + (b !== l ? 'background:#fef2f2' : '') + '">' + escP(b) + '</td><td style="' + (b !== l ? 'background:#ecfdf5' : '') + '">' + escP(l) + '</td></tr>';
@@ -1388,7 +1388,7 @@
       }
       var bd = (d.byDay || []).slice(-14).reverse();
       if (bd.length) {
-        h += '<details><summary style="font-size:11.5px;color:#0e7490;cursor:pointer">روزبه‌روز (۱۴ روز آخر)</summary><table class="tb"><thead><tr><th>روز</th><th>درخواست</th><th>ورودی</th><th>خروجی</th><th>هزینه</th></tr></thead><tbody>';
+        h += '<details><summary style="font-size:11.5px;color:#0e7490;cursor:pointer">روزبه‌روز (۱۴ روز آخر)</summary><table class="cms-tbl"><thead><tr><th>روز</th><th>درخواست</th><th>ورودی</th><th>خروجی</th><th>هزینه</th></tr></thead><tbody>';
         bd.forEach(function (r) { h += '<tr><td dir="ltr">' + escP(r.d) + '</td><td>' + (r.n || 0) + '</td><td>' + (r.pt || 0) + '</td><td>' + (r.ct || 0) + '</td><td>$' + (r.cost || 0).toFixed(3) + '</td></tr>'; });
         h += '</tbody></table></details>';
       }
@@ -1409,7 +1409,7 @@
         var h = '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' +
           '<button class="bt" style="background:#0e7490" onclick="cmsPsiRunAll()">⚡ اندازه‌گیری همه</button>' +
           '<span id="psiProg" style="font-size:11.5px;color:#64748b"></span></div>' +
-          '<table class="tb"><thead><tr><th>مسیر</th><th>امتیاز</th><th>LCP</th><th>CLS</th><th>TBT</th><th>سئو</th><th>روند</th><th></th></tr></thead><tbody>';
+          '<table class="cms-tbl"><thead><tr><th>مسیر</th><th>امتیاز</th><th>LCP</th><th>CLS</th><th>TBT</th><th>سئو</th><th>روند</th><th></th></tr></thead><tbody>';
         urls.forEach(function (u) {
           var runs = hist[u] || [];
           var last = runs.length ? runs[runs.length - 1] : null;
@@ -1498,7 +1498,7 @@
       _altRows = (d.rows || []).slice(0, 30);
       if (!_altRows.length) { el.innerHTML = '<div style="color:#065f46">✅ هیچ تصویرِ بدونِ alt در صفحات عمومی پیدا نشد.</div>'; return; }
       var h = '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">' + (d.total || _altRows.length) + ' تصویر بدون alt (نمایش ۳۰ مورد) — تولید گروهی فقط برای موارد دارای فایل تصویر روی سرور ممکن است:</div>' +
-        '<div style="max-height:300px;overflow:auto"><table class="tb"><thead><tr><th></th><th>تصویر</th><th>صفحه</th><th>alt پیشنهادی (قابل ویرایش)</th></tr></thead><tbody>';
+        '<div style="max-height:300px;overflow:auto"><table class="cms-tbl"><thead><tr><th></th><th>تصویر</th><th>صفحه</th><th>alt پیشنهادی (قابل ویرایش)</th></tr></thead><tbody>';
       _altRows.forEach(function (r, i) {
         h += '<tr><td><input type="checkbox" id="altCk' + i + '" checked' + (r.disk ? '' : ' disabled') + '></td>' +
           '<td dir="ltr" style="font-size:10.5px;max-width:180px;overflow:hidden;text-overflow:ellipsis">' + escP(r.src) + (r.disk ? '' : '<br><small style="color:#b45309">فایل نیست/سنگین</small>') + '</td>' +
@@ -1616,7 +1616,7 @@
     var cap = q ? 400 : 200; /* بدون جستجو ۲۰۰ نخست (کارایی)؛ با جستجو تا ۴۰۰ نتیجه */
     var cnt = document.getElementById('prodCnt');
     if (cnt) cnt.textContent = q ? (list.length + ' نتیجه برای «' + q + '»' + (list.length > cap ? ' — ' + cap + ' مورد نخست نمایش داده می‌شود' : '')) : (prds.length + ' کالا در CRM');
-    var h = '<table class="tb"><thead><tr><th>کالا</th><th>برند/مدل</th><th>کد</th><th>صفحهٔ سایت</th><th></th></tr></thead><tbody>';
+    var h = '<table class="cms-tbl"><thead><tr><th>کالا</th><th>برند/مدل</th><th>کد</th><th>صفحهٔ سایت</th><th></th></tr></thead><tbody>';
     list.slice(0, cap).forEach(function (r) {
       var site = (_prodSite || {})[r.cd] || null;
       h += '<tr><td><b>' + escP((r.nm || '').slice(0, 60)) + '</b>' + (r.en ? '<br><small dir="ltr" style="color:#64748b">' + escP(r.en.slice(0, 50)) + '</small>' : '') + '</td>' +
@@ -1774,7 +1774,7 @@
         '<input type="text" id="rdTo" dir="ltr" placeholder="مقصد مثلاً /knowledge-center/new.html" style="flex:1;min-width:200px;padding:5px 9px;border:1px solid var(--brd);border-radius:8px;font-size:11.5px">' +
         '<button class="bt" style="padding:5px 11px;font-size:11.5px" onclick="cmsRedirectAdd()">➕ ریدایرکت 301-سبک</button></div>';
       if (rs.length) {
-        h += '<div style="max-height:160px;overflow:auto;margin-top:8px"><table class="tb" style="font-size:11.5px"><thead><tr><th>مبدأ</th><th>مقصد</th><th>تاریخ</th><th></th></tr></thead><tbody>';
+        h += '<div style="max-height:160px;overflow:auto;margin-top:8px"><table class="cms-tbl" style="font-size:11.5px"><thead><tr><th>مبدأ</th><th>مقصد</th><th>تاریخ</th><th></th></tr></thead><tbody>';
         rs.forEach(function (r) {
           h += '<tr><td dir="ltr" style="font-size:10.5px">' + escP(r.from) + '</td><td dir="ltr" style="font-size:10.5px;color:#059669">' + escP(r.to) + '</td><td style="font-size:10.5px">' + escP(String(r.ts || '').slice(0, 10)) + '</td>' +
             '<td><button class="bt bt-o" style="padding:2px 8px;font-size:11px;color:#dc2626" onclick="cmsRedirectRemove(\'' + ptfOnClickArg(r.from) + '\')">↩️ بازگردانی</button></td></tr>';
@@ -1832,7 +1832,7 @@
     if (!items.length) { el.innerHTML = ''; return; }
     var h = '<div style="font-size:11.5px;color:#475569;margin:4px 0">پیشنهادهای آمادهٔ اعمال — بازبینی کن، تیک تأیید بزن:</div>' +
       '<div style="max-height:300px;overflow:auto;border:1px solid #e9d5ff;border-radius:10px;background:#fff">' +
-      '<table class="tb" style="font-size:11.5px"><thead><tr><th></th><th>صفحه</th><th>عنوان (قدیم → جدید)</th><th>توضیح جدید</th></tr></thead><tbody>';
+      '<table class="cms-tbl" style="font-size:11.5px"><thead><tr><th></th><th>صفحه</th><th>عنوان (قدیم → جدید)</th><th>توضیح جدید</th></tr></thead><tbody>';
     items.forEach(function (it) {
       var tOld = (it.title_cur || '').slice(0, 40), tNew = it.title_new || '';
       var changed = it.title_new !== it.title_cur || it.desc_new !== it.desc_cur;

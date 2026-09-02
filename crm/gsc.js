@@ -198,7 +198,7 @@
         box.innerHTML = h + '<div style="color:#059669;font-size:12.5px">✅ همهٔ صفحاتِ نقشه در این بازه داده داشته‌اند.</div>';
         return;
       }
-      h += '<div style="max-height:340px;overflow:auto"><table class="tb"><thead><tr>' +
+      h += '<div style="max-height:340px;overflow:auto"><table class="cms-tbl"><thead><tr>' +
         '<th>صفحه</th><th>عملیات</th></tr></thead><tbody>';
       nd.slice(0, 200).forEach(function (r) {
         h += '<tr><td style="direction:ltr;font-size:11.5px">' + escP(r.url.replace('https://pishtaj.ir/', '')) + '</td>' +
@@ -215,7 +215,7 @@
 
       var v = d.verified || [];
       if (v.length) {
-        var vh = '<table class="tb" style="margin-top:8px"><thead><tr><th>صفحه</th><th>وضعیت</th><th>آخرین خزش</th></tr></thead><tbody>';
+        var vh = '<table class="cms-tbl" style="margin-top:8px"><thead><tr><th>صفحه</th><th>وضعیت</th><th>آخرین خزش</th></tr></thead><tbody>';
         v.forEach(function (r) {
           var col = r.verdict === 'PASS' ? '#059669' : (r.verdict === 'FAIL' ? '#dc2626' : '#d97706');
           vh += '<tr><td style="direction:ltr;font-size:11px">' + escP(r.url.replace('https://pishtaj.ir/', '')) + '</td>' +
