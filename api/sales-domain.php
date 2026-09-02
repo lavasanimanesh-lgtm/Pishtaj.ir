@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.29.3';
+const SD_SERVICE_VERSION = '34.29.8';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -274,7 +274,7 @@ function sd_entity_registry(): array {
    پیش‌تر مقدارِ لیستیِ داخل map (مثل files.oth پیوست‌های RFQ تاییدشدهٔ سایت) در
    sd_entity_sanitize_row بی‌صدا حذف می‌شد → رکورد پس از همگام‌سازی بدون ضمیمه
    برمی‌گشت و فایلِ موجود در فضای ابری «گم» می‌شد. */
-function sd_entity_sanitize_list(array $v, array &$stats = null): array {
+function sd_entity_sanitize_list(array $v, array &$stats = null, int $depth = 2): array {
     $list = [];
     foreach ($v as $item) {
         if (is_string($item)) {
@@ -293,6 +293,17 @@ function sd_entity_sanitize_list(array $v, array &$stats = null): array {
                     $storedSub = is_string($v3) ? sd_text($v3, 2000) : (is_bool($v3) ? $v3 : ($v3 === null ? null : (int)$v3));
                     if ($stats !== null && is_string($v3) && mb_strlen($v3, 'UTF-8') > mb_strlen($storedSub, 'UTF-8')) $stats['trimmed']++;
                     $subItem[$k3] = $storedSub;
+                }
+                /* v34.29.7 (SITE-PARITY — گزارش کارفرما: «شماره تلفن مشتریِ درخواست‌دهندهٔ
+                   سایت ثبت نشده و با ویرایش هم ثبت نمی‌شود»): مقدار لیستی داخل mapِ داخل
+                   لیست — مثل people[].tels/mobs/mails — قبلاً بی‌صدا حذف می‌شد (رفع
+                   v34.23.0 فقط سطح ردیف/files.oth را پوشش می‌داد). نتیجه: شمارهٔ تماس
+                   شخص رابط پس از اولین entity_upsert/همگام‌سازی از مشتری/تامین‌کنندهٔ
+                   ساخته‌شده از سایت (و حتی ویرایش دستی) پاک می‌شد و در ویرایش بعدی ph
+                   هم خالی بازنویسی می‌شد. اکنون با سقف عمق (پیش‌فرض ۲ سطح اضافه) و همان
+                   سقف‌های ۶۰ قلم/۲۰ فیلد نگه داشته می‌شود — همسو با فرم استاندارد CRM. */
+                elseif (is_string($k3) && strlen($k3) <= 60 && is_array($v3) && $depth > 0) {
+                    $subItem[$k3] = sd_entity_sanitize_list($v3, $stats, $depth - 1);
                 }
                 if (count($subItem) >= 20) break;
             }

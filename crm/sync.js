@@ -2218,6 +2218,13 @@
       /* workflow یک transition نسخه‌دار است؛ طول wfLog/کامل‌بودن رکورد نباید
          WF50 کهنه را بر اصلاح authoritative جدیدتر مقدم کند. */
       winner = String((b && b.wfUpdatedAtISO) || '') > String((a && a.wfUpdatedAtISO) || '') ? b : a;
+    } else if (key === 'ptf_crm_packinglists' && !!(a && a.voided) !== !!(b && b.voided)) {
+      /* v34.29.8 (PL-VOID-WINS — «پکینگ‌لیست‌ها را ابطال می‌کنم ولی همچنان هستند»):
+         merge عمومی قبلی رکورد را با ts رشته‌ای انتخاب می‌کرد و ابطال هیچ ts را
+         عوض نمی‌کرد → نسخهٔ ابطال‌نشدهٔ دستگاه دیگر همیشه می‌برد. ابطال سند تجاری
+         حالت پایانی است (هم‌سنخ invoice/cheque در ptfFinanceVoidWins) — نسخهٔ
+         ابطال‌شده برنده؛ تاریخ‌ها هر دو حفظ می‌شوند. */
+      winner = (a && a.voided) ? a : b;
     } else winner = (typeof window.ptfFinanceVoidWins === 'function' && (key === 'ptf_crm_invoices' || key.indexOf('cheque') > -1))
       ? (window.ptfFinanceVoidWins(a, b) || ptfPreferRecord(a, b))
       : ptfPreferRecord(a, b);
@@ -2229,6 +2236,51 @@
       return canonicalOffer;
     }
     var out = ptfMergeAttachmentFields(ptfMergePlainObject(winner, loser), winner, loser);
+    /* v34.29.8 (COST-EVENT-TOMB — گزارش کارفرما: «هزینه‌های مستقیم پرونده چندباره محاسبه
+       می‌شوند و با حذف برمی‌گردند؛ هزینهٔ تنخواهِ پروندهٔ دیگر هم در این پرونده است»):
+       costEvents تا حالا با ptfMergeArrayUnique (امضای کامل-JSON) اجتماع می‌شد —
+       ① حذف هرگز ماندگار نمی‌شد؛ هر نسخهٔ کهنه (سرور/همکار) هزینهٔ حذف‌شده را در merge
+       بعدی برمی‌گرداند. ② هر تفاوت جزئی بین دو نسخه (پاک‌سازی سرور، به‌روزرسانی
+       زمان/ویرایشگر) امضای متفاوت = نسخهٔ دوم = تکرار. ③ رویداد یتیمِ تنخواه پس از
+       انتقال لینک به پروندهٔ دیگر، با union برای همیشه می‌ماند.
+       اکنون برای ptf_crm_deals: ٭ اجتماع tombstoneهای حذف (_costTomb: {cd: iso}) ٭
+       ددوب بر اساس cd (نسخهٔ ویرایش‌شده/جدیدتر برنده) ٭ حذف موارد tombstoneشده.
+       cd هزینه‌ها با genCode یکتاست؛ tomb روی cd برای همیشه امن است. */
+    if (key === 'ptf_crm_deals') {
+      var costTomb = {};
+      [a, b].forEach(function (side) {
+        var m = (side || {})._costTomb || {};
+        Object.keys(m).forEach(function (cd) {
+          var v = String(m[cd] || '');
+          if (v && (!costTomb[cd] || v > costTomb[cd])) costTomb[cd] = v;
+        });
+      });
+      var tombKeys = Object.keys(costTomb);
+      if (tombKeys.length > 200) {
+        tombKeys.sort(function (x, y) { return String(costTomb[x]) < String(costTomb[y]) ? -1 : 1; });
+        while (tombKeys.length > 200) delete costTomb[tombKeys.shift()];
+      }
+      if (Object.keys(costTomb).length) out._costTomb = costTomb;
+      var ceSrc = Array.isArray(out.costEvents) ? out.costEvents : [];
+      var ceSeen = {}, ceOut = [];
+      ceSrc.forEach(function (e) {
+        if (!e || typeof e !== 'object') return;
+        var cd = String(e.cd || '');
+        if (!cd) { ceOut.push(e); return; } /* رویداد بدون cd (قدیمی) → دست‌نخورده */
+        if (costTomb[cd]) return; /* حذف‌شده → حذف ماندگار */
+        if (ceSeen[cd]) {
+          /* تکرار هم‌کد: نسخهٔ ویرایش‌شده (updatedT دارد) برنده؛ وگرنه نسخهٔ برندهٔ رکورد */
+          if (!(ceSeen[cd].updatedT || ceSeen[cd].updatedBy) && (e.updatedT || e.updatedBy)) {
+            var idx = ceOut.indexOf(ceSeen[cd]);
+            if (idx > -1) ceOut[idx] = e;
+            ceSeen[cd] = e;
+          }
+          return;
+        }
+        ceSeen[cd] = e; ceOut.push(e);
+      });
+      out.costEvents = ceOut;
+    }
     if (key === 'ptf_crm_offers') {
       var clean = ptfNormalizeOfferSnapshot(winner.items || []);
       out.items = clean.items; /* never union winner/loser offer lines */
@@ -2430,7 +2482,7 @@
          استفاده شود که به‌ازای هر کد، رکورد برنده را انتخاب می‌کند اما فیلدهای آرایه‌ای
          (payments/pays/costEvents/timeline/lossEvents) را با ptfMergeArrayUnique واقعاً
          union می‌کند — نه جایگزین. */
-       if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers' || key === 'ptf_crm_invoices' || key === 'ptf_crm_deals' || key === 'ptf_crm_cheques_issued' || key === 'ptf_crm_cheques_received' || key === 'ptf_crm_cheque_books' || key === 'ptf_crm_petty') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
+       if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers' || key === 'ptf_crm_invoices' || key === 'ptf_crm_deals' || key === 'ptf_crm_cheques_issued' || key === 'ptf_crm_cheques_received' || key === 'ptf_crm_cheque_books' || key === 'ptf_crm_petty' || key === 'ptf_crm_packinglists') return ptfMergeByCodeCanonical(key, localStr, remoteStr); /* v34.29.8: پکینگ‌لیست هم canonical — رکوردهای قدیمی cd ندارند و ptfCodeIdentity به no برمی‌گردد؛ merge رکورد برنده cd را backfill می‌کند */
       if (key === 'ptf_crm_opex' && typeof window.ptfOpexMergeSnapshots === 'function') return window.ptfOpexMergeSnapshots(localStr, remoteStr, !!(mergeOptions && mergeOptions.preferRemoteOpex));
       var loc = JSON.parse(localStr || '[]');
       var rem = JSON.parse(remoteStr || '[]');

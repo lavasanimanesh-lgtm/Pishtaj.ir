@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.29.3 — پایه‌ی «استارت سرد SPA» / سوادِ لود (LOAD-AUDIT-001، فقط استاتیک، بدون تغییر رفتار):
+/* v34.29.8 — پایه‌ی «استارت سرد SPA» / سوادِ لود (LOAD-AUDIT-001، فقط استاتیک، بدون تغییر رفتار):
    - همه‌ی اسکریپت‌های مدنظر index.html روی دیسک وجود دارند.
    - همه‌ی cache-bust ها با نسخه‌ی فعلی (بعد از VERSION.json) هم‌خوانی دارند.
    - ui-kit/mobilenav قبل از bundleهای عملیاتی؛ sales-domain-v2 بعد از مسیر legacy.
@@ -14,8 +14,8 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 var ver = JSON.parse(read('VERSION.json'));
 var idx = read('crm/index.html');
 
-T('VERSION.json = v34.29.3', ver.crm_version === 'v34.29.3', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.29.3', /window\.PTF_CRM_RELEASE = 'v34\.29.3'/.test(idx));
+T('VERSION.json = v34.29.8', ver.crm_version === 'v34.29.8', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.29.8', /window\.PTF_CRM_RELEASE = 'v34\.29.8'/.test(idx));
 
 var srcs = [];
 var re = /<script[^>]*src="([^"]+)"/g, m;
@@ -24,8 +24,8 @@ var localSrcs = srcs.filter(function (s) { return s.indexOf('http') !== 0 && !s.
 T('تعداد اسکریپت‌های محلی > ۵۰', localSrcs.length > 50, localSrcs.length);
 var missing = localSrcs.filter(function (s) { return !fs.existsSync(path.join(ROOT, 'crm', s.replace(/\?.*$/, ''))); });
 T('همه‌ی اسکریپت‌های محلی روی دیسک موجودند', missing.length === 0, missing.join(', '));
-var wrongVer = localSrcs.filter(function (s) { return /\?v=/.test(s) && !/v=34\.29.3/.test(s); });
-T('همه‌ی cache-bust ها = 34.29.3', wrongVer.length === 0, wrongVer.join(', '));
+var wrongVer = localSrcs.filter(function (s) { return /\?v=/.test(s) && !/v=34\.29.8/.test(s); });
+T('همه‌ی cache-bust ها = 34.29.8', wrongVer.length === 0, wrongVer.join(', '));
 
 /* ترتیب قابل‌اعتماد */
 function pos(sub) { return idx.indexOf(sub); }
@@ -42,6 +42,6 @@ T('همه‌ی entryها در Service Worker precache شده‌اند', notCache
 
 T('tester489 در گیت CI', read('_tools/uat/run-ci-gate.js').indexOf('tester489-v34.7.91-load-order-audit.js') > -1);
 
-console.log('\n— tester489 (v34.29.3: پایه‌ی استارت سرد — LOAD-AUDIT-001) —');
+console.log('\n— tester489 (v34.29.8: پایه‌ی استارت سرد — LOAD-AUDIT-001) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

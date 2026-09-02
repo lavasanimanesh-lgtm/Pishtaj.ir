@@ -1038,9 +1038,17 @@
       }
     } catch (e) {}
     var rb = (typeof ptfRealBuyStatus === 'function') ? ptfRealBuyStatus(r.inqNo) : { total: 0, done: 0, has: false };
-    var costSum = (r.costEvents || []).filter(function (x) {
-      return !(x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || ''))));
-    }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    var costSum = (function (evs) {
+      /* v34.29.8: ددوب بر اساس cd پیش از جمع — نوار مالی هر هزینه را یک‌بار می‌شمارد */
+      var seen = {};
+      return (evs || []).filter(function (x) {
+        if (x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || '')))) return false;
+        var k = x && (x.cd || x.pettyCd) || x;
+        if (k && seen[k]) return false;
+        if (k) seen[k] = 1;
+        return true;
+      }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    })(r.costEvents);
     var invCount = (d.invoices || []).length;
     var openAmt = (d.invoices || []).reduce(function (s, i) {
       var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(i) : ((i.payments || []).concat(i.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
@@ -1192,6 +1200,19 @@
     var pjPettyByCd = {}, pjPettyAll = getData('ptf_crm_petty') || [];
     pjPettyAll.forEach(function (p) { if (p && p.cd) pjPettyByCd[p.cd] = p; });
     var pjCostEvents = (r.costEvents || []).slice();
+    /* v34.29.8 (COST-DEDUP): ددوب نمایشی بر اساس cd — بیمهٔ ثانویه روی دادهٔ تاریخی
+       تا زمانی که merge/جاروب تعمیر همهٔ دستگاه‌ها همگرا کند. */
+    (function () {
+      var seen = {}, dd = [];
+      pjCostEvents.forEach(function (ce) {
+        if (!ce) return;
+        var cd = String(ce.cd || '');
+        if (!cd) { dd.push(ce); return; }
+        if (seen[cd]) return;
+        seen[cd] = 1; dd.push(ce);
+      });
+      pjCostEvents = dd;
+    })();
     pjPettyAll.forEach(function (p) {
       if (!p || p.st === 'void' || p.dealRef !== r.cd) return;
       if (pjCostEvents.some(function (ce) { return (ce.pettyCd || (ce.fromPetty && ce.cd)) === p.cd; })) return;
@@ -2218,6 +2239,7 @@
     if (!d) return;
     if (!confirm('این هزینه از پرونده حذف شود؟' + (pettyCd ? '\n\n(لینک از تنخواه نیز حذف می‌شود ولی هزینهٔ اصلی در تنخواه باقی می‌ماند.)' : ''))) return;
     d.costEvents = (d.costEvents || []).filter(function (x) { if (x.cd === costCd) return false; return true; });
+    if (typeof window.ptfDealCostTomb === 'function') window.ptfDealCostTomb(d, costCd); /* v34.29.8: حذف ماندگار در merge بین‌دستگاهی */
     d.timeline = d.timeline || [];
     d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینهٔ پرونده ' + costCd + (pettyCd ? ' (لینک تنخواه ' + pettyCd + ')' : '') });
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }), { reason: 'w2' }); else setData('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }));
@@ -2237,5 +2259,61 @@
 
   var htr2 = 0;
   var ht2 = setInterval(function () { htr2++; if (hookLetterModal() || htr2 > 50) clearInterval(ht2); }, 400);
+
+  /* ═══ v34.29.8 (COST-REPAIR): پاکسازی یک‌بارهٔ آسیب تاریخی costEvents ═══
+     گزارش کارفرما: «هزینه‌های مستقیم پرونده چندباره محاسبه شده و با حذف برمی‌گردند؛
+     هزینهٔ تنخواهِ پروندهٔ دیگر هم در این پرونده درج شده.» آسیب‌ها: ① رویداد تکراری
+     هم‌کد/متفاوت‌کد از union امضای کامل-JSON ② رویداد یتیم تنخواه (منبع حذف/ابطال
+     شده یا لینک‌شده به پروندهٔ دیگر / لینک‌گسسته) ③ موارد حذف‌شده‌ای که tombstone
+     نداشتند. جاروب: ددوب بر cd + حذف یتیم‌ها + نوشتن _costTomb برای هر حذف تا
+     merge بین‌دستگاهی هرگز بازشان نگرداند. idempotent؛ یک‌بار در هر دستگاه. */
+  window.ptfDealCostRepairSweep = function (force) {
+    /* فلگ گارد از مسیر لایهٔ داده (A10/E2) — نه localStorage مستقیم؛ این کلید عضو
+       SYNC_KEYS نیست → فقط محلی است و نویز sync ندارد. */
+    var flags = (typeof getData === 'function' ? getData('ptf_app_flags') : []) || [];
+    var hasFlag = flags.some(function (x) { return x && x.cd === 'cost_repair_v1'; });
+    if (!force && hasFlag) return { ok: true, skipped: true, deals: 0 };
+    var ds = getData('ptf_crm_deals') || [];
+    var pettyBy = {};
+    (getData('ptf_crm_petty') || []).forEach(function (p) { if (p && p.cd) pettyBy[p.cd] = p; });
+    var touched = 0;
+    ds.forEach(function (d) {
+      if (!d || !Array.isArray(d.costEvents) || !d.costEvents.length) return;
+      var tomb = d._costTomb || {};
+      var seen = {}, kept = [], removed = 0;
+      d.costEvents.forEach(function (e) {
+        if (!e || typeof e !== 'object') return;
+        var cd = String(e.cd || '');
+        if (!cd) { kept.push(e); return; }
+        if (tomb[cd]) { removed++; return; }
+        var pcd = String(e.pettyCd || (e.fromPetty ? e.cd : '') || '');
+        if (pcd) {
+          var src = pettyBy[pcd];
+          /* یتیم: منبع نیست / باطل است / به پروندهٔ دیگری لینک است / اصلاً لینک ندارد */
+          if (!src || src.st === 'void' || !src.dealRef || src.dealRef !== d.cd) {
+            tomb[cd] = new Date().toISOString();
+            removed++;
+            return;
+          }
+        }
+        if (seen[cd]) { removed++; return; } /* تکرار هم‌کد: فقط رد می‌شود — tombstone نمی‌گیرد چون نسخهٔ مشروع همان cd زنده است؛ کپی‌های کهنه را ددوب merge (COST-EVENT-TOMB) می‌گیرد */
+        seen[cd] = 1;
+        kept.push(e);
+      });
+      if (removed) { d._costTomb = tomb; d.costEvents = kept; touched++; }
+    });
+    if (touched) {
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds, { reason: 'cost-repair' });
+      else setData('ptf_crm_deals', ds);
+      try { if (typeof audit === 'function') audit('پرونده فروش', '🧹 پاکسازی هزینه‌های تکراری/یتیم در ' + touched + ' پرونده (با tombstone ماندگار)', 'COST-REPAIR'); } catch (eA) {}
+    }
+    try {
+      flags = flags.filter(function (x) { return x && x.cd !== 'cost_repair_v1'; });
+      flags.push({ cd: 'cost_repair_v1', t: new Date().toISOString() });
+      setData('ptf_app_flags', flags);
+    } catch (eFlag) {}
+    return { ok: true, skipped: false, deals: touched };
+  };
+  try { window.ptfDealCostRepairSweep(); } catch (eRS) {}
 })();
 ;

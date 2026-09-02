@@ -28,7 +28,7 @@ T('restore payload فلگ صریح restore:true دارد',restore.indexOf('resto
 T('server restore فقط admin/chairman است',push.indexOf("!in_array($client_role, ['admin','chairman'], true)")>-1&&push.indexOf('restore_permission_denied')>-1);
 T('restore snapshot را authoritative و tombstone جدیدتر را کنار می‌گذارد',push.indexOf("$restore ? '' : $serverArchiveJson")>-1);
 T('restore از duplicate-offer guard عادی عبور می‌کند',push.indexOf("if (!$restore && $k === 'ptf_crm_offers')")>-1);
-T('restore از conflict و zero-wipe guard قبلی نیز عبور می‌کند',push.indexOf('if (!$restore && !$allow_wipe')>-1&&push.indexOf('if (!$allow_wipe && !$restore && !$isSharedUnion)')>-1); /* v34.29.3: سپر داده‌صفر برای کلیدهای shared-union غیرفعال (RCA avatars) */
+T('restore از conflict و zero-wipe guard قبلی نیز عبور می‌کند',push.indexOf('if (!$restore && !$allow_wipe')>-1&&push.indexOf('if (!$allow_wipe && !$restore && !$isSharedUnion)')>-1); /* v34.29.8: سپر داده‌صفر برای کلیدهای shared-union غیرفعال (RCA avatars) */
 T('get_backup همچنان path whitelist و role guard دارد',api.indexOf("case 'get_backup':")>-1&&api.indexOf("role_guard('users_write')")>-1&&api.indexOf('basename(clean($_REQUEST')>-1);
 
 console.log('\n'+p+' PASS / '+f+' FAIL');process.exit(f?1:0);

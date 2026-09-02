@@ -291,6 +291,7 @@
       var d = ds.filter(function (x) { return x.cd === r.dealRef; })[0];
       if (d) {
         d.costEvents = (d.costEvents || []).filter(function (x) { return x.cd !== r.cd; });
+        if (typeof window.ptfDealCostTomb === 'function') window.ptfDealCostTomb(d, r.cd); /* v34.29.8: حذف ماندگار در merge */
         d.timeline = d.timeline || [];
         d.timeline.push({ t: faDateTime(), by: userName(), tx: '🗑 حذف/ابطال هزینه تنخواه لینک‌شده از پرونده: ' + money(r.amt) + ' — ' + (r.desc || r.cat) });
         if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds, { reason: 'w2' }); else setData('ptf_crm_deals', ds);

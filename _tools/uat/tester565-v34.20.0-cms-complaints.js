@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester565 — v34.29.3: سه رفع شکایت مالک
+/* tester565 — v34.29.8: سه رفع شکایت مالک
    A) گروه «مدیریت سایت» — سه‌گانه در کشوی موبایل هم سرگروه دارد (دسکتاپ از v34.13.0)
    B) فرم صفحهٔ جدید: شمارندهٔ زنده + نوار ابزار HTML + پیش‌نمایش + گسترش AI
    C) JSON مقاوم: salvage (کاما/پوشش) + retry دومقطعه با توکن دوبرابر برای seo_product/meta/article */
@@ -25,7 +25,7 @@ T('NAV: CSS سرگروه تمام-عرض در گرید کشو', mnv.indexOf('.mn
 T('NAV: بازشدن خودکار/ماندگاری گروه (از 13.0) پابرجا', ih.indexOf('id="smLabel"') > -1);
 
 /* ═══ B) ابزارهای فرم صفحه ═══ */
-T('TOOL: شمارندهٔ زندهٔ title/desc/body با oninput', cms.indexOf('id="pgTitle" oninput="cmsPgCount()"') > -1 && cms.indexOf('id="pgDesc" rows="2" oninput="cmsPgCount()"') > -1 && cms.indexOf('id="pgBody" rows="12" oninput="cmsPgCount()"') > -1);
+T('TOOL: شمارندهٔ زندهٔ title/desc/body با oninput', cms.indexOf('id="cmsPgTitle" oninput="cmsPgCount()"') > -1 && cms.indexOf('id="pgDesc" rows="2" oninput="cmsPgCount()"') > -1 && cms.indexOf('id="pgBody" rows="12" oninput="cmsPgCount()"') > -1);
 T('TOOL: بازه‌های سئو (۳۰–۶۵ عنوان / ۷۰–۱۶۵ توضیح / ۲۰۰ حرف حداقل بدنه)', cms.indexOf('t.length >= 30 && t.length <= 65') > -1 && cms.indexOf('d.length >= 70 && d.length <= 165') > -1 && cms.indexOf('b.length >= 200') > -1);
 T('TOOL: شمارنده پس از بازیابی پیش‌نویس هم صدا زده می‌شود', /cmsDraftRestore\(PAGE_FIELDS[\s\S]{0,120}cmsPgCount\(\)/.test(cms));
 T('TOOL: نوار ابزار (H2/H3/P/B/لیست/فهرست/جدول/لینک/تصویر/نقل‌قول)', ['<h2>','<h3>','<p>','<b>','blockquote','cmsPgTable()','cmsPgLink()','cmsPgImg()'].every(function (k) { return cms.indexOf(k) > -1; }) && cms.split('cmsPgWrap(').length - 1 >= 5 && cms.split('cmsPgList(').length - 1 >= 2);
@@ -34,7 +34,7 @@ T('TOOL: لیست — هر خط به <li> تبدیل و بولد نقطه‌ای
 T('TOOL: لینک/تصویر escape نقل‌قول', cms.indexOf('replace(/"/g, ') > -1);
 T('TOOL: پیش‌نمایش با متا (title/desc + طول) و بدنهٔ رندرشده', cms.indexOf('👁 پیش‌نمایش صفحه') > -1 && cms.indexOf('cmsPgPreview') > -1);
 T('TOOL: گسترش AI با seo_expand + گیت ۱۰۰ حرف + تأیید', /window\.cmsPgExpand = function[\s\S]{0,500}length < 100[\s\S]{0,600}confirm\([\s\S]{0,400}seo_expand/.test(cms));
-T('TOOL: گسترش فقط فیلدهای خالی را پر می‌کند و added را نشان می‌دهد', /cmsPgExpand[\s\S]{0,900}!\(document\.getElementById\('pgTitle'\) \|\| \{\}\)\.value/.test(cms) && cms.indexOf('v.added.join') > -1);
+T('TOOL: گسترش فقط فیلدهای خالی را پر می‌کند و added را نشان می‌دهد', /cmsPgExpand[\s\S]{0,900}!\(document\.getElementById\('cmsPgTitle'\) \|\| \{\}\)\.value/.test(cms) && cms.indexOf('v.added.join') > -1);
 T('TOOL: هر ابزار پیش‌نویس را dirty می‌کند (cmsDraftBind)', (cms.match(/cmsDraftBind\(PAGE_FIELDS\); cmsPgCount\(\)/g) || []).length >= 3);
 
 /* ═══ C) JSON مقاوم ═══ */

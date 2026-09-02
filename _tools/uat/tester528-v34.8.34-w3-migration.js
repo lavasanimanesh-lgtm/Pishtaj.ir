@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester528 — v34.29.3 (W3): مهاجرت فرمانی موج سوم — فاکتورها/رسیدها/تخصیص‌ها/
+/* tester528 — v34.29.8 (W3): مهاجرت فرمانی موج سوم — فاکتورها/رسیدها/تخصیص‌ها/
    اصلاحات/یافته‌ها/مرجوعی فروش. فقط نقش‌های مالی. ثبت‌های اصلی از قبل فرمان
    اختصاصی دارند (register_invoice/...)؛ این موج مسیر ویرایش/تکمیل/حذف UI را
    از روتر عبور می‌دهد و حذف آبشاری را بازیافت‌پذیر می‌کند. */
@@ -52,9 +52,9 @@ serverKeys.sort();
 T('A11: تطابق کامل ۱۷ کلید کلاینت/سرور', JSON.stringify(clientKeys) === JSON.stringify(serverKeys), JSON.stringify(clientKeys) + ' vs ' + JSON.stringify(serverKeys));
 
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.29.3', ver.crm_version === 'v34.29.3', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.29.3', /window\.PTF_CRM_RELEASE = 'v34\.29.3'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.29.3'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.29.8', ver.crm_version === 'v34.29.8', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.29.8', /window\.PTF_CRM_RELEASE = 'v34\.29.8'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.29.8'/.test(read('crm/sw.js')));
 
-console.log('\n— tester528 (v34.29.3: W3 migration) —');
+console.log('\n— tester528 (v34.29.8: W3 migration) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
