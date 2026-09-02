@@ -831,7 +831,12 @@
       var siteAtt = siteAttachmentMeta(s.attachment);
       var importedFiles = {};
       if (siteAtt && siteAtt.cloud) importedFiles.oth = [{ key: siteAtt.key, name: siteAtt.name, size: siteAtt.size, mode: 'arvan', t: faDateTime(), source: 'site' }];
-      var recSup = { cd: code, co: s.company, nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime(), files: importedFiles, message: s.message || '', apprNote: note || '', payTerms: s.payTerms || '', creditRange: s.creditRange || '', payScore: (s.payScore != null && s.payScore !== '') ? +s.payScore : 0 };
+      /* v34.29.7 (SITE-PARITY): تامین‌کنندهٔ سایت هم مثل فرم استاندارد CRM اشخاص رابط
+         با کانال‌های تماس می‌گیرد (قبلاً فقط nm/ph اسکالر — شماره در کارت/ویرایش
+         «شخصِ تماس» دیده نمی‌شد). طبقه‌بندی موبایل/ثابت مثل ptfXlsPerson. */
+      var supCh = (function (ph) { var d = String(ph || '').replace(/\D/g, '').replace(/^0098/, '0').replace(/^98/, '0'); if (!d) return { tels: [], mobs: [] }; if (/^09\d{9}$/.test(d)) return { tels: [], mobs: [{ n: String(ph).trim(), lb: 'فرم سایت' }] }; return { tels: [{ n: String(ph).trim(), ext: '', lb: 'فرم سایت' }], mobs: [] }; })(s.phone);
+      var recSup = { cd: code, co: s.company, kind: 'حقوقی', nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime(), files: importedFiles, message: s.message || '', apprNote: note || '', payTerms: s.payTerms || '', creditRange: s.creditRange || '', payScore: (s.payScore != null && s.payScore !== '') ? +s.payScore : 0,
+        people: (s.name || s.phone || s.email) ? [{ nm: s.name || s.company, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: supCh.tels, mobs: supCh.mobs, mails: s.email ? [{ n: s.email, lb: '' }] : [], primary: true, src: 'site' }] : [] };
       // US-174: هشدار تکراری بودن با فهرست تاییدشده (تصمیم نهایی با مدیر ارشد)
       if (typeof ptfCheckDup === 'function') {
         var dups = ptfCheckDup('supplier', recSup, null);
@@ -1567,6 +1572,15 @@
   function rfqSiteEnsureCustomer(r) {
     var custs = getData('ptf_crm_customers');
     var normP = function (s) { return String(s || '').replace(/\D/g, '').replace(/^0098/, '0').replace(/^98/, '0'); };
+    /* v34.29.7 (SITE-PARITY): کانال تماس فرم سایت طبق موازین CRM (مثل ptfXlsPerson/
+       فرم مشتری) — شمارهٔ موبایل → mobs، ثابت → tels با ext؛ دیگر همه‌چیز بی‌شرط
+       موبایل نمی‌شود. */
+    var chOf = function (phRaw) {
+      var d = normP(phRaw);
+      if (!d) return { tels: [], mobs: [] };
+      if (/^09\d{9}$/.test(d)) return { tels: [], mobs: [{ n: String(phRaw).trim(), lb: 'فرم سایت' }] };
+      return { tels: [{ n: String(phRaw).trim(), ext: '', lb: 'فرم سایت' }], mobs: [] };
+    };
     var coN = (typeof dedupNorm === 'function') ? dedupNorm(r.company) : String(r.company || '').trim();
     var phN = normP(r.phone);
     /* اتصال به مشتری موجود: نام یکسان یا شماره تماس یکسان */
@@ -1582,8 +1596,9 @@
       /* تکمیل اطلاعات غیرتکراری: رابط جدید با تایید کاربر (هم‌راستا US-363) */
       if (r.contact && !(found.people || []).some(function (p) { return (p.nm || '').trim() === r.contact.trim(); })) {
         if (confirm('🏢 این درخواست به مشتری موجود «' + found.co + '» (' + found.cd + ') متصل شد.\n\n👤 رابط جدید «' + r.contact + '» در فرم سایت آمده که در رکورد مشتری نیست — به اشخاص رابط اضافه شود؟')) {
+          var chF = chOf(r.phone);
           found.people = found.people || [];
-          found.people.push({ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: [], mobs: r.phone ? [{ n: r.phone, lb: 'فرم سایت' }] : [], mails: r.email ? [{ n: r.email, lb: '' }] : [], src: 'site' });
+          found.people.push({ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: chF.tels, mobs: chF.mobs, mails: r.email ? [{ n: r.email, lb: '' }] : [], src: 'site' });
           /* v34.8.22 (W1): مشتریِ ساخته‌شده از درخواست سایت با فرمان اتمیک سروری. */
           if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'site-rfq' });
           else setData('ptf_crm_customers', custs);
@@ -1598,7 +1613,7 @@
       cd: genCode('CUST'), co: r.company, kind: 'حقوقی',
       ind: indMap[r.category] || 'سایر', venSt: 'unreg',
       coWeb: r.email || '', coTels: [], coAddr: '',
-      people: r.contact ? [{ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: [], mobs: r.phone ? [{ n: r.phone, lb: 'فرم سایت' }] : [], mails: r.email ? [{ n: r.email, lb: '' }] : [], primary: true, src: 'site' }] : [],
+      people: r.contact ? (function () { var chN = chOf(r.phone); return [{ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: chN.tels, mobs: chN.mobs, mails: r.email ? [{ n: r.email, lb: '' }] : [], primary: true, src: 'site' }]; })() : [],
       phones: [], con: r.contact || '', ph: r.phone || '',
       ds: 'ثبت خودکار از درخواست سایت ' + (r.code || '') + '', srcSite: r.code || ''
     };

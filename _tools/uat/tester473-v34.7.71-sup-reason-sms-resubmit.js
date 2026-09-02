@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.29.6 — دلیل ثبت/رد تامین‌کننده + تکمیل مدارک پس از رد + پیامک ثبت/رد.
+/* v34.29.7 — دلیل ثبت/رد تامین‌کننده + تکمیل مدارک پس از رد + پیامک ثبت/رد.
    قرارداد:
    1) رد ساختاریافته (rejectType: mismatch/docs/other) + note + reopen؛
    2) add_supplier رکورد «ردشده + reopen» را به‌جای بلاک، باز و مدارک را جایگزین می‌کند؛
@@ -19,7 +19,7 @@ var track = read('tracking/index.html');
 var sup = read('supplier/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.29.6', ver.crm_version === 'v34.29.6', ver.crm_version);
+T('VERSION.json = v34.29.7', ver.crm_version === 'v34.29.7', ver.crm_version);
 
 /* 1) رد ساختاریافته (کلاینت) */
 T('supReject با select دلیل', bridge.indexOf("id: 'reasonType'") > -1);
@@ -50,6 +50,6 @@ T('supplier form: خواندن ?code=', sup.indexOf("new URLSearchParams(locatio
 
 T('tester473 در گیت CI', gate.indexOf('tester473-v34.7.71-sup-reason-sms-resubmit.js') > -1);
 
-console.log('\n— tester473 (v34.29.6: دلیل/پیامک/تکمیل مدارک تامین‌کننده) —');
+console.log('\n— tester473 (v34.29.7: دلیل/پیامک/تکمیل مدارک تامین‌کننده) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
