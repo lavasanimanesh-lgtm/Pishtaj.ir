@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester575 — v34.29.4: جستجوی فهرست محصولات CMS + عکس پیش‌فرض هوشمند + اصلاح لینک‌های
+/* tester575 — v34.29.5: جستجوی فهرست محصولات CMS + عکس پیش‌فرض هوشمند + اصلاح لینک‌های
    نسبی قالب + سپر نسخهٔ کهنه (VER-SHIELD) + بازسازی دو صفحهٔ محصول جدید در قالب استاندارد */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
