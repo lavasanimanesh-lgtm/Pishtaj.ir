@@ -1,5 +1,5 @@
 diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
-index 62a0cac..3361a3e 100644
+index 4adf2c6d..4bc8ade6 100644
 --- a/.github/workflows/deploy-staging.yml
 +++ b/.github/workflows/deploy-staging.yml
 @@ -1,13 +1,22 @@
@@ -236,7 +236,7 @@ index 62a0cac..3361a3e 100644
          uses: SamKirkland/FTP-Deploy-Action@v4.3.5
          with:
            server: ${{ secrets.FTP_SERVER }}
-@@ -170,34 +300,69 @@ jobs:
+@@ -170,36 +300,70 @@ jobs:
            done
            echo "⚠️ انتشار گزارش تشخیص انجام نشد"
  
@@ -260,7 +260,8 @@ index 62a0cac..3361a3e 100644
 +
 +          # ── لایهٔ ۱: بایت‌های روی دیسک سرور == کامیت (بدون عبور از کش HTTP) — fail-closed
 +          fail=0
-+          while IFS= read -r f; do
++          # FIX 2026-09-02: «<<< "$FILES"» کل فهرست فاصله‌دار را یک خط می‌خواند (نام بدشکل → همیشه ≠). نام فایل‌ها فاصله ندارند.
++          for f in $FILES; do
 +            want="$(sha1sum "$f" | cut -d' ' -f1)"
 +            tmp="/tmp/rb_$(echo "$f" | tr '/' '_')"
 +            if ! curl -sS "${A[@]}" "${AUTH[@]}" --connect-timeout 15 --max-time 60 \
@@ -269,7 +270,7 @@ index 62a0cac..3361a3e 100644
 +            fi
 +            got="$(sha1sum "$tmp" | cut -d' ' -f1)"
 +            if [ "$want" != "$got" ]; then echo "   ≠ $f (want=${want:0:10} got=${got:0:10} — روی دیسک سرور)"; fail=1; fi
-+          done <<< "$FILES"
++          done
 +          if curl -sS "${A[@]}" "${AUTH[@]}" --connect-timeout 15 --max-time 40 \
 +               "$PROTO://$HOST/${DIR%/}/__deploy__.txt" 2>/dev/null | grep -q "\"sha\":\"${{ github.sha }}\""; then
 +            echo "✅ مارکر استقرار == کامیت این ران"
@@ -286,14 +287,16 @@ index 62a0cac..3361a3e 100644
 +          http_ok=0
 +          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
              ok=1
-             while IFS= read -r f; do
+-            # FIX 2026-09-02: «<<< "$FILES"» کل فهرستِ فاصله‌دار را یک خط می‌خواند → sha1sum/curl روی نام بدشکل
+-            # → این گیت از ۲۰۲۶-۰۸-۲۸ در هر ران (staging و production) بی‌قید‌وشرط شکست می‌خورد. نام فایل‌ها فاصله ندارند.
+             for f in $FILES; do
                want="$(sha1sum "$f" | cut -d' ' -f1)"
 -              got="$(curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" | sha1sum | cut -d' ' -f1)"
 -              if [ "$want" != "$got" ]; then ok=0; echo "   ≠ $f (want=${want:0:10} got=${got:0:10})"; fi
 +              got="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
 +                     "$BASE/$f?v=${PTF_CRM_RELEASE#v}&r=$((RANDOM))$RANDOM" | sha1sum | cut -d' ' -f1)"
 +              if [ "$want" != "$got" ]; then ok=0; echo "   (HTTP هنوز کهنه) $f"; fi
-             done <<< "$FILES"
+             done
 -            live_sw="$(curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
 -            if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: $live_sw"; fi
 -            live_idx="$(curl -fsSL --max-time 30 "$BASE/crm/index.html?v=$(date +%s)" | grep -c "v=${PTF_CRM_RELEASE#v}" || true)"
@@ -322,7 +325,7 @@ index 62a0cac..3361a3e 100644
  
        - name: Fail if verification failed
          if: ${{ steps.verify.outcome == 'failure' }}
-@@ -207,9 +372,11 @@ jobs:
+@@ -209,9 +373,11 @@ jobs:
  
        - name: Summary
          run: |

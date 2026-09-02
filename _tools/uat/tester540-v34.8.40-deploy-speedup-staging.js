@@ -73,15 +73,39 @@ if (wired) {
   var patchRel = pending.length ? '_tools/' + pending.sort().pop() : null;
   if (patchRel) {
     var patchAbs = path.join(ROOT, patchRel);
-    C('وصله بدون تداخل اعمال می‌شود (git apply --check)', spawnSync('git', ['apply', '--check', patchAbs], { cwd: ROOT }).status === 0, patchRel);
+    /* v34.29.3 (INTEGRITY-LOOP-FIX): وصلهٔ speed-up روی ورک‌فلویِ «اصلاح‌شده» بازتولید شده است
+       (پیش‌نیاز: PENDING-workflow-integrity-loop-fix-*.patch — رفع حلقهٔ `<<< "$FILES"` که گیت
+       Post-deploy را از ۲۰۲۶-۰۸-۲۸ در هر ران کاذباً قرمز می‌کرد). شبیه‌سازی: اگر پیش‌نیاز هنوز
+       روی خود ورک‌فلو اعمال نشده، اول آن را در نسخهٔ موقت اعمال می‌کنیم، بعد speed-up را. */
+    var PRE_GLOB = /^PENDING-workflow-integrity-loop-fix-.*\.patch$/;
+    var pre = fs.readdirSync(path.join(ROOT, '_tools')).filter(function (n) { return PRE_GLOB.test(n); }).sort();
+    var preAbs = pre.length ? path.join(ROOT, '_tools', pre[pre.length - 1]) : null;
+    var wfHasLoopFix = /for f in \$FILES; do/.test(read(WF));
     var tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ptf-wf540-'));
     var simWfDir = path.join(tmp, '.github', 'workflows');
     fs.mkdirSync(simWfDir, { recursive: true });
     fs.readdirSync(path.join(ROOT, '.github/workflows')).forEach(function (n) {
       fs.writeFileSync(path.join(simWfDir, n), read('.github/workflows/' + n));
     });
+    var preOk = true;
+    if (!wfHasLoopFix) {
+      C('پیش‌نیاز: وصلهٔ INTEGRITY-LOOP-FIX موجود است (تا اعمال مالک)', !!preAbs, pre.join(',') || '—');
+      if (preAbs) {
+        var preSim = spawnSync('patch', ['-p1', '--no-backup-if-mismatch', '-d', tmp, '-i', preAbs], { encoding: 'utf8' });
+        preOk = preSim.status === 0;
+        C('پیش‌نیاز: وصلهٔ INTEGRITY-LOOP-FIX بدون تداخل اعمال می‌شود', preOk, String(preSim.stderr || preSim.stdout || '').slice(0, 200));
+        var fixedSt = fs.readFileSync(path.join(simWfDir, 'deploy-staging.yml'), 'utf8');
+        C('پیش‌نیاز: پس از اعمال، حلقهٔ معیوب `<<< "$FILES"` در هیچ‌یک از دو ورک‌فلو نیست', fixedSt.indexOf('done <<< "$FILES"') < 0 && fs.readFileSync(path.join(simWfDir, 'deploy-production.yml'), 'utf8').indexOf('done <<< "$FILES"') < 0);
+      } else preOk = false;
+    }
+    /* git apply --check روی درخت موقت (نه ریشهٔ مخزن) تا زنجیرهٔ پیش‌نیاز لحاظ شود */
+    C('وصله بدون تداخل اعمال می‌شود (git apply --check)', preOk && spawnSync('git', ['apply', '--check', patchAbs], { cwd: tmp }).status === 0, patchRel);
     var sim = spawnSync('patch', ['-p1', '--no-backup-if-mismatch', '-d', tmp, '-i', patchAbs], { encoding: 'utf8' });
-    if (sim.status === 0) contract(fs.readFileSync(path.join(simWfDir, 'deploy-staging.yml'), 'utf8'));
+    if (sim.status === 0) {
+      var finalSt = fs.readFileSync(path.join(simWfDir, 'deploy-staging.yml'), 'utf8');
+      contract(finalSt);
+      C('speed-up: حلقهٔ معیوب `<<< "$FILES"` را در لایه‌های readback/HTTP خودش تکرار نمی‌کند', finalSt.indexOf('done <<< "$FILES"') < 0 && (finalSt.match(/for f in \$FILES; do/g) || []).length >= 2);
+    }
     else C('شبیه‌سازیِ اعمال وصله (patch -p1)', false, String(sim.stderr || sim.stdout || '').slice(0, 200));
     try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (eRm) {}
   }
