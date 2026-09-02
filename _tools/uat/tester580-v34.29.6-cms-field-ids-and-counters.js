@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester580 — v34.29.5: ریشهٔ «شمارندهٔ عنوان نمی‌شمرد» — برخورد شناسهٔ pgTitle فرم CMS با
+/* tester580 — v34.29.6: ریشهٔ «شمارندهٔ عنوان نمی‌شمرد» — برخورد شناسهٔ pgTitle فرم CMS با
    شناسهٔ رسمی عنوان پنل هدر (ده‌ها ماژول textContent می‌نویسند؛ getElementById همیشه span هدر
    را می‌داد → شمارنده همیشه ۰، AI/اعمال خارجی عنوان را در فرم پر نمی‌کردند).
    + شمارندهٔ زندهٔ نامک (cmsSlugFb) + زنده‌کردن شمارنده‌های مردهٔ فرم محصول (cmsPrCount)
@@ -37,7 +37,7 @@ T('BEHAV: cmsSlugFb — نامعتبر (نویسه + بزرگ) با پیشنها
 
 /* ── ۳) شمارنده‌های فرم محصول زنده شدند ── */
 T('PROD: cmsPrCount + oninput روی prTitle/prDesc/prBody + span جدید prBodyLen', cms.indexOf('window.cmsPrCount = function') > -1 && cms.indexOf('id="prTitle" oninput="cmsPrCount()"') > -1 && cms.indexOf('id="prDesc" rows="2" oninput="cmsPrCount()"') > -1 && cms.indexOf('id="prBody" rows="9"') > -1 && cms.indexOf('prBody" rows="9" placeholder="<h2>معرفی ...</h2><p>...</p>" oninput="cmsPrCount()"') > -1 && cms.indexOf('id="prBodyLen"') > -1);
-T('PROD: cmsPrCount پس از بازیابی پیش‌نویس و پس از اعمال خارجی صدا زده می‌شود', cms.indexOf('cmsPrCount(); /* v34.29.5: شمارنده‌ها بلافاصله پس از بازیابی پیش‌نویس */') > -1 && cms.indexOf('cmsDraftBind(PROD_FIELDS); cmsPrCount(); /* v34.29.5 */') > -1);
+T('PROD: cmsPrCount پس از بازیابی پیش‌نویس و پس از اعمال خارجی صدا زده می‌شود', (/cmsPrCount\(\); \/\* v34\.29\.[56]: شمارنده‌ها بلافاصله پس از بازیابی پیش‌نویس \*\//.test(cms)) && (/cmsDraftBind\(PROD_FIELDS\); cmsPrCount\(\); \/\* v34\.29\.[56] \*\//.test(cms)));
 
 /* ── ۴) شفاف‌سازی کف ۲۰۰ ── */
 T('LABEL: «کف ۲۰۰ حرف، فقط همین فیلد» در هر دو فرم (صفحه + محصول)', (cms.match(/کف ۲۰۰ حرف، فقط همین فیلد/g) || []).length >= 3);

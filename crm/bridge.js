@@ -427,7 +427,12 @@
         if (!_remUpsertInFlight) {
           _remUpsertInFlight = true;
           try {
-            window.ptfEntityUpsert('ptf_crm_reminders', changedRows[changedRows.length - 1], { cb: function () { _remUpsertInFlight = false; } });
+            /* v34.29.6 (ANTI-RESURRECT): پچ مینیمال {cd, notifiedUsers, msgSent} —
+               merge سروری فقط فیلدهای حاضر در payload را بازنویسی می‌کند و بقیه را
+               از رکورد جاری نگه می‌دارد؛ پس این فرمان دیگر هرگز st:'done' تازه را
+               با ردیف کهنهٔ 'open' زنده نمی‌کند (مسیر بازگشتِ «انجام شد»). */
+            var pr = changedRows[changedRows.length - 1];
+            window.ptfEntityUpsert('ptf_crm_reminders', { cd: pr.cd, notifiedUsers: pr.notifiedUsers || {}, msgSent: !!pr.msgSent }, { cb: function () { _remUpsertInFlight = false; } });
           } catch (eCmd) { _remUpsertInFlight = false; }
         }
         /* ردیف‌های باقی‌مانده (بندرت >۱) با تیک بعد و بازسازی ساکت پوشیده می‌شوند؛
@@ -463,13 +468,28 @@
     var me = curSession();
     var d = ev.data || {};
     if (d.byUser && d.byUser === me.user) return false; // خود فرستنده پیام تکراری نگیرد
-    if (ev.kind === 'supplier_site') {
-      /* ثبت‌نام سایت در پنل «در انتظار تایید» دیده می‌شود؛ کارتابل را شلوغ نمی‌کند. */
-      if (isSenior()) { syncServerInbox(); return true; }
-      return false;
-    }
-    if (ev.kind === 'rfq_site') {
-      if (isSenior()) { syncServerInbox(); return true; }
+    if (ev.kind === 'supplier_site' || ev.kind === 'rfq_site') {
+      /* v34.29.6 (SITE-REQ-NOTIF — گزارش کارفرما: «درخواست‌هایی که از سایت ثبت
+         می‌شوند اعلان نمی‌آید»): پیش‌تر فقط syncServerInbox بی‌صداست و هیچ کارت
+         اعلانی ساخته نمی‌شد. اکنون یک کارت اعلانِ یک‌باره (سپر dkey، بدون تکرار)
+         برای نقش مرتبط ساخته می‌شود؛ تایید/رد درخواست کارت را برای همه می‌بندد
+         (ntfResolveByRef با refCd=code). استاندارد v33.4.1 حفظ است: تکرارشده
+         نیست و با resolve حذف می‌شود. */
+      var seniorEvt = isSenior();
+      var salesEvt = SALES_ROLES.indexOf(curRole()) > -1;
+      var relevantEvt = ev.kind === 'supplier_site' ? seniorEvt : (seniorEvt || salesEvt);
+      if (relevantEvt) {
+        addMsg({
+          title: ev.title || ('درخواست جدید از سایت'),
+          body: ev.kind === 'supplier_site' ? 'ثبت‌نام تامین‌کننده در سایت در انتظار بررسی است — پنل تامین‌کنندگان، بخش ثبت‌نام‌های سایت.' : 'استعلام هوشمند ثبت‌شده در سایت در انتظار بررسی است — پنل درخواست‌ها.',
+          toUsers: [me.user], kind: 'site_req', actionable: true,
+          refCd: d.code || '',
+          dkey: 'site-req|' + ev.kind + '|' + (d.code || ev.id || '') + '|' + me.user,
+          link: { panel: ev.kind === 'supplier_site' ? 'sup' : 'rfq' }
+        });
+        syncServerInbox();
+        return true;
+      }
       return false;
     }
     if (ev.kind === 'referral') {
@@ -824,6 +844,7 @@
       else setData('ptf_crm_suppliers', items);
     }
     api('set_status', { type: 'supplier', code: code, status: 'approved', statusText: 'تایید شد — به فهرست تامین‌کنندگان تاییدشده اضافه شدید', note: note || '', by: curSession().name }, function () { syncServerInbox(); });
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR1) {} /* v34.29.6: درخواست سایت تعیین‌وضع شد — کارت اعلان site_req برای همه بسته شود */
     if (typeof audit === 'function') audit('تامین‌کنندگان', 'تایید تامین‌کننده سایت: ' + s.company + (note ? ' — ' + note : ''), code);
     notify({ toRoles: SENIOR_ROLES, title: '✅ تامین‌کننده «' + s.company + '» (' + code + ') توسط ' + curSession().name + ' تایید شد', kind: 'supplier_ok', channels: ['cart'], link: { panel: 'sup' } });
     if (typeof ptfToast === 'function') ptfToast('✅ تایید شد — پیامک اطلاع‌رسانی به تامین‌کننده ارسال می‌شود', 'ok');
@@ -862,6 +883,7 @@
     var reopen = reasonType === 'docs';
     var stText = 'رد شد — ' + (REASON_LB[reasonType] || 'سایر') + (note ? ' (' + note + ')' : '');
     api('set_status', { type: 'supplier', code: code, status: 'rejected', statusText: stText, rejectType: reasonType || '', note: note || '', reopen: reopen ? 1 : 0, by: curSession().name }, function () { syncServerInbox(); });
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR2) {} /* v34.29.6: رد هم کارت site_req را می‌بندد */
     if (typeof audit === 'function') audit('تامین‌کنندگان', 'رد تامین‌کننده سایت: ' + s.company + ' — ' + (REASON_LB[reasonType] || 'سایر') + (note ? ' (' + note + ')' : ''), code);
     if (reopen && typeof ptfToast === 'function') ptfToast('↻ رد با امکان تکمیل مدارک ثبت شد — پیامک به تامین‌کننده ارسال می‌شود تا مدارک را تکمیل کند', 'ok');
     renderSuppliers();
@@ -892,6 +914,7 @@
         if (typeof renderSuppliers === 'function') renderSuppliers();
         if (typeof updateInboxBadge === 'function') updateInboxBadge();
         if (typeof syncServerInbox === 'function') syncServerInbox();
+        try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR3) {} /* v34.29.6: حذف ثبت‌نام هم کارت site_req را می‌بندد */
       } else {
         var err = '⚠️ حذف ناموفق: ' + ((d && d.error) || 'سرور در دسترس نیست');
         if (typeof ptfToast === 'function') ptfToast(err, 'warn');
@@ -1645,6 +1668,7 @@
       if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     }
     api('set_status', { type: 'rfq', code: code, status: 'approved', statusText: 'تایید شد — در حال بررسی فنی و تامین', by: curSession().name }, function () { syncServerInbox(); });
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR4) {} /* v34.29.6: استعلام سایت تعیین‌وضع شد — کارت site_req بسته شود */
     if (typeof audit === 'function') audit('استعلامات', 'تایید استعلام سایت: ' + r.company + (cust ? ' → مشتری ' + cust.cd : ''), code);
     /* v14.7 (US-380 AC5): اعلان با لینک درخواست + اشاره به مشتری ساخته‌شده */
     notify({ toRoles: SALES_ROLES, title: '📋 استعلام سایت «' + code + '» (' + r.company + ') تایید و وارد چرخه شد' + (cust ? ' — مشتری: ' + cust.cd : ''), kind: 'rfq_ok', channels: ['cart'], link: { panel: 'rfq' } });
