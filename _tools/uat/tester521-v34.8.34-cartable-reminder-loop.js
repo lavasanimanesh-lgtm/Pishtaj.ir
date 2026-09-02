@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester521 — v34.29.3 (CARTABLE-LOOP): پایان حلقهٔ «یادآور در کارتابل هر چند ثانیه
+/* tester521 — v34.29.8 (CARTABLE-LOOP): پایان حلقهٔ «یادآور در کارتابل هر چند ثانیه
    تکرار می‌شود».
 
    زنجیرهٔ ریشه‌ای:
@@ -27,7 +27,7 @@ T('createdAt/createdBy همچنان حفظ می‌شود', /\$row\['createdAt'\]
 /* ---------- ۲) قراردادهای کلاینت: bridge ---------- */
 var br = read('crm/bridge.js');
 T('اعلان یادآور dkey پایدار دارد (rem-due-cd:user)', /dkey:\s*'rem-due-' \+ r\.cd \+ ':' \+ u/.test(br));
-T('state ضدتکرار از مسیر فرمان ذخیره می‌شود (نه پوش انبوه)', /ptfEntityUpsert\('ptf_crm_reminders', changedRows\[changedRows\.length - 1\]/.test(br) && /else setData\('ptf_crm_reminders', rems\)/.test(br));
+T('state ضدتکرار از مسیر فرمان ذخیره می‌شود (نه پوش انبوه؛ v34.29.8: پچ مینیمال cd/notifiedUsers/msgSent — کل ردیف کهنه دیگر نمی‌رود)', /ptfEntityUpsert\('ptf_crm_reminders', \{ cd: pr\.cd, notifiedUsers: pr\.notifiedUsers \|\| \{\}, msgSent: !!pr\.msgSent \}/.test(br) && /else setData\('ptf_crm_reminders', rems\)/.test(br));
 T('جاروی خودترمیم کارت‌های تکراری تعریف شد', /function sweepDuplicateReminderNotifs\(\)/.test(br) && /window\.ptfSweepDuplicateReminderNotifs = sweepDuplicateReminderNotifs;/.test(br));
 T('جارو در بوت صندوق اجرا می‌شود', /sweepDuplicateReminderNotifs\(\); \} catch[\s\S]{0,160}checkDueReminders\(\);/.test(br));
 
@@ -122,9 +122,9 @@ T('جارو در بوت صندوق اجرا می‌شود', /sweepDuplicateRemin
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.29.3', ver.crm_version === 'v34.29.3', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.29.3', /window\.PTF_CRM_RELEASE = 'v34\.29.3'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.29.3'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.29.8', ver.crm_version === 'v34.29.8', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.29.8', /window\.PTF_CRM_RELEASE = 'v34\.29.8'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.29.8'/.test(read('crm/sw.js')));
 
-console.log('\n— tester521 (v34.29.3: CARTABLE-LOOP) —');
+console.log('\n— tester521 (v34.29.8: CARTABLE-LOOP) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

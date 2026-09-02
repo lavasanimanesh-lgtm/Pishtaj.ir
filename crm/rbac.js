@@ -361,7 +361,7 @@ function buildCartable() {
    این‌ها از قبل به‌صورت زنده در «☀️ روز من» (myday.js) هم دیده می‌شوند. */
 /* v34.5.5: فقط کار نیازمند اقدام. kindهای زیر حتی اگر caller فراموش کند
    actionable بگذارد، کارتابل می‌شوند. بقیه (system/warn/info/buyq/payment…) خبرند. */
-var NTF_ACTION_KINDS = ['inv_ref', 'contact_req', 'sign_req', 'sign_no', 'referral', 'reminder', 'cheque', 'management_action', 'management_report', 'petty_period', 'qc_ncr', 'delivery_next', 'data_risk'];
+var NTF_ACTION_KINDS = ['inv_ref', 'contact_req', 'sign_req', 'sign_no', 'referral', 'reminder', 'cheque', 'management_action', 'management_report', 'petty_period', 'qc_ncr', 'delivery_next', 'data_risk', 'site_req']; /* v34.29.6: site_req = درخواست/ثبت‌نام سایت — کارت اقدام یک‌باره با سپر dkey */
 var NTF_IMPORTANT_KINDS = NTF_ACTION_KINDS;
 function ntfNeedsAction(n) {
   if (!n || n.done) return false;
