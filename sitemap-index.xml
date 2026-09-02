@@ -2,9 +2,10 @@
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap><loc>https://pishtaj.ir/sitemap-blog.xml</loc><lastmod>2026-08-31</lastmod></sitemap>
   <sitemap><loc>https://pishtaj.ir/sitemap-core.xml</loc><lastmod>2026-08-31</lastmod></sitemap>
-  <sitemap><loc>https://pishtaj.ir/sitemap-en.xml</loc><lastmod>2026-08-30</lastmod></sitemap>
+  <sitemap><loc>https://pishtaj.ir/sitemap-en.xml</loc><lastmod>2026-09-02</lastmod></sitemap>
   <sitemap><loc>https://pishtaj.ir/sitemap-industries.xml</loc><lastmod>2026-08-30</lastmod></sitemap>
-  <sitemap><loc>https://pishtaj.ir/sitemap-knowledge-center.xml</loc><lastmod>2026-08-31</lastmod></sitemap>
+  <sitemap><loc>https://pishtaj.ir/sitemap-knowledge-center.xml</loc><lastmod>2026-09-02</lastmod></sitemap>
   <sitemap><loc>https://pishtaj.ir/sitemap-misc.xml</loc><lastmod>2026-08-31</lastmod></sitemap>
-  <sitemap><loc>https://pishtaj.ir/sitemap-services.xml</loc><lastmod>2026-08-31</lastmod></sitemap>
+  <sitemap><loc>https://pishtaj.ir/sitemap-products.xml</loc><lastmod>2026-09-01</lastmod></sitemap>
+  <sitemap><loc>https://pishtaj.ir/sitemap-services.xml</loc><lastmod>2026-09-02</lastmod></sitemap>
 </sitemapindex>

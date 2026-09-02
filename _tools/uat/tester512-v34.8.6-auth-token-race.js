@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.29.3 — AUTH-TOKEN-RACE / AUTH-LOGOUT-REVOKE / AUTH-401-HYGIENE.
+/* v34.31.0 — AUTH-TOKEN-RACE / AUTH-LOGOUT-REVOKE / AUTH-401-HYGIENE.
    ریشه‌یابی حلقهٔ «توکن معتبر وجود ندارد» هنگام تعویض اکانت روی یک مرورگر/گوشی:
    ۱) صدور توکن روی سرور چرخهٔ load→modify→save بدون قفل بود؛ دو ورود هم‌زمان
       lost-update می‌ساخت و توکن تازه صادرشده بی‌صدا حذف می‌شد → 401 → ورود مجدد →
@@ -25,11 +25,11 @@ var sync = read('crm/sync.js');
 var cs = read('crm/client-server.js');
 
 /* ---------- قرارداد نسخه (بامپ واقعی، بدون phase-query) ---------- */
-T('VERSION.json = v34.29.3', ver.crm_version === 'v34.29.3', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.29.3 (با کوتیشن)', /window\.PTF_CRM_RELEASE = 'v34\.29.3'/.test(idx));
-T('sw.js RELEASE/CACHE = v34.29.3', /RELEASE = 'v34\.29.3'/.test(sw) && /CACHE = 'ptf-crm-v34\.29.3'/.test(sw));
+T('VERSION.json = v34.31.0', ver.crm_version === 'v34.31.0', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.31.0 (با کوتیشن)', /window\.PTF_CRM_RELEASE = 'v34\.31.0'/.test(idx));
+T('sw.js RELEASE/CACHE = v34.31.0', /RELEASE = 'v34\.31.0'/.test(sw) && /CACHE = 'ptf-crm-v34\.31.0'/.test(sw));
 T('phase-query موقتی حذف شد', !/f0[0-9]=20260825/.test(idx) && !/PHASE0[0-9]_QUERY/.test(sw));
-T('همهٔ scriptها ?v یکسان با نسخهٔ رسمی', (function () { var re = /\?v=(\d+\.\d+\.\d+)/g, m, bad = 0; while ((m = re.exec(idx))) if (m[1] !== ver.crm_version.slice(1)) bad++; return bad === 0 && idx.indexOf('?v=' + ver.crm_version.slice(1)) > -1; })()); /* v34.29.3: چک پیشوندی قدیمی با نسخهٔ ۵۰ تصادم می‌کرد */
+T('همهٔ scriptها ?v یکسان با نسخهٔ رسمی', (function () { var re = /\?v=(\d+\.\d+\.\d+)/g, m, bad = 0; while ((m = re.exec(idx))) if (m[1] !== ver.crm_version.slice(1)) bad++; return bad === 0 && idx.indexOf('?v=' + ver.crm_version.slice(1)) > -1; })()); /* v34.31.0: چک پیشوندی قدیمی با نسخهٔ ۵۰ تصادم می‌کرد */
 
 /* ---------- سرور: چرخهٔ قفل‌شدهٔ توکن ---------- */
 T('auth.php قفل اختصاصی tokens.json.lock دارد', /function auth_with_tokens_lock/.test(auth) && /LOCK_EX/.test(auth));
@@ -83,6 +83,6 @@ T('doLogout همچنان نشست محلی را پاک می‌کند', /function
   T('خطای بی‌ربط → needLogin نیست', isNeedLoginNew({ error: 'conflict' }, 200) === false);
 })();
 
-console.log('\n— tester512 (v34.29.3: ریشه‌یابی حلقهٔ «توکن معتبر وجود ندارد») —');
+console.log('\n— tester512 (v34.31.0: ریشه‌یابی حلقهٔ «توکن معتبر وجود ندارد») —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

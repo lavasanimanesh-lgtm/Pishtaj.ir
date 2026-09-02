@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.29.3'; /* v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.31.0'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -756,7 +756,7 @@
     { v: 'industries', lb: 'صنایع' },
     { v: 'comparisons', lb: 'مقایسهٔ محصولات' }
   ];
-  var PAGE_FIELDS = ['pgTitle', 'pgSlug', 'pgH1', 'pgDesc', 'pgBody', 'pgImg'];
+  var PAGE_FIELDS = ['cmsPgTitle', 'pgSlug', 'pgH1', 'pgDesc', 'pgBody', 'pgImg'];
   window.PAGE_FIELDS = PAGE_FIELDS; /* v34.25.0: برای onclick ذخیرهٔ موقت */
 
   function renderCmsPageNew(el) { /* v34.26.1: پوستهٔ مقاوم — در خطا، فرم سادهٔ جایگزین بار می‌شود */
@@ -771,14 +771,14 @@
         '<div id="pgAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
         '<div class="fld"><label>بخش مقصد *</label><select id="pgFolder">' + _folds + '</select></div>' +
-        '<div class="fld"><label>نامک (slug) * <small>a-z و خط تیره</small></label><input type="text" id="pgSlug" dir="ltr" placeholder="valve-maintenance-services"></div>' +
+        '<div class="fld"><label>نامک (slug) * <small>a-z و خط تیره</small> <span id="pgSlugLen" style="font-size:11px"></span></label><input type="text" id="pgSlug" dir="ltr" placeholder="valve-maintenance-services" oninput="cmsSlugFb(\'pgSlug\',\'pgSlugLen\')"></div>' +
         '<div class="fld"><label>عنوان یا موضوع برای AI *</label><input type="text" id="pgTopic" placeholder="مثلاً: خدمات تعمیر و کالیبراسیون شیرآلات صنعتی"></div>' +
-        '<div class="fld"><label>عنوان سئو (title)</label><input type="text" id="pgTitle"></div>' +
+        '<div class="fld"><label>عنوان سئو (title) <span id="cmsPgTitleLen" style="font-size:11px"></span></label><input type="text" id="cmsPgTitle" oninput="cmsPgCount()"></div>' +
         '<div class="fld"><label>H1</label><input type="text" id="pgH1"></div>' +
         '<div class="fld"><label>تصویر</label><input type="text" id="pgImg" dir="ltr" value="assets/images/ptf-logo.png"></div>' +
         '</div>' +
-        '<div class="fld"><label>توضیح (description)</label><textarea id="pgDesc" rows="2"></textarea></div>' +
-        '<div class="fld"><label>متن صفحه (HTML سبک — حداقل ۲۰۰ حرف)</label><textarea id="pgBody" rows="10" placeholder="<h2>معرفی ...</h2><p>...</p>"></textarea></div>' +
+        '<div class="fld"><label>توضیح (description) <span id="pgDescLen" style="font-size:11px"></span></label><textarea id="pgDesc" rows="2" oninput="cmsPgCount()"></textarea></div>' +
+        '<div class="fld"><label>متن صفحه (HTML سبک — کف ۲۰۰ حرف، فقط همین فیلد) <span id="pgBodyLen" style="font-size:11px"></span></label><textarea id="pgBody" rows="10" placeholder="<h2>معرفی ...</h2><p>...</p>" oninput="cmsPgCount()"></textarea></div>' +
         '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">' +
         '<button class="bt" style="background:#7c3aed" onclick="cmsPageAi()">🤖 تولید با هوش مصنوعی</button>' +
         '<button class="bt bt-o" style="color:#0e7490" onclick="cmsPgExtPrompt()">🌐 هوش مصنوعی خارجی</button>' +
@@ -800,7 +800,7 @@
       '<div id="pgAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
       '<div class="fld"><label>بخش مقصد *</label><select id="pgFolder">' + opts + '</select></div>' +
-      '<div class="fld"><label>نامک (slug) * <small style="color:#94a3b8">a-z و خط تیره</small></label><input type="text" id="pgSlug" dir="ltr" placeholder="valve-maintenance-services"></div>' +
+      '<div class="fld"><label>نامک (slug) * <small style="color:#94a3b8">a-z و خط تیره</small> <span id="pgSlugLen" style="font-size:11px"></span></label><input type="text" id="pgSlug" dir="ltr" placeholder="valve-maintenance-services" oninput="cmsSlugFb(\'pgSlug\',\'pgSlugLen\')"></div>' +
       '<div class="fld"><label>عنوان یا موضوع برای AI *</label><input type="text" id="pgTopic" placeholder="مثلاً: خدمات تعمیر و کالیبراسیون شیرآلات صنعتی"></div>' +
       '<div class="fld"><label>مخاطب</label><input type="text" id="pgAud" value="کارشناس خرید و مهندس نگهداری و تعمیر"></div>' +
       '</div>' +
@@ -808,10 +808,10 @@
       '<button class="bt bt-o" style="color:#0e7490" onclick="cmsPgExtPrompt()">🌐 هوش مصنوعی خارجی</button>' +
       '<small style="color:#94a3b8">برای مطالب بلند: پرامپت آماده بساز، در ChatGPT/Claude/Gemini ببر و خروجی را همین‌جا بچسبان</small>' +
       '<button class="bt bt-o" style="color:#059669" onclick="cmsDraftBtn(PAGE_FIELDS,\'pgAiSt\')">💾 ذخیرهٔ موقت</button></div>' +
-      '<div class="fld"><label>عنوان سئو (title) <span id="pgTitleLen" style="font-size:11px"></span></label><input type="text" id="pgTitle" oninput="cmsPgCount()"></div>' +
+      '<div class="fld"><label>عنوان سئو (title) <span id="cmsPgTitleLen" style="font-size:11px"></span></label><input type="text" id="cmsPgTitle" oninput="cmsPgCount()"></div>' +
       '<div class="fld"><label>H1</label><input type="text" id="pgH1"></div>' +
       '<div class="fld"><label>توضیح (description) <span id="pgDescLen" style="font-size:11px"></span></label><textarea id="pgDesc" rows="2" oninput="cmsPgCount()"></textarea></div>' +
-      '<div class="fld"><label>متن صفحه (HTML سبک — حداقل ۲۰۰ حرف) <span id="pgBodyLen" style="font-size:11px"></span></label>' +
+      '<div class="fld"><label>متن صفحه (HTML سبک — کف ۲۰۰ حرف، فقط همین فیلد) <span id="pgBodyLen" style="font-size:11px"></span></label>' +
       '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">' + /* v34.20.0: نوار ابزار ویرایش */
         '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgWrap(\'<h2>\',\'</h2>\')" title="تیتر بخش">H2</button>' +
         '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="cmsPgWrap(\'<h3>\',\'</h3>\')" title="تیتر فرعی">H3</button>' +
@@ -839,14 +839,30 @@
   }
 
   /* ═══ v34.20.0 (PAGE-TOOLS): ابزارهای ویرایش فرم صفحه — شمارنده/نوار ابزار/پیش‌نمایش/گسترش ═══ */
+  window.cmsSlugFb = function (inpId, spanId) { /* v34.29.5: بازخورد زندهٔ نامک — طول + اعتبار a-z/عدد/خط تیره + پیشنهاد تمیز */
+    var e = document.getElementById(inpId), sp = document.getElementById(spanId);
+    if (!e || !sp) return;
+    var v = String(e.value || '').trim();
+    if (!v) { sp.textContent = ''; return; }
+    var lv = v.toLowerCase();
+    var badN = (lv.match(/[^a-z0-9\-]/g) || []).length;
+    var clean = lv.replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    if (badN === 0 && v === lv && v.length >= 3) { sp.textContent = v.length + ' کاراکتر ✓'; sp.style.color = '#059669'; }
+    else {
+      sp.textContent = v.length + ' کاراکتر' + (badN ? ' · ⛔ ' + badN + ' نویسهٔ نامعتبر (فقط a-z، عدد و خط تیره)' : '') + (clean && clean !== v ? ' · پیشنهاد: ' + clean : '');
+      sp.style.color = badN ? '#b91c1c' : '#b45309';
+    }
+  };
+
   window.cmsPgCount = function () {
     var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
     var set = function (id, txt, ok) { var el = document.getElementById(id); if (el) { el.textContent = txt; el.style.color = ok ? '#059669' : '#b45309'; } };
-    var t = g('pgTitle'), d = g('pgDesc'), b = g('pgBody');
-    set('pgTitleLen', t.length + '/۶۰', t.length >= 30 && t.length <= 65);
+    var t = g('cmsPgTitle'), d = g('pgDesc'), b = g('pgBody');
+    set('cmsPgTitleLen', t.length + '/۶۰', t.length >= 30 && t.length <= 65);
     set('pgDescLen', d.length + '/۱۶۰', d.length >= 70 && d.length <= 165);
     var words = b.trim() ? b.trim().split(/\s+/).length : 0;
     set('pgBodyLen', words + ' کلمه / ' + b.length + ' حرف' + (b.length >= 200 ? ' ✓' : ' (حداقل ۲۰۰)'), b.length >= 200);
+    cmsSlugFb('pgSlug', 'pgSlugLen'); /* v34.29.5: بازخورد نامک همزمان با شمارنده‌ها */
   };
   window.cmsPgWrap = function (a, z) {
     var ta = document.getElementById('pgBody'); if (!ta) return;
@@ -993,7 +1009,7 @@
 
   window.cmsPgPreview = function () {
     var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
-    var title = g('pgTitle') || 'بدون عنوان', h1 = g('pgH1') || title, desc = g('pgDesc'), body = g('pgBody') || '<p>—</p>';
+    var title = g('cmsPgTitle') || 'بدون عنوان', h1 = g('pgH1') || title, desc = g('pgDesc'), body = g('pgBody') || '<p>—</p>';
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px';
     ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
@@ -1008,7 +1024,7 @@
     var ta = document.getElementById('pgBody'); if (!ta) return;
     var body = ta.value || '';
     if (body.trim().length < 100) { alert('برای گسترش، ابتدا متن اولیه (حداقل ۱۰۰ حرف) را داشته باشید — با 🤖 تولید یا تایپ دستی.'); return; }
-    var topic = (document.getElementById('pgTopic') || {}).value || ((document.getElementById('pgTitle') || {}).value || '');
+    var topic = (document.getElementById('pgTopic') || {}).value || ((document.getElementById('cmsPgTitle') || {}).value || '');
     if (!confirm('✍️ متن فعلی با نسخهٔ کامل‌تر (استانداردها/معیارهای انتخاب/چک‌لیست خرید) بازنویسی می‌شود. ادامه؟')) return;
     var st = document.getElementById('pgAiSt'); if (st) st.innerHTML = '⏳ هوش مصنوعی در حال گسترش متن…';
     cmsLLM('seo_expand', { text: body, topic: topic }, function (d) {
@@ -1016,7 +1032,7 @@
       if (!d.ok || !d.data) { alert('⚠️ ' + (d.error || 'خطا')); return; }
       var v = d.data;
       if (v.body) ta.value = v.body;
-      if (v.title && !(document.getElementById('pgTitle') || {}).value) document.getElementById('pgTitle').value = v.title;
+      if (v.title && !(document.getElementById('cmsPgTitle') || {}).value) document.getElementById('cmsPgTitle').value = v.title;
       if (v.desc && !(document.getElementById('pgDesc') || {}).value) document.getElementById('pgDesc').value = v.desc;
       if (v.h1 && !(document.getElementById('pgH1') || {}).value) document.getElementById('pgH1').value = v.h1;
       cmsDraftBind(PAGE_FIELDS); cmsPgCount();
@@ -1053,6 +1069,7 @@
       '<button class="bt" style="background:#0e7490;margin-top:6px" onclick="cmsExtCopy()">📋 کپی پرامپت</button>' +
       '<div style="font-size:11.5px;color:#475569;margin:10px 0 6px">⬇️ خروجی هوش مصنوعی را اینجا بچسبان (همان قالب نشانگردار):</div>' +
       '<textarea id="ptExtPaste" rows="7" style="width:100%;font:12px/1.8 inherit;border:1px solid #a5b4fc;border-radius:10px;padding:10px;box-sizing:border-box" placeholder="TITLE: ...&#10;H1: ...&#10;DESCRIPTION: ...&#10;SLUG: ...&#10;BODY:&#10;<h2>...</h2>"></textarea>' +
+      '<div id="ptExtErr" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:12px;color:#b91c1c;line-height:2;margin-top:6px"></div>' + /* v34.29.4: خطای قابل‌دیدن در خود مودال */
       '<button class="bt" style="background:#059669;margin-top:6px" onclick="' + applyFn + '">✅ اعمال در فرم</button></div>';
     document.body.appendChild(ov);
     document.getElementById('ptExtPrompt').value = prompt;
@@ -1066,18 +1083,42 @@
     function fallback() { ta.removeAttribute('readonly'); ta.select(); try { document.execCommand('copy'); ok(); } catch (eX) { alert('کپی خودکار نشد — دستی انتخاب و کپی کنید'); } ta.setAttribute('readonly', 'readonly'); }
     fallback();
   };
-  window.cmsExtParse = function (text) { /* تجزیهٔ نشانگرها — TITLE/H1/DESCRIPTION/SLUG تک‌خطی، BODY/SPECS/FAQ بلوکی */
+  window.cmsExtErr = function (msg) { /* v34.29.4: به‌جای alertِ تنها — پیام داخل مودال + فوکوس روی کادر چسبان */
+    var el = document.getElementById('ptExtErr');
+    if (!el) { alert(msg); return; }
+    el.style.display = 'block';
+    el.innerHTML = msg;
+    var ta = document.getElementById('ptExtPaste');
+    if (ta) { try { ta.focus(); ta.select(); } catch (eF) {} }
+  };
+
+  window.cmsExtParse = function (text) { /* تجزیهٔ نشانگرها — TITLE/H1/DESCRIPTION/SLUG تک‌خطی، BODY/SPECS/FAQ بلوکی
+    v34.29.4 (EXT-PARSE-HARDEN): خروجی واقعی ChatGPT/Claude/Gemini اغلب نشانگرها را «بولد» می‌کند
+    (**TITLE:** x)، داخل جعبهٔ کد (```…```) می‌پیچد، بولت/سرفصل می‌گذارد یا دونقطهٔ کامل (：) می‌نویسد —
+    همهٔ این‌ها پیش از تطبیق نرمال می‌شوند؛ خطوط محتوای BODY همیشه به‌صورت دست‌نخورده بافر می‌شوند. */
     var out = { title: '', h1: '', desc: '', slug: '', body: '', specs: '', faq: '' };
+    function clean(v) { return String(v || '').replace(/^\*+|\*+$/g, '').replace(/^`+|`+$/g, '').trim(); }
+    function norm(t) { /* فقط برای «تشخیص نشانگر» — نه بافر محتوا */
+      return String(t || '').trim()
+        .replace(/^[#>\s`]+/, '')                /* سرفصل/نقل‌قول/بک‌تیک */
+        .replace(/^[-*•‣·+]\s+/, '')             /* بولت با فاصله */
+        .replace(/^\*{1,2}/, '')                 /* بولدِ باز */
+        .replace(/\*{1,2}\s*[:：]\s*/, ':')     /* بولدِ بستهٔ قبل از دونقطه */
+        .replace(/[:：]\s*\*{1,2}\s*/, ' : ')  /* بولدِ بعد از دونقطه */
+        .replace(/：/g, ':');                     /* دونقطهٔ کامل CJK */
+    }
     var lines = String(text || '').split(/\r?\n/);
     var mode = '';
     var buf = [];
     function flush() { if (mode === 'BODY') out.body = buf.join('\n').trim(); else if (mode === 'SPECS') out.specs = buf.join('\n').trim(); else if (mode === 'FAQ') out.faq = buf.join('\n').trim(); buf = []; }
     for (var i = 0; i < lines.length; i++) {
       var ln = lines[i];
-      var m1 = ln.match(/^(TITLE|H1|DESCRIPTION|SLUG)\s*:\s*(.*)$/i);
-      if (m1) { var k = m1[1].toUpperCase(); var v = m1[2].trim(); if (k === 'TITLE') out.title = v; else if (k === 'H1') out.h1 = v; else if (k === 'DESCRIPTION') out.desc = v; else out.slug = v; continue; }
-      var m2 = ln.match(/^(BODY|SPECS|FAQ)\s*:\s*(.*)$/i);
-      if (m2) { flush(); mode = m2[1].toUpperCase(); var rest = m2[2].trim(); if (rest) buf.push(rest); continue; }
+      if (/^\s*(```|~~~)/.test(ln)) continue; /* جعبهٔ کد — وارد محتوا نمی‌شود */
+      var lnN = norm(ln);
+      var m1 = lnN.match(/^(TITLE|H1|DESCRIPTION|SLUG)\s*:\s*(.*)$/i);
+      if (m1) { var k = m1[1].toUpperCase(); var v = clean(m1[2]); if (k === 'TITLE') out.title = v; else if (k === 'H1') out.h1 = v; else if (k === 'DESCRIPTION') out.desc = v; else out.slug = v; continue; }
+      var m2 = lnN.match(/^(BODY|SPECS|FAQ)\s*:\s*(.*)$/i);
+      if (m2) { flush(); mode = m2[1].toUpperCase(); var rest = clean(m2[2]); if (rest) buf.push(rest); continue; }
       if (mode) buf.push(ln);
     }
     flush();
@@ -1102,7 +1143,7 @@
     var g = function (id) { return ((document.getElementById(id) || {}).value || '').trim(); };
     var folderLb = 'خدمات';
     (PAGE_FOLDERS || []).forEach(function (f) { if (f.v === g('pgFolder')) folderLb = f.lb; });
-    var topic = g('pgTopic') || g('pgTitle') || '';
+    var topic = g('pgTopic') || g('cmsPgTitle') || '';
     if (!topic) { alert('ابتدا «موضوع برای AI» یا عنوان را بنویسید تا پرامپت همان موضوع ساخته شود.'); return; }
     var p = 'تو متخصص محتوای فنی شرکت «پیشرو تجهیز فرتاک» — تامین‌کننده تجهیزات صنعتی (شیرآلات، اتصالات، فلنج، ابزار دقیق، برق صنعتی) برای صنایع نفت، گاز و پتروشیمی ایران — هستی.\n\n' +
       'وظیفه: نوشتن متن کامل و یگانهٔ یک صفحهٔ وب.\n' +
@@ -1122,10 +1163,10 @@
   };
   window.cmsPgExtApply = function () {
     var v = cmsExtParse((document.getElementById('ptExtPaste') || {}).value || '');
-    if (!v.body && !v.title) { alert('خروجی معتبر تشخیص داده نشود — مطمئن شو نشانگرها (TITLE:/BODY:) را عیناً کپی کرده‌اید.'); return; }
+    if (!v.body && !v.title) { cmsExtErr('⛔ نشانگرها پیدا نشد — خروجی باید خط‌هایی مثل <b dir="ltr">TITLE: …</b> و <b dir="ltr">BODY:</b> داشته باشد.<br>قالب بولد (<b dir="ltr">**TITLE:**</b>)، جعبهٔ کد، بولت و دونقطهٔ کامل هم پذیرفته می‌شود؛ کل خروجی را از اول تا آخر کپی و دوباره بچسبانید.'); return; }
     v.slug = (v.slug || '').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     var n = cmsExtFill([
-      { id: 'pgTitle', val: v.title }, { id: 'pgH1', val: v.h1 }, { id: 'pgDesc', val: v.desc },
+      { id: 'cmsPgTitle', val: v.title }, { id: 'pgH1', val: v.h1 }, { id: 'pgDesc', val: v.desc },
       { id: 'pgSlug', val: v.slug }, { id: 'pgBody', val: v.body }
     ], v, 'pgAiSt', '<b>بازبینی انسانی الزامی است.</b>');
     cmsDraftBind(PAGE_FIELDS); cmsPgCount();
@@ -1161,13 +1202,13 @@
   };
   window.cmsProdExtApply = function (cd) {
     var v = cmsExtParse((document.getElementById('ptExtPaste') || {}).value || '');
-    if (!v.body && !v.title) { alert('خروجی معتبر تشخیص داده نشود — مطمئن شو نشانگرها (TITLE:/BODY:) را عیناً کپی کرده‌اید.'); return; }
+    if (!v.body && !v.title) { cmsExtErr('⛔ نشانگرها پیدا نشد — خروجی باید خط‌هایی مثل <b dir="ltr">TITLE: …</b> و <b dir="ltr">BODY:</b> داشته باشد.<br>قالب بولد (<b dir="ltr">**TITLE:**</b>)، جعبهٔ کد، بولت و دونقطهٔ کامل هم پذیرفته می‌شود؛ کل خروجی را از اول تا آخر کپی و دوباره بچسبانید.'); return; }
     v.slug = (v.slug || '').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     var n = cmsExtFill([
       { id: 'prTitle', val: v.title }, { id: 'prH1', val: v.h1 }, { id: 'prDesc', val: v.desc },
       { id: 'prSlug', val: v.slug }, { id: 'prBody', val: v.body }, { id: 'prSpecs', val: v.specs }, { id: 'prFaq', val: v.faq }
     ], v, 'prAiSt', '<b>بازبینی انسانی الزامی است.</b>');
-    cmsDraftBind(PROD_FIELDS);
+    cmsDraftBind(PROD_FIELDS); cmsPrCount(); /* v34.29.5 */
     if (n) { var m = document.getElementById('ptExtModal'); if (m) m.remove(); }
   };
 
@@ -1180,7 +1221,7 @@
       if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'خطا') + '</span>'; return; }
       var v = d.data;
       var g = function (id) { return document.getElementById(id); };
-      if (v.title && !g('pgTitle').value) g('pgTitle').value = v.title;
+      if (v.title && !g('cmsPgTitle').value) g('cmsPgTitle').value = v.title;
       if (v.slug && !g('pgSlug').value) g('pgSlug').value = v.slug;
       if (v.h1 && !g('pgH1').value) g('pgH1').value = v.h1;
       if (v.desc && !g('pgDesc').value) g('pgDesc').value = v.desc;
@@ -1191,7 +1232,7 @@
 
   window.cmsPagePublish = function () {
     var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
-    var folder = g('pgFolder'), title = g('pgTitle').trim(), slug = g('pgSlug').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var folder = g('pgFolder'), title = g('cmsPgTitle').trim(), slug = g('pgSlug').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     var body = g('pgBody');
     if (!folder || !title || !slug || body.trim().length < 200) { alert('بخش، عنوان، نامک و متن (حداقل ۲۰۰ حرف) الزامی است'); return; }
     var rv = document.getElementById('pgReviewed');
@@ -1220,7 +1261,7 @@
   /* ═══ v34.14.0 (S4/SCHED): زمان‌بندی انتشار همان فرم صفحه — رندر اکنون، انتشار در موعد ═══ */
   window.cmsPageSchedule = function () {
     var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
-    var folder = g('pgFolder'), title = g('pgTitle').trim(), slug = g('pgSlug').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var folder = g('pgFolder'), title = g('cmsPgTitle').trim(), slug = g('pgSlug').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     var body = g('pgBody');
     if (!folder || !title || !slug || body.trim().length < 200) { alert('بخش، عنوان، نامک و متن (حداقل ۲۰۰ حرف) الزامی است'); return; }
     var rv = document.getElementById('pgReviewed');
@@ -1651,6 +1692,17 @@
     });
   }
 
+  window.cmsPrCount = function () { /* v34.29.5: شمارنده‌های فرم محصول — قبلاً spanها بود ولی هیچ‌وقت به‌روز نمی‌شدند */
+    var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
+    var set = function (id, txt, ok) { var el = document.getElementById(id); if (el) { el.textContent = txt; el.style.color = ok ? '#059669' : '#b45309'; } };
+    var t = g('prTitle'), d = g('prDesc'), b = g('prBody');
+    set('prTitleLen', t.length + '/۶۰', t.length >= 30 && t.length <= 65);
+    set('prDescLen', d.length + '/۱۶۰', d.length >= 70 && d.length <= 165);
+    var words = b.trim() ? b.trim().split(/\s+/).length : 0;
+    set('prBodyLen', words + ' کلمه / ' + b.length + ' حرف' + (b.length >= 200 ? ' ✓' : ' — کفِ متن ۲۰۰ حرف'), b.length >= 200);
+    cmsSlugFb('prSlug', 'prSlugLen');
+  };
+
   window.cmsProdForm = function (cd) {
     var prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || [];
     var r = prds.filter(function (x) { return x.cd === cd; })[0];
@@ -1663,13 +1715,13 @@
       '<h3>🛒 صفحهٔ محصول — ' + escP((r.nm || '').slice(0, 50)) + ' <small dir="ltr" style="color:#94a3b8">' + escP(r.cd) + '</small></h3>' +
       '<div id="prAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
-      '<div class="fld"><label>عنوان سئو (title) <span id="prTitleLen" style="font-size:11px"></span></label><input type="text" id="prTitle"></div>' +
-      '<div class="fld"><label>نامک (slug) <small style="color:#94a3b8">a-z و خط تیره</small></label><input type="text" id="prSlug" dir="ltr" placeholder="ball-valve-astm-a105"></div>' +
+      '<div class="fld"><label>عنوان سئو (title) <span id="prTitleLen" style="font-size:11px"></span></label><input type="text" id="prTitle" oninput="cmsPrCount()"></div>' +
+      '<div class="fld"><label>نامک (slug) <small style="color:#94a3b8">a-z و خط تیره</small> <span id="prSlugLen" style="font-size:11px"></span></label><input type="text" id="prSlug" dir="ltr" placeholder="ball-valve-astm-a105" oninput="cmsSlugFb(\'prSlug\',\'prSlugLen\')"></div>' +
       '<div class="fld"><label>H1</label><input type="text" id="prH1"></div>' +
       '<div class="fld"><label>برند (برای اسکیما)</label><input type="text" id="prBrand" value="' + escP(r.br || '') + '"></div>' +
       '</div>' +
-      '<div class="fld"><label>توضیح (description) <span id="prDescLen" style="font-size:11px"></span></label><textarea id="prDesc" rows="2"></textarea></div>' +
-      '<div class="fld"><label>متن صفحه (HTML سبک: h2/h3/p/ul/li — حداقل ۲۰۰ حرف)</label><textarea id="prBody" rows="9" placeholder="<h2>معرفی ...</h2><p>...</p>"></textarea></div>' +
+      '<div class="fld"><label>توضیح (description) <span id="prDescLen" style="font-size:11px"></span></label><textarea id="prDesc" rows="2" oninput="cmsPrCount()"></textarea></div>' +
+      '<div class="fld"><label>متن صفحه (HTML سبک: h2/h3/p/ul/li — کف ۲۰۰ حرف، فقط همین فیلد) <span id="prBodyLen" style="font-size:11px"></span></label><textarea id="prBody" rows="9" placeholder="<h2>معرفی ...</h2><p>...</p>" oninput="cmsPrCount()"></textarea></div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
       '<div class="fld"><label>مشخصات (هر خط: کلید = مقدار)</label><textarea id="prSpecs" rows="6">' + escP(specsPre) + '</textarea></div>' +
       '<div class="fld"><label>سوالات متداول (هر خط: سؤال | پاسخ)</label><textarea id="prFaq" rows="6"></textarea></div>' +
@@ -1692,6 +1744,7 @@
       '</div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     cmsDraftRestore(PROD_FIELDS, 'prAiSt'); cmsDraftBind(PROD_FIELDS); /* v34.11.0: پیش‌نویس ماندگار */
+    cmsPrCount(); /* v34.29.5: شمارنده‌ها بلافاصله پس از بازیابی پیش‌نویس */
     cmsImgThumb('prImg'); /* v34.25.0: بندانگشتی تصویر پس از بازیابی پیش‌نویس */
   };
 
@@ -2021,7 +2074,9 @@
     var opt = { method: 'POST', headers: cmsAuthHeaders() };
     if (data) { var fd = new FormData(); Object.keys(data).forEach(function (k) { fd.append(k, data[k]); }); opt.body = fd; }
     fetch('../api/gsc.php?action=' + action, opt).then(function (r) { return r.json(); }).then(cb)
-      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به سرچ کنسول' }); });
+      /* v34.31.0 (GSC-DIAG): پاسخ غیرJSON یعنی سرور 500 داده — تقریباً همیشه خطای نحوی در
+         api/gsc-config.php؛ پیام عمومی قبلی کاربر را در حلقهٔ راهنماهای گوگلی نگه می‌داشت */
+      .catch(function () { cb({ ok: false, error: 'پاسخ سرور خطا بود (احتمالاً HTTP 500). رایج‌ترین علت: خطای نحوی در فایل تنظیمات — روی هاست اجرا کنید: php -l api/gsc-config.php و در صورت خطا، فایل را از نو بسازید (نسخهٔ خراب به‌صورت gsc-config.php.broken-* قرنطینه می‌شود).' }); });
   }
   window.cmsSeoSitemapPush = function () {
     var st = document.getElementById('cmsStatus');
@@ -2063,6 +2118,11 @@
     else if (v === 'token_error') verdict = box('#b91c1c', '#fef2f2', '⛔', 'توکن گوگل گرفته نشد — کلید/ایمیل در gsc-config.php نادرست است', steps);
     else if (v === 'no_config') verdict = box('#b45309', '#fffbeb', '⚠️', 'تنظیمات GSC روی سرور کامل نیست (api/gsc-config.php)', steps);
     else if (v === 'api_error') verdict = box('#b91c1c', '#fef2f2', '⛔', 'خطای فراخوانی گوگل', '<div dir="ltr" style="text-align:left;font-size:11.5px;color:#b91c1c">' + escP(d.error || '') + '</div>' + steps);
+    /* v34.31.0 (GSC-DIAG): خرابی/نقص فایل تنظیمات + پاسخ‌های خطای عمومی */
+    else if (v === 'config_broken') verdict = box('#b91c1c', '#fef2f2', '⛔', 'فایل تنظیمات (api/gsc-config.php) خطای نحوی دارد', steps);
+    else if (v === 'config_incomplete') verdict = box('#b45309', '#fffbeb', '⚠️', 'فایل تنظیمات ناقص است (client_email یا private_key خالی)', steps);
+    else if (d.ok === false) verdict = box('#b91c1c', '#fef2f2', '⛔', 'پاسخ سرور خطا بود', '<div style="color:#7f1d1d;line-height:2">' + escP(d.error || '') + '</div>' + steps);
+    else verdict = box('#b45309', '#fffbeb', '⚠️', 'وضعیت نامشخص', steps || '<div>دوباره امتحان کنید.</div>');
     return head + verdict + sitesHtml;
   };
   window.cmsGscCopyEmail = function () {

@@ -23,7 +23,7 @@ assert.ok(/quality-repair/.test(quality) && /ptfFinanceRepairPlanOpen/.test(qual
 assert.ok(/quality-status/.test(quality) && /ptfFinanceCommandStatusOpen/.test(quality), 'quality dashboard exposes command status button');
 /* v34.8.33: phase-queryهای موقتی با بامپ واقعی نسخه حذف شدند؛ دارایی‌های فاز ۶/۸
    مثل بقیه زیر ?v=34.8.33 لود و precache می‌شوند (قوی‌تر از دورزدن کش). */
-assert.ok(/data-quality\.js\?v=34\.29\.3/.test(index) && /sales-domain-v2\.js\?v=34\.29\.3/.test(index), 'phase six/eight assets carry the real release version');
+assert.ok(/data-quality\.js\?v=34\.31\.0/.test(index) && /sales-domain-v2\.js\?v=34\.31\.0/.test(index), 'phase six/eight assets carry the real release version');
 console.log('  ✔ repair manifest and command status are available from the UI');
 console.log('  ✔ uncertain background reconcile no longer emits a retry/alert storm');
 console.log('PASS tester511 v34.8.33 phase06 repair UI and retry quiet');
