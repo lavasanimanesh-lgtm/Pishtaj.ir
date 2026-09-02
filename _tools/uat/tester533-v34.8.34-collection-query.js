@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester533 — v34.29.8 (T3-1): خواندن سرور-محور — collection_query.
+/* tester533 — v34.30.0 (T3-1): خواندن سرور-محور — collection_query.
    فیلتر eq، جستجوی آزاد، مرتب‌سازی، صفحه‌بندی، پروجکشن؛ role-guard؛ سقف صفحهٔ ۱۰۰.
    مدل PHP با ورودی‌های واقعی در برابر انتظارها آزمون می‌شود + قراردادهای کلاینت. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -60,9 +60,9 @@ T('متد GET با X-CRM-Token', /action: 'collection_query', collection: collec
 T('صرفاً خواندنی — نوشتن از این مسیر عبور نمی‌کند', !/setData/.test((sync.match(/window\.ptfCollectionQuery = function[\s\S]*?\n  \};/) || [''])[0]));
 
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.29.8', ver.crm_version === 'v34.29.8', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.29.8', /window\.PTF_CRM_RELEASE = 'v34\.29.8'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.29.8'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.30.0', ver.crm_version === 'v34.30.0', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.30.0', /window\.PTF_CRM_RELEASE = 'v34\.30.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.30.0'/.test(read('crm/sw.js')));
 
-console.log('\n— tester533 (v34.29.8: T3-1 collection_query) —');
+console.log('\n— tester533 (v34.30.0: T3-1 collection_query) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.29.8'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.30.0'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
