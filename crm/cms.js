@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.30.0'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.31.0'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -2074,7 +2074,9 @@
     var opt = { method: 'POST', headers: cmsAuthHeaders() };
     if (data) { var fd = new FormData(); Object.keys(data).forEach(function (k) { fd.append(k, data[k]); }); opt.body = fd; }
     fetch('../api/gsc.php?action=' + action, opt).then(function (r) { return r.json(); }).then(cb)
-      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به سرچ کنسول' }); });
+      /* v34.31.0 (GSC-DIAG): پاسخ غیرJSON یعنی سرور 500 داده — تقریباً همیشه خطای نحوی در
+         api/gsc-config.php؛ پیام عمومی قبلی کاربر را در حلقهٔ راهنماهای گوگلی نگه می‌داشت */
+      .catch(function () { cb({ ok: false, error: 'پاسخ سرور خطا بود (احتمالاً HTTP 500). رایج‌ترین علت: خطای نحوی در فایل تنظیمات — روی هاست اجرا کنید: php -l api/gsc-config.php و در صورت خطا، فایل را از نو بسازید (نسخهٔ خراب به‌صورت gsc-config.php.broken-* قرنطینه می‌شود).' }); });
   }
   window.cmsSeoSitemapPush = function () {
     var st = document.getElementById('cmsStatus');
@@ -2116,6 +2118,11 @@
     else if (v === 'token_error') verdict = box('#b91c1c', '#fef2f2', '⛔', 'توکن گوگل گرفته نشد — کلید/ایمیل در gsc-config.php نادرست است', steps);
     else if (v === 'no_config') verdict = box('#b45309', '#fffbeb', '⚠️', 'تنظیمات GSC روی سرور کامل نیست (api/gsc-config.php)', steps);
     else if (v === 'api_error') verdict = box('#b91c1c', '#fef2f2', '⛔', 'خطای فراخوانی گوگل', '<div dir="ltr" style="text-align:left;font-size:11.5px;color:#b91c1c">' + escP(d.error || '') + '</div>' + steps);
+    /* v34.31.0 (GSC-DIAG): خرابی/نقص فایل تنظیمات + پاسخ‌های خطای عمومی */
+    else if (v === 'config_broken') verdict = box('#b91c1c', '#fef2f2', '⛔', 'فایل تنظیمات (api/gsc-config.php) خطای نحوی دارد', steps);
+    else if (v === 'config_incomplete') verdict = box('#b45309', '#fffbeb', '⚠️', 'فایل تنظیمات ناقص است (client_email یا private_key خالی)', steps);
+    else if (d.ok === false) verdict = box('#b91c1c', '#fef2f2', '⛔', 'پاسخ سرور خطا بود', '<div style="color:#7f1d1d;line-height:2">' + escP(d.error || '') + '</div>' + steps);
+    else verdict = box('#b45309', '#fffbeb', '⚠️', 'وضعیت نامشخص', steps || '<div>دوباره امتحان کنید.</div>');
     return head + verdict + sitesHtml;
   };
   window.cmsGscCopyEmail = function () {

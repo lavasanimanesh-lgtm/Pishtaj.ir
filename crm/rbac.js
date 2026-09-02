@@ -932,13 +932,13 @@ function renderInvoices() {
     });
   }
   var h = '';
-  var _allOffersForRialBasis = getData('ptf_crm_offers'); /* v34.30.0 (FX-RIAL-REF): نمایش مبنای ریالی ارجاع‌های ارزی */
+  var _allOffersForRialBasis = getData('ptf_crm_offers'); /* v34.31.0 (FX-RIAL-REF): نمایش مبنای ریالی ارجاع‌های ارزی */
   refd.forEach(function (o) {
     var inv = invs.filter(function (i) { return i.offerNo === o.no; })[0];
     var oEn = (typeof ptfCustEnByCd === 'function') ? ptfCustEnByCd(o.buyerCd) : '';
     var total = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
     var invPaidSum = inv ? ptfInvoiceReceivedIRR(inv) : 0;
-    /* v34.30.0 (FX-RIAL-REF): سند ریالی ضمیمهٔ ارجاع (پیشنهاد ریالی ثبت‌شده/نسخهٔ همراه) + نرخ تسعیر */
+    /* v34.31.0 (FX-RIAL-REF): سند ریالی ضمیمهٔ ارجاع (پیشنهاد ریالی ثبت‌شده/نسخهٔ همراه) + نرخ تسعیر */
     var rialBasisHtml = '';
     if (o.invRef && o.invRef.rialBasis) {
       var compO = _allOffersForRialBasis.filter(function (x) { return x && x.no === o.invRef.rialBasis; })[0];
@@ -981,7 +981,7 @@ function renderInvoices() {
           }
           return (Math.abs(inv.amount - total) > 0.5 && total ? ' <span style="color:#dc2626">⚠️ مغایرت با CO: ' + Math.round(Math.abs(inv.amount - total) * 100 / total) + '٪</span>' : '');
         })() + '</div>' : '') +
-      rialBasisHtml + /* v34.30.0 (FX-RIAL-REF): نسخهٔ ریالی ارجاع‌شده در دید حسابدار */
+      rialBasisHtml + /* v34.31.0 (FX-RIAL-REF): نسخهٔ ریالی ارجاع‌شده در دید حسابدار */
       '</div>' +
       '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
       /* v19.3 (US-436 AC3/US-435 AC3): اگر ارجاع از پرونده فروش آمده، سند ضمیمه = snapshot قطعی برد (US-432) */
