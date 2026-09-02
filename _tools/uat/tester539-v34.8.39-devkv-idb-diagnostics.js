@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester539 — v34.29.3 (T5-2b — DEV→IDB): تکمیل بخش دوم T5-2 رودمپ نازک‌سازی.
+/* tester539 — v34.29.4 (T5-2b — DEV→IDB): تکمیل بخش دوم T5-2 رودمپ نازک‌سازی.
    قرارداد: کلیدهای تشخیصی فرمان (ptf_sales_command_uncertain_/not_committed_/
    recovered_ و ptf_offer_post_ack_warning_) دیگر مستقیم در localStorage نوشته
    نمی‌شوند؛ نمای واحد ptfDevKv (کلیدهای devkv:) روی IndexedDB همان لایهٔ
@@ -37,7 +37,7 @@ T('recover: ثبت not_committed از Dev-KV', /devKvSet\('ptf_sales_command_not
 T('recover: ثبت recovered از Dev-KV', /devKvSet\('ptf_sales_command_recovered_'/.test(sd));
 T('recover: حذف کلید uncertain از Dev-KV', /devKvRemove\(row\.key\)/.test(sd));
 T('saveOfferAckWarning از Dev-KV می‌نویسد', /function saveOfferAckWarning[\s\S]{0,340}devKvSet\('ptf_offer_post_ack_warning_'/.test(sd));
-T('مهاجرت boot برای پیشوندهای تشخیصی صدا زده می‌شود', /ptfDevKvMigratePrefixes\(\[[\s\S]{0,500}'ptf_sales_command_'[\s\S]{0,300}'ptf_offer_post_ack_warning_'/.test(sd)); /* v34.29.3: فهرست ۸پیشوندی کامل در tester541 */
+T('مهاجرت boot برای پیشوندهای تشخیصی صدا زده می‌شود', /ptfDevKvMigratePrefixes\(\[[\s\S]{0,500}'ptf_sales_command_'[\s\S]{0,300}'ptf_offer_post_ack_warning_'/.test(sd)); /* v34.29.4: فهرست ۸پیشوندی کامل در tester541 */
 T('دیالوگ «بررسی رسید فرمان» async پر می‌شود', /financeUncertainRows\(function \(rows\)/.test(sd) && /id="ptfFinanceStatusRows"/.test(sd));
 T('financeUncertainRows دیگر localStorage را اسکن نمی‌کند', !/financeUncertainRows[\s\S]{0,700}localStorage\.length/.test(sd));
 
@@ -183,7 +183,7 @@ kvCall(function (cb) { KV.set(TESTKEY, JSON.stringify({ kind: 'uncertain', actio
   });
 
 function finish() {
-  console.log('\n— tester539 (v34.29.3: T5-2b DEV→IDB — تشخیصی‌های فرمان در IndexedDB) —');
+  console.log('\n— tester539 (v34.29.4: T5-2b DEV→IDB — تشخیصی‌های فرمان در IndexedDB) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   if (f > 0) process.exit(1);
 }

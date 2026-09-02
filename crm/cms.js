@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.29.3'; /* v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.29.4'; /* v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -1053,6 +1053,7 @@
       '<button class="bt" style="background:#0e7490;margin-top:6px" onclick="cmsExtCopy()">📋 کپی پرامپت</button>' +
       '<div style="font-size:11.5px;color:#475569;margin:10px 0 6px">⬇️ خروجی هوش مصنوعی را اینجا بچسبان (همان قالب نشانگردار):</div>' +
       '<textarea id="ptExtPaste" rows="7" style="width:100%;font:12px/1.8 inherit;border:1px solid #a5b4fc;border-radius:10px;padding:10px;box-sizing:border-box" placeholder="TITLE: ...&#10;H1: ...&#10;DESCRIPTION: ...&#10;SLUG: ...&#10;BODY:&#10;<h2>...</h2>"></textarea>' +
+      '<div id="ptExtErr" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:12px;color:#b91c1c;line-height:2;margin-top:6px"></div>' + /* v34.29.4: خطای قابل‌دیدن در خود مودال */
       '<button class="bt" style="background:#059669;margin-top:6px" onclick="' + applyFn + '">✅ اعمال در فرم</button></div>';
     document.body.appendChild(ov);
     document.getElementById('ptExtPrompt').value = prompt;
@@ -1066,18 +1067,42 @@
     function fallback() { ta.removeAttribute('readonly'); ta.select(); try { document.execCommand('copy'); ok(); } catch (eX) { alert('کپی خودکار نشد — دستی انتخاب و کپی کنید'); } ta.setAttribute('readonly', 'readonly'); }
     fallback();
   };
-  window.cmsExtParse = function (text) { /* تجزیهٔ نشانگرها — TITLE/H1/DESCRIPTION/SLUG تک‌خطی، BODY/SPECS/FAQ بلوکی */
+  window.cmsExtErr = function (msg) { /* v34.29.4: به‌جای alertِ تنها — پیام داخل مودال + فوکوس روی کادر چسبان */
+    var el = document.getElementById('ptExtErr');
+    if (!el) { alert(msg); return; }
+    el.style.display = 'block';
+    el.innerHTML = msg;
+    var ta = document.getElementById('ptExtPaste');
+    if (ta) { try { ta.focus(); ta.select(); } catch (eF) {} }
+  };
+
+  window.cmsExtParse = function (text) { /* تجزیهٔ نشانگرها — TITLE/H1/DESCRIPTION/SLUG تک‌خطی، BODY/SPECS/FAQ بلوکی
+    v34.29.4 (EXT-PARSE-HARDEN): خروجی واقعی ChatGPT/Claude/Gemini اغلب نشانگرها را «بولد» می‌کند
+    (**TITLE:** x)، داخل جعبهٔ کد (```…```) می‌پیچد، بولت/سرفصل می‌گذارد یا دونقطهٔ کامل (：) می‌نویسد —
+    همهٔ این‌ها پیش از تطبیق نرمال می‌شوند؛ خطوط محتوای BODY همیشه به‌صورت دست‌نخورده بافر می‌شوند. */
     var out = { title: '', h1: '', desc: '', slug: '', body: '', specs: '', faq: '' };
+    function clean(v) { return String(v || '').replace(/^\*+|\*+$/g, '').replace(/^`+|`+$/g, '').trim(); }
+    function norm(t) { /* فقط برای «تشخیص نشانگر» — نه بافر محتوا */
+      return String(t || '').trim()
+        .replace(/^[#>\s`]+/, '')                /* سرفصل/نقل‌قول/بک‌تیک */
+        .replace(/^[-*•‣·+]\s+/, '')             /* بولت با فاصله */
+        .replace(/^\*{1,2}/, '')                 /* بولدِ باز */
+        .replace(/\*{1,2}\s*[:：]\s*/, ':')     /* بولدِ بستهٔ قبل از دونقطه */
+        .replace(/[:：]\s*\*{1,2}\s*/, ' : ')  /* بولدِ بعد از دونقطه */
+        .replace(/：/g, ':');                     /* دونقطهٔ کامل CJK */
+    }
     var lines = String(text || '').split(/\r?\n/);
     var mode = '';
     var buf = [];
     function flush() { if (mode === 'BODY') out.body = buf.join('\n').trim(); else if (mode === 'SPECS') out.specs = buf.join('\n').trim(); else if (mode === 'FAQ') out.faq = buf.join('\n').trim(); buf = []; }
     for (var i = 0; i < lines.length; i++) {
       var ln = lines[i];
-      var m1 = ln.match(/^(TITLE|H1|DESCRIPTION|SLUG)\s*:\s*(.*)$/i);
-      if (m1) { var k = m1[1].toUpperCase(); var v = m1[2].trim(); if (k === 'TITLE') out.title = v; else if (k === 'H1') out.h1 = v; else if (k === 'DESCRIPTION') out.desc = v; else out.slug = v; continue; }
-      var m2 = ln.match(/^(BODY|SPECS|FAQ)\s*:\s*(.*)$/i);
-      if (m2) { flush(); mode = m2[1].toUpperCase(); var rest = m2[2].trim(); if (rest) buf.push(rest); continue; }
+      if (/^\s*(```|~~~)/.test(ln)) continue; /* جعبهٔ کد — وارد محتوا نمی‌شود */
+      var lnN = norm(ln);
+      var m1 = lnN.match(/^(TITLE|H1|DESCRIPTION|SLUG)\s*:\s*(.*)$/i);
+      if (m1) { var k = m1[1].toUpperCase(); var v = clean(m1[2]); if (k === 'TITLE') out.title = v; else if (k === 'H1') out.h1 = v; else if (k === 'DESCRIPTION') out.desc = v; else out.slug = v; continue; }
+      var m2 = lnN.match(/^(BODY|SPECS|FAQ)\s*:\s*(.*)$/i);
+      if (m2) { flush(); mode = m2[1].toUpperCase(); var rest = clean(m2[2]); if (rest) buf.push(rest); continue; }
       if (mode) buf.push(ln);
     }
     flush();
@@ -1122,7 +1147,7 @@
   };
   window.cmsPgExtApply = function () {
     var v = cmsExtParse((document.getElementById('ptExtPaste') || {}).value || '');
-    if (!v.body && !v.title) { alert('خروجی معتبر تشخیص داده نشود — مطمئن شو نشانگرها (TITLE:/BODY:) را عیناً کپی کرده‌اید.'); return; }
+    if (!v.body && !v.title) { cmsExtErr('⛔ نشانگرها پیدا نشد — خروجی باید خط‌هایی مثل <b dir="ltr">TITLE: …</b> و <b dir="ltr">BODY:</b> داشته باشد.<br>قالب بولد (<b dir="ltr">**TITLE:**</b>)، جعبهٔ کد، بولت و دونقطهٔ کامل هم پذیرفته می‌شود؛ کل خروجی را از اول تا آخر کپی و دوباره بچسبانید.'); return; }
     v.slug = (v.slug || '').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     var n = cmsExtFill([
       { id: 'pgTitle', val: v.title }, { id: 'pgH1', val: v.h1 }, { id: 'pgDesc', val: v.desc },
@@ -1161,7 +1186,7 @@
   };
   window.cmsProdExtApply = function (cd) {
     var v = cmsExtParse((document.getElementById('ptExtPaste') || {}).value || '');
-    if (!v.body && !v.title) { alert('خروجی معتبر تشخیص داده نشود — مطمئن شو نشانگرها (TITLE:/BODY:) را عیناً کپی کرده‌اید.'); return; }
+    if (!v.body && !v.title) { cmsExtErr('⛔ نشانگرها پیدا نشد — خروجی باید خط‌هایی مثل <b dir="ltr">TITLE: …</b> و <b dir="ltr">BODY:</b> داشته باشد.<br>قالب بولد (<b dir="ltr">**TITLE:**</b>)، جعبهٔ کد، بولت و دونقطهٔ کامل هم پذیرفته می‌شود؛ کل خروجی را از اول تا آخر کپی و دوباره بچسبانید.'); return; }
     v.slug = (v.slug || '').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     var n = cmsExtFill([
       { id: 'prTitle', val: v.title }, { id: 'prH1', val: v.h1 }, { id: 'prDesc', val: v.desc },
