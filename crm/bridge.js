@@ -427,12 +427,7 @@
         if (!_remUpsertInFlight) {
           _remUpsertInFlight = true;
           try {
-            /* v34.29.6 (ANTI-RESURRECT): پچ مینیمال {cd, notifiedUsers, msgSent} —
-               merge سروری فقط فیلدهای حاضر در payload را بازنویسی می‌کند و بقیه را
-               از رکورد جاری نگه می‌دارد؛ پس این فرمان دیگر هرگز st:'done' تازه را
-               با ردیف کهنهٔ 'open' زنده نمی‌کند (مسیر بازگشتِ «انجام شد»). */
-            var pr = changedRows[changedRows.length - 1];
-            window.ptfEntityUpsert('ptf_crm_reminders', { cd: pr.cd, notifiedUsers: pr.notifiedUsers || {}, msgSent: !!pr.msgSent }, { cb: function () { _remUpsertInFlight = false; } });
+            window.ptfEntityUpsert('ptf_crm_reminders', changedRows[changedRows.length - 1], { cb: function () { _remUpsertInFlight = false; } });
           } catch (eCmd) { _remUpsertInFlight = false; }
         }
         /* ردیف‌های باقی‌مانده (بندرت >۱) با تیک بعد و بازسازی ساکت پوشیده می‌شوند؛
@@ -468,28 +463,13 @@
     var me = curSession();
     var d = ev.data || {};
     if (d.byUser && d.byUser === me.user) return false; // خود فرستنده پیام تکراری نگیرد
-    if (ev.kind === 'supplier_site' || ev.kind === 'rfq_site') {
-      /* v34.29.6 (SITE-REQ-NOTIF — گزارش کارفرما: «درخواست‌هایی که از سایت ثبت
-         می‌شوند اعلان نمی‌آید»): پیش‌تر فقط syncServerInbox بی‌صداست و هیچ کارت
-         اعلانی ساخته نمی‌شد. اکنون یک کارت اعلانِ یک‌باره (سپر dkey، بدون تکرار)
-         برای نقش مرتبط ساخته می‌شود؛ تایید/رد درخواست کارت را برای همه می‌بندد
-         (ntfResolveByRef با refCd=code). استاندارد v33.4.1 حفظ است: تکرارشده
-         نیست و با resolve حذف می‌شود. */
-      var seniorEvt = isSenior();
-      var salesEvt = SALES_ROLES.indexOf(curRole()) > -1;
-      var relevantEvt = ev.kind === 'supplier_site' ? seniorEvt : (seniorEvt || salesEvt);
-      if (relevantEvt) {
-        addMsg({
-          title: ev.title || ('درخواست جدید از سایت'),
-          body: ev.kind === 'supplier_site' ? 'ثبت‌نام تامین‌کننده در سایت در انتظار بررسی است — پنل تامین‌کنندگان، بخش ثبت‌نام‌های سایت.' : 'استعلام هوشمند ثبت‌شده در سایت در انتظار بررسی است — پنل درخواست‌ها.',
-          toUsers: [me.user], kind: 'site_req', actionable: true,
-          refCd: d.code || '',
-          dkey: 'site-req|' + ev.kind + '|' + (d.code || ev.id || '') + '|' + me.user,
-          link: { panel: ev.kind === 'supplier_site' ? 'sup' : 'rfq' }
-        });
-        syncServerInbox();
-        return true;
-      }
+    if (ev.kind === 'supplier_site') {
+      /* ثبت‌نام سایت در پنل «در انتظار تایید» دیده می‌شود؛ کارتابل را شلوغ نمی‌کند. */
+      if (isSenior()) { syncServerInbox(); return true; }
+      return false;
+    }
+    if (ev.kind === 'rfq_site') {
+      if (isSenior()) { syncServerInbox(); return true; }
       return false;
     }
     if (ev.kind === 'referral') {
@@ -831,12 +811,7 @@
       var siteAtt = siteAttachmentMeta(s.attachment);
       var importedFiles = {};
       if (siteAtt && siteAtt.cloud) importedFiles.oth = [{ key: siteAtt.key, name: siteAtt.name, size: siteAtt.size, mode: 'arvan', t: faDateTime(), source: 'site' }];
-      /* v34.29.7 (SITE-PARITY): تامین‌کنندهٔ سایت هم مثل فرم استاندارد CRM اشخاص رابط
-         با کانال‌های تماس می‌گیرد (قبلاً فقط nm/ph اسکالر — شماره در کارت/ویرایش
-         «شخصِ تماس» دیده نمی‌شد). طبقه‌بندی موبایل/ثابت مثل ptfXlsPerson. */
-      var supCh = (function (ph) { var d = String(ph || '').replace(/\D/g, '').replace(/^0098/, '0').replace(/^98/, '0'); if (!d) return { tels: [], mobs: [] }; if (/^09\d{9}$/.test(d)) return { tels: [], mobs: [{ n: String(ph).trim(), lb: 'فرم سایت' }] }; return { tels: [{ n: String(ph).trim(), ext: '', lb: 'فرم سایت' }], mobs: [] }; })(s.phone);
-      var recSup = { cd: code, co: s.company, kind: 'حقوقی', nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime(), files: importedFiles, message: s.message || '', apprNote: note || '', payTerms: s.payTerms || '', creditRange: s.creditRange || '', payScore: (s.payScore != null && s.payScore !== '') ? +s.payScore : 0,
-        people: (s.name || s.phone || s.email) ? [{ nm: s.name || s.company, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: supCh.tels, mobs: supCh.mobs, mails: s.email ? [{ n: s.email, lb: '' }] : [], primary: true, src: 'site' }] : [] };
+      var recSup = { cd: code, co: s.company, nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime(), files: importedFiles, message: s.message || '', apprNote: note || '', payTerms: s.payTerms || '', creditRange: s.creditRange || '', payScore: (s.payScore != null && s.payScore !== '') ? +s.payScore : 0 };
       // US-174: هشدار تکراری بودن با فهرست تاییدشده (تصمیم نهایی با مدیر ارشد)
       if (typeof ptfCheckDup === 'function') {
         var dups = ptfCheckDup('supplier', recSup, null);
@@ -849,7 +824,6 @@
       else setData('ptf_crm_suppliers', items);
     }
     api('set_status', { type: 'supplier', code: code, status: 'approved', statusText: 'تایید شد — به فهرست تامین‌کنندگان تاییدشده اضافه شدید', note: note || '', by: curSession().name }, function () { syncServerInbox(); });
-    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR1) {} /* v34.29.6: درخواست سایت تعیین‌وضع شد — کارت اعلان site_req برای همه بسته شود */
     if (typeof audit === 'function') audit('تامین‌کنندگان', 'تایید تامین‌کننده سایت: ' + s.company + (note ? ' — ' + note : ''), code);
     notify({ toRoles: SENIOR_ROLES, title: '✅ تامین‌کننده «' + s.company + '» (' + code + ') توسط ' + curSession().name + ' تایید شد', kind: 'supplier_ok', channels: ['cart'], link: { panel: 'sup' } });
     if (typeof ptfToast === 'function') ptfToast('✅ تایید شد — پیامک اطلاع‌رسانی به تامین‌کننده ارسال می‌شود', 'ok');
@@ -888,7 +862,6 @@
     var reopen = reasonType === 'docs';
     var stText = 'رد شد — ' + (REASON_LB[reasonType] || 'سایر') + (note ? ' (' + note + ')' : '');
     api('set_status', { type: 'supplier', code: code, status: 'rejected', statusText: stText, rejectType: reasonType || '', note: note || '', reopen: reopen ? 1 : 0, by: curSession().name }, function () { syncServerInbox(); });
-    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR2) {} /* v34.29.6: رد هم کارت site_req را می‌بندد */
     if (typeof audit === 'function') audit('تامین‌کنندگان', 'رد تامین‌کننده سایت: ' + s.company + ' — ' + (REASON_LB[reasonType] || 'سایر') + (note ? ' (' + note + ')' : ''), code);
     if (reopen && typeof ptfToast === 'function') ptfToast('↻ رد با امکان تکمیل مدارک ثبت شد — پیامک به تامین‌کننده ارسال می‌شود تا مدارک را تکمیل کند', 'ok');
     renderSuppliers();
@@ -919,7 +892,6 @@
         if (typeof renderSuppliers === 'function') renderSuppliers();
         if (typeof updateInboxBadge === 'function') updateInboxBadge();
         if (typeof syncServerInbox === 'function') syncServerInbox();
-        try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR3) {} /* v34.29.6: حذف ثبت‌نام هم کارت site_req را می‌بندد */
       } else {
         var err = '⚠️ حذف ناموفق: ' + ((d && d.error) || 'سرور در دسترس نیست');
         if (typeof ptfToast === 'function') ptfToast(err, 'warn');
@@ -1572,15 +1544,6 @@
   function rfqSiteEnsureCustomer(r) {
     var custs = getData('ptf_crm_customers');
     var normP = function (s) { return String(s || '').replace(/\D/g, '').replace(/^0098/, '0').replace(/^98/, '0'); };
-    /* v34.29.7 (SITE-PARITY): کانال تماس فرم سایت طبق موازین CRM (مثل ptfXlsPerson/
-       فرم مشتری) — شمارهٔ موبایل → mobs، ثابت → tels با ext؛ دیگر همه‌چیز بی‌شرط
-       موبایل نمی‌شود. */
-    var chOf = function (phRaw) {
-      var d = normP(phRaw);
-      if (!d) return { tels: [], mobs: [] };
-      if (/^09\d{9}$/.test(d)) return { tels: [], mobs: [{ n: String(phRaw).trim(), lb: 'فرم سایت' }] };
-      return { tels: [{ n: String(phRaw).trim(), ext: '', lb: 'فرم سایت' }], mobs: [] };
-    };
     var coN = (typeof dedupNorm === 'function') ? dedupNorm(r.company) : String(r.company || '').trim();
     var phN = normP(r.phone);
     /* اتصال به مشتری موجود: نام یکسان یا شماره تماس یکسان */
@@ -1596,9 +1559,8 @@
       /* تکمیل اطلاعات غیرتکراری: رابط جدید با تایید کاربر (هم‌راستا US-363) */
       if (r.contact && !(found.people || []).some(function (p) { return (p.nm || '').trim() === r.contact.trim(); })) {
         if (confirm('🏢 این درخواست به مشتری موجود «' + found.co + '» (' + found.cd + ') متصل شد.\n\n👤 رابط جدید «' + r.contact + '» در فرم سایت آمده که در رکورد مشتری نیست — به اشخاص رابط اضافه شود؟')) {
-          var chF = chOf(r.phone);
           found.people = found.people || [];
-          found.people.push({ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: chF.tels, mobs: chF.mobs, mails: r.email ? [{ n: r.email, lb: '' }] : [], src: 'site' });
+          found.people.push({ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: [], mobs: r.phone ? [{ n: r.phone, lb: 'فرم سایت' }] : [], mails: r.email ? [{ n: r.email, lb: '' }] : [], src: 'site' });
           /* v34.8.22 (W1): مشتریِ ساخته‌شده از درخواست سایت با فرمان اتمیک سروری. */
           if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'site-rfq' });
           else setData('ptf_crm_customers', custs);
@@ -1613,7 +1575,7 @@
       cd: genCode('CUST'), co: r.company, kind: 'حقوقی',
       ind: indMap[r.category] || 'سایر', venSt: 'unreg',
       coWeb: r.email || '', coTels: [], coAddr: '',
-      people: r.contact ? (function () { var chN = chOf(r.phone); return [{ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: chN.tels, mobs: chN.mobs, mails: r.email ? [{ n: r.email, lb: '' }] : [], primary: true, src: 'site' }]; })() : [],
+      people: r.contact ? [{ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: [], mobs: r.phone ? [{ n: r.phone, lb: 'فرم سایت' }] : [], mails: r.email ? [{ n: r.email, lb: '' }] : [], primary: true, src: 'site' }] : [],
       phones: [], con: r.contact || '', ph: r.phone || '',
       ds: 'ثبت خودکار از درخواست سایت ' + (r.code || '') + '', srcSite: r.code || ''
     };
@@ -1683,7 +1645,6 @@
       if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     }
     api('set_status', { type: 'rfq', code: code, status: 'approved', statusText: 'تایید شد — در حال بررسی فنی و تامین', by: curSession().name }, function () { syncServerInbox(); });
-    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR4) {} /* v34.29.6: استعلام سایت تعیین‌وضع شد — کارت site_req بسته شود */
     if (typeof audit === 'function') audit('استعلامات', 'تایید استعلام سایت: ' + r.company + (cust ? ' → مشتری ' + cust.cd : ''), code);
     /* v14.7 (US-380 AC5): اعلان با لینک درخواست + اشاره به مشتری ساخته‌شده */
     notify({ toRoles: SALES_ROLES, title: '📋 استعلام سایت «' + code + '» (' + r.company + ') تایید و وارد چرخه شد' + (cust ? ' — مشتری: ' + cust.cd : ''), kind: 'rfq_ok', channels: ['cart'], link: { panel: 'rfq' } });

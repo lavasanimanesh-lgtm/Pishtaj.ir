@@ -413,21 +413,6 @@
     if (!confirm('هزینه «' + (ev.desc || '') + '» حذف شود؟')) return;
     var deadKeys = (d.docs || []).filter(function (x) { return x.costCd === costCd && x.key; }).map(function (x) { return x.key; });
     d.costEvents = (d.costEvents || []).filter(function (x) { return x.cd !== costCd; });
-    if (typeof window.ptfDealCostTomb === 'function') window.ptfDealCostTomb(d, costCd); /* v34.29.8: حذف ماندگار در merge */
-    /* v34.29.8: اگر رویداد، هزینهٔ لینک‌شده از تنخواه بود، لینک هم پاک شود — وگرنه
-       projection زندهٔ نمایش (petty.dealRef) آن را دوباره می‌سازد («با پاک کردن
-       دوباره برمی‌گردد»). هزینهٔ اصلی در تنخواه می‌ماند. */
-    var pettySrcCd = ev.pettyCd || (ev.fromPetty ? ev.cd : '') || '';
-    if (pettySrcCd) {
-      try {
-        var pts = getData('ptf_crm_petty') || [];
-        var pr = pts.filter(function (x) { return x.cd === pettySrcCd; })[0];
-        if (pr && pr.dealRef) {
-          pr.dealRef = '';
-          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_petty', pts, { reason: 'w4' }); else setData('ptf_crm_petty', pts);
-        }
-      } catch (ePtyDel) {}
-    }
     d.timeline = d.timeline || [];
     d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینه مستقیم پروژه: ' + (ev.desc || '') + ' — ' + (+ev.amt || 0).toLocaleString('fa-IR') + ' ریال' });
     d.docs = (d.docs || []).filter(function (x) { return x.costCd !== costCd; });

@@ -606,14 +606,16 @@ function addReminder(r) {
     ownerUser: me.user || '', ownerName: me.name || currentUserName(),
     shareUsers: shareUsers, notifiedUsers: {}
   };
-  /* v34.29.6 (ONE-CLICK): نوشتن محلی بی‌درنگ + فرمان اتمیک در یک مسیر —
-     ptfEntitySaveCollection خودش نوشتن بی‌صدا (بدون dirty)، diff→فرمان، و سپر
-     dirty در خطا را انجام می‌دهد؛ قبلاً در مسیر فرمان هیچ نوشت محلی نبود و
-     رکورد تا ACK سرور دیده نمی‌شد. */
-  var rems = getData('ptf_crm_reminders');
-  rems.unshift(row);
-  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'rem-new' });
-  else setData('ptf_crm_reminders', rems);
+  /* v34.8.14 (C3-گام۱): ثبت یادآور با فرمان اتمیک سروری (کلید این ماژول کامل شد). */
+  if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'ثبت یادآور') : 'ثبت یادآور روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); updateRemBadge(); } });
+  } else {
+    var rems = getData('ptf_crm_reminders');
+    rems.unshift(row);
+    /* v34.8.27 (W4) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+    else setData('ptf_crm_reminders', rems);
+  }
   updateRemBadge();
 }
 
@@ -739,13 +741,11 @@ function remDone(cd) {
   var rems = getData('ptf_crm_reminders');
   var row = null;
   rems.forEach(function(r){ if (r.cd === cd) { r.st = 'done'; r.doneFa = faDate(); r.doneBy = currentUserName(); row = r; } });
-  /* v34.29.6 (ONE-CLICK — گزارش کارفرما: «هرچه انجام شد می‌زنم بلافاصله دوباره
-     می‌آید»): در مسیر فرمان هیچ نوشت محلی انجام نمی‌شد؛ تا ACK سرور (~۱ ثانیه،
-     و در خطا/کُندی هرگز) ردیف «باز» می‌ماند و چون getData فاز B کش ۳۰ثانیه‌ای
-     دارد، رندر بعدی هم همان مقدار کهنه را می‌داد. اکنون نوشتن محلی بی‌درنگ
-     (بی‌صدا، بدون dirty) + فرمان اتمیک + سپر dirty در خطا — یک کلیک = پایان. */
-  if (row && window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'rem-done' });
-  else setData('ptf_crm_reminders', rems);
+  /* v34.8.13 (PHASE-C2 پایلوت): یادآور با فرمان اتمیک سروری ثبت می‌شود؛
+     مسیر legacy فقط وقتی فرمان در دسترس/فعال نیست. */
+  if (row && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'ثبت «انجام شد» یادآور') : 'ثبت «انجام شد» روی سرور قطعی نشد؛ وضعیت را بازبینی کنید'), 'warn'); renderReminders(); } });
+  } else setData('ptf_crm_reminders', rems);
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: یادآور انجام شد — اعلان مرتبط برای همه حذف شود */
   renderReminders();
 }
@@ -767,26 +767,22 @@ function remSnooze(cd) {
       row = r;
     }
   });
-  /* v34.29.6 (ONE-CLICK): تعویق هم مثل انجام‌شدن — نوشتن محلی بی‌درنگ + فرمان. */
-  if (row && window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'rem-snooze' });
-  else setData('ptf_crm_reminders', rems);
+  /* v34.8.13 (PHASE-C2 پایلوت): تعویق با فرمان سروری. */
+  if (row && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'تعویق یادآور') : 'تعویق روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); renderReminders(); } });
+  } else setData('ptf_crm_reminders', rems);
   renderReminders();
 }
 
 function remDel(cd) {
   if (!confirm('یادآور حذف شود؟')) return;
-  /* v34.29.6 (ONE-CLICK): حذف محلی بی‌درنگ + فرمان سروری tombstone — قبلاً تا
-     ACK، ردیف محلی سرِ جایش می‌ماند و «اصلاً پاک نمی‌شد» می‌شد. */
-  var kept = getData('ptf_crm_reminders').filter(function(r){ return r.cd !== cd; });
-  try { if (window.ptfSilentWrite) window.ptfSilentWrite('ptf_crm_reminders', JSON.stringify(kept)); } catch (eSW) {}
   /* v34.8.13 (PHASE-C2 پایلوت): حذف با فرمان سروری + tombstone (عدم زنده‌شدن روی دستگاه‌های stale). */
   if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityDelete === 'function') {
     window.ptfEntityDelete('ptf_crm_reminders', cd, { reason: 'حذف یادآور از UI', cb: function (st) {
       if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'حذف یادآور') : 'حذف روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn');
-      try { if (st.state !== 'acked' && window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty('ptf_crm_reminders'); } catch (eD2) {} /* سپر: پوش legacy حذف را روی سرور نهایی کند */
       renderReminders();
     } });
-  } else setData('ptf_crm_reminders', kept);
+  } else setData('ptf_crm_reminders', getData('ptf_crm_reminders').filter(function(r){ return r.cd !== cd; }));
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: یادآور حذف شد — اعلان مرتبط برای همه حذف شود */
   renderReminders();
 }

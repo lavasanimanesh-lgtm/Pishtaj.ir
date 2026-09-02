@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester572 — v34.31.0: پوستهٔ مقاوم تب‌های CMS
+/* tester572 — v34.29.3: پوستهٔ مقاوم تب‌های CMS
    گزارش پروداکشن: «تب صفحات جدید خالی است». رندر استاتیک سالم است؛ خطای زمان اجرا
    در محیط کاربر تا امروز بی‌صدا تب را خالی می‌گذاشت. رفع: TAB-GUARD + فرم جایگزین. */
 var fs = require('fs'), path = require('path');
@@ -15,7 +15,7 @@ var RND = blk(cms, 'window.renderCms = function () {', '/* ============ AC1: ا�
 
 T('GUARD: رندر کامل به renderCmsPageNewFull منتقل و پوستهٔ try/catch اضافه شد', WRAP.indexOf('try { renderCmsPageNewFull(el); return; } catch (ePg)') > -1 && FULL.indexOf("var opts = PAGE_FOLDERS.map") > -1);
 T('GUARD: خطای اول بی‌صدا نمی‌میرد — در متغیر محلی ذخیره و نمایش داده می‌شود', WRAP.indexOf('var _pgErr = null;') > -1 && WRAP.indexOf('escP(_pgErr && _pgErr.message)') > -1 && WRAP.indexOf('ePg && ePg.message') === -1);
-T('GUARD: فرم جایگزین همهٔ فیلدهای لازم را دارد (folder/slug/topic/title/h1/desc/body/img)', ['pgFolder','pgSlug','pgTopic','cmsPgTitle','pgH1','pgDesc','pgBody','pgImg'] /* v34.31.0: عنوان فرم به cmsPgTitle تغییر نام یافت (برخورد با عنوان هدر) */.every(function (id) { return WRAP.indexOf('id="' + id + '"') > -1; }));
+T('GUARD: فرم جایگزین همهٔ فیلدهای لازم را دارد (folder/slug/topic/title/h1/desc/body/img)', ['pgFolder','pgSlug','pgTopic','pgTitle','pgH1','pgDesc','pgBody','pgImg'].every(function (id) { return WRAP.indexOf('id="' + id + '"') > -1; }));
 T('GUARD: دکمه‌های مسیر کامل در فرم جایگزین (AI/خارجی/پیش‌نمایش/ذخیرهٔ موقت/انتشار)', ['cmsPageAi()','cmsPgExtPrompt()','cmsPgPreview()','cmsDraftBtn(PAGE_FIELDS','cmsPagePublish()'].every(function (k) { return WRAP.indexOf(k) > -1; }));
 T('GUARD: بازیابی پیش‌نویس در فرم جایگزین هم انجام می‌شود', WRAP.indexOf("cmsDraftRestore(PAGE_FIELDS, 'pgAiSt')") > -1);
 T('GUARD: fallback خودِ پوسته هم try/catch دوم دارد (خطای بحرانی مرئی)', WRAP.indexOf('خطای بحرانی رندر فرم صفحه') > -1);
@@ -27,7 +27,7 @@ T('GUARD: رفتاری — شبیه‌سازی خطا: فرم جایگزین + �
   global.document = { getElementById: function (id) { if (!els[id]) els[id] = mkEl(id); return els[id]; } };
   global.escP = function (x) { return String(x == null ? '' : x); };
   var PAGE_FOLDERS = [{ v: 'services', lb: 'خدمات' }];
-  var PAGE_FIELDS = ['cmsPgTitle'];
+  var PAGE_FIELDS = ['pgTitle'];
   var renderCmsPageNewFull = function () { throw new Error('شبیه‌سازی'); };
   var cmsDraftRestore = function () {}; var cmsDraftBind = function () {};
   try { eval(WRAP + '\nwindow.__rf = renderCmsPageNew;'); } catch (eE) { return false; }

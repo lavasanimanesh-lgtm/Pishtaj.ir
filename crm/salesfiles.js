@@ -649,47 +649,6 @@
     });
   };
 
-  /* ===== v34.31.0 (FX-RIAL-REF): تشخیص مبنای ریالی ارجاع فاکتور =====
-     هستهٔ خالص و قابل تست — بدون نوشت، بدون UI.
-     مسئلهٔ کارفرما: پیشنهاد برندهٔ پرونده ارزی است ولی یک «پیشنهاد ریالی» مستقل
-     قبلاً برای همان پرونده ثبت شده؛ هنگام ارجاع باید همان نسخهٔ ریالی (نه نسخهٔ
-     ساخته‌شدهٔ تازه) مبنای صدور فاکتور ریالی حسابدار شود تا نرخ تسعیر درست باشد.
-     ترتیب تشخیص:
-       ① شمارهٔ صریح (ریال‌بِیزیس انتخاب‌شده/ساخته‌شده) → explicit
-       ② نسخهٔ همراه با لینک ریال‌اُف (ابزار تبدیل 💱) → companion
-       ③ پیشنهاد ریالی مستقل ثبت‌شده در خود پرونده (CO/TC، بدون لینک ریال‌اُف،
-          غیر باخت) — تک‌نماینده: خودکار؛ چندنامزد: فهرست نامزدها برای انتخاب کاربر
-     خروجی: {comp, kind, candidates} */
-  window.sfInvoiceRialResolve = function (r, offers, o, rialBasisNo) {
-    offers = offers || [];
-    if (o && rialBasisNo) {
-      var ex = offers.filter(function (x) { return x && String(x.no) === String(rialBasisNo); })[0] || null;
-      if (ex) return { comp: ex, kind: 'explicit', candidates: [] };
-    }
-    if (o) {
-      var compn = offers.filter(function (x) { return x && x.rialOf === o.no; })[0] || null;
-      if (compn) return { comp: compn, kind: 'companion', candidates: [] };
-    }
-    var fileOffers = (typeof window.ptfSalesFileOffers === 'function' && r)
-      ? window.ptfSalesFileOffers(r)
-      : offers.filter(function (x) { return x && r && x.inqNo === r.inqNo; });
-    var cands = (fileOffers || []).filter(function (x) {
-      return x && o && x.no !== o.no && !x.rialOf && (x.kind === 'CO' || x.kind === 'TC') && (!x.currency || x.currency === 'IRR') && x.st !== 'lost';
-    });
-    if (cands.length === 1) return { comp: cands[0], kind: 'registered', candidates: cands };
-    if (cands.length > 1) return { comp: null, kind: '', candidates: cands };
-    return { comp: null, kind: '', candidates: [] };
-  };
-  /* نرخ تسعیر مبنای ریالی: ① نرخ صریح ابزار تبدیل (اف‌ایکس‌کانورت.رِیت)؛
-     ② در نبود آن، نرخ برگرفته از جمع دو سند (جمع ریالی ÷ جمع ارزی) — فقط رقم
-     نمایشی/اتکای حسابدار است و با برچسب درایود از نرخ صریح متمایز می‌شود. */
-  window.sfInvoiceRialRateOf = function (comp, fxTotal, rialTotal) {
-    if (comp && comp.fxConvert && +comp.fxConvert.rate > 0) return { rate: +comp.fxConvert.rate, derived: false };
-    if (+fxTotal > 0 && +rialTotal > 0) return { rate: (+rialTotal) / (+fxTotal), derived: true };
-    return { rate: 0, derived: false };
-  };
-  /*--SF-FXRIALREF-END--*/
-
   /* ===== v19.3 + v34.7.72: ارجاع فاکتور رسمی — از پرونده فروش، در هر مرحله پس از برنده‌شدن =====
      هسته برنامه‌ای قابل تست؛ خروجی {ok, why} — UI فقط wrapper.
      قفل دولایه: ① نقش ارشد ② پرونده برنده. قفل مرحله‌ای (پس از تحویل کارفرما — مرحله ۷)
@@ -703,43 +662,29 @@
     var o = offers.filter(function (x) { return x.no === r.wonOffer; })[0];
     if (!o) return { ok: false, why: 'nooffer' };
     if (o.invRef) return { ok: false, why: 'already' };
-    /* v34.7.76 (INV-RIAL-BASIS) + v34.31.0 (FX-RIAL-REF): مبنای ارجاع به حسابدار همیشه ریالی است.
-       ① پیشنهاد ریالی (IRR) → خود سند؛ ② پیشنهاد ارزی دارای نسخهٔ ریالی (لینک ریال‌اُف یا
-       شمارهٔ صریح) → نسخهٔ ریالی؛ ③ پیشنهاد ارزی با پیشنهاد ریالیِ مستقلِ ثبت‌شده در پرونده →
-       همان سند ثبت‌شده (تک‌نماینده خودکار؛ چندنامزد → انتخاب کاربر)؛
-       ④ پیشنهاد ارزی بدون هیچ نسخهٔ ریالی → why='need_rial' تا UI نرخ بگیرد و نسخهٔ ریالی بسازد. */
+    /* v34.7.76 (INV-RIAL-BASIS): مبنای ارجاع به حسابدار همیشه ریالی است.
+       ① پیشنهاد ریالی (IRR) → خود سند؛ ② پیشنهاد ارزی دارای نسخهٔ ریالی → نسخهٔ ریالی؛
+       ③ پیشنهاد ارزی بدون نسخهٔ ریالی → why='need_rial' تا UI نرخ بگیرد و نسخهٔ ریالی بسازد. */
     var fxTotal = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
     var isFx = !!(o.currency && o.currency !== 'IRR');
-    var comp = null, compKind = '';
+    var comp = null;
     if (isFx) {
-      var solved = (typeof window.sfInvoiceRialResolve === 'function')
-        ? window.sfInvoiceRialResolve(r, offers, o, rialBasisNo)
-        : { comp: offers.filter(function (x) { return x && (x.no === rialBasisNo || x.rialOf === o.no); })[0] || null, kind: '', candidates: [] };
-      comp = solved.comp; compKind = solved.kind;
-      if (!comp && (solved.candidates || []).length > 1) {
-        return { ok: false, why: 'pick_rial', offerNo: o.no, currency: o.currency, totalFx: fxTotal, candidates: solved.candidates.map(function (x) { return { no: x.no, t: x.t || x.dateEn || '', st: x.st || '', total: (x.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) }; }) };
-      }
+      comp = offers.filter(function (x) { return x && (x.no === rialBasisNo || x.rialOf === o.no); })[0] || null;
       if (!comp) return { ok: false, why: 'need_rial', offerNo: o.no, currency: o.currency, totalFx: fxTotal };
     }
     var rialBasis = comp ? comp.no : o.no;
+    var rialRate = comp && comp.fxConvert ? (+comp.fxConvert.rate || 0) : 0;
     var rialTotal = comp ? (comp.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : fxTotal;
-    /* v34.31.0: نرخ = نرخ صریح ابزار تبدیل؛ در نبود آن نرخ برگرفته از جمع دو سند */
-    var _ri = comp ? ((typeof window.sfInvoiceRialRateOf === 'function') ? window.sfInvoiceRialRateOf(comp, fxTotal, rialTotal) : { rate: comp.fxConvert ? (+comp.fxConvert.rate || 0) : 0, derived: false }) : { rate: 0, derived: false };
-    var rialRate = _ri.rate, rialRateDerived = !!(_ri.derived && rialRate > 0);
     /* AC3: سند مالی ضمیمه ارجاع = snapshot قطعی برد، نه پیشنهاد زندهٔ قابل‌تغییر */
     if (typeof sfAwardEnsure === 'function') sfAwardEnsure(r);
-    /* v34.31.0: ریال‌بِیزیس‌کایند = صریح/همراه(ابزار تبدیل)/ثبت‌شدهٔ مستقل؛ ریال‌ریت‌دِرایود = نرخ
-       برگرفته از جمع دو سند (نه نرخ صریح ابزار تبدیل) — برای برچسب نمایش در پنل فاکتورها. */
-    o.invRef = { by: curSession().name, role: (typeof roleDef === 'function' ? roleDef().lb : ''), t: faDate(), fromFile: r.cd, awardDoc: r.wonOffer, rialBasis: rialBasis, rialRate: rialRate, rialRateDerived: rialRateDerived, rialBasisKind: compKind, rialTotal: rialTotal, fxNo: isFx ? o.no : '', fxCurrency: isFx ? o.currency : '' };
+    o.invRef = { by: curSession().name, role: (typeof roleDef === 'function' ? roleDef().lb : ''), t: faDate(), fromFile: r.cd, awardDoc: r.wonOffer, rialBasis: rialBasis, rialRate: rialRate, rialTotal: rialTotal, fxNo: isFx ? o.no : '', fxCurrency: isFx ? o.currency : '' };
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
-    var compLb = comp ? (compKind === 'registered' ? ' (پیشنهاد ریالی ثبت‌شدهٔ پرونده)' : compKind === 'companion' ? ' (نسخهٔ ریالی همراه)' : compKind === 'explicit' ? ' (انتخاب کاربر)' : '') : '';
-    var rateLb = comp ? ' — نرخ تسعیر ' + (+rialRate).toLocaleString('fa-IR') + ' ریال' + (rialRateDerived ? ' (برگرفته از جمع سند ریالی)' : '') : '';
     var list = sfAll();
     var rr = list.filter(function (x) { return x.cd === cd; })[0];
-    if (rr) { rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 ارجاع فاکتور رسمی به حسابدار (پس از برنده‌شدن — هر مرحله)' + (comp ? ' — مبنای ریالی ' + comp.no + compLb + rateLb : '') }); sfSave(list); }
-    try { audit('پرونده‌های فروش', 'ارجاع فاکتور رسمی ' + r.wonOffer + ' از پرونده ' + (r.inqNo || cd) + ' به حسابدار' + (comp ? ' — مبنای ریالی ' + comp.no + compLb + ' (نرخ ' + rialRate + ')' : ''), cd); } catch (e) {}
+    if (rr) { rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 ارجاع فاکتور رسمی به حسابدار (پس از برنده‌شدن — هر مرحله)' + (comp ? ' — مبنای ریالی ' + comp.no : '') }); sfSave(list); }
+    try { audit('پرونده‌های فروش', 'ارجاع فاکتور رسمی ' + r.wonOffer + ' از پرونده ' + (r.inqNo || cd) + ' به حسابدار' + (comp ? ' — مبنای ریالی ' + comp.no + ' (نرخ ' + rialRate + ')' : ''), cd); } catch (e) {}
     if (typeof notify === 'function') {
-      try { notify({ toRoles: ['accountant'], title: '🧾 پرونده ' + (r.inqNo || cd) + ' — مبنای ریالی ' + rialBasis + ' برای صدور فاکتور رسمی ارجاع شد', body: 'خریدار: ' + (r.buyerCo || '-') + (comp ? ' — پیشنهاد ارزی مبدأ: ' + o.no + ' (' + o.currency + ')' + compLb + rateLb : '') + ' — مبنای ریالی در پنل فاکتورها قابل مشاهده است', kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true }); } catch (e2) {}
+      try { notify({ toRoles: ['accountant'], title: '🧾 پرونده ' + (r.inqNo || cd) + ' — مبنای ریالی ' + rialBasis + ' برای صدور فاکتور رسمی ارجاع شد', body: 'خریدار: ' + (r.buyerCo || '-') + (comp ? ' — پیشنهاد ارزی مبدأ: ' + o.no + ' (' + o.currency + ') با نرخ ' + (+rialRate).toLocaleString('fa-IR') + ' ریال' : '') + ' — مبنای ریالی در پنل فاکتورها قابل مشاهده است', kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true }); } catch (e2) {}
     }
     return { ok: true };
   };
@@ -763,10 +708,6 @@
         sfInvoiceRefRialPrompt(cd, res.offerNo, res.currency, res.totalFx);
         return;
       }
-      if (res.why === 'pick_rial') {
-        sfInvoiceRefPickRial(cd, res);
-        return;
-      }
       var msgs = {
         role: '⛔ فقط نقش‌های ارشد می‌توانند ارجاع فاکتور بدهند.',
         already: 'ℹ️ این پرونده قبلا برای فاکتور ارجاع شده است.',
@@ -775,34 +716,6 @@
       alert(msgs[res.why] || '⛔ ارجاع ممکن نیست');
       return;
     }
-    sfInvoiceRefFinish(cd);
-  };
-  /* v34.31.0 (FX-RIAL-REF): چند پیشنهاد ریالی ثبت‌شده در پرونده — کاربر یکی را
-     به‌عنوان مبنای صدور فاکتور انتخاب می‌کند؛ نرخ تسعیر از جمع همان سند برگرفته می‌شود. */
-  window.sfInvoiceRefPickRial = function (cd, res) {
-    var rows = (res.candidates || []).map(function (c, i) {
-      var stLb = c.st === 'sent' ? ' — ارسال‌شده برای کارفرما' : c.st === 'draft' ? ' — پیش‌نویس' : c.st === 'won' ? ' — برنده' : '';
-      return '<label style="display:flex;gap:8px;align-items:center;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font-size:12.5px">' +
-        '<input type="radio" name="sfIrPick" value="' + escP(c.no) + '" ' + (i === 0 ? 'checked' : '') + '>' +
-        '<span style="flex:1"><b dir="ltr">' + escP(c.no) + '</b>' + (c.t ? ' <small style="color:#64748b">— ' + escP(String(c.t)) + '</small>' : '') +
-        '<br><small>جمع: ' + (+c.total || 0).toLocaleString('fa-IR') + ' ریال' + escP(stLb) + '</small></span></label>';
-    }).join('');
-    var html = '<div class="md-b" id="sfIrPickDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px">' +
-      '<h3>💱 انتخاب پیشنهاد ریالی برای صدور فاکتور</h3>' +
-      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">پیشنهاد برندهٔ پرونده <b dir="ltr">' + escP(res.offerNo) + '</b> (' + escP(res.currency) + ') ارزی است و ' + (res.candidates || []).length + ' پیشنهاد ریالی در پرونده ثبت شده است. یکی را به‌عنوان مبنای ریالی صدور فاکتور انتخاب کنید تا حسابدار فاکتور ریالی را با نرخ تسعیر همان سند بزند.</div>' +
-      rows +
-      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="document.getElementById(\'sfIrPickDlg\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#0e7490" onclick="sfInvoiceRefPickRialDo(\'' + ptfOnClickArg(cd) + '\')">🧾 ارجاع با سند ریالی انتخابی</button></div></div></div>';
-    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
-  };
-  window.sfInvoiceRefPickRialDo = function (cd) {
-    var sel = document.querySelector ? document.querySelector('input[name="sfIrPick"]:checked') : null;
-    var no = sel ? sel.value : '';
-    if (!no) { alert('یکی از پیشنهادهای ریالی را انتخاب کنید'); return; }
-    var dlg = document.getElementById('sfIrPickDlg');
-    if (dlg) dlg.remove();
-    var res = sfInvoiceRefCommit(cd, no);
-    if (!res.ok) { alert('ارجاع با سند ریالی انتخابی ناموفق بود: ' + (res.why || '')); return; }
     sfInvoiceRefFinish(cd);
   };
   /* v34.7.76 (INV-RIAL-BASIS): ارجاع پیشنهاد ارزیِ بدون نسخهٔ ریالی — ابتدا نرخ تسعیر گرفته
@@ -1125,17 +1038,9 @@
       }
     } catch (e) {}
     var rb = (typeof ptfRealBuyStatus === 'function') ? ptfRealBuyStatus(r.inqNo) : { total: 0, done: 0, has: false };
-    var costSum = (function (evs) {
-      /* v34.29.8: ددوب بر اساس cd پیش از جمع — نوار مالی هر هزینه را یک‌بار می‌شمارد */
-      var seen = {};
-      return (evs || []).filter(function (x) {
-        if (x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || '')))) return false;
-        var k = x && (x.cd || x.pettyCd) || x;
-        if (k && seen[k]) return false;
-        if (k) seen[k] = 1;
-        return true;
-      }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
-    })(r.costEvents);
+    var costSum = (r.costEvents || []).filter(function (x) {
+      return !(x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || ''))));
+    }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
     var invCount = (d.invoices || []).length;
     var openAmt = (d.invoices || []).reduce(function (s, i) {
       var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(i) : ((i.payments || []).concat(i.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
@@ -1287,19 +1192,6 @@
     var pjPettyByCd = {}, pjPettyAll = getData('ptf_crm_petty') || [];
     pjPettyAll.forEach(function (p) { if (p && p.cd) pjPettyByCd[p.cd] = p; });
     var pjCostEvents = (r.costEvents || []).slice();
-    /* v34.29.8 (COST-DEDUP): ددوب نمایشی بر اساس cd — بیمهٔ ثانویه روی دادهٔ تاریخی
-       تا زمانی که merge/جاروب تعمیر همهٔ دستگاه‌ها همگرا کند. */
-    (function () {
-      var seen = {}, dd = [];
-      pjCostEvents.forEach(function (ce) {
-        if (!ce) return;
-        var cd = String(ce.cd || '');
-        if (!cd) { dd.push(ce); return; }
-        if (seen[cd]) return;
-        seen[cd] = 1; dd.push(ce);
-      });
-      pjCostEvents = dd;
-    })();
     pjPettyAll.forEach(function (p) {
       if (!p || p.st === 'void' || p.dealRef !== r.cd) return;
       if (pjCostEvents.some(function (ce) { return (ce.pettyCd || (ce.fromPetty && ce.cd)) === p.cd; })) return;
@@ -2326,7 +2218,6 @@
     if (!d) return;
     if (!confirm('این هزینه از پرونده حذف شود؟' + (pettyCd ? '\n\n(لینک از تنخواه نیز حذف می‌شود ولی هزینهٔ اصلی در تنخواه باقی می‌ماند.)' : ''))) return;
     d.costEvents = (d.costEvents || []).filter(function (x) { if (x.cd === costCd) return false; return true; });
-    if (typeof window.ptfDealCostTomb === 'function') window.ptfDealCostTomb(d, costCd); /* v34.29.8: حذف ماندگار در merge بین‌دستگاهی */
     d.timeline = d.timeline || [];
     d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینهٔ پرونده ' + costCd + (pettyCd ? ' (لینک تنخواه ' + pettyCd + ')' : '') });
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }), { reason: 'w2' }); else setData('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }));
@@ -2346,61 +2237,5 @@
 
   var htr2 = 0;
   var ht2 = setInterval(function () { htr2++; if (hookLetterModal() || htr2 > 50) clearInterval(ht2); }, 400);
-
-  /* ═══ v34.29.8 (COST-REPAIR): پاکسازی یک‌بارهٔ آسیب تاریخی costEvents ═══
-     گزارش کارفرما: «هزینه‌های مستقیم پرونده چندباره محاسبه شده و با حذف برمی‌گردند؛
-     هزینهٔ تنخواهِ پروندهٔ دیگر هم در این پرونده درج شده.» آسیب‌ها: ① رویداد تکراری
-     هم‌کد/متفاوت‌کد از union امضای کامل-JSON ② رویداد یتیم تنخواه (منبع حذف/ابطال
-     شده یا لینک‌شده به پروندهٔ دیگر / لینک‌گسسته) ③ موارد حذف‌شده‌ای که tombstone
-     نداشتند. جاروب: ددوب بر cd + حذف یتیم‌ها + نوشتن _costTomb برای هر حذف تا
-     merge بین‌دستگاهی هرگز بازشان نگرداند. idempotent؛ یک‌بار در هر دستگاه. */
-  window.ptfDealCostRepairSweep = function (force) {
-    /* فلگ گارد از مسیر لایهٔ داده (A10/E2) — نه localStorage مستقیم؛ این کلید عضو
-       SYNC_KEYS نیست → فقط محلی است و نویز sync ندارد. */
-    var flags = (typeof getData === 'function' ? getData('ptf_app_flags') : []) || [];
-    var hasFlag = flags.some(function (x) { return x && x.cd === 'cost_repair_v1'; });
-    if (!force && hasFlag) return { ok: true, skipped: true, deals: 0 };
-    var ds = getData('ptf_crm_deals') || [];
-    var pettyBy = {};
-    (getData('ptf_crm_petty') || []).forEach(function (p) { if (p && p.cd) pettyBy[p.cd] = p; });
-    var touched = 0;
-    ds.forEach(function (d) {
-      if (!d || !Array.isArray(d.costEvents) || !d.costEvents.length) return;
-      var tomb = d._costTomb || {};
-      var seen = {}, kept = [], removed = 0;
-      d.costEvents.forEach(function (e) {
-        if (!e || typeof e !== 'object') return;
-        var cd = String(e.cd || '');
-        if (!cd) { kept.push(e); return; }
-        if (tomb[cd]) { removed++; return; }
-        var pcd = String(e.pettyCd || (e.fromPetty ? e.cd : '') || '');
-        if (pcd) {
-          var src = pettyBy[pcd];
-          /* یتیم: منبع نیست / باطل است / به پروندهٔ دیگری لینک است / اصلاً لینک ندارد */
-          if (!src || src.st === 'void' || !src.dealRef || src.dealRef !== d.cd) {
-            tomb[cd] = new Date().toISOString();
-            removed++;
-            return;
-          }
-        }
-        if (seen[cd]) { removed++; return; } /* تکرار هم‌کد: فقط رد می‌شود — tombstone نمی‌گیرد چون نسخهٔ مشروع همان cd زنده است؛ کپی‌های کهنه را ددوب merge (COST-EVENT-TOMB) می‌گیرد */
-        seen[cd] = 1;
-        kept.push(e);
-      });
-      if (removed) { d._costTomb = tomb; d.costEvents = kept; touched++; }
-    });
-    if (touched) {
-      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds, { reason: 'cost-repair' });
-      else setData('ptf_crm_deals', ds);
-      try { if (typeof audit === 'function') audit('پرونده فروش', '🧹 پاکسازی هزینه‌های تکراری/یتیم در ' + touched + ' پرونده (با tombstone ماندگار)', 'COST-REPAIR'); } catch (eA) {}
-    }
-    try {
-      flags = flags.filter(function (x) { return x && x.cd !== 'cost_repair_v1'; });
-      flags.push({ cd: 'cost_repair_v1', t: new Date().toISOString() });
-      setData('ptf_app_flags', flags);
-    } catch (eFlag) {}
-    return { ok: true, skipped: false, deals: touched };
-  };
-  try { window.ptfDealCostRepairSweep(); } catch (eRS) {}
 })();
 ;

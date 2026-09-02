@@ -1,4 +1,4 @@
-/* tester498 — v34.31.0
+/* tester498 — v34.29.3
  * رفع دائمی دو race مالی:
  *  1) Receipt قطعی در خزانه/AR/حساب مشتری با تفکیک received/allocated/free/overpay
  *  2) reconcile ماهانهٔ حقوق و قالب OPEX فقط پس از snapshot-ready، idempotent و legacy-safe
@@ -9,17 +9,17 @@ var fs = require('fs'), path = require('path'), vm = require('vm');
 var ROOT = path.resolve(__dirname, '../..');
 function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
-SECTION('Release v34.31.0: پین‌های رسمی');
+SECTION('Release v34.29.3: پین‌های رسمی');
 (function releasePins() {
   var ver = JSON.parse(read('VERSION.json'));
   var idx = read('crm/index.html'), sw = read('crm/sw.js');
-  T('VERSION.json = v34.31.0', ver.crm_version === 'v34.31.0', ver.crm_version);
-  T('index release و cache-bust روی 34.31.0 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.31.0'") > -1 && idx.indexOf('?v=34.7.96') === -1);
-  T('service worker release/cache/assets روی 34.31.0 است', sw.indexOf("RELEASE = 'v34.31.0'") > -1 && sw.indexOf("ASSET_VERSION = '34.31.0'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.31.0'") > -1);
-  T('manifest.version = 34.31.0', JSON.parse(read('crm/manifest.json')).version === '34.31.0');
-  T('clear-cache روی v34.31.0 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.31.0'") > -1);
-  T('shell fallback روی v34.31.0 است', read('crm/shell.js').indexOf("'v34.31.0'") > -1);
-  T('sales-domain service روی 34.31.0 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.31.0'") > -1);
+  T('VERSION.json = v34.29.3', ver.crm_version === 'v34.29.3', ver.crm_version);
+  T('index release و cache-bust روی 34.29.3 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.29.3'") > -1 && idx.indexOf('?v=34.7.96') === -1);
+  T('service worker release/cache/assets روی 34.29.3 است', sw.indexOf("RELEASE = 'v34.29.3'") > -1 && sw.indexOf("ASSET_VERSION = '34.29.3'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.29.3'") > -1);
+  T('manifest.version = 34.29.3', JSON.parse(read('crm/manifest.json')).version === '34.29.3');
+  T('clear-cache روی v34.29.3 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.29.3'") > -1);
+  T('shell fallback روی v34.29.3 است', read('crm/shell.js').indexOf("'v34.29.3'") > -1);
+  T('sales-domain service روی 34.29.3 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.29.3'") > -1);
 })();
 
 SECTION('AR: یک Receipt، یک قرارداد عددی در خزانه و حساب مشتری');
@@ -282,4 +282,4 @@ SECTION('Server salary contract و Sync readiness wiring');
   T('reactivation شناسه خالی و markerهای void/deleted را heal می‌کند', php.indexOf('function sd_recurring_activate') > -1 && php.indexOf("'deletedAt'") > -1 && php.indexOf("'explicitDeletion'") > -1);
 })();
 
-DONE('tester498-v34.31.0-ar-opex-reconcile');
+DONE('tester498-v34.29.3-ar-opex-reconcile');

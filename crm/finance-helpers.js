@@ -154,22 +154,9 @@
    */
   function dealTotalCosts(p) {
     if (!p) return 0;
-    /* v34.29.8: ددوب بر اساس cd بین هر سه منبع — یک هزینهٔ هم‌کد که هم در
-       costEvents و هم در projectCosts/postArchiveCosts نشسته یک‌بار شمرده می‌شود
-       (ابلاغ «هیچ وجهی دو بار»؛ هم‌سنخ fiscalDirectProjectCosts). */
-    var seenCd = {};
-    function sum(list) {
-      return (list || []).reduce(function (s, c) {
-        if (!c) return s;
-        var k = String(c.cd || c.pettyCd || (String(c.t || '') + '|' + String(c.desc || '') + '|' + (+c.amt || 0)));
-        if (seenCd[k]) return s;
-        seenCd[k] = 1;
-        return s + (+c.amt || 0);
-      }, 0);
-    }
-    var fromEvents = sum(p.costEvents);
-    var fromProject = sum(p.projectCosts);
-    var fromPostArchive = sum(p.postArchiveCosts);
+    var fromEvents = (p.costEvents || []).reduce(function (s, c) { return s + (+c.amt || 0); }, 0);
+    var fromProject = (p.projectCosts || []).reduce(function (s, c) { return s + (+c.amt || 0); }, 0);
+    var fromPostArchive = (p.postArchiveCosts || []).reduce(function (s, c) { return s + (+c.amt || 0); }, 0);
     if (p.origin === 'salesfile' || p.state === 'archived') {
       return fromEvents + fromProject + fromPostArchive;
     }

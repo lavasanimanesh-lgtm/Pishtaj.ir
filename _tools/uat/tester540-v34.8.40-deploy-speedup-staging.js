@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester540 — v34.31.0 (DEPLOY-SPEEDUP + TRUTHFUL-GREEN برای استیجینگ)
+/* tester540 — v34.29.3 (DEPLOY-SPEEDUP + TRUTHFUL-GREEN برای استیجینگ)
    ریشهٔ تغییر: دیپلوی استیجینگ برای یک تغییر کوچک ۸-۱۲ دقیقه طول می‌کشید و در پایان
    هم «Post-deploy integrity» قرمز می‌شد (false-red؛ کش مسیرمحور هاست).
    قرارداد جدید deploy-staging.yml:
@@ -88,6 +88,6 @@ if (wired) {
 }
 
 results.forEach(function (r) { T(r.n, r.c, r.d); });
-console.log('\n— tester540 (v34.31.0: DEPLOY-SPEEDUP + TRUTHFUL-GREEN استیجینگ' + (wired ? '' : ' — حالت وصلهٔ معلق') + ') —');
+console.log('\n— tester540 (v34.29.3: DEPLOY-SPEEDUP + TRUTHFUL-GREEN استیجینگ' + (wired ? '' : ' — حالت وصلهٔ معلق') + ') —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

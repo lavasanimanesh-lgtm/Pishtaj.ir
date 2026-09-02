@@ -3639,24 +3639,10 @@ function saveCust2(cd) {
   if (typeof ptfDupBlock === 'function' && ptfDupBlock('customer', rec, cd)) return;
   if (cd) {
     for (var i = 0; i < items.length; i++) if (items[i].cd === cd) {
-      /* v34.29.7 (SITE-PARITY): فیلدهایی که فرم ویرایش مدیریت نمی‌کند (files/پیوست
-         ابری، src، srcSite، ds، approvedBy/At، پیام فرم سایت، مهرهای dedup و…)
-         از رکورد قبلی حفظ می‌شوند — همان merge semantics سرور. قبلاً بازسازی کامل
-         rec این‌ها را بی‌صدا پاک می‌کرد و مثلاً مشتریِ درخواست‌دهندهٔ سایت پس از یک
-         ویرایش، ردّپای خود را از دست می‌داد. */
-      var oldC2 = items[i];
-      for (var ok2 in oldC2) {
-        if (Object.prototype.hasOwnProperty.call(oldC2, ok2) && !(ok2 in rec)) rec[ok2] = oldC2[ok2];
-      }
       rec.crAt = items[i].crAt; rec.crBy = items[i].crBy;
       if (!document.getElementById('nC2Owner')) rec.owner = items[i].owner || items[i].crBy || rec.owner || '';
       /* v14.6: اگر فیلد سقف اعتبار برای این نقش نمایش داده نشده، مقدار قبلی حفظ شود */
       if (!document.getElementById('nC2Credit')) rec.creditLimit = items[i].creditLimit || 0;
-      /* v34.29.7: رکورد قدیمیِ سایت بدون اشخاص رابط — ph/con اسکالر نباید در اولین
-         ویرایش پاک شود (فرم چیزی برای ویرایشش نشان نمی‌داد). اگر شخص/کانالی هست،
-         مقدار مشتق‌شده از فرم معتبر است. */
-      if (!rec.ph && !(rec.coTels || []).length && !primaryPerson(rec) && oldC2.ph) rec.ph = oldC2.ph;
-      if (!rec.con && !primaryPerson(rec) && oldC2.con) rec.con = oldC2.con;
       items[i] = rec;
     }
   } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
@@ -3752,19 +3738,7 @@ function saveSup2(cd) {
   // US-174: جلوگیری از ثبت تکراری (نام/شناسه ملی/کد ملی/هر شماره تماس)
   if (typeof ptfDupBlock === 'function' && ptfDupBlock('supplier', rec, cd)) return;
   if (cd) {
-    for (var i = 0; i < items.length; i++) if (items[i].cd === cd) {
-      /* v34.29.7 (SITE-PARITY): حفظ فیلدهای خارج از فرم (files، src، srcSite،
-         payTerms/creditRange/payScore، پیام و یادداشت تایید و…) — merge مثل سرور. */
-      var oldS2 = items[i];
-      for (var okS2 in oldS2) {
-        if (Object.prototype.hasOwnProperty.call(oldS2, okS2) && !(okS2 in rec)) rec[okS2] = oldS2[okS2];
-      }
-      rec.crAt = items[i].crAt; rec.crBy = items[i].crBy; items[i] = rec;
-      /* v34.29.7: مثل مشتری — رکورد قدیمیِ سایت بدون people، nm/ph اسکالر را در
-         اولین ویرایش از دست نمی‌دهد. */
-      if (!rec.nm && oldS2.nm) rec.nm = oldS2.nm;
-      if (!rec.ph && !(rec.coTels || []).length && !primaryPerson(rec) && oldS2.ph) rec.ph = oldS2.ph;
-    }
+    for (var i = 0; i < items.length; i++) if (items[i].cd === cd) { rec.crAt = items[i].crAt; rec.crBy = items[i].crBy; items[i] = rec; }
   } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
   /* v34.8.22 (W1): ثبت/ویرایش تامین‌کننده از پیشنهاد با فرمان اتمیک سروری. */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'offer-sup' });

@@ -25,8 +25,7 @@
     var opt = { method: 'POST', headers: authHeaders() };
     if (data) { var fd = new FormData(); Object.keys(data).forEach(function (k) { fd.append(k, data[k]); }); opt.body = fd; }
     fetch(API + '?action=' + action, opt).then(function (r) { return r.json(); }).then(cb)
-      /* v34.31.0 (GSC-DIAG): پاسخ غیرJSON = خطای 500 سرور؛ معمولاً خطای نحوی api/gsc-config.php */
-      .catch(function () { cb({ ok: false, error: 'پاسخ سرور خطا بود (احتمالاً 500). اگر تنظیمات را تازه ساخته‌اید، روی هاست با «php -l api/gsc-config.php» آزمایشش کنید؛ از تب سئو «🧪 آزمون اتصال» نیز علت دقیق را می‌گوید.' }); });
+      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به سرور' }); });
   }
   function n(v) { return (Math.round(v)).toLocaleString('fa-IR'); }
   function pct(v) { return (v * 100).toFixed(1) + '٪'; }

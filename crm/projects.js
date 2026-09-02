@@ -511,8 +511,7 @@ function plCreate(offerNo) {
   if (!o) { alert('CO یافت نشد'); return; }
   var rem = plRemaining(offerNo);
   if (!rem.some(function (r) { return r > 0; })) { alert('همه اقلام این CO قبلاً تحویل شده است ✅'); return; }
-  var plNo = plSerial();
-  _plState = { cd: plNo, no: plNo, /* v34.29.8: رجیستری فرمان سرور id=cd می‌خواهد — رکوردهای قدیمی cd نداشتند و مسیر فرمان/تombstone برای پکینگ‌لیست هرگز فعال نبود */ offerNo: offerNo, buyerCo: o.buyerCo, buyerContact: o.buyerContact, buyerTel: o.buyerTel,
+  _plState = { no: plSerial(), offerNo: offerNo, buyerCo: o.buyerCo, buyerContact: o.buyerContact, buyerTel: o.buyerTel,
     dateEn: new Date().toISOString().slice(0, 10), lines: [] };
   var rows = (o.items || []).map(function (it, i) {
     var r = rem[i];
@@ -589,7 +588,6 @@ function prjRenderPls(offerNo) {
       '<span style="display:flex;gap:5px">' +
       '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="plPrint(\'' + pl.no + '\')">🖨️ PDF</button>' +
       (!pl.voided ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="plVoid(\'' + pl.no + '\')">ابطال</button>' : '') +
-      '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" title="حذف قطعی (بین‌دستگاهی)" onclick="plDelete(\'' + pl.no + '\')">🗑️</button>' +
       '</span></div>';
   }).join('') || '<span style="color:#94a3b8;font-size:12px">پکینگ لیستی صادر نشده</span>';
 }
@@ -598,12 +596,7 @@ function plVoid(no) {
   var why = prompt('دلیل ابطال ' + no + '؟ (الزامی)');
   if (!why || !why.trim()) return;
   var pls = getData('ptf_crm_packinglists');
-  /* v34.29.8 (PL-VOID-STICKS — «ابطال می‌کنم ولی همچنان هستند»): merge عمومی این
-     کلید برنده را با ts (iso||ts||t||date) انتخاب می‌کند؛ ابطال قبلاً هیچ ts را به‌روز
-     نمی‌کرد → نسخهٔ ابطال‌نشدهٔ سرور/دستگاه دیگر همیشه می‌برد و ابطال در sync بعدی
-     گم می‌شد. اکنون ts+voidedISO نوشته می‌شود و cd قدیمی‌ها هم backfill می‌شود تا
-     مسیر فرمان/tombstone فعال باشد. */
-  pls.forEach(function (p) { if (p.no === no) { if (!p.cd) p.cd = p.no; p.voided = true; p.voidWhy = why.trim(); p.voidBy = curSession().name; p.voidT = faDate(); p.voidedISO = new Date().toISOString(); p.ts = p.voidedISO; } });
+  pls.forEach(function (p) { if (p.no === no) { p.voided = true; p.voidWhy = why.trim(); p.voidBy = curSession().name; p.voidT = faDate(); } });
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_packinglists', pls, { reason: 'w2' }); else setData('ptf_crm_packinglists', pls);
   var pl = pls.filter(function (p) { return p.no === no; })[0];
   var prjs = getData('ptf_crm_projects');
@@ -616,36 +609,6 @@ function plVoid(no) {
   }
   audit('پکینگ لیست', 'ابطال ' + no + ': ' + why, no);
   if (typeof prjRenderPls === 'function' && pl) prjRenderPls(pl.offerNo);
-}
-
-/* v34.29.8 (PL-DELETE — «delete کردنشان فایده ندارد»): حذف قطعیِ بین‌دستگاهی.
-   ① tombstone محلی kind=archive_purge با identities فقط برای همین کلید (بدون
-   aliases — alias در فیلتر cross-collection به‌صورت substring کار می‌کند و شمارهٔ
-   PL ممکن است در timeline پروژه آمده باشد) → از طریق sync آرشیو (union) به همهٔ
-   دستگاه‌ها و سرور می‌رسد و merge آینده رکورد را برای همیشه کنار می‌گذارد؛
-   رکوردهای قدیمی بدون cd را هم پوشش می‌دهد (هویت cd||no). ② اگر رکورد cd دارد،
-   فرمان entity_delete سرور هم می‌رود (idempotent — تورم دوگانه ندارد). */
-function plDelete(no) {
-  if (!confirm('پکینگ لیست ' + no + ' برای همیشه از همه دستگاه‌ها حذف شود؟\n(برای برگرداندن تعدادها به پروژه، «ابطال» کافی است — حذف قطعی است)')) return;
-  var pls = getData('ptf_crm_packinglists');
-  var pl = pls.filter(function (p) { return p.no === no; })[0];
-  if (!pl) return;
-  var plId = String(pl.cd || pl.no);
-  var kept = pls.filter(function (p) { return p.no !== no; });
-  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_packinglists', kept, { reason: 'pl-delete' }); else setData('ptf_crm_packinglists', kept);
-  try {
-    var arch = getData('ptf_crm_deleted_archive') || [];
-    arch.unshift({ _id: 'DEL-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8), kind: 'archive_purge', collection: 'ptf_crm_packinglists', id: plId, cd: plId, identities: { ptf_crm_packinglists: [plId] }, reason: 'حذف قطعی پکینگ لیست ' + no, deletedBy: curSession().name, deletedAt: new Date().toISOString() });
-    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arch, { reason: 'pl-delete-tomb' }); else setData('ptf_crm_deleted_archive', arch);
-  } catch (eTomb) {}
-  if (pl.cd && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_packinglists'] && typeof window.ptfEntityDelete === 'function') {
-    try {
-      window.ptfEntityDelete('ptf_crm_packinglists', pl.cd, { reason: 'حذف قطعی پکینگ لیست ' + no, cb: function () { if (typeof prjRenderPls === 'function') prjRenderPls(pl.offerNo); } });
-    } catch (eEntDel) {}
-  }
-  audit('پکینگ لیست', '🗑️ حذف قطعی ' + no, plId);
-  if (typeof prjRenderPls === 'function') prjRenderPls(pl.offerNo);
-  if (typeof renderProjects2 === 'function') renderProjects2();
 }
 
 /* ---- چاپ PL — قالب هم‌خانواده TO/CO (AC1) ---- */
