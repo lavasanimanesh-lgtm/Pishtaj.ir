@@ -219,7 +219,11 @@ fi
 # و آیا نرمال‌سازی پایان‌خط (حذف \r) هش را یکی می‌کند یا نه → اثبات/رد تبدیل
 # پایان‌خط در مسیر سرو). نتیجه فقط به‌صورت annotation گزارش می‌شود؛ کد خروج تغییر نمی‌کند.
 diag "── [bytes] مقایسهٔ بایتی ۵ فایل حساس با نسخهٔ زنده"
-BYTES_FILES="crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js"
+BYTES_FILES="crm/sw.js
+crm/shell.js
+crm/client-server.js
+crm/key-registry.js
+crm/sales-domain-v2.js"
 mkdir -p .live-copy
 while IFS= read -r bf; do
   [[ -z "$bf" ]] && continue
