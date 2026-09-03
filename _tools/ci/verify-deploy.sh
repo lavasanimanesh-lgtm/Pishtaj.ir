@@ -214,6 +214,43 @@ if [[ -n "$FTP_SERVER" ]]; then
   fi
 fi
 
+# ── ۳) تشخیص بایتی ۵ فایل حساس (ریشه‌یابی شکست گیت صحت) ─────────────────────
+# هدف: اگر هش زنده != کامیت بود، بفهمیم تفاوت دقیقاً چیست (اندازه، اولین تفاوت،
+# و آیا نرمال‌سازی پایان‌خط (حذف \r) هش را یکی می‌کند یا نه → اثبات/رد تبدیل
+# پایان‌خط در مسیر سرو). نتیجه فقط به‌صورت annotation گزارش می‌شود؛ کد خروج تغییر نمی‌کند.
+diag "── [bytes] مقایسهٔ بایتی ۵ فایل حساس با نسخهٔ زنده"
+BYTES_FILES="crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js"
+mkdir -p .live-copy
+while IFS= read -r bf; do
+  [[ -z "$bf" ]] && continue
+  out=".live-copy/$(echo "$bf" | tr '/' '_')"
+  if ! curl -fsSL --max-time 30 "$URL/$bf?cb=$BUST-bytes" -o "$out" 2>/dev/null; then
+    note "[bytes] $bf: دریافت زنده ناموفق بود"
+    diag "[bytes] $bf: دریافت زنده ناموفق بود"
+    continue
+  fi
+  w_sha="$(sha1sum "$bf" | cut -d' ' -f1)"
+  g_sha="$(sha1sum "$out" | cut -d' ' -f1)"
+  w_sz="$(wc -c < "$bf" | tr -d ' ')"
+  g_sz="$(wc -c < "$out" | tr -d ' ')"
+  if [[ "$w_sha" == "$g_sha" ]]; then
+    note "[bytes] $bf: هش زنده == کامیت (اندازه $g_sz) ✅"
+    continue
+  fi
+  w_norm="$(tr -d '\r' < "$bf" | sha1sum | cut -d' ' -f1)"
+  g_norm="$(tr -d '\r' < "$out" | sha1sum | cut -d' ' -f1)"
+  verdict="نامشخص"
+  if [[ "$w_norm" == "$g_norm" ]]; then
+    verdict="فقط تفاوت پایان‌خط (\r) — سرور فایل را با تبدیل خط تحویل می‌دهد"
+  fi
+  first_diff="$(diff "$bf" "$out" 2>/dev/null | head -3 | tr '\n' '|' | tr -d '\r' | cut -c1-160)"
+  lead="$(head -c 120 "$out" | od -c | head -2 | tr '\n' ' ' | cut -c1-120)"
+  note "[bytes] $bf: هش متفاوت | کامیت=$w_sz بایت زنده=$g_sz بایت | جمع‌شده بدون \r: $verdict | want=${w_sha:0:12} got=${g_sha:0:12} | اولین تفاوت: $first_diff"
+  diag "[bytes] $bf: want=${w_sha:0:12} got=${g_sha:0:12} اندازه کامیت=$w_sz زنده=$g_sz | بدون \r: $verdict"
+  diag "[bytes] $bf اولین تفاوت: $first_diff"
+  diag "[bytes] $bf بایت‌های اول زنده: $lead"
+done <<< "$BYTES_FILES"
+
 # ── نتیجه ───────────────────────────────────────────────────
 echo "──────────────────────────────────────────"
 echo "نتیجه: HTTP=$([[ $HTTP_OK -eq 1 ]] && echo OK || echo FAIL)  FTP=${FTP_OK:-N/A} (mode=${FTP_MODE:-none})"
