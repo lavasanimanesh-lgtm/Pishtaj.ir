@@ -148,7 +148,7 @@ def lint(path, text_only):
     if len(title) > 68: problems.append(f'عنوان بلند: {len(title)}')
     if not (120 <= len(desc) <= 175): problems.append(f'طول توضیح: {len(desc)}')
     words = len(re.sub(r'<script.*?</script>|<style.*?</style>', '', t, flags=re.S))
-    body_words = len(re.findall(r'[\u0600-\u06FF\uFB8A]+', re.sub(r'<[^>]+>', ' ', t)))
+    body_words = len(re.sub(r'<script.*?</script>|<style.*?</style>', '', t, flags=re.S).split())
     if body_words < 1000: problems.append(f'کلمات بدنه کم: {body_words}')
     if '"FAQPage"' not in t or 'BreadcrumbList' not in t or '"Article"' not in t:
         problems.append('JSON-LD ناقص')
