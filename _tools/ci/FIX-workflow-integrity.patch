@@ -1,0 +1,36 @@
+diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
+index 7f1780ae..f3d603bb 100644
+--- a/.github/workflows/deploy-production.yml
++++ b/.github/workflows/deploy-production.yml
+@@ -176,7 +176,13 @@ jobs:
+       - name: Post-deploy integrity check
+         run: |
+           BASE="https://pishtaj.ir"
+-          FILES="crm/index.html crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js crm/manifest.json"
++          FILES="crm/index.html
++crm/sw.js
++crm/shell.js
++crm/client-server.js
++crm/key-registry.js
++crm/sales-domain-v2.js
++crm/manifest.json"
+           PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
+           echo "کامیت: $DEPLOY_SHA | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
+           fail=1
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+index 62a0cac5..6ad35f10 100644
+--- a/.github/workflows/deploy-staging.yml
++++ b/.github/workflows/deploy-staging.yml
+@@ -174,7 +174,11 @@ jobs:
+       - name: Post-deploy integrity check
+         run: |
+           BASE="https://staging.pishtaj.ir"
+-          FILES="crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js"
++          FILES="crm/sw.js
++crm/shell.js
++crm/client-server.js
++crm/key-registry.js
++crm/sales-domain-v2.js"
+           PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
+           echo "کامیت: ${{ github.sha }} | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
+           fail=1

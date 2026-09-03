@@ -1749,6 +1749,77 @@
     });
   };
 
+  /* ═══ v34.34.0 (UX-R3): اتوکامپلیت مشتری (مشترک) — همان تجربهٔ انتخاب کارفرما در فرم پیشنهاد ═══
+     برای هر مودالی که یک <select id="{prefix}"> پنهان دارد: ورودی جستجو + جعبهٔ نتایج
+     + دکمهٔ «لیست کامل» + چیپ انتخاب. انتخاب، change سلکت را هم آتش می‌زند. */
+  window.ptfCustAcLabel = function (c) {
+    if (!c) return '';
+    var lb = c.co || c.coEn || c.cd || '';
+    if (c.coEn && c.co && c.coEn !== c.co) lb = c.co + ' / ' + c.coEn;
+    if (c.cd) lb = lb + '  ·  ' + c.cd;
+    return lb;
+  };
+  window.ptfCustAcHtml = function (prefix) {
+    return '<div style="position:relative;display:flex;gap:6px;align-items:flex-start">' +
+      '<input type="text" id="' + prefix + 'Ac" autocomplete="off" placeholder="نام مشتری… (تایپ کنید و از فهرست انتخاب کنید)" oninput="ptfCustAcSearch(\'' + prefix + '\')" onfocus="ptfCustAcSearch(\'' + prefix + '\')" style="flex:1;min-width:0;padding:8px 10px;border:1px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px">' +
+      '<button type="button" class="bt bt-o" style="padding:8px 10px;white-space:nowrap;font-size:11.5px" onclick="ptfCustAcToggle(\'' + prefix + '\')" title="نمایش لیست کشویی کامل مشتریان">📋 لیست کامل</button>' +
+      '<div id="' + prefix + 'AcBox" dir="rtl" style="position:absolute;top:100%;right:0;left:86px;z-index:3000;background:#fff;border:1px solid var(--brd);border-radius:10px;box-shadow:0 10px 24px rgba(15,23,42,.16);max-height:240px;overflow:auto;display:none"></div>' +
+      '</div>' +
+      '<div id="' + prefix + 'Chip" style="margin-top:6px;font-size:12px;color:#0e7490;line-height:1.7"></div>';
+  };
+  window.ptfCustAcSearch = function (prefix) {
+    var inp = document.getElementById(prefix + 'Ac'), box = document.getElementById(prefix + 'AcBox');
+    if (!inp || !box) return;
+    var q = String(inp.value || '').trim().toLowerCase();
+    var custs = [];
+    try { custs = getData('ptf_crm_customers') || []; } catch (eC) {}
+    var hits = custs.filter(function (c) {
+      if (!q) return true;
+      return ((c.co || '') + ' ' + (c.coEn || '') + ' ' + (c.cd || '')).toLowerCase().indexOf(q) > -1;
+    }).slice(0, 40);
+    box.innerHTML = hits.length
+      ? hits.map(function (c) {
+          return '<div role="button" tabindex="0" style="padding:8px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:12.5px" onclick="ptfCustAcPick(\'' + prefix + '\',\'' + ptfOnClickArg(c.cd) + '\')" onkeydown="if(event.key===\'Enter\')ptfCustAcPick(\'' + prefix + '\',\'' + ptfOnClickArg(c.cd) + '\')">' +
+            '<b>' + escP(c.co || c.coEn || c.cd) + '</b>' + (c.coEn && c.co ? ' <span dir="ltr" style="color:#64748b">' + escP(c.coEn) + '</span>' : '') +
+            ' <span dir="ltr" style="color:#0e7490;font-size:11px">' + escP(c.cd) + '</span></div>';
+        }).join('')
+      : '<div style="padding:10px;color:#94a3b8;font-size:12px">مشتری‌ای با این عبارت پیدا نشد — از «+ ثبت مشتری جدید» استفاده کنید</div>';
+    box.style.display = 'block';
+  };
+  window.ptfCustAcSync = function (prefix) {
+    var sel = document.getElementById(prefix), inp = document.getElementById(prefix + 'Ac'), chip = document.getElementById(prefix + 'Chip');
+    var c = null;
+    try { c = (getData('ptf_crm_customers') || []).filter(function (x) { return sel && x.cd === sel.value; })[0]; } catch (eC) {}
+    if (inp) inp.value = c ? window.ptfCustAcLabel(c) : '';
+    if (chip) chip.innerHTML = c ? ('🏢 مشتری انتخاب‌شده: <b>' + escP(window.ptfCustAcLabel(c)) + '</b>') : '';
+  };
+  window.ptfCustAcPick = function (prefix, cd) {
+    var sel = document.getElementById(prefix), box = document.getElementById(prefix + 'AcBox');
+    if (sel) {
+      sel.value = cd;
+      try { sel.dispatchEvent(new Event('change')); } catch (eD) { if (sel.onchange) sel.onchange(); }
+    }
+    if (box) box.style.display = 'none';
+    window.ptfCustAcSync(prefix);
+  };
+  window.ptfCustAcToggle = function (prefix) {
+    var sel = document.getElementById(prefix), box = document.getElementById(prefix + 'AcBox');
+    if (box) box.style.display = 'none';
+    if (!sel) return;
+    sel.style.display = sel.style.display === 'none' ? '' : 'none';
+    if (sel.style.display !== 'none') sel.focus();
+  };
+  document.addEventListener('click', function (e) { /* بستن جعبهٔ نتایج با کلیک بیرون */
+    try {
+      document.querySelectorAll('[id$="AcBox"]').forEach(function (box) {
+        if (box.style.display === 'none') return;
+        var prefix = box.id.slice(0, -5);
+        if (e.target && (e.target.id === prefix + 'Ac' || (e.target.closest && e.target.closest('#' + box.id)))) return;
+        box.style.display = 'none';
+      });
+    } catch (eX) {}
+  });
+
   function rfqModalHtml() {
     var catOpts = RFQ_CATS.map(function (c) { return '<option>' + c + '</option>'; }).join('');
     var tabs = [
@@ -1765,8 +1836,11 @@
     return '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:680px;max-height:92vh;overflow:auto">' +
       '<h3>➕ ثبت درخواست جدید</h3>' +
       '<div class="fr"><div class="fld"><label>مشتری (کارفرما) *</label>' +
-      '<div style="display:flex;gap:6px"><select id="nR2Cust" style="flex:1" onchange="rfqCustChanged()">' + custOptions() + '</select>' +
-      '<button type="button" class="bt bt-o" style="padding:6px 10px;font-size:12px;white-space:nowrap" onclick="showCustModal()">+ ثبت مشتری جدید</button></div></div></div>' +
+      /* v34.34.0 (UX-R3): انتخاب مشتری با جستجو — مشابه فرم پیشنهاد (سلکت برای سازگاری منطق، پنهان) */
+      ptfCustAcHtml('nR2Cust') +
+      '<select id="nR2Cust" onchange="rfqCustChanged()" style="display:none">' + custOptions() + '</select>' +
+      '<div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap"><button type="button" class="bt bt-o" style="padding:6px 10px;font-size:12px;white-space:nowrap" onclick="showCustModal()">+ ثبت مشتری جدید</button>' +
+      '<small style="color:#94a3b8;font-size:11px">نام مشتری را تایپ کنید یا با «📋 لیست کامل» فهرست را ببینید.</small></div></div></div>' +
       '<div class="fr"><div class="fld"><label>مخاطب (شخص رابط)</label><select id="nR2Con"><option value="">— ابتدا مشتری را انتخاب کنید —</option></select></div>' +
       '<div class="fld"><label>حوزه</label><select id="nR2Cat">' + catOpts + '</select></div></div>' +
       '<div class="fr"><div class="fld"><label>شماره درخواست کارفرما (Inquiry No) — برای صدور TO/CO لازم است</label><input type="text" id="nR2Inq" placeholder="شماره‌ای که کارفرما روی درخواستش نوشته" style="direction:ltr"></div>' +
@@ -1913,6 +1987,7 @@
       var newest = cd || (items[0] && items[0].cd);
       sel.innerHTML = custOptions(newest);
       rfqCustChanged();
+      if (typeof window.ptfCustAcSync === 'function') window.ptfCustAcSync('nR2Cust'); /* v34.34.0: ورودی جستجو هم مشتری تازه‌ثبت‌شده را نشان دهد */
     }
   };
 

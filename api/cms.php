@@ -75,7 +75,142 @@ function cms_rel_links_fix($html) {
         return $m[1] . '="../knowledge-center/' . $u . '"';
     }, (string)$html);
 }
-function cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer) {
+
+/* ═══ v34.32.0 (CMS-FIX): اسکلت مشترک مرکز دانش — مقاوم در برابر تغییر قالب ═══
+   نشانگرهای قدیمی (هیرو گرادیانی + دیو سی‌تی‌ای) در بازنویسی قالب مرکز دانش از بین
+   رفته بودند و مولدها خطای «ساختار قالب مرجع شناخته نشد» می‌گرفتند. این تابع هر دو
+   قالب را پشتیبانی می‌کند، بردکرامب و منوی فعالِ صفحهٔ مرجع را حذف می‌کند و
+   استایل‌های درون‌خطی قالب را برای تزریق برمی‌گرداند. */
+function cms_kc_skeleton($ROOT) {
+    $skel = (string)@file_get_contents($ROOT . '/knowledge-center/astm-a105.html');
+    if ($skel === '') return ['err' => 'قالب مرجع یافت نشد'];
+    $pBody = strpos($skel, '<body>');
+    $pFoot = strpos($skel, '<footer');
+    $pHero = strpos($skel, '<section class="article-hero"');
+    if ($pHero === false) $pHero = strpos($skel, '<section style="background:linear-gradient(135deg,#151517,#2d2d31)');
+    $pCta = strpos($skel, '<section class="kc-supply-cta"');
+    if ($pCta === false) $pCta = strpos($skel, '<div class="kc-supply-cta"');
+    if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) return ['err' => 'ساختار قالب مرجع شناخته نشد'];
+    $header = substr($skel, $pBody, $pHero - $pBody);
+    /* بردکرامب و وضعیت فعال منو متعلق به صفحهٔ مرجع است؛ در صفحهٔ جدید کپی نشود */
+    $header = preg_replace('#<nav class="ptf-bc".*?</nav>#s', '', $header);
+    $header = str_replace(' class="active"', '', $header);
+    $cta    = substr($skel, $pCta, $pFoot - $pCta);
+    $footer = substr($skel, $pFoot);
+    $style = '';
+    if (preg_match_all('#<style>.*?</style>#s', $skel, $mS)) $style = implode("\n", $mS[0]);
+    return ['header' => $header, 'cta' => $cta, 'footer' => $footer, 'style' => $style];
+}
+
+/* بردکرامب اختصاصی صفحهٔ ساخته‌شده — استایل درون‌خطی تا وابسته به سی‌اس‌اس نباشد */
+function cms_bc_html($crumbs) {
+    $li = '';
+    $n = count($crumbs);
+    foreach ($crumbs as $i => $c) {
+        if ($i > 0) $li .= '<li aria-hidden="true" style="color:#cbd5e1">/</li>';
+        if ($i < $n - 1 && !empty($c[1])) {
+            $li .= '<li><a href="' . $c[1] . '" style="color:#64748b;text-decoration:none">' . htmlspecialchars($c[0], ENT_QUOTES, 'UTF-8') . '</a></li>';
+        } else {
+            $li .= '<li><span aria-current="page" style="color:#0f172a;font-weight:700">' . htmlspecialchars($c[0], ENT_QUOTES, 'UTF-8') . '</span></li>';
+        }
+    }
+    return '<nav class="ptf-bc" aria-label="مسیر صفحه" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:12.5px">'
+        . '<div class="container" style="padding-top:10px;padding-bottom:10px">'
+        . '<ol style="display:flex;flex-wrap:wrap;align-items:center;gap:7px;list-style:none;margin:0;padding:0">' . $li . '</ol></div></nav>' . "\n";
+}
+
+/* امن‌سازی تصاویر بدنه: فقط مسیرهای داخلی سایت مجازند — وگرنه تگ حذف می‌شود */
+function cms_img_sanitize($html) {
+    return preg_replace_callback('/<img\b[^>]*>/i', function ($m) {
+        if (!preg_match('/\bsrc\s*=\s*"([^"]*)"/i', $m[0], $sm)) return '';
+        $src = $sm[1];
+        if (preg_match('#^(?:\./|\.\./)?(?:assets|knowledge-center|blog|services|products|industries|comparisons|news|projects)/[A-Za-z0-9_\-./]+\.(?:jpe?g|png|webp|gif)$#i', $src)) return $m[0];
+        if (preg_match('#^https://pishtaj\.ir/[A-Za-z0-9_\-./]+\.(?:jpe?g|png|webp|gif)$#i', $src)) return $m[0];
+        return '';
+    }, $html);
+}
+
+/* v34.33.0 (CMS-FIX R2): بردکرامب استاندارد سایت — همان نشان .ptf-bc (استایل در discover.css) */
+function cms_bc_ptf($crumbs) {
+    $n = count($crumbs); $li = '';
+    foreach ($crumbs as $i => $c) {
+        $nm = htmlspecialchars((string)$c[0], ENT_QUOTES, 'UTF-8');
+        if ($i === $n - 1 || empty($c[1])) {
+            $li .= '<li><span aria-current="page">' . $nm . '</span></li>';
+        } else {
+            $li .= '<li><a href="' . htmlspecialchars((string)$c[1], ENT_QUOTES, 'UTF-8') . '">' . $nm . '</a></li>';
+        }
+    }
+    return '<nav class="ptf-bc" aria-label="مسیر صفحه" data-ptf-bc="cms"><div class="container"><ol>' . $li . '</ol></div></nav>' . "\n";
+}
+
+/* v34.33.0 (CMS-FIX R2): اسکلت صفحهٔ محصول — الگوی واقعی بخش محصولات (هیروی تیرهٔ کارت‌دار + سایدبار).
+   اگر صفحهٔ مرجع نبود، به اسکلت مرکز دانش بازمی‌گردد تا انتشار هرگز متوقف نشود. */
+function cms_product_skeleton($ROOT) {
+    $skel = (string)@file_get_contents($ROOT . '/products/gate-valve-16-inch-cl600.html');
+    if ($skel === '') {
+        $kc = cms_kc_skeleton($ROOT);
+        if (!empty($kc['err'])) return $kc;
+        $kc['mode'] = 'kc';
+        return $kc;
+    }
+    $pBody = strpos($skel, '<body>');
+    $pMain = strpos($skel, '<main id="main-content"');
+    $pCta  = strpos($skel, '<div class="supplier-cta"');
+    $pFoot = strpos($skel, '<footer');
+    if ($pBody === false || $pMain === false || $pCta === false || $pFoot === false) {
+        return ['err' => 'ساختار قالب مرجع محصولات شناخته نشد'];
+    }
+    $header = substr($skel, $pBody, $pMain - $pBody);
+    $header = preg_replace('#<nav class="ptf-bc".*?</nav>#s', '', $header);
+    $header = str_replace(' class="active"', '', $header);
+    preg_match_all('#<style[^>]*>.*?</style>#s', $skel, $sm);
+    $style = implode("\n", $sm[0]);
+    return ['mode' => 'product', 'header' => $header, 'style' => $style,
+        'cta' => substr($skel, $pCta, $pFoot - $pCta), 'footer' => substr($skel, $pFoot), 'err' => ''];
+}
+
+/* v34.33.0 (CMS-FIX R2): درج «کارت لینک» صفحهٔ تازه در صفحهٔ اصلیِ همان بخش.
+   - فقط اگر {پوشه}/index.html وجود داشته باشد؛
+   - اگر صفحه از قبل در فهرست لینک شده باشد، کاری نمی‌کند؛
+   - بلاک با نشانگرهای اختصاصی مدیریت می‌شود و هر بار از نو ساخته می‌شود (ایمن در برابر تکرار). */
+function cms_section_cards_inject($ROOT, $folder, $slug, $title, $desc, $img, $url) {
+    $idx = $ROOT . '/' . $folder . '/index.html';
+    if (!is_file($idx)) { cms_log('section_cards', $folder . ': index.html نیست — کارت درج نشد'); return false; }
+    $html = (string)@file_get_contents($idx);
+    if ($html === '' || $slug === '') return false;
+    $B = '<!-- CMS:LINK-CARDS:BEGIN -->'; $E = '<!-- CMS:LINK-CARDS:END -->';
+    $cards = [];
+    $pb = strpos($html, $B); $pe = strpos($html, $E);
+    if ($pb !== false && $pe !== false && $pe > $pb) {
+        if (preg_match_all('#<a class="ptf-cms-card"[^>]*data-cms-card="([^"]+)"[\s\S]*?</a>#', substr($html, $pb, $pe - $pb), $mm, PREG_SET_ORDER)) {
+            foreach ($mm as $m0) if (!isset($cards[$m0[1]])) $cards[$m0[1]] = $m0[0];
+        }
+        $html = substr($html, 0, $pb) . substr($html, $pe + strlen($E)); /* بلاک قدیمی حذف؛ از نو ساخته می‌شود */
+    }
+    if (isset($cards[$slug]) || strpos($html, $slug . '.html') !== false) {
+        if ($pb !== false) file_put_contents($idx, $html, LOCK_EX); /* فقط بازچینی بلاک موجود */
+        return true; /* لینک صفحه از قبل هست (دستی یا خودکار) */
+    }
+    $t = htmlspecialchars(mb_substr(strip_tags((string)$title), 0, 160), ENT_QUOTES, 'UTF-8');
+    $d = htmlspecialchars(mb_substr(strip_tags((string)$desc), 0, 130), ENT_QUOTES, 'UTF-8');
+    $im = ($img !== '' && substr((string)$img, -12) !== 'ptf-logo.png')
+        ? '<img src="' . htmlspecialchars((string)$img, ENT_QUOTES, 'UTF-8') . '" alt="' . $t . '" loading="lazy" style="width:100%;height:150px;object-fit:cover;border-radius:14px;border:1px solid #e2e8f0;margin-bottom:10px">' : '';
+    $cards[$slug] = '<a class="ptf-cms-card" data-cms-card="' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '" href="' . htmlspecialchars((string)$url, ENT_QUOTES, 'UTF-8') . '" style="display:block;background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:14px;text-decoration:none;color:#334155;box-shadow:0 10px 26px rgba(15,23,42,.05)">' . $im . '<b style="display:block;color:#0f172a;font-size:14.5px;line-height:1.8">' . $t . '</b><span style="display:block;font-size:12.5px;color:#64748b;line-height:1.9;margin-top:4px">' . $d . '</span><span style="display:block;color:#ef4b1a;font-weight:900;font-size:12px;margin-top:8px">مشاهده صفحه ←</span></a>';
+    $block = $B . "\n" . '<section style="max-width:1180px;margin:40px auto;padding:0 20px">'
+        . '<h2 style="font-size:22px;color:#0f172a;margin:0 0 6px">سایر صفحه‌های این بخش</h2>'
+        . '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:16px">'
+        . implode('', array_values($cards)) . '</div></section>' . "\n" . $E;
+    $ins = strpos($html, '<footer');
+    if ($ins === false) $ins = strpos($html, '</body>');
+    if ($ins === false) return false;
+    $html = substr($html, 0, $ins) . $block . "\n" . substr($html, $ins);
+    if (file_put_contents($idx, $html, LOCK_EX) === false) return false;
+    cms_log('section_cards', $folder . '/index.html ← ' . $slug);
+    return true;
+}
+
+function cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer, $style = '') {
     $dir = $ROOT . '/products';
     $cards = [];
     foreach ((glob($dir . '/*.html') ?: []) as $pf) {
@@ -109,7 +244,7 @@ function cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer) {
         . '<meta name="robots" content="index, follow" />' . "\n"
         . '<link rel="canonical" href="https://pishtaj.ir/products/" />' . "\n"
         . '<link rel="stylesheet" href="../assets/css/style.css" />' . "\n"
-        . '</head>' . "\n" . $header
+        . $style . "\n" . '</head>' . "\n" . $header
         . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
         . '<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">تجهیزات صنعتی</span>' . "\n"
         . '<h1>محصولات و راهنمای فنی کالاها</h1>' . "\n"
@@ -534,24 +669,25 @@ function cms_render_public_page($ROOT, $folder, $in) {
     if ($h1 === '') $h1 = $title;
     if (mb_strlen(strip_tags($body), 'UTF-8') < 200) return ['err' => 'متن صفحه حداقل ۲۰۰ کاراکتر لازم دارد'];
 
-    $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
+    $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a><img>');
     $body = preg_replace('/on\w+\s*=\s*"[^"]*"/i', '', $body);
     $body = preg_replace("/on\w+\s*=\s*'[^']*'/i", '', $body);
     $body = preg_replace('/javascript\s*:/i', '', $body);
+    $body = cms_img_sanitize($body); /* v34.32.0 (CMS-FIX): فقط تصویر با مسیر داخلی */
 
-    $skel = (string)@file_get_contents($ROOT . '/knowledge-center/astm-a105.html');
-    if ($skel === '') return ['err' => 'قالب مرجع یافت نشد'];
-    $heroMark = '<section style="background:linear-gradient(135deg,#151517,#2d2d31)';
-    $pBody = strpos($skel, '<body>'); $pHero = strpos($skel, $heroMark);
-    $pCta  = strpos($skel, '<div class="kc-supply-cta"'); $pFoot = strpos($skel, '<footer');
-    if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) return ['err' => 'ساختار قالب مرجع شناخته نشد'];
-    $header = substr($skel, $pBody, $pHero - $pBody);
-    $cta    = substr($skel, $pCta, $pFoot - $pCta);
-    $footer = substr($skel, $pFoot);
+    /* v34.32.0 (CMS-FIX): اسکلت مشترک — نشانگرهای مقاوم + حذف بردکرامب مرجع + استایل درون‌خطی */
+    $sk = cms_kc_skeleton($ROOT);
+    if (!empty($sk['err'])) return ['err' => $sk['err']];
+    $header = $sk['header']; $cta = $sk['cta']; $footer = $sk['footer']; $skStyle = $sk['style'];
 
     $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
     $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
     $dEsc = htmlspecialchars($desc, ENT_QUOTES, 'UTF-8');
+    /* v34.32.0 (CMS-FIX): تصویر فیلد «تصویر» فقط در اوپن‌گراف بود؛ حالا بالای صفحه هم نمایش داده می‌شود */
+    if ($img !== '' && substr($img, -12) !== 'ptf-logo.png') {
+        $imgRel = str_replace('../', '', $img);
+        $body = '<p style="text-align:center;margin:4px 0 18px"><img src="../' . ltrim($imgRel, '/') . '" alt="' . $hEsc . '" style="max-width:640px;width:100%;height:auto;border-radius:14px;border:1px solid #e2e8f0" loading="lazy"></p>' . "\n" . $body;
+    }
     $url  = 'https://pishtaj.ir/' . $folder . '/' . $slug . '.html';
     $imgAbs = (strpos($img, 'http') === 0) ? $img : 'https://pishtaj.ir/' . ltrim(str_replace('../', '', $img), '/');
     $folderUrl = 'https://pishtaj.ir/' . $folder . '/';
@@ -600,9 +736,12 @@ function cms_render_public_page($ROOT, $folder, $in) {
         . '<meta property="og:image" content="' . htmlspecialchars($imgAbs, ENT_QUOTES, 'UTF-8') . '" />' . "\n"
         . '<meta name="twitter:card" content="summary_large_image" />' . "\n"
         . '<link rel="stylesheet" href="../assets/css/style.css" />' . "\n"
+        . '<link rel="stylesheet" href="../assets/css/discover.css" />' . "\n" /* v34.33.0: استایل بردکرامب سایت */
+        . $skStyle . "\n"
         . '<script type="application/ld+json">' . $jsonLd . '</script>' . "\n"
         . '</head>' . "\n"
-        . $header . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
+        . $header . cms_bc_ptf([['خانه', 'https://pishtaj.ir/'], [$meta['lb'], $folderUrl], [$title, null]])
+        . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
         . '<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">' . $meta['lb'] . '</span>' . "\n"
         . '<h1>' . $hEsc . '</h1>' . "\n"
         . '<p style="color:rgba(255,255,255,.75);font-size:14px">واحد محتوای فنی پیشرو تجهیز فرتاک</p>' . "\n"
@@ -611,7 +750,8 @@ function cms_render_public_page($ROOT, $folder, $in) {
         . $body . "\n"
         . '</div>' . "\n" . '</div>' . "\n"
         . $cta . "\n" . $footer;
-    return ['html' => $html, 'rel' => $folder . '/' . $slug . '.html', 'url' => $url];
+    return ['html' => $html, 'rel' => $folder . '/' . $slug . '.html', 'url' => $url,
+        'folder' => $folder, 'slug' => $slug, 'title' => $title, 'desc' => $desc, 'img_abs' => $imgAbs]; /* v34.33.0: داده برای کارت فهرست بخش */
 }
 
 /* ═══ v34.14.0 (S4/SCHED): انتشار زمان‌بندی‌شده — موتور lazy بدون cron ═══
@@ -633,6 +773,13 @@ function cms_sched_publish_item($ROOT, $DATA, $it) { /* نوشتن فایل رن
     if (file_exists($f)) cms_backup($DATA, $ROOT, $rel);
     if (file_put_contents($f, (string)($it['html'] ?? ''), LOCK_EX) === false) return 'خطای نوشتن فایل';
     sitemap_add((string)$it['url']);
+    /* v34.33.0: کارت صفحهٔ منتشرشده در فهرست بخش (متا از خود خروجی رندرشده) */
+    if (preg_match('#^([a-z0-9-]+)/#', $rel, $cmF) && strpos($rel, 'blog/') !== 0 && strpos($rel, 'knowledge-center/') !== 0) {
+        $cHtml = (string)($it['html'] ?? '');
+        $cDesc = preg_match('/<meta name="description" content="([^"]*)"/', $cHtml, $cmD) ? html_entity_decode($cmD[1], ENT_QUOTES, 'UTF-8') : '';
+        $cImg  = preg_match('/<meta property="og:image" content="([^"]*)"/', $cHtml, $cmI) ? $cmI[1] : '';
+        cms_section_cards_inject($ROOT, $cmF[1], basename($rel, '.html'), (string)($it['title'] ?? ''), $cDesc, $cImg, (string)$it['url']);
+    }
     if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
     cms_log('sched_publish', $rel);
     cms_ai_touch($DATA, $rel, 'page'); /* v34.17.0 */
@@ -872,11 +1019,12 @@ switch ($action) {
         $file = $ROOT . '/blog/' . $slug . '.html';
         if (file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
 
-        // پاکسازی بدنه: فقط تگ‌های امن
-        $body = strip_tags($body, '<h2><h3><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
+        // پاکسازی بدنه: فقط تگ‌های امن — تصویر هم مجاز است (v34.32.0)
+        $body = strip_tags($body, '<h2><h3><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a><img>');
         $body = preg_replace('/on\w+\s*=\s*"[^"]*"/i', '', $body);
         $body = preg_replace("/on\w+\s*=\s*'[^']*'/i", '', $body);
         $body = preg_replace('/javascript\s*:/i', '', $body);
+        $body = cms_img_sanitize($body); /* v34.32.0 (CMS-FIX) */
         // پاراگراف‌بندی خودکار متن ساده
         if (strpos($body, '<p>') === false && strpos($body, '<h2>') === false) {
             $body = '<p>' . implode('</p><p>', array_filter(array_map('trim', preg_split('/\n{2,}/', $body)))) . '</p>';
@@ -887,6 +1035,9 @@ switch ($action) {
         $skel = file_get_contents($ROOT . '/blog/gas-detection.html');
         if (!$skel) jerr('قالب مرجع یافت نشد');
         $header = substr($skel, strpos($skel, '<body>'), strpos($skel, '<section class="article-hero"') - strpos($skel, '<body>'));
+        /* v34.32.0 (CMS-FIX): بردکرامب و وضعیت فعال منوی صفحه مرجع در پست جدید کپی نشود */
+        $header = preg_replace('#<nav class="ptf-bc".*?</nav>#s', '', $header);
+        $header = str_replace(' class="active"', '', $header);
         $footer = substr($skel, strpos($skel, '<footer'));
         $style  = substr($skel, strpos($skel, '<style>'), strpos($skel, '</style>') + 8 - strpos($skel, '<style>'));
         $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
@@ -921,7 +1072,7 @@ switch ($action) {
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . '</script>
 ' . $style . '
 </head>
-' . $header . '<section class="article-hero">
+' . $header . cms_bc_ptf([['خانه', 'https://pishtaj.ir/'], ['وبلاگ', 'https://pishtaj.ir/blog/'], [$title, null]]) . '<section class="article-hero">
 <div class="container">
 <span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">' . htmlspecialchars($catLb, ENT_QUOTES, 'UTF-8') . '</span>
 <h1>' . $tEsc . '</h1>
@@ -939,6 +1090,7 @@ switch ($action) {
 ' . $footer;
 
         if (file_put_contents($file, $html, LOCK_EX) === false) jerr('خطای نوشتن فایل مقاله (مجوز write?)');
+        cms_section_cards_inject($ROOT, 'knowledge-center', $slug, $title, $desc, $imgAbs, $url); /* v34.33.0: کارت در فهرست مرکز دانش */
 
         // افزودن به فهرست وبلاگ
         $meta = ['t' => $title, 'c' => $cat, 'u' => $slug . '.html', 'cat' => $catLb, 'img' => $img, 'desc' => $desc];
@@ -972,27 +1124,21 @@ switch ($action) {
         $file = $ROOT . '/knowledge-center/' . $slug . '.html';
         if (file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
 
-        /* پاکسازی بدنه: فقط تگ‌های امن */
-        $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
+        /* پاکسازی بدنه: فقط تگ‌های امن — تصویر هم مجاز است (v34.32.0) */
+        $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a><img>');
         $body = preg_replace('/on\w+\s*=\s*"[^"]*"/i', '', $body);
         $body = preg_replace("/on\w+\s*=\s*'[^']*'/i", '', $body);
         $body = preg_replace('/javascript\s*:/i', '', $body);
+        $body = cms_img_sanitize($body); /* v34.32.0 (CMS-FIX) */
 
         /* قالب از یک صفحهٔ موجودِ مرکز دانش گرفته می‌شود تا هدر/فوتر/استایل
            دقیقاً هم‌شکلِ بقیهٔ صفحات باشد (همان روشِ blog_create) */
-        $skel = (string)@file_get_contents($ROOT . '/knowledge-center/astm-a105.html');
-        if ($skel === '') jerr('قالب مرجعِ مرکز دانش یافت نشد');
-        $heroMark = '<section style="background:linear-gradient(135deg,#151517,#2d2d31)';
-        $pBody = strpos($skel, '<body>');
-        $pHero = strpos($skel, $heroMark);
-        $pCta  = strpos($skel, '<div class="kc-supply-cta"');
-        $pFoot = strpos($skel, '<footer');
-        if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) {
-            jerr('ساختارِ قالب مرجع شناخته نشد');
-        }
-        $header = substr($skel, $pBody, $pHero - $pBody);
-        $cta    = cms_rel_links_fix(substr($skel, $pCta, $pFoot - $pCta)); /* v34.29.0: لینک نسبی → knowledge-center */
-        $footer = cms_rel_links_fix(substr($skel, $pFoot)); /* v34.29.0 */
+        /* v34.32.0 (CMS-FIX): اسکلت مشترک — نشانگرهای مقاوم در برابر تغییر قالب */
+        $sk = cms_kc_skeleton($ROOT);
+        if (!empty($sk['err'])) jerr($sk['err']);
+        $header = $sk['header']; $skStyle = $sk['style'];
+        $cta    = cms_rel_links_fix($sk['cta']); /* v34.29.0: لینک نسبی → knowledge-center */
+        $footer = cms_rel_links_fix($sk['footer']); /* v34.29.0 */
 
         $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
         $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
@@ -1058,9 +1204,10 @@ switch ($action) {
             . '<meta name="twitter:image" content="' . htmlspecialchars($imgAbs, ENT_QUOTES, 'UTF-8') . '" />' . "\n"
             . '<script type="application/ld+json">' . $jsonLd . '</script>' . "\n"
             . '<link rel="stylesheet" href="../assets/css/discover.css" />' . "\n"
+            . $skStyle . "\n"
             . '</head>' . "\n"
-            . $header
-            . $heroMark . ';min-height:210px;display:flex;align-items:center">' . "\n"
+            . $header . cms_bc_ptf([['خانه', 'https://pishtaj.ir/'], ['مرکز دانش', 'https://pishtaj.ir/knowledge-center/'], [$title, null]])
+            . '<section style="background:linear-gradient(135deg,#151517,#2d2d31);min-height:210px;display:flex;align-items:center">' . "\n"
             . '<div class="container" style="position:relative;z-index:1">' . "\n"
             . '<div style="font-size:13px;color:rgba(255,255,255,.6)">مرکز دانش · تامین و کیفیت</div>' . "\n"
             . '<h1 style="font-size:clamp(22px,3vw,34px);margin:8px 0 10px">' . $hEsc . '</h1>' . "\n"
@@ -1313,24 +1460,21 @@ switch ($action) {
         $file = $dir . '/' . $slug . '.html';
         if (!$preview && file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
 
-        /* پاکسازی بدنه — همان لیست سفید kc_create */
-        $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
+        /* پاکسازی بدنه — همان لیست سفید kc_create؛ تصویر هم مجاز است (v34.32.0) */
+        $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a><img>');
         $body = preg_replace('/on\w+\s*=\s*"[^"]*"/i', '', $body);
         $body = preg_replace("/on\w+\s*=\s*'[^']*'/i", '', $body);
         $body = preg_replace('/javascript\s*:/i', '', $body);
+        $body = cms_img_sanitize($body); /* v34.32.0 (CMS-FIX) */
 
-        /* قالب: همان اسکلت مرکز دانش (هدر/فوتر/استایل هم‌شکل سایت) */
-        $skel = (string)@file_get_contents($ROOT . '/knowledge-center/astm-a105.html');
-        if ($skel === '') jerr('قالب مرجع یافت نشد');
-        $heroMark = '<section style="background:linear-gradient(135deg,#151517,#2d2d31)';
-        $pBody = strpos($skel, '<body>');
-        $pHero = strpos($skel, $heroMark);
-        $pCta  = strpos($skel, '<div class="kc-supply-cta"');
-        $pFoot = strpos($skel, '<footer');
-        if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) jerr('ساختار قالب مرجع شناخته نشد');
-        $header = substr($skel, $pBody, $pHero - $pBody);
-        $cta    = cms_rel_links_fix(substr($skel, $pCta, $pFoot - $pCta)); /* v34.29.0: لینک نسبی → knowledge-center */
-        $footer = cms_rel_links_fix(substr($skel, $pFoot)); /* v34.29.0 */
+        /* v34.33.0 (CMS-FIX R2): قالب صفحهٔ محصول = الگوی واقعی بخش محصولات (هیروی تیرهٔ کارت‌دار، بردکرامب، سایدبار دسترسی سریع).
+           اگر صفحهٔ مرجع محصولات نبود، با اسکلت مرکز دانش بازمی‌گردد تا انتشار متوقف نشود. */
+        $sk = cms_product_skeleton($ROOT);
+        if (!empty($sk['err'])) jerr($sk['err']);
+        $pmode = $sk['mode']; /* 'product' یا 'kc' (بازگشت) */
+        $header = $sk['header']; $skStyle = $sk['style'];
+        $cta    = cms_rel_links_fix($sk['cta']); /* v34.29.0: لینک‌های نسبی اسکلت اصلاح می‌شوند */
+        $footer = cms_rel_links_fix($sk['footer']); /* v34.29.0 */
 
         $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
         $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
@@ -1348,15 +1492,18 @@ switch ($action) {
            جدول‌های قالب دوباره ساخته نمی‌شوند (رفع تکرار سکشن‌ها). */
         $hasSpecsInBody = (mb_stripos($body, 'مشخصات فنی') !== false || stripos($body, '<table') !== false);
         $hasFaqInBody = (mb_stripos($body, 'سوالات متداول') !== false || mb_stripos($body, 'پرسش‌های متداول') !== false || stripos($body, '<details') !== false);
-        /* v34.26.0 (IMG-VIS): تصویر محصول بالای متن صفحه — هم‌شکل پیش‌نمایش (قبلاً فقط og:image بود).
-           v34.29.0 (SMART-IMG): اگر عکس خالی/لوگو بماند، از نام محصول عکس صنعتی متناسب حدس زده می‌شود. */
+        /* v34.26.0 (IMG-VIS) + v34.33.0 (CMS-FIX R2): نمایش عکس محصول در صفحه (نه فقط og:image).
+           در قالب محصولات عکس داخل کارت هیرو می‌نشیند؛ در بازگشتِ مرکز دانش، بالای متن. */
         if ($img === '' || substr($img, -12) === 'ptf-logo.png') {
             $g = cms_prod_img_guess($title . ' ' . $slug . ' ' . $h1 . ' ' . $brand);
             if ($g !== '') $img = $g;
         }
+        $imgHero = '';
         if ($img !== '') {
             $imgRel = str_replace('../', '', $img);
-            $body = '<p style="text-align:center;margin:4px 0 18px"><img src="../' . ltrim($imgRel, '/') . '" alt="' . $hEsc . '" style="max-width:560px;width:100%;height:auto;border-radius:14px;border:1px solid #e2e8f0"></p>' . "\n" . $body;
+            $imgTag0 = '<img src="../' . ltrim($imgRel, '/') . '" alt="' . $hEsc . '" style="max-width:560px;width:100%;height:auto;border-radius:14px;border:1px solid #e2e8f0">';
+            if ($pmode === 'product') { $imgHero = $imgTag0; }
+            else { $body = '<p style="text-align:center;margin:4px 0 18px">' . $imgTag0 . '</p>' . "\n" . $body; }
         }
         $url  = 'https://pishtaj.ir/products/' . $slug . '.html';
         $imgAbs = (strpos($img, 'http') === 0) ? $img : 'https://pishtaj.ir/' . ltrim(str_replace('../', '', $img), '/');
@@ -1427,19 +1574,57 @@ switch ($action) {
             . '<meta property="og:image" content="' . htmlspecialchars($imgAbs, ENT_QUOTES, 'UTF-8') . '" />' . "\n"
             . '<meta name="twitter:card" content="summary_large_image" />' . "\n"
             . '<link rel="stylesheet" href="../assets/css/style.css" />' . "\n"
+            . '<link rel="stylesheet" href="../assets/css/discover.css" />' . "\n" /* v34.33.0: استایل بردکرامب سایت */
+            . $skStyle . "\n"
             . '<script type="application/ld+json">' . $jsonLd . '</script>' . "\n"
             . '</head>' . "\n"
-            . $header . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
-            . '<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">' . htmlspecialchars($catLb, ENT_QUOTES, 'UTF-8') . '</span>' . "\n"
-            . '<h1>' . $hEsc . '</h1>' . "\n"
-            . '<p style="color:rgba(255,255,255,.75);font-size:14px">' . ($brand !== '' ? htmlspecialchars($brand, ENT_QUOTES, 'UTF-8') . ' · ' : '') . 'واحد تامین پیشرو تجهیز فرتاک</p>' . "\n"
-            . '</div>' . "\n" . '</section>' . "\n"
-            . '<div class="article-wrap">' . "\n" . '<div class="article-content">' . "\n"
-            . $body . "\n" . $specsHtml . "\n" . $faqHtml . "\n"
-            . '<div style="background:#fff8f0;border:1px solid #f6c17c;border-radius:16px;padding:18px 22px;margin-top:30px">' . "\n"
-            . '<b>استعلام قیمت این محصول؟</b> قیمت و زمان تامین را همان روز دریافت کنید: <a href="../rfq/" style="color:var(--red);font-weight:800">ثبت استعلام هوشمند ←</a>' . "\n"
-            . '</div>' . "\n" . '</div>' . "\n" . '</div>' . "\n"
-            . $cta . "\n" . $footer;
+            ;
+        if ($pmode === 'product') {
+            /* v34.33.0 (CMS-FIX R2): هم‌قالب صفحه‌های موجودِ بخش محصولات — هیروی تیره با عکس، بردکرامب، حاشیهٔ کانتینر و سایدبار دسترسی سریع */
+            $heroImg = ($imgHero !== '') ? '<div class="ptf-hero-card">' . $imgHero . '</div>' : '';
+            $chips = '<span class="ptf-chip">' . htmlspecialchars($catLb, ENT_QUOTES, 'UTF-8') . '</span>';
+            if ($brand !== '') $chips .= '<span class="ptf-chip">' . htmlspecialchars($brand, ENT_QUOTES, 'UTF-8') . '</span>';
+            if ($stock) $chips .= '<span class="ptf-chip">موجود در واحد تامین</span>';
+            $cta = preg_replace('#<b[^>]*>نیاز به تامین[^<]*</b>#u', '<b style="color:#1e293b">نیاز به تامین ' . $tEsc . ' دارید؟</b>', $cta);
+            $html .= $header
+                . '<main id="main-content" class="ptf-product-main">' . "\n" . '<div class="container">' . "\n"
+                . '<div class="ptf-breadcrumb"><a href="https://pishtaj.ir/">خانه</a> › <a href="https://pishtaj.ir/products/">محصولات</a> › ' . $tEsc . '</div>' . "\n"
+                . '<section class="ptf-product-hero"><div class="ptf-hero-grid"><div>'
+                . '<h1>' . $hEsc . '</h1>'
+                . '<p>' . $dEsc . '</p>'
+                . '<div>' . $chips . '</div>'
+                . '</div>' . $heroImg . '</div></section>' . "\n"
+                . '<div class="ptf-layout">' . "\n"
+                . '<article class="ptf-article">' . "\n"
+                . $body . "\n" . $specsHtml . "\n" . $faqHtml . "\n"
+                . '<div style="background:#fff8f0;border:1px solid #f6c17c;border-radius:16px;padding:18px 22px;margin-top:30px">'
+                . '<b>استعلام قیمت این محصول؟</b> قیمت و زمان تامین را همان روز دریافت کنید: <a href="../rfq/" style="color:#ef4b1a;font-weight:800">ثبت استعلام هوشمند ←</a>'
+                . '</div>' . "\n" . '</article>' . "\n"
+                . '<aside class="ptf-side"><h3>دسترسی سریع</h3>'
+                . '<a href="../rfq/?product=' . $slug . '">ثبت استعلام (RFQ) این محصول</a>'
+                . '<a href="../services/products/">همهٔ محصولات صنعتی</a>'
+                . '<a href="../quality/">تضمین کیفیت</a>'
+                . '<a href="../knowledge-center/">مرکز دانش فنی</a>'
+                . '<h3 style="margin-top:22px">بررسی فوری</h3>'
+                . '<p style="font-size:13px;line-height:1.9;color:#64748b">قبل از استعلام، استاندارد، برندهای مجاز، متریال، شرایط کاری و مدارک اجباری را مشخص کنید.</p>'
+                . '</aside>' . "\n"
+                . '</div>' . "\n" . '</div>' . "\n" . '</main>' . "\n"
+                . $cta . "\n" . $footer;
+        } else {
+            /* بازگشت: اسکلت مرکز دانش (وقتی صفحهٔ مرجع محصولات در دسترس نیست) */
+            $html .= $header . cms_bc_ptf([['خانه', 'https://pishtaj.ir/'], ['محصولات', 'https://pishtaj.ir/products/'], [$title, null]])
+                . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
+                . '<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">' . htmlspecialchars($catLb, ENT_QUOTES, 'UTF-8') . '</span>' . "\n"
+                . '<h1>' . $hEsc . '</h1>' . "\n"
+                . '<p style="color:rgba(255,255,255,.75);font-size:14px">' . ($brand !== '' ? htmlspecialchars($brand, ENT_QUOTES, 'UTF-8') . ' · ' : '') . 'واحد تامین پیشرو تجهیز فرتاک</p>' . "\n"
+                . '</div>' . "\n" . '</section>' . "\n"
+                . '<div class="article-wrap">' . "\n" . '<div class="article-content">' . "\n"
+                . $body . "\n" . $specsHtml . "\n" . $faqHtml . "\n"
+                . '<div style="background:#fff8f0;border:1px solid #f6c17c;border-radius:16px;padding:18px 22px;margin-top:30px">' . "\n"
+                . '<b>استعلام قیمت این محصول؟</b> قیمت و زمان تامین را همان روز دریافت کنید: <a href="../rfq/" style="color:var(--red);font-weight:800">ثبت استعلام هوشمند ←</a>' . "\n"
+                . '</div>' . "\n" . '</div>' . "\n" . '</div>' . "\n"
+                . $cta . "\n" . $footer;
+        }
 
         if ($preview) jok(['html' => $html, 'url' => 'products/' . $slug . '.html']); /* v34.26.0 */
         if (file_exists($file)) cms_backup($DATA, $ROOT, 'products/' . $slug . '.html');
@@ -1447,7 +1632,7 @@ switch ($action) {
         sitemap_add($url);
         cms_log('product_create', $slug . ($cd !== '' ? ' | cd=' . $cd : ''));
         cms_ai_touch($DATA, 'products/' . $slug . '.html', 'product'); /* v34.17.0 */
-        $idxOk = cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer); /* v34.26.0: کارت در فهرست محصولات */
+        $idxOk = cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer, $skStyle); /* v34.26.0: کارت در فهرست محصولات */
         jok(['url' => 'products/' . $slug . '.html', 'index' => $idxOk ? 'products/index.html' : '']);
         break;
 
@@ -1796,6 +1981,7 @@ switch ($action) {
         if (file_exists($file)) cms_backup($DATA, $ROOT, $r['rel']);
         if (file_put_contents($file, $r['html'], LOCK_EX) === false) jerr('خطای نوشتن فایل (مجوز write?)');
         sitemap_add($r['url']);
+        cms_section_cards_inject($ROOT, $r['folder'], $r['slug'], $r['title'], $r['desc'], $r['img_abs'], $r['url']); /* v34.33.0: کارت در صفحهٔ اصلی بخش */
         cms_log('page_create', $r['rel']);
         cms_ai_touch($DATA, $r['rel'], 'page'); /* v34.17.0 */
         jok(['url' => $r['rel']]);

@@ -243,6 +243,8 @@ var SUITE = [
   { g: 'UX (29.7): یکسان‌سازی درخواست‌های سایت با موازین CRM — کانال‌های تماس people در سرور زنده + people استاندارد مشتری/تامین‌کنندهٔ سایت + حفظ فیلدها در ویرایش', f: '_tools/uat/tester582-v34.29.7-site-parity-cust-sup.js' },
   { g: 'FIN (29.8): پایداری حذف/ابطال پروندهٔ فروش — tombstone هزینه‌ها (_costTomb) + ددوب costEvents در merge + جاروب تعمیر + PL canonical با void-wins و حذف قطعی', f: '_tools/uat/tester583-v34.29.8-deal-cost-tomb-and-pl-void-delete.js' },
   { g: 'FIN (30.0): ارجاع فاکتور پروندهٔ ارزی با نسخهٔ ریالی ثبت‌شده — تشخیص خودکار/انتخابی مبنای ریالی + نرخ تسعیر برگرفته + نمایش در هر دو پنل فاکتور', f: '_tools/uat/tester584-v34.30.0-fx-rial-ref-basis.js' },
+  { g: 'UX (R3): انتخاب مشتری با جستجو در مودال ثبت درخواست (مشابه فرم پیشنهاد) + جستجوی فهرست اتصال در مودال درخواست تامین', f: '_tools/uat/tester586-v34.34.0-cust-ac-and-rqs-src-search.js' },
+  { g: 'UX (R4): راهنمای سئو پیش‌فرض بسته و ماندگار + هدایت واقعی دکمهٔ بهینه‌سازی سرچ کنسول به تب سئو با بنر راهنما', f: '_tools/uat/tester587-v34.35.0-seo-guide-gsc-optimize.js' },
   { g: 'UX (29.3): ریشه‌کنی واقعی تب‌های خالی CMS — برخورد کلاس pn/tb با CSS سراسری (سنجش computed visibility)', f: '_tools/uat/tester578-v34.29.7-cms-css-visibility.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },

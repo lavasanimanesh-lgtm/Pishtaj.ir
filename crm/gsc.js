@@ -25,7 +25,8 @@
     var opt = { method: 'POST', headers: authHeaders() };
     if (data) { var fd = new FormData(); Object.keys(data).forEach(function (k) { fd.append(k, data[k]); }); opt.body = fd; }
     fetch(API + '?action=' + action, opt).then(function (r) { return r.json(); }).then(cb)
-      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به سرور' }); });
+      /* v34.31.0 (GSC-DIAG): پاسخ غیرJSON = خطای 500 سرور؛ معمولاً خطای نحوی api/gsc-config.php */
+      .catch(function () { cb({ ok: false, error: 'پاسخ سرور خطا بود (احتمالاً 500). اگر تنظیمات را تازه ساخته‌اید، روی هاست با «php -l api/gsc-config.php» آزمایشش کنید؛ از تب سئو «🧪 آزمون اتصال» نیز علت دقیق را می‌گوید.' }); });
   }
   function n(v) { return (Math.round(v)).toLocaleString('fa-IR'); }
   function pct(v) { return (v * 100).toFixed(1) + '٪'; }
@@ -237,18 +238,49 @@
   window.gscRefresh = function () { _data = null; renderBody(); api('overview', { days: _days, refresh: 1 }, function (d) { _data = d; renderBody(); }); };
 
   /* پرش به تب سئو با جستجویِ همان موضوع */
+  /* v34.35.0 (UX-R4 — گزارش کارفرما: «کلیک روی بهینه‌سازی فقط به مدیریت سایت می‌رود»):
+     ناوبری مطمئن با صبر برای رندر ناهمگام تب سئو (پولینگ تا ۱۰ ثانیه) + فیلتر صفحات مرتبط
+     + بنر «چطور بهینه کنم» بالای فهرست نتایج. */
   window.gscOptimize = function (q) {
+    var words = String(q || '').split(/\s+/).filter(function (w) { return w.length > 2; });
+    var query = words.slice(0, 3).join(' ');
+    window._ptfGscOptimizeQ = q || '';
     try { if (typeof goPanelByName === 'function') goPanelByName('cms'); } catch (e) {}
-    setTimeout(function () {
-      try { if (typeof cmsTab === 'function') cmsTab('seo'); } catch (e) {}
-      setTimeout(function () {
-        var f = document.getElementById('seoQ');
-        if (f) {
-          f.value = (q || '').split(/\s+/).filter(function (w) { return w.length > 2; }).slice(0, 3).join(' ');
-          if (typeof cmsSeoSearch === 'function') cmsSeoSearch();
-        }
-      }, 300);
-    }, 150);
+    if (typeof ptfToast === 'function') ptfToast('🔍 در حال باز کردن تب سئو برای بهینه‌سازی «' + (q || '') + '»…', 'info');
+    var switched = false, tries = 0;
+    var timer = setInterval(function () {
+      tries++;
+      if (!switched) {
+        try { if (document.getElementById('cmsWrap') && typeof cmsTab === 'function') { cmsTab('seo'); switched = true; } } catch (e2) {}
+      }
+      var f = document.getElementById('seoQ');
+      if (f) {
+        clearInterval(timer);
+        f.value = query;
+        try { if (typeof cmsSeoSearch === 'function') cmsSeoSearch(); } catch (e3) {}
+        return;
+      }
+      if (tries > 40) {
+        clearInterval(timer);
+        if (typeof ptfToast === 'function') ptfToast('⚠️ تب سئو باز شد اما فهرست صفحات هنوز آماده نیست — دوباره «بهینه‌سازی» را بزنید', 'warn');
+      }
+    }, 250);
+  };
+  /* بنر راهنمای گام‌به‌گام بهینه‌سازی — بالای فهرست نتایج تب سئو رندر می‌شود (هوکت در cms.js) */
+  window.ptfGscOptimizeDismiss = function () {
+    window._ptfGscOptimizeQ = '';
+    var el = document.getElementById('gscOptHint'); if (el) el.remove();
+  };
+  window.ptfGscOptimizeBannerHtml = function () {
+    var q = window._ptfGscOptimizeQ || '';
+    if (!q) return '';
+    return '<div id="gscOptHint" style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;padding:10px 14px;margin:8px 0;font-size:12.5px;line-height:2.1;color:#155e75">' +
+      '🎯 <b>بهینه‌سازی برای «' + escP(q) + '»</b> — فهرست زیر صفحات مرتبط با این عبارت است. برای بهینه‌سازی هر صفحه:<br>' +
+      '۱) دکمهٔ <b>✏️</b> همان صفحه را بزنید؛ عنوان و توضیح را دقیق کنید (عنوان ۳۰–۶۵ و توضیح ۷۰–۱۶۵ کاراکتر — این دو خط در نتایج گوگل دیده می‌شوند).<br>' +
+      '۲) در متن صفحه، همین عبارت و هم‌خانواده‌هایش را <b>به‌طور طبیعی</b> به کار ببرید (بدون تکرار مصنوعی).<br>' +
+      '۳) با دکمهٔ <b>💡</b> همان ردیف، پیشنهاد لینک‌سازی داخلی بگیرید تا صفحات دیگر به این صفحه لینک بدهند.<br>' +
+      '۴) پس از ذخیره، با «🚀 ایندکس‌یاب» از گوگل بخواهید صفحه را دوباره بخواند. ' +
+      '<button type="button" class="bt bt-o" style="padding:2px 10px;font-size:11px;margin-right:8px" onclick="ptfGscOptimizeDismiss()">✕ متوجه شدم</button></div>';
   };
 
   window.gscInspect = function (url) {
