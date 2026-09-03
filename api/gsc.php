@@ -28,13 +28,15 @@ $token = auth_get_header_token();
 $identity = auth_verify_token($token);
 if (!$identity) {
     http_response_code(401);
-    echo json_encode(['ok' => false, 'error' => 'authentication_required'], JSON_UNESCAPED_UNICODE);
+    /* v34.31.0 (GSC-DIAG): پیام فارسی قابل‌اقدام به‌جای توکن خام */
+    echo json_encode(['ok' => false, 'error' => 'authentication_required: نشست شما نامعتبر یا منقضی شده است (عمر نشست ۲۴ ساعت). یک‌بار از CRM خارج شوید و دوباره وارد شوید، سپس «🧪 آزمون اتصال» را بزنید.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 $ROLE = strtolower((string)($identity['role'] ?? ''));
 if (!in_array($ROLE, ['admin', 'chairman', 'ceo', 'commercial'], true)) {
     http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
+    /* v34.31.0 (GSC-DIAG): پیام فارسی قابل‌اقدام به‌جای توکن خام — همان چیزی که پنل نشان می‌دهد */
+    echo json_encode(['ok' => false, 'error' => 'permission_denied: دسترسی به سرچ کنسول فقط برای نقش‌های مدیر ارشد (admin / chairman / ceo / commercial) باز است؛ نقش فعلی شما «' . $ROLE . '» است. با یکی از این نقش‌ها وارد شوید و دوباره امتحان کنید.'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -55,14 +57,44 @@ function jerr($m) { echo json_encode(['ok' => false, 'error' => $m], JSON_UNESCA
 function jok($extra = []) { echo json_encode(array_merge(['ok' => true], $extra), JSON_UNESCAPED_UNICODE); exit; }
 
 /* ---------- تنظیمات ---------- */
-function gsc_cfg() {
+/* v34.31.0 (GSC-CFG-DIAG): تشخیصِ دقیقِ وضعیتِ فایل تنظیمات + قرنطینهٔ خودکارِ فایلِ خراب.
+   ریشهٔ حلقهٔ «ثبت نقشه ناموفق / اجازه دسترسی نمی‌دهد»: خطای نحوی در gsc-config.php هر
+   اکشن را با HTTP 500 می‌کُشد و پنل فقط پیام عمومی می‌بیند. حالا:
+   ۱) خطای پارس شکار و با نام فایل/خط گزارش می‌شود؛
+   ۲) فایل خراب خودکار قرنطینه می‌شود تا حلقهٔ ۵۰۰ بشکند و پنل «بی‌تنظیم» شود؛
+   ۳) حالت‌ها (missing / syntax / not_array / incomplete) در status و selftest دیده می‌شوند.
+   نکتهٔ هاست: در این میزبانی فایل PHP بدون خروجی با HTTP 500 پاسخ می‌دهد؛ پس «بازکردن
+   gsc-config.php در مرورگر» آزمون معتبری نیست — آزمون معتبر:  php -l api/gsc-config.php */
+function gsc_cfg(&$state = null, &$detail = null) {
+    $state = null; $detail = null;
     $f = __DIR__ . '/gsc-config.php';
-    if (!is_file($f)) return null;
-    $c = require $f;
-    if (!is_array($c)) return null;
-    if (empty($c['client_email']) || empty($c['private_key'])) return null;
+    if (!is_file($f)) { $state = 'missing'; return null; }
+    try {
+        ob_start();
+        try { $c = require $f; } finally { $noise = (string)ob_get_clean(); }
+    } catch (Throwable $e) {
+        $noise = trim($noise . ' | ' . get_class($e) . ': ' . $e->getMessage() . ' (خط ' . $e->getLine() . ')');
+        $bad = $f . '.broken-' . date('Ymd-His');
+        if (@rename($f, $bad)) $detail = 'فایل به ' . basename($bad) . ' منتقل شد — ' . $noise;
+        else $detail = 'قرنطینه ممکن نشد (دسترسی نوشتن؟) — ' . $noise;
+        $state = 'syntax';
+        return null;
+    }
+    if (!is_array($c)) { $state = 'not_array'; return null; }
+    if (empty($c['client_email']) || empty($c['private_key'])) { $state = 'incomplete'; return null; }
     if (empty($c['site_url'])) $c['site_url'] = 'https://pishtaj.ir/';
+    $state = 'ok';
     return $c;
+}
+
+function gsc_cfg_or_jerr() {
+    $state = null; $detail = null;
+    $cfg = gsc_cfg($state, $detail);
+    if ($cfg) return $cfg;
+    if ($state === 'missing') jerr('gsc_not_configured: فایل تنظیمات روی سرور نیست. از روی api/gsc-config.sample.php فایلی به نام api/gsc-config.php بسازید و دو مقدار client_email و private_key را از کلید JSON سرویس‌اکانت وارد کنید (راهنما: مرحلهٔ ۳ فایل GSC-PANEL-SETUP-FA.md).');
+    if ($state === 'syntax') jerr('gsc_config_broken: فایل تنظیمات خطای نحوی PHP داشت و خودکار قرنطینه شد. جزئیات: ' . $detail . ' — فایل api/gsc-config.php را از نو بسازید و حتماً با دستور «php -l api/gsc-config.php» آزمایش کنید؛ سپس «🧪 آزمون اتصال» را بزنید.');
+    if ($state === 'not_array') jerr('gsc_config_broken: فایل تنظیمات آرایه برنمی‌گرداند. ساختار باید دقیقاً مانند api/gsc-config.sample.php باشد: در پایان فایل «return [ ... ];».');
+    jerr('gsc_config_incomplete: مقادیر client_email یا private_key در فایل تنظیمات خالی است. هر دو را عیناً از فایل JSON کلید سرویس‌اکانت کپی کنید (کلید داخل " دوتایی و با \\nها).');
 }
 
 /* ---------- کمک‌تابع‌های JWT ---------- */
@@ -408,9 +440,12 @@ function gsc_summarize($rowsQ, $rowsP) {
 switch ($action) {
 
     case 'status':
-        $cfg = gsc_cfg();
+        $st = null; $dt = null;
+        $cfg = gsc_cfg($st, $dt);
         jok([
             'configured' => $cfg ? true : false,
+            'config_state' => $cfg ? 'ok' : (string)$st,   /* v34.31.0: برای تشخیص در پنل */
+            'config_detail' => (string)$dt,
             'site'       => $cfg ? $cfg['site_url'] : '',
             'email'      => $cfg ? $cfg['client_email'] : '',
             'openssl'    => function_exists('openssl_sign'),
@@ -421,12 +456,30 @@ switch ($action) {
     /* ═══ v34.29.1 (SELF-TEST): آزمون اتصال GSC — ایمیل سرویس‌اکانت + فهرست زندهٔ
        پراپرتی‌های قابل‌دسترسی + تشخیص علت (بدون ثبت/نوشتن چیزی) ═══ */
     case 'selftest':
-        $cfg = gsc_cfg();
-        if (!$cfg) jok([
-            'configured' => false, 'email' => '', 'sites' => [], 'verdict' => 'no_config',
-            'steps' => ['فایل api/gsc-config.php مطابق gsc-config.sample.php ساخته شود (client_email و private_key از روی JSON سرویس‌اکانت).',
-                        'در پروژهٔ Google Cloud، «Search Console API»Enable باشد.'],
-        ]);
+        $st = null; $dt = null;
+        $cfg = gsc_cfg($st, $dt);
+        /* v34.31.0 (GSC-DIAG): حالت‌های خرابی کانفیگ — همان حلقه‌ای که قبلاً ۵۰۰ خام می‌داد */
+        if (!$cfg) {
+            $map = [
+                'missing' => ['verdict' => 'no_config', 'steps' => [
+                    'فایل api/gsc-config.php روی سرور نیست.',
+                    'از روی api/gsc-config.sample.php فایلی به نام api/gsc-config.php بسازید (کنار api/gsc.php).',
+                    'دو مقدار client_email و private_key را از فایل JSON کلید سرویس‌اکانت وارد کنید و فایل را ذخیره/آپلود کنید.']],
+                'syntax' => ['verdict' => 'config_broken', 'steps' => [
+                    'فایل تنظیمات خطای نحوی PHP داشت و خودکار قرنطینه شد: ' . (string)$dt,
+                    'رایج‌ترین علت: کپی ناقص کلید خصوصی (جفت‌نشدن " یا جاافتادن , یا ] ).',
+                    'فایل را از نو بسازید؛ کلید را عیناً با \\nها داخل " دوتایی بگذارید.',
+                    'روی هاست آزمایش کنید:  php -l api/gsc-config.php  — باید بگوید «No syntax errors».',
+                    'سپس همین «🧪 آزمون اتصال» را دوباره بزنید.']],
+                'not_array' => ['verdict' => 'config_broken', 'steps' => [
+                    'فایل تنظیمات آرایه برنمی‌گرداند؛ ساختار باید دقیقاً مانند gsc-config.sample.php باشد و با «return [ ... ];» تمام شود.']],
+                'incomplete' => ['verdict' => 'config_incomplete', 'steps' => [
+                    'client_email یا private_key در فایل تنظیمات خالی است.',
+                    'هر دو را عیناً از فایل JSON کلید سرویس‌اکانت کپی کنید و دوباره «🧪 آزمون اتصال» را بزنید.']],
+            ];
+            $m = $map[(string)$st] ?? ['verdict' => 'config_broken', 'steps' => [(string)$dt]];
+            jok(['configured' => false, 'email' => '', 'sites' => [], 'verdict' => $m['verdict'], 'steps' => $m['steps']]);
+        }
         $tok = gsc_token($cfg, true);
         if ($tok === false) jok([
             'configured' => true, 'email' => $cfg['client_email'], 'sites' => [], 'verdict' => 'token_error',
@@ -461,8 +514,7 @@ switch ($action) {
         break;
 
     case 'overview':
-        $cfg = gsc_cfg();
-        if (!$cfg) jerr('gsc_not_configured');
+        $cfg = gsc_cfg_or_jerr(); /* v34.31.0: پیام خطای دقیق و قابل‌اقدام */
         $days = (int)($_REQUEST['days'] ?? 90);
         if ($days < 7) $days = 7;
         if ($days > 180) $days = 180;
@@ -532,8 +584,7 @@ switch ($action) {
         break;
 
     case 'inspect':
-        $cfg = gsc_cfg();
-        if (!$cfg) jerr('gsc_not_configured');
+        $cfg = gsc_cfg_or_jerr(); /* v34.31.0: پیام خطای دقیق و قابل‌اقدام */
         $url = trim((string)($_REQUEST['url'] ?? ''));
         if ($url === '' || strpos($url, 'http') !== 0) jerr('url_invalid');
         $r = gsc_api($cfg, 'v1/urlInspection/index:inspect', [
@@ -713,8 +764,7 @@ switch ($action) {
 
     /* ثبتِ نقشه در سرچ کنسول — نیازمندِ اسکوپِ webmasters و سطحِ Full برای سرویس‌اکانت */
     case 'sitemap_submit':
-        $cfg = gsc_cfg();
-        if (!$cfg) jerr('gsc_not_configured');
+        $cfg = gsc_cfg_or_jerr(); /* v34.31.0: پیام خطای دقیق و قابل‌اقدام */
         $feed = trim((string)($_REQUEST['feed'] ?? 'https://pishtaj.ir/sitemap-index.xml'));
         if (!preg_match('#^https://(www\.)?pishtaj\.ir/#i', $feed)) jerr('feed_invalid');
         $site = gsc_resolve_site($cfg); /* v34.12.0: پراپرتی واقعی + گیت سطح Full */
@@ -739,8 +789,7 @@ switch ($action) {
         break;
 
     case 'sitemaps':
-        $cfg = gsc_cfg();
-        if (!$cfg) jerr('gsc_not_configured');
+        $cfg = gsc_cfg_or_jerr(); /* v34.31.0: پیام خطای دقیق و قابل‌اقدام */
         $site = gsc_resolve_site($cfg, false); /* v34.12.0: پراپرتی خودکار */
         $r = gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site) . '/sitemaps');
         jok(['sitemaps' => $r['sitemap'] ?? []]);
@@ -748,8 +797,7 @@ switch ($action) {
 
     /* صفحاتِ بدونِ داده در سرچ کنسول = کاندیدای «ایندکس‌نشده» + پیوندِ درخواستِ ایندکس */
     case 'coverage':
-        $cfg = gsc_cfg();
-        if (!$cfg) jerr('gsc_not_configured');
+        $cfg = gsc_cfg_or_jerr(); /* v34.31.0: پیام خطای دقیق و قابل‌اقدام */
         $days = (int)($_REQUEST['days'] ?? 90);
         if ($days < 28) $days = 28;
         if ($days > 180) $days = 180;

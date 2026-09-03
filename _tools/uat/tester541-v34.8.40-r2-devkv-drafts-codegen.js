@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
-/* tester541 — v34.29.3 (R2/T5-2c — DEV→IDB گام دوم): پیش‌نویس‌ها، آینهٔ پروفایل
+/* tester541 — v34.34.0 (R2/T5-2c — DEV→IDB گام دوم): پیش‌نویس‌ها، آینهٔ پروفایل
    امضا و صف/پلن کدینگ دیگر مستقیم در localStorage نوشته نمی‌شوند؛ همه از نمای
-   ptfDevKv (IndexedDB، ساخت v34.29.3) عبور می‌کنند و الگوی «کش سنکرون + پایدارسازی
+   ptfDevKv (IndexedDB، ساخت v34.34.0) عبور می‌کنند و الگوی «کش سنکرون + پایدارسازی
    async» جریان‌های سنکرون (تخصیص کد، lookup امضا) را بدون تغییر نگه می‌دارد.
    پوشش:
      ۱) offers.js — ذخیره/حذف/بازیابی پیش‌نویس (بازیابی async پس از باز شدن فرم)
@@ -75,6 +75,6 @@ T('registry: پیشوند کهنهٔ sigRecovery_ حذف شد', sandbox.window.p
 T('registry: autodraft_offer همچنان DEV', sandbox.window.ptfKeyCategory('ptf_autodraft_offer_CO') === 'DEV');
 
 /* ═══ انتها ═══ */
-console.log('\n— tester541 (v34.29.3: R2/T5-2c — پیش‌نویس‌ها/امضا/کدینگ در Dev-KV) —');
+console.log('\n— tester541 (v34.34.0: R2/T5-2c — پیش‌نویس‌ها/امضا/کدینگ در Dev-KV) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

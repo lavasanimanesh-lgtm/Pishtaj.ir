@@ -1,7 +1,7 @@
 {
  "note": "بدهی معماری پذیرفته‌شده با امضای پایدار محتوا؛ افزایش multiset هر قاعده ⇒ شکست گیت.",
  "signatureFormat": "source-sha256-12-v2",
- "version": "v34.8.43",
+ "version": "v34.34.0",
  "rules": {
   "A1": [
    "delRfq @ bridge.js+workflow.js",
@@ -123,6 +123,8 @@
    "buycompare.js → cmpSplitRemove",
    "buycompare.js → cmpSplitSave",
    "cheque-print.js → chqRegisterPrintedOpen",
+   "cms.js → cmsPsiSave",
+   "cms.js → cmsSeoAiBatchApply",
    "customer-finance.js → cfLedgerApply",
    "customer-finance.js → cfOpen",
    "customer-finance.js → cfReceiptDelete",

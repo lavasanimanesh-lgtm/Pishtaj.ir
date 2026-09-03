@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester574 — v34.29.3: ریشه‌کنی تب‌های خالی CMS (TAB-DIRECT)
+/* tester574 — v34.34.0: ریشه‌کنی تب‌های خالی CMS (TAB-DIRECT)
    RCA با بوت کامل اپ (jsdom + ۱۰۷ اسکریپت): cmsTab به goPanelByName('cms') تکیه می‌کرد
    که در leads.js با «جستجوی رشته‌ای onclick دکمه‌های سایدبار» دکمهٔ cms را پیدا و کلیک
    می‌کند. وقتی RBAC/بازساز منو دکمه را حذف/مخفی/تغییرفرمت کند، یافتن بی‌صدا ناموفق

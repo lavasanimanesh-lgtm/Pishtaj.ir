@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.29.3 — BUG-OFFER-VALIDITY-001
+/* v34.34.0 — BUG-OFFER-VALIDITY-001
    رگرسیون رفتاری: تزریق ارز در مودال پیشنهاد مالی نباید فیلد تاریخ اعتبار
    (#ofValidJ) را با innerHTML حذف کند. همچنین قرارداد ذخیره validUntil و
    یادآور انقضا باید برقرار بماند. */
@@ -23,12 +23,12 @@ var pro = read('crm/offers-pro.js');
 var bridge = read('crm/bridge.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('نسخه رسمی v34.29.3 است', ver.crm_version === 'v34.29.3', ver.crm_version);
-T('index و service worker روی v34.29.3 هستند',
-  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.29.3'") > -1 &&
-  sw.indexOf("RELEASE = 'v34.29.3'") > -1);
+T('نسخه رسمی v34.34.0 است', ver.crm_version === 'v34.34.0', ver.crm_version);
+T('index و service worker روی v34.34.0 هستند',
+  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.34.0'") > -1 &&
+  sw.indexOf("RELEASE = 'v34.34.0'") > -1);
 T('cache-bust هر دو فایل فرم تازه شده است',
-  idx.indexOf('offers.js?v=34.29.3') > -1 && idx.indexOf('offers-pro.js?v=34.29.3') > -1);
+  idx.indexOf('offers.js?v=34.34.0') > -1 && idx.indexOf('offers-pro.js?v=34.34.0') > -1);
 
 T('فیلد تاریخ اعتبار در فرم مالی/فنی‌مالی رندر می‌شود',
   offers.indexOf("o.kind !== 'TO'") > -1 && offers.indexOf("ptfDatePicker('ofValidJ'") > -1);
@@ -115,6 +115,6 @@ try {
 }
 
 T('tester500 در گیت CI ثبت شده است', gate.indexOf('tester500-v34.7.99-offer-validity-visible.js') > -1);
-console.log('\n— tester500 (v34.29.3: نمایش پایدار تاریخ اعتبار پیشنهاد) —');
+console.log('\n— tester500 (v34.34.0: نمایش پایدار تاریخ اعتبار پیشنهاد) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
