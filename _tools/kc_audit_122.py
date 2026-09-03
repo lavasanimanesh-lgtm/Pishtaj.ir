@@ -109,14 +109,12 @@ def audit(slug):
     seg = mm.group(0) if mm else body
     seg = re.sub(r'<(header|nav|footer).*?</\1>', ' ', seg, flags=re.S)
     txt = strip_tags(seg)
-    words = re.findall(r'[\u0600-\u06FF\uFB50-\uFDFFA-Za-z0-9][\u0600-\u06FF\uFB50-\uFDFFA-Za-z0-9\(\)\.\-/٪٬]*', txt)
+    words = txt.split()
     res['words'] = len(words)
     # سنجه اصلی = معیار مولد: ریشه‌های فارسی در کل صفحه منهای اسکریپت/استایل
     full = re.sub(r'<script.*?</script>|<style.*?</style>', '', s, flags=re.S)
     full = strip_tags(full)
-    runs_full = re.findall(r'[\u0600-\u06FF\uFB8A]+', full)
-    res['runs'] = len(runs_full)
-    if len(runs_full) < 1000: res['issues'].append(f'words(runs) {len(runs_full)}')
+    if len(words) < 1000: res['issues'].append(f'words {len(words)}')
 
     # ۹) تصاویر
     imgs = re.findall(r'<img\s+([^>]*)>', s)
@@ -196,13 +194,13 @@ def main():
     print(f'بدون مشکل: {len(results)-len(bad)} | دارای مشکل: {len(bad)}')
     print()
     wl = [r['words'] for r in results]
-    rn = [r['runs'] for r in results]
     tl = [r['title_len'] for r in results]
     dl = [r['desc_len'] for r in results]
     il = [r['internal_links'] for r in results]
     ib = [inbound[r['slug']] for r in results]
     print(f'کلمات بدنه (واقعی): کمینه {min(wl)} / میانگین {sum(wl)//len(wl)} / بیشینه {max(wl)}')
-    print(f'کلمات به معیار مولد: کمینه {min(rn)} / میانگین {sum(rn)//len(rn)} / بیشینه {max(rn)}')
+    under = sum(1 for r in results if r['words'] < 1000)
+    print(f'زیر ۱۰۰۰ کلمه واقعی: {under} صفحه')
     print(f'تایتل: کمینه {min(tl)} / بیشینه {max(tl)}')
     print(f'توضیح: کمینه {min(dl)} / بیشینه {max(dl)}')
     print(f'لینک داخلی خروجی: کمینه {min(il)} / بیشینه {max(il)}')
