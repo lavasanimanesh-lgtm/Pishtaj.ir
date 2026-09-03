@@ -659,18 +659,36 @@
         var seen = {};
         aliases.forEach(function (a) { if (!seen[a]) { seen[a] = true; existingByAlias[a] = (existingByAlias[a] || 0) + 1; } });
       });
-      var rfqOpts = '<option value="">— بدون اتصال —</option>' + rfqs.slice(0, 120).map(function (r) {
+      /* v34.34.0 (UX-R3): فهرست اتصال جستجوپذیر — فیلتر با نام مشتری/شماره درخواست/شماره کارفرما/موضوع */
+      var _rqsSrcPool = rfqs.slice(0, 400);
+      function rqsSrcOption(r) {
         var clientNo = r.inqNo && r.inqNo !== r.cd ? (' | شماره کارفرما: ' + r.inqNo) : '';
         var existingN = Math.max(existingByAlias[r.cd] || 0, existingByAlias[r.inqNo] || 0);
         return '<option value="' + escP(r.cd) + '"' + (selectedSource === r.cd ? ' selected' : '') + '>' + escP(r.cd + clientNo + ' — ' + (r.co || '')) + (existingN ? (' — ⚠️ ' + existingN + ' تامین ثبت‌شده') : '') + '</option>';
-      }).join('');
+      }
+      var rfqOpts = '<option value="">— بدون اتصال —</option>' + _rqsSrcPool.slice(0, 120).map(rqsSrcOption).join('');
+      window.rfqsFilterSrc = function (q) {
+        var sel = document.getElementById('rqsSrc'); if (!sel) return;
+        q = String(q || '').trim().toLowerCase();
+        var cur = sel.value;
+        var hits = !q ? _rqsSrcPool.slice(0, 120) : _rqsSrcPool.filter(function (r) {
+          return ((r.cd || '') + ' ' + (r.inqNo || '') + ' ' + (r.co || '') + ' ' + (r.subj || '')).toLowerCase().indexOf(q) > -1;
+        }).slice(0, 120);
+        sel.innerHTML = '<option value="">— بدون اتصال —</option>' + hits.map(rqsSrcOption).join('');
+        if (cur && hits.some(function (r) { return r.cd === cur; })) sel.value = cur;
+        var cnt = document.getElementById('rqsSrcCount');
+        if (cnt) cnt.textContent = q ? (hits.length ? (hits.length + ' مورد مطابق جستجو') : 'موردی پیدا نشد — اتصال را خالی بگذارید یا درخواست را ابتدا در «استعلامات» ثبت کنید') : '';
+      };
       var inqNos = {};
       iq.forEach(function (x) { if (x && x.inqNo) inqNos[x.inqNo] = (inqNos[x.inqNo] || 0) + 1; });
       rfqs.forEach(function (r) { if (r && r.cd && Array.isArray(r.items) && r.items.length && !inqNos[r.cd]) inqNos[r.cd] = r.items.length; });
       var inqOpts = Object.keys(inqNos).map(function (k) { return '<option value="' + escP(k) + '"' + (selectedSource === k ? ' selected' : '') + '>' + escP(k) + ' (' + inqNos[k] + ' قلم)</option>'; }).join('');
 
       modal.querySelector('.md').innerHTML = '<h3>🛒 درخواست تامین — گام ۱: ورود اقلام</h3>' +
-        '<div class="fld"><label>اتصال به درخواست مشتری (اختیاری — برای رهگیری)</label><select id="rqsSrc" onchange="rfqsSyncSrcInqUI()">' + rfqOpts + '</select></div>' +
+        '<div class="fld"><label>اتصال به درخواست مشتری (اختیاری — برای رهگیری)</label>' +
+        '<input type="text" id="rqsSrcSearch" placeholder="🔍 جستجو: نام مشتری، شماره درخواست، شماره کارفرما، موضوع…" oninput="rfqsFilterSrc(this.value)" style="margin-bottom:6px;padding:8px 10px;border:1px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px">' +
+        '<select id="rqsSrc" onchange="rfqsSyncSrcInqUI()">' + rfqOpts + '</select>' +
+        '<small id="rqsSrcCount" style="display:block;color:#0e7490;font-size:11.5px;margin-top:4px"></small></div>' +
         '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;font-size:12px;color:#0c4a6e;margin:8px 0">یکی از روش‌های زیر را انتخاب کنید. در گام بعد همه اقلام قابل ویرایش، افزودن و حذف ردیف هستند.</div>' +
         '<div style="display:grid;gap:8px;margin:10px 0">' +
         (inqOpts ? '<div class="rfqs-import-row" style="display:flex;gap:6px;align-items:center"><select id="rqsInq" aria-label="انتخاب اقلام درخواست فروش" style="flex:1;padding:9px;border:1px solid var(--brd);border-radius:10px">' + inqOpts + '</select><button class="bt bt-o" onclick="rfqsFromInq()">📥 وارد کردن اقلام درخواست</button></div>' : '') +

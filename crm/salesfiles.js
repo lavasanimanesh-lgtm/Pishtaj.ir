@@ -649,7 +649,7 @@
     });
   };
 
-  /* ===== v34.30.0 (FX-RIAL-REF): تشخیص مبنای ریالی ارجاع فاکتور =====
+  /* ===== v34.31.0 (FX-RIAL-REF): تشخیص مبنای ریالی ارجاع فاکتور =====
      هستهٔ خالص و قابل تست — بدون نوشت، بدون UI.
      مسئلهٔ کارفرما: پیشنهاد برندهٔ پرونده ارزی است ولی یک «پیشنهاد ریالی» مستقل
      قبلاً برای همان پرونده ثبت شده؛ هنگام ارجاع باید همان نسخهٔ ریالی (نه نسخهٔ
@@ -703,7 +703,7 @@
     var o = offers.filter(function (x) { return x.no === r.wonOffer; })[0];
     if (!o) return { ok: false, why: 'nooffer' };
     if (o.invRef) return { ok: false, why: 'already' };
-    /* v34.7.76 (INV-RIAL-BASIS) + v34.30.0 (FX-RIAL-REF): مبنای ارجاع به حسابدار همیشه ریالی است.
+    /* v34.7.76 (INV-RIAL-BASIS) + v34.31.0 (FX-RIAL-REF): مبنای ارجاع به حسابدار همیشه ریالی است.
        ① پیشنهاد ریالی (IRR) → خود سند؛ ② پیشنهاد ارزی دارای نسخهٔ ریالی (لینک ریال‌اُف یا
        شمارهٔ صریح) → نسخهٔ ریالی؛ ③ پیشنهاد ارزی با پیشنهاد ریالیِ مستقلِ ثبت‌شده در پرونده →
        همان سند ثبت‌شده (تک‌نماینده خودکار؛ چندنامزد → انتخاب کاربر)؛
@@ -723,12 +723,12 @@
     }
     var rialBasis = comp ? comp.no : o.no;
     var rialTotal = comp ? (comp.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : fxTotal;
-    /* v34.30.0: نرخ = نرخ صریح ابزار تبدیل؛ در نبود آن نرخ برگرفته از جمع دو سند */
+    /* v34.31.0: نرخ = نرخ صریح ابزار تبدیل؛ در نبود آن نرخ برگرفته از جمع دو سند */
     var _ri = comp ? ((typeof window.sfInvoiceRialRateOf === 'function') ? window.sfInvoiceRialRateOf(comp, fxTotal, rialTotal) : { rate: comp.fxConvert ? (+comp.fxConvert.rate || 0) : 0, derived: false }) : { rate: 0, derived: false };
     var rialRate = _ri.rate, rialRateDerived = !!(_ri.derived && rialRate > 0);
     /* AC3: سند مالی ضمیمه ارجاع = snapshot قطعی برد، نه پیشنهاد زندهٔ قابل‌تغییر */
     if (typeof sfAwardEnsure === 'function') sfAwardEnsure(r);
-    /* v34.30.0: ریال‌بِیزیس‌کایند = صریح/همراه(ابزار تبدیل)/ثبت‌شدهٔ مستقل؛ ریال‌ریت‌دِرایود = نرخ
+    /* v34.31.0: ریال‌بِیزیس‌کایند = صریح/همراه(ابزار تبدیل)/ثبت‌شدهٔ مستقل؛ ریال‌ریت‌دِرایود = نرخ
        برگرفته از جمع دو سند (نه نرخ صریح ابزار تبدیل) — برای برچسب نمایش در پنل فاکتورها. */
     o.invRef = { by: curSession().name, role: (typeof roleDef === 'function' ? roleDef().lb : ''), t: faDate(), fromFile: r.cd, awardDoc: r.wonOffer, rialBasis: rialBasis, rialRate: rialRate, rialRateDerived: rialRateDerived, rialBasisKind: compKind, rialTotal: rialTotal, fxNo: isFx ? o.no : '', fxCurrency: isFx ? o.currency : '' };
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
@@ -777,7 +777,7 @@
     }
     sfInvoiceRefFinish(cd);
   };
-  /* v34.30.0 (FX-RIAL-REF): چند پیشنهاد ریالی ثبت‌شده در پرونده — کاربر یکی را
+  /* v34.31.0 (FX-RIAL-REF): چند پیشنهاد ریالی ثبت‌شده در پرونده — کاربر یکی را
      به‌عنوان مبنای صدور فاکتور انتخاب می‌کند؛ نرخ تسعیر از جمع همان سند برگرفته می‌شود. */
   window.sfInvoiceRefPickRial = function (cd, res) {
     var rows = (res.candidates || []).map(function (c, i) {

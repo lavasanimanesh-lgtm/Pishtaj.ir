@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester556 — v34.30.0 (فاز S2 سئو): مولد صفحات
+/* tester556 — v34.35.0 (فاز S2 سئو): مولد صفحات
    ۱) مولد صفحهٔ محصول از دیتای CRM (اسکیمای Product/Offer/FAQ/Breadcrumb + سایت‌مپ اختصاصی)
    ۲) ادیتور ریدایرکت (stub امن + بک‌آپ + بازگردانی)
    ۳) ثبت خودکار زیرنقشهٔ جدید در sitemap-index */
@@ -23,7 +23,8 @@ T('S2: نگاشت محصولات به سایت‌مپ اختصاصی', cmsPhp.in
 T('S2: زیرنقشهٔ جدید در sitemap-index ثبت می‌شود (sitemap_index_ensure)', cmsPhp.indexOf('function sitemap_index_ensure') > -1 && /function sitemap_add[\s\S]{0,900}sitemap_index_ensure/.test(cmsPhp));
 T('S2: case product_create با اعتبارسنجی (عنوان/نامک/۲۰۰ حرف)', PC.indexOf('عنوان و نامک (slug) الزامی است') > -1 && PC.indexOf('متن صفحه حداقل ۲۰۰ کاراکتر') > -1);
 T('S2: پاکسازی بدنه همان لیست سفید kc (حذف on* و javascript:)', PC.indexOf("strip_tags($body, '<h2><h3><h4><p><ul><ol><li>") > -1 && /javascript\s*:/i.test(PC) === false && /on\\w+\\s*=/.test(PC) === false);
-T('S2: قالب از اسکلت مرکز دانش (هدر/فوتر هم‌شکل)', /case 'product_create'[\s\S]{0,2600}knowledge-center\/astm-a105\.html/.test(cmsPhp));
+T('S2: قالب از اسکلت مرکز دانش (هدر/فوتر هم‌شکل)', /case 'product_create'[\s\S]{0,2600}cms_product_skeleton\(\$ROOT\)/.test(cmsPhp)); /* v34.35.0: هِلپر قالب محصولات با بازگشت به اسکلت مرکز دانش */
+T('S2-R2: کارت صفحهٔ تازه در صفحهٔ اصلی همان بخش درج می‌شود', cmsPhp.indexOf('function cms_section_cards_inject') > -1 && cmsPhp.indexOf("cms_section_cards_inject($ROOT, $r['folder']") > -1);
 T('S2: اسکیمای Product + Offer فقط با قیمت مثبت', /case 'product_create'[\s\S]{0,9000}'@type' => 'Product'[\s\S]{0,500}if \(\$price > 0\)[\s\S]{0,200}'offers'/.test(cmsPhp));
 T('S2: FAQPage فقط با faq غیرخالی', /if \(\$faqGraph\) \$graph\[\] = \['@type' => 'FAQPage'/.test(cmsPhp));
 T('S2: BreadcrumbList سه‌سطحی (خانه/محصولات/عنوان)', PC.indexOf("'name' => 'محصولات', 'item' => 'https://pishtaj.ir/products/'") > -1);
