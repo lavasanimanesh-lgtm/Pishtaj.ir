@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.34.0'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.35.0'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -654,12 +654,19 @@
 
   /* ═══ v34.29.2 (SEO-GUIDE): راهنمای سئو برای کاربرانِ ناآشنا — چک‌لیست زنده + ۶ گام
      با دکمهٔ اجرای مستقیم همان ابزار. دانش فنی لازم نیست؛ زبان ساده. ═══ */
+  /* v34.35.0 (UX-R4 — گزارش کارفرما): راهنما پیش‌فرض «بسته» است و حالت باز/بسته
+     از لایهٔ داده (اصل A10 — بدون دسترسی مستقیم به storage) ماندگار می‌شود؛
+     اگر ذخیره ممکن نبود متغیر حافظه‌ای جایگزین است تا دکمه در هر شرایطی کار کند. */
+  var _seoGuideMem = null;
   function cmsSeoGuideOpen() {
-    try { return sessionStorage.getItem('ptfSeoGuide') !== '0'; } catch (eG) { return true; }
+    var v = _seoGuideMem;
+    if (v === null) { try { v = getData('ptf_seo_guide_pref'); } catch (eG) {} }
+    return v === '1'; /* پیش‌فرض: بسته */
   }
   window.cmsSeoGuideToggle = function () {
     var to = cmsSeoGuideOpen() ? '0' : '1';
-    try { sessionStorage.setItem('ptfSeoGuide', to); } catch (eG) {}
+    _seoGuideMem = to;
+    try { setData('ptf_seo_guide_pref', to); } catch (eG) {}
     renderCms();
   };
   window.cmsSeoGuideGscProbe = function () {
@@ -738,6 +745,7 @@
       var list = window._cmsPages || [];
       el.innerHTML = cmsSeoGuideBox() + seoStatsBar() + seoToolbar() + seoQueueBox() + cmsRedirectBox() +
         '<div id="seoDrift"></div>' +
+        (typeof ptfGscOptimizeBannerHtml === 'function' ? ptfGscOptimizeBannerHtml() : '') + /* v34.35.0: راهنمای بهینه‌سازی از سرچ کنسول */
         '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">نمایش ' + list.length + ' از ' + _seoMeta.matched + ' صفحهٔ منطبق (مرتب‌شده: پر‌ایرادترین اول)</div>' +
         '<div id="seoList" style="max-height:520px;overflow:auto">' + seoRows() + '</div>' +
         (list.length < _seoMeta.matched ? '<div style="text-align:center;margin-top:8px"><button class="bt bt-o" onclick="cmsSeoMore()">نمایش بیشتر (۶۰ تای بعدی)</button></div>' : '') +
