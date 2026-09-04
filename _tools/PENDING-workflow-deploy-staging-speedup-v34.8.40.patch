@@ -1,5 +1,5 @@
 diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
-index 62a0cac..3361a3e 100644
+index 62a0cac..8a341cd 100644
 --- a/.github/workflows/deploy-staging.yml
 +++ b/.github/workflows/deploy-staging.yml
 @@ -1,13 +1,22 @@
@@ -236,7 +236,7 @@ index 62a0cac..3361a3e 100644
          uses: SamKirkland/FTP-Deploy-Action@v4.3.5
          with:
            server: ${{ secrets.FTP_SERVER }}
-@@ -170,34 +300,69 @@ jobs:
+@@ -170,34 +300,77 @@ jobs:
            done
            echo "⚠️ انتشار گزارش تشخیص انجام نشد"
  
@@ -247,7 +247,16 @@ index 62a0cac..3361a3e 100644
        - name: Post-deploy integrity check
          run: |
            BASE="https://staging.pishtaj.ir"
-           FILES="crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js"
+-          FILES="crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js"
++                    # ⚠ FILES باید «چندخطی» باشد (یک نام در هر خط). رشتهٔ یک‌خطیِ فاصله‌دار با
++          #   `while IFS= read -r f` فقط یک‌بار حلقه می‌زند و *کل* رشته را یک نام فایل
++          #   می‌گیرد → sha1sum خطا (want تهی) و curl خطا → گیت بی‌قیدوشرط قرمز.
++          #   الگوی درست: BYTES_FILES در _tools/ci/verify-deploy.sh.
++          FILES="crm/sw.js
++          crm/shell.js
++          crm/client-server.js
++          crm/key-registry.js
++          crm/sales-domain-v2.js"
            PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
 +          HOST="${{ secrets.FTP_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
 +          DIR="${{ secrets.FTP_SERVER_DIR }}"
@@ -322,7 +331,7 @@ index 62a0cac..3361a3e 100644
  
        - name: Fail if verification failed
          if: ${{ steps.verify.outcome == 'failure' }}
-@@ -207,9 +372,11 @@ jobs:
+@@ -207,9 +380,11 @@ jobs:
  
        - name: Summary
          run: |

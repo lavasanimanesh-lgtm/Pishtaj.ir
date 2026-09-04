@@ -28,7 +28,7 @@ var surplus = read('crm/surplus.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.35.0'/.test(idx));
+T('index PTF_CRM_RELEASE = v34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.36\.0'/.test(idx));
 T('sw RELEASE/ASSET/CACHE = 34.36.0', sw.indexOf("RELEASE = 'v34.36.0'") > -1 && sw.indexOf("ASSET_VERSION = '34.36.0'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.36.0'") > -1);
 T('shell fallback نسخه 34.36.0', shell.indexOf("'v34.36.0'") > -1);
 T('manifest.version = 34.36.0', man.version === '34.36.0', man.version);
@@ -57,7 +57,7 @@ T('حقوق بازه‌ای + سایر بدون متن آزاد', php.indexOf("'
 T('نقش CRM فقط admin/chairman/ceo', php.indexOf("['admin', 'chairman', 'ceo']") > -1 && js.indexOf("var JOB_ROLES = ['admin', 'chairman', 'ceo']") > -1);
 T('auth توکن نه X-CRM-Role اجباری سمت سرور', php.indexOf('auth_get_header_token') > -1 && php.indexOf('auth_verify_token') > -1 && php.indexOf('X-CRM-Role') < 0);
 T('پنل jobs در سایدبار و GROUPS', idx.indexOf("goPanel('jobs'") > -1 && idx.indexOf('فرصت شغلی') > -1 && shell.indexOf("'jobs'") > -1);
-T('careers.js در index و SHELL بعد از cms', /cms\.js\?v=34\.35.0/.test(idx) && /careers\.js\?v=34\.35.0/.test(idx) && sw.indexOf("./cms.js") < sw.indexOf("./careers.js"));
+T('careers.js در index و SHELL بعد از cms', /cms\.js\?v=34\.36\.0/.test(idx) && /careers\.js\?v=34\.36\.0/.test(idx) && sw.indexOf("./cms.js") < sw.indexOf("./careers.js"));
 T('منوی پویا از status.json', disc.indexOf('careers/status.json') > -1 && disc.indexOf('nav-careers') > -1 && disc.indexOf('ensureCareersLink') > -1);
 T('ptf-guard مسیر API بر اساس depth', guard.indexOf('var depth = parts.length') > -1 && guard.indexOf("api/crm.php") > -1);
 T('careers در allow-list htaccess', hta.indexOf('|careers)') > -1 || hta.indexOf('|careers\\)') > -1 || /careers/.test(hta));

@@ -1,9 +1,23 @@
 diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
-index 7f1780a..684f413 100644
+index 7f1780a..1731498 100644
 --- a/.github/workflows/deploy-production.yml
 +++ b/.github/workflows/deploy-production.yml
-@@ -179,19 +179,24 @@ jobs:
-           FILES="crm/index.html crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js crm/manifest.json"
+@@ -176,22 +176,37 @@ jobs:
+       - name: Post-deploy integrity check
+         run: |
+           BASE="https://pishtaj.ir"
+-          FILES="crm/index.html crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js crm/manifest.json"
++                    # ⚠ FILES باید «چندخطی» باشد (یک نام در هر خط). رشتهٔ یک‌خطیِ فاصله‌دار با
++          #   `while IFS= read -r f` فقط یک‌بار حلقه می‌زند و *کل* رشته را یک نام فایل
++          #   می‌گیرد → sha1sum خطا (want تهی) و curl خطا → گیت بی‌قیدوشرط قرمز.
++          #   الگوی درست: BYTES_FILES در _tools/ci/verify-deploy.sh.
++          FILES="crm/index.html
++          crm/sw.js
++          crm/shell.js
++          crm/client-server.js
++          crm/key-registry.js
++          crm/sales-domain-v2.js
++          crm/manifest.json"
            PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
            echo "کامیت: $DEPLOY_SHA | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
 +          # v34.8.40 (DEPLOY-GATE-WINDOW v2 — بازتولید؛ استیجینگ مستقیماً harden شد):

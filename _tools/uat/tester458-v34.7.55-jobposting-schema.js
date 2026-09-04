@@ -22,7 +22,7 @@ var surplus = read('crm/surplus.js');
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
 T('index PTF_CRM_RELEASE = v34.36.0', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.36.0'") > -1);
 T('sw RELEASE = v34.36.0', sw.indexOf("RELEASE = 'v34.36.0'") > -1);
-T('careers.js cache-bust 34.36.0', /careers\.js\?v=34\.35.0/.test(idx));
+T('careers.js cache-bust 34.36.0', /careers\.js\?v=34\.36\.0/.test(idx));
 
 /* ---------- فیلد الزامی: datePosted ---------- */
 T('LD شامل datePosted است', php.indexOf("'datePosted' => date('Y-m-d', $postedTs)") > -1);

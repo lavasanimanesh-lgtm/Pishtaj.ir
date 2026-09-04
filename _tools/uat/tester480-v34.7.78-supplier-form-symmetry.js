@@ -20,7 +20,7 @@ var sup = read('supplier/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('inqreader.js cache-bust 34.36.0', /inqreader\.js\?v=34\.35.0/.test(idx));
+T('inqreader.js cache-bust 34.36.0', /inqreader\.js\?v=34\.36\.0/.test(idx));
 
 /* ① رفع پیشوند ZIP (rfq/) */
 T('کلاینت پیشوند rfq/ را می‌پذیرد', inq.indexOf("key.indexOf('rfq/') !== 0") > -1);

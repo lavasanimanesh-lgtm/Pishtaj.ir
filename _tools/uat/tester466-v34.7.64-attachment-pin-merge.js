@@ -17,8 +17,8 @@ var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('bridge.js cache-bust 34.36.0', /bridge\.js\?v=34\.35.0/.test(idx));
-T('inqreader.js cache-bust 34.36.0', /inqreader\.js\?v=34\.35.0/.test(idx));
+T('bridge.js cache-bust 34.36.0', /bridge\.js\?v=34\.36\.0/.test(idx));
+T('inqreader.js cache-bust 34.36.0', /inqreader\.js\?v=34\.36\.0/.test(idx));
 
 /* بج ضمیمه: همیشه کلیک‌پذیر */
 T('بج با ضمیمه کلیک‌پذیر است', bridge.indexOf("' <span class=\"bd rfq-attachment-badge has-files\" role=\"button\"") > -1);

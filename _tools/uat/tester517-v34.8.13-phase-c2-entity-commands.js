@@ -29,7 +29,7 @@ T('sanitizer ردیف (سقف کلید/طول/تودرتو)', /function sd_entit
 T('حذف = tombstone عمومی archive_purge با identities', /'kind' => 'archive_purge'.*'identities' => \[\$collection => \[\$id\]\]/s.test(api));
 T('حذف idempotent است (alreadyDeleted)', /'alreadyDeleted' => true/.test(api));
 T('فرمان‌های entity از journal پاس می‌کنند (در readOnly نیستند)', !/\('snapshot', 'health'[\s\S]{0,200}entity_upsert/.test(api));
-T('SD_SERVICE_VERSION = 34.36.0', /SD_SERVICE_VERSION = '34\.35.0'/.test(api));
+T('SD_SERVICE_VERSION = 34.36.0', /SD_SERVICE_VERSION = '34\.36\.0'/.test(api));
 
 /* ---------- کلاینت ---------- */
 T('پرچم per-collection فعال (پایلوت یادآور)', /PTF_ENTITY_CMD_ENABLED = \{ 'ptf_crm_reminders': true/.test(v2));

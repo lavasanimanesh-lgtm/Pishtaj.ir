@@ -23,7 +23,7 @@ T('ptf_crm_leads در رجیستری موجودیت', /'ptf_crm_leads' => \[/.te
 T('ptf_crm_leads در SD_KEYS', new RegExp("'ptf_crm_reminders'\\s*,\\s*'ptf_crm_le").test(api));
 T('sanitizer لیست اسکالر را نگه می‌دارد', /is_string\(\$item\)\) \{\s*\$stored = sd_text\(\$item, 300\);/.test(api)); /* v34.36.0: بدنه به sd_entity_sanitize_list منتقل شد */
 T('sanitizer لیست نقشهٔ اسکالر (hist) را نگه می‌دارد', /subItem\[\$k3\] = \$storedSub;/.test(api));
-T('SD_SERVICE_VERSION = 34.36.0', /SD_SERVICE_VERSION = '34\.35.0'/.test(api));
+T('SD_SERVICE_VERSION = 34.36.0', /SD_SERVICE_VERSION = '34\.36\.0'/.test(api));
 
 /* ---------- کلاینت ---------- */
 T('پرچم سرنخ‌ها فعال شد', /'ptf_crm_leads': true/.test(v2)); /* v34.36.0: نقشه از این پس با W1 ادامه دارد — پرچم leads کافی است */

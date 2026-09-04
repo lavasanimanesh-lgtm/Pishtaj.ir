@@ -26,9 +26,9 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var surplus = read('crm/surplus.js');
 
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.35.0'/.test(idx));
+T('index PTF_CRM_RELEASE = v34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.36\.0'/.test(idx));
 T('sw RELEASE = v34.36.0', sw.indexOf("RELEASE = 'v34.36.0'") > -1);
-T('careers.js?v=34.36.0', /careers\.js\?v=34\.35.0/.test(idx));
+T('careers.js?v=34.36.0', /careers\.js\?v=34\.36\.0/.test(idx));
 
 T('منوی پویا از API published با fallback status.json', disc.indexOf('api/careers.php?action=published') > -1 && disc.indexOf('careers/status.json') > -1 && disc.indexOf('nav-careers') > -1);
 T('فهرست FA از API published', list.indexOf("api/careers.php?action=published") > -1 && list.indexOf('status.json') > -1);
