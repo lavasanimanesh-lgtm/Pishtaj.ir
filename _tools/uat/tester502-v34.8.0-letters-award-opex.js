@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.36.3 — LETTER-AWARD-OPEX-001
+/* v34.36.4 — LETTER-AWARD-OPEX-001
    قراردادهای رفتاری فونت مکاتبات، اسناد پس از برد، reconcile بی‌تکرار و
    تسویهٔ هزینهٔ تکرارشونده تا خروج یکتای خزانه. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -31,12 +31,12 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var version = JSON.parse(read('VERSION.json'));
 
 console.log('\n── پین نسخه و rollover ──');
-T('نسخهٔ رسمی دقیقاً v34.36.3 است', version.crm_version === 'v34.36.3', version.crm_version);
+T('نسخهٔ رسمی دقیقاً v34.36.4 است', version.crm_version === 'v34.36.4', version.crm_version);
 T('index، service worker، manifest و API هم‌نسخه‌اند',
-  read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.36.3'") > -1 &&
-  read('crm/sw.js').indexOf("RELEASE = 'v34.36.3'") > -1 &&
-  JSON.parse(read('crm/manifest.json')).version === '34.36.3' &&
-  api.indexOf("SD_SERVICE_VERSION = '34.36.3'") > -1);
+  read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.36.4'") > -1 &&
+  read('crm/sw.js').indexOf("RELEASE = 'v34.36.4'") > -1 &&
+  JSON.parse(read('crm/manifest.json')).version === '34.36.4' &&
+  api.indexOf("SD_SERVICE_VERSION = '34.36.4'") > -1);
 T('شمارهٔ نامعتبر v34.7.100 در نقاط رسمی باقی نمانده است',
   [read('VERSION.json'), read('crm/index.html'), read('crm/sw.js'), read('crm/manifest.json'), read('crm/clear-cache.html'), api].every(function (s) { return s.indexOf('34.7.100') === -1; }));
 
@@ -285,6 +285,6 @@ try {
 }
 
 T('tester502 در گیت CI ثبت شده است', gate.indexOf('tester502-v34.8.0-letters-award-opex.js') > -1);
-console.log('\n— tester502 (v34.36.3: مکاتبات، اسناد برنده و تسویه OPEX) —');
+console.log('\n— tester502 (v34.36.4: مکاتبات، اسناد برنده و تسویه OPEX) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

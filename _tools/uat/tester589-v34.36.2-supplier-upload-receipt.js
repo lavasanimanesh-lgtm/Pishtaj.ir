@@ -1,5 +1,5 @@
 /* =====================================================================
-   tester589 — v34.36.3 (SUP-UPLOAD-RCA): «در صفحهٔ ثبت‌نام تامین‌کنندگان فایل آپلود نمی‌شود»
+   tester589 — v34.36.4 (SUP-UPLOAD-RCA): «در صفحهٔ ثبت‌نام تامین‌کنندگان فایل آپلود نمی‌شود»
    ---------------------------------------------------------------------
    شکایت مالک: فایل انتخاب می‌شد، ثبت‌نام «سبز و موفق» نشان داده می‌شد، هیچ
    هشداری نبود و در CRM «بدون ضمیمه» می‌ماند.
@@ -352,12 +352,12 @@ function attBox() { return els.venAttach; }
 
   /* ================= ۱۰) بهداشت ================= */
   console.log('\n── ۱۰) بهداشت و ثبت در گیت ──');
-  T('۱۰.۱ VERSION.json = v34.36.3', ver.crm_version === 'v34.36.3', ver.crm_version);
+  T('۱۰.۱ VERSION.json = v34.36.4', ver.crm_version === 'v34.36.4', ver.crm_version);
   T('۱۰.۲ tester589 در گیت CI ثبت شده است', gate.indexOf('tester589-v34.36.2-supplier-upload-receipt.js') > -1);
-  T('۱۰.۳ یادداشت انتشار این نسخه موجود است', fs.existsSync('RELEASE-NOTES-v34.36.3.md'));
+  T('۱۰.۳ یادداشت انتشار این نسخه موجود است', fs.existsSync('RELEASE-NOTES-v34.36.4.md'));
   T('۱۰.۴ هیچ دادهٔ حساس (کلید/رمز) در تشخیص‌ها نشت نمی‌کند', !/attachmentDiag[\s\S]{0,400}(secret_key|access_key|CAPTCHA_SECRET)/.test(api));
 
-  console.log('\n— tester589 (v34.36.3: رسید پیوست ثبت‌نام تامین‌کننده — SUP-UPLOAD-RCA) —');
+  console.log('\n— tester589 (v34.36.4: رسید پیوست ثبت‌نام تامین‌کننده — SUP-UPLOAD-RCA) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   process.exit(f ? 1 : 0);
 })().catch(function (e) {

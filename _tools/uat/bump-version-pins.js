@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 /* =====================================================================
-   v34.8.35 — ارتقای خودکار pinهای نسخه در تسترها
+   v34.36.4 — ارتقای خودکار pinهای نسخه در تسترها
+   (نسخهٔ پیشین: v34.8.35)
 
    زمینه (یافتهٔ عملی هنگام بستن T0-3):
    ۷۰+ تستر شمارهٔ نسخه را به‌صورت لفظی pin کرده‌اند — در مقایسه
@@ -16,12 +17,22 @@
 
    این ابزار همان کار دستی را قطعی و کامل انجام می‌دهد.
 
-   استفاده (بعد از تغییر VERSION.json و ۶ نقطهٔ رسمی):
+   استفاده (بعد از تغییر VERSION.json و نقاط رسمی نسخه):
      node _tools/uat/bump-version-pins.js 34.8.34          # از این نسخه به نسخهٔ VERSION.json
      node _tools/uat/bump-version-pins.js 34.8.34 --dry
 
-   فقط فایل‌های _tools/uat/tester*.js را لمس می‌کند و شکل‌های زیر را پوشش
-   می‌دهد: 34.8.34 لفظی، و 34\.8\.34 (escape شده داخل regex).
+   فقط فایل‌های _tools/uat/tester*.js را لمس می‌کند.
+
+   ── v34.36.4: دو نقطهٔ کورِ واقعی رفع شد (هر دو در همین انتشار گیت را قرمز کردند) ──
+   ۱) شکلِ «دوبل-escape» پوشش نداشت: پینی که با `new RegExp('…')` ساخته می‌شود در
+      متنِ فایل به‌صورت 34\\.36\\.3 نوشته می‌شود (دو بک‌اسلش)، در حالی که ابزار فقط
+      34\.36\.3 (regex literal) و 34.36.3 (لفظِ ساده) را می‌دید ⇒ پینِ کش‌باسترِ
+      tester591 روی نسخهٔ قبل ماند و پس از bump قرمز شد.
+   ۲) «هویتِ فایل» از «پینِ نسخه» جدا نبود: نامِ تسترها شمارهٔ نسخهٔ *تاریخی* دارد
+      (tester591-v34.36.3-collapsible-account-panels.js). ابزار آن را هم عوض می‌کرد،
+      پس ارجاعِ `gate.indexOf('tester591-v34.36.4-….js')` به فایلِ واقعیِ موجود
+      اشاره نمی‌کرد و پینِ «در گیت ثبت شده است» قرمز می‌شد. حالا این نام‌ها پیش از
+      جایگزینی محافظت (و پس از آن بازگردانی) می‌شوند و شمارشان هم گزارش می‌شود.
    ===================================================================== */
 var fs = require('fs');
 var path = require('path');
@@ -42,22 +53,50 @@ if (OLD === NEW) {
   process.exit(0);
 }
 
-var OLD_ESC = OLD.split('.').join('\\.');   /* 34\.8\.34 */
-var NEW_ESC = NEW.split('.').join('\\.');
+/* شکل‌های وقوع، از «خاص‌تر» به «عمومی‌تر» — ترتیب مهم است: اگر شکلِ ساده زودتر
+   جایگزین شود، شکل‌های escape‌شده دیگر پیدا نمی‌شوند. */
+var FORMS = [
+  { old: OLD.split('.').join('\\\\.'), neu: NEW.split('.').join('\\\\.'), label: 'دوبل-escape (new RegExp)' },
+  { old: OLD.split('.').join('\\.'), neu: NEW.split('.').join('\\.'), label: 'regex-literal' },
+  { old: OLD, neu: NEW, label: 'لفظِ ساده' }
+];
+
+/* هویتِ فایل‌ها: نامِ تستر + شمارهٔ نسخهٔ تاریخی — با bump عوض نمی‌شود. */
+var IDENTITY_RE = /tester\d+-v\d+\.\d+\.\d+-[A-Za-z0-9._-]*\.js/g;
+function protect(src, bag) {
+  return src.replace(IDENTITY_RE, function (m) {
+    if (m.indexOf(OLD) < 0) return m;                 /* فقط آن‌هایی که bump می‌شدند */
+    bag.push(m);
+    return '\u0000PTFID' + (bag.length - 1) + '\u0000';
+  });
+}
+function restore(src, bag) {
+  return src.replace(/\u0000PTFID(\d+)\u0000/g, function (_, i) { return bag[Number(i)]; });
+}
 
 var files = fs.readdirSync(DIR).filter(function (n) { return /^tester.*\.js$/.test(n); });
-var touched = [], broke = [], total = 0;
+var touched = [], broke = [], identities = 0;
+var perForm = {}; FORMS.forEach(function (fm) { perForm[fm.label] = 0; });
+var total = 0;
 
 files.forEach(function (name) {
   var abs = path.join(DIR, name);
   var src = fs.readFileSync(abs, 'utf8');
-  if (src.indexOf(OLD) < 0 && src.indexOf(OLD_ESC) < 0) return;
+  if (FORMS.every(function (fm) { return src.indexOf(fm.old) < 0; })) return;
 
-  /* اول شکل escape شده (چون شامل شکل ساده نیست، ترتیب مهم است) */
-  var out = src.split(OLD_ESC).join(NEW_ESC).split(OLD).join(NEW);
+  var bag = [];
+  var guarded = protect(src, bag);
+  identities += bag.length;
+
+  var out = guarded;
+  var n = 0;
+  FORMS.forEach(function (fm) {
+    var hits = out.split(fm.old).length - 1;
+    if (hits > 0) { perForm[fm.label] += hits; n += hits; out = out.split(fm.old).join(fm.neu); }
+  });
+  out = restore(out, bag);
+
   if (out === src) return;
-
-  var n = (src.split(OLD_ESC).length - 1) + (src.split(OLD).length - 1);
 
   var tmp = abs + '.bumpcheck.js';
   fs.writeFileSync(tmp, out, 'utf8');
@@ -75,5 +114,7 @@ if (broke.length) {
   console.log('\n⚠️  رد شد (نتیجه از نظر نحوی خراب می‌شد):');
   broke.forEach(function (b) { console.log('   • ' + b); });
 }
-console.log('\n' + OLD + ' → ' + NEW + ' | فایل: ' + touched.length + ' | مورد: ' + total + (DRY ? ' (dry-run — چیزی نوشته نشد)' : ''));
+console.log('\nشکل‌ها: ' + FORMS.map(function (fm) { return fm.label + '=' + perForm[fm.label]; }).join(' · '));
+console.log('هویتِ محافظت‌شده (نامِ فایلِ تستر، بدونِ تغییر): ' + identities);
+console.log(OLD + ' → ' + NEW + ' | فایل: ' + touched.length + ' | مورد: ' + total + (DRY ? ' (dry-run — چیزی نوشته نشد)' : ''));
 process.exit(broke.length ? 1 : 0);

@@ -1,13 +1,22 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Deploy to Staging — بازسازی‌شده (۲۰۲۶-۰۸-۲۸، منطبق بر قرارداد tester536/436)
+# Deploy to Staging — v34.8.40 (۲۰۲۶-۰۸-۲۹: افزایشی + سریع + سبزِ truthful)
 #
-#   • تریگر main → استیجینگ همیشه با main همگام است (آخرین‌نویسنده = main، نه برنچ جلسه‌ای)
+#   • تریگر main → استیجینگ همیشه با main همگام است (آخرین‌نویسنده = main)
 #   • گیت معماری + گیت CI قبل از انتقال فایل‌ها (شکست = توقف استقرار)
-#   • مارکر __deploy__.txt + گیت صحت پس از استقرار: هش فایل‌های زنده با کامیت
-#     مقایسه می‌شود (ضد «نسخهٔ مخلوط») + راستی‌آزمایی سمت FTP و سمت HTTP
+#   • v34.8.40 (DEPLOY-SPEEDUP): آپلود «افزایشی» بر مبنای git-diff نسبت به مارکرِ
+#     ران موفق قبلی (__deploy__.txt روی سرور) — به‌جای LIST کل درخت ~۱۳۰۰ فایلی
+#     در هر پوش (ریشهٔ کندی ۵-۸ دقیقه‌ای). fallback خودکار به همگام‌سازی کامل
+#     (اکتشِ SamKirkland) اگر مارکر نباشد/تاریخچه ناشناس باشد/آپلود بخوابد.
+#     full-sync برنامه‌ریزی‌شده: شنبه‌ها 04:00 UTC (درمان drift سمت سرور).
+#   • v34.8.40 (TRUTHFUL-GREEN): گیت صحت دولایه —
+#       لایهٔ ۱ (مسدودکننده): readback بایت‌به‌بایت ۵ فایل حساس «از خود FTP»
+#         (مستقل از کش HTTP هاست — ریشهٔ false-red) + مارکر == کامیت.
+#       لایهٔ ۲ (هشداری): تازگی HTTP زنده با هدر no-cache + پنجرهٔ ۱۲×۳۰s؛
+#         اگر فقط لایهٔ ۲ عقب بماند → ::warning (نه قرمزی)، چون دیسک اثبات‌شده است.
+#   • بنر استیجینگ فقط به crm/*.html + index.html ریشه تزریق می‌شود (۸ فایل
+#     به‌جای ۶۶۵ — آپلود افزایشی را چند ثانیه‌ای می‌کند)
 #   • هدر no-cache فقط برای استیجینگ به crm/.htaccess تزریق می‌شود (در کامیت نیست)
-#   • state-name تازه (v2): اولین اجرا آپلود کامل می‌زند؛ بی‌اعتمادی به state قبلی
-#   ⛔ dangerously-clean-slate ممنوع: کانفیگ‌های سرور-تنها (llm/sms/storage-config.php) پاک می‌شوند
+#   • ⛔ dangerously-clean-slate ممنوع: کانفیگ‌های سرور-تنها پاک می‌شوند
 #
 # سکرت‌ها: FTP_SERVER / FTP_USERNAME / FTP_PASSWORD / FTP_SERVER_DIR
 # ─────────────────────────────────────────────────────────────────────────────
@@ -15,6 +24,13 @@ name: Deploy to Staging
 
 on:
   workflow_dispatch:
+    inputs:
+      full:
+        description: 'همگام‌سازی کامل (نه افزایشی)'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 4 * * 6'   # full-sync هفتگی — درمان drift سمت سرور
   push:
     branches:
       - main          # ← همگام‌سازی خودکار استیجینگ با main
@@ -42,6 +58,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1   # کامیت‌های پایه در صورت نیاز در گام delta عمیق fetch می‌شوند
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -56,25 +74,29 @@ jobs:
       - name: CI gate
         run: node _tools/uat/run-ci-gate.js
 
-      # ── گیت ۳: سینتکس PHP
+      # ── گیت ۳: سینتکس PHP (v34.8.40: php پیش‌نصب رانر؛ apt فقط به‌عنوان fallback)
       - name: PHP syntax lint
         run: |
-          sudo apt-get update -qq >/dev/null 2>&1 || true
-          sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
-          command -v php >/dev/null 2>&1 || { echo "::error::php-cli نصب نشد"; exit 1; }
+          if ! command -v php >/dev/null 2>&1; then
+            echo "php روی ایمیج نبود — نصب fallback…" >&2
+            sudo apt-get update -qq >/dev/null 2>&1 || true
+            sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
+          fi
+          command -v php >/dev/null 2>&1 || { echo "::error::php-cli در دسترس نیست"; exit 1; }
           fail=0
           while IFS= read -r -d '' f; do
             php -l "$f" >/dev/null 2>&1 || { echo "::error file=$f::php -l شکست خورد"; fail=1; }
           done < <(find api -name '*.php' -print0)
           [ "$fail" -eq 0 ] || exit 1
-          echo "php -l: سالم"
+          echo "php -l: سالم ($(php -r 'echo PHP_VERSION;'))"
 
       # ── آماده‌سازی محتوای استیجینگ
       - name: robots.txt → noindex
         run: |
           printf 'User-agent: *\nDisallow: /\n' > robots.txt
 
-      - name: Inject staging banner
+      # v34.8.40: بنر فقط به پوستهٔ CRM و صفحهٔ خانه — ۸ فایل به‌جای ۶۶۵ (سرعت افزایشی)
+      - name: Inject staging banner (crm shell + home)
         env:
           SHORT_SHA: ${{ github.sha }}
         run: |
@@ -84,16 +106,10 @@ jobs:
             محیط تست (Staging) — برنچ: ${{ github.ref_name }} — کامیت: ${S} — $(date -u '+%Y-%m-%d %H:%M UTC') — این نسخه نهایی نیست
           </div>
           BANNER
-          find . -name '*.html' \
-            -not -path './.git/*' \
-            -not -path './node_modules/*' \
-            -not -path './_audit/*' \
-            -not -path './ptf-snapshots/*' \
-            -print0 |
-          while IFS= read -r -d '' f; do
-            if grep -qi '</body>' "$f"; then
-              perl -0pi -e 'BEGIN{local $/; open my $b,"<","_staging-banner.html"; $ban=<$b>} s{</body>}{$ban</body>}i' "$f"
-            fi
+          for f in crm/*.html index.html; do
+            [ -f "$f" ] || continue
+            grep -qi '</body>' "$f" || continue
+            perl -0pi -e 'BEGIN{local $/; open my $b,"<","_staging-banner.html"; $ban=<$b>} s{</body>}{$ban</body>}i' "$f"
           done
           rm -f _staging-banner.html
 
@@ -110,8 +126,122 @@ jobs:
           EOF
           cat __deploy__.txt
 
-      # ── انتقال فایل‌ها (state تازه → اولین اجرا آپلود کامل)
-      - name: Deploy via FTP
+      # ── v34.8.40 (DEPLOY-SPEEDUP): محاسبهٔ دلتا نسبت به مارکر ران موفق قبلی
+      - name: Compute deploy delta (git-based)
+        id: delta
+        run: |
+          set -euo pipefail
+          HOST="${{ secrets.FTP_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
+          DIR="${{ secrets.FTP_SERVER_DIR }}"
+          # پروتکل کار (ftps ترجیحی) یک‌بار مشخص می‌شود
+          PROTO=""
+          for M in ftps ftp; do
+            A=(--ftp-pasv); [ "$M" = ftps ] && A=(--ssl-reqd --ftp-pasv)
+            if curl -sS "${A[@]}" --connect-timeout 15 --max-time 40 \
+                 -u "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" \
+                 --list-only "$M://$HOST/${DIR%/}/" >/dev/null 2>&1; then PROTO="$M"; break; fi
+          done
+          [ -n "$PROTO" ] || { echo "proto=none" >> "$GITHUB_OUTPUT"; echo "::error::اتصال FTP برقرار نشد"; exit 1; }
+          echo "proto=$PROTO" >> "$GITHUB_OUTPUT"
+
+          # مارکر رانِ قبلی → SHA پایه
+          PREV_SHA=""
+          A=(--ftp-pasv); [ "$PROTO" = ftps ] && A=(--ssl-reqd --ftp-pasv)
+          if curl -sS "${A[@]}" --connect-timeout 15 --max-time 40 \
+               -u "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" \
+               "$PROTO://$HOST/${DIR%/}/__deploy__.txt" -o /tmp/prev-marker.txt 2>/dev/null; then
+            PREV_SHA=$(grep -o '"sha":"[0-9a-f]\{40\}"' /tmp/prev-marker.txt | head -1 | cut -d'"' -f4 || true)
+          fi
+          echo "مارکر قبلی: ${PREV_SHA:-<نبود>}"
+
+          MODE="full"
+          if [ -n "$PREV_SHA" ] && git cat-file -t "$PREV_SHA" >/dev/null 2>&1; then
+            MODE="incremental"
+          elif [ -n "$PREV_SHA" ]; then
+            if git fetch --no-tags --depth=1 origin "$PREV_SHA" 2>/dev/null && git cat-file -t "$PREV_SHA" >/dev/null 2>&1; then
+              MODE="incremental"
+            fi
+          fi
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event.inputs.full }}" = "true" ]; then
+            MODE="full"   # drift هفتگی یا درخواست صریح
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "حالت استقرار: $MODE"
+
+          # فیلتر exclude — هم‌ارز فهرست FTP-Deploy-Action (یک منبع برای هر دو مسیر)
+          EX_RE='(^|/)(\.git[^/]*|node_modules|\.ftp-state[^/]*|_audit|_human_test|_personas|_tools|ptf-all-photos|service-photos|ptf-snapshots|docs-deploy)(/|$)|\.md$|\.zip$|(^|/)tester[^/]*\.js$|^FILES-CHANGED-[^/]*\.txt$'
+          ASCII_RE='[^A-Za-z0-9._/-]'
+
+          rm -f /tmp/upload.txt /tmp/delete.txt
+          if [ "$MODE" = "incremental" ]; then
+            git diff --name-only --diff-filter=ACMRT "$PREV_SHA" "$GITHUB_SHA" > /tmp/diff-files.txt || true
+            # مسیر غیر-ASCII/فاصله‌دار → curl URL-Safe نیست؛ کل ران full می‌شود
+            if grep -qE "$ASCII_RE" /tmp/diff-files.txt; then
+              echo "::warning::مسیر با نویسهٔ خاص در دلتا → همگام‌سازی کامل"
+              MODE="full"; echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          if [ "$MODE" = "incremental" ]; then
+            { cat /tmp/diff-files.txt; ls crm/*.html; echo index.html; echo robots.txt; echo crm/.htaccess; echo __deploy__.txt; } \
+              | sort -u | grep -vE "$EX_RE" > /tmp/upload.txt || true
+            git diff --name-only --diff-filter=D "$PREV_SHA" "$GITHUB_SHA" \
+              | grep -vE "$EX_RE" | grep -vE "$ASCII_RE" > /tmp/delete.txt || true
+            echo "آپلود: $(wc -l < /tmp/upload.txt) فایل | حذف: $(([ -f /tmp/delete.txt ] && wc -l < /tmp/delete.txt || echo 0)) فایل"
+          fi
+
+      # ── مسیر افزایشی: آپلود فقط دلتا (شکست → گام full بعدی خودکار اجرا می‌شود)
+      - name: Incremental FTP upload (delta only)
+        id: inc
+        continue-on-error: true
+        if: steps.delta.outputs.mode == 'incremental'
+        run: |
+          set -uo pipefail
+          HOST="${{ secrets.FTP_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
+          DIR="${{ secrets.FTP_SERVER_DIR }}"
+          PROTO="${{ steps.delta.outputs.proto }}"
+          A=(--ftp-pasv); [ "$PROTO" = ftps ] && A=(--ssl-reqd --ftp-pasv)
+          AUTH=(-u "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}")
+          declare -A MADE=()
+          ok=0; bad=0
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            # ساخت والد‌ها (MKD روی مسیر موجود خطا می‌دهد → نادیده)
+            acc=""; IFS='/' read -ra segs <<< "${DIR%/}/$(dirname "$f")"
+            for s in "${segs[@]}"; do
+              [ -n "$s" ] || continue; acc="$acc/$s"
+              [ -n "${MADE[$acc]:-}" ] && continue
+              curl -sS "${A[@]}" "${AUTH[@]}" -Q "-MKD $acc" "$PROTO://$HOST/" >/dev/null 2>&1 || true
+              MADE["$acc"]=1
+            done
+            if curl -sS "${A[@]}" "${AUTH[@]}" --connect-timeout 20 --max-time 180 \
+                 -T "$f" "$PROTO://$HOST/${DIR%/}/$f"; then
+              ok=$((ok+1))
+            else
+              bad=$((bad+1)); echo "::warning::آپلود افزایشی ناموفق: $f"
+            fi
+          done < /tmp/upload.txt
+          echo "آپلود افزایشی تمام شد: موفق=$ok ناموفق=$bad"
+          [ "$bad" -eq 0 ] || exit 1
+
+      # ── حذف فایل‌های حذف‌شده در git (هر دو مسیر؛ فقط وقتی پایهٔ دلتا معلوم است)
+      - name: Apply deletions (git-diff D)
+        if: always() && steps.delta.outputs.mode != ''
+        run: |
+          [ -f /tmp/delete.txt ] && [ -s /tmp/delete.txt ] || { echo "حذفی: ندارد"; exit 0; }
+          HOST="${{ secrets.FTP_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
+          DIR="${{ secrets.FTP_SERVER_DIR }}"
+          PROTO="${{ steps.delta.outputs.proto }}"
+          A=(--ftp-pasv); [ "$PROTO" = ftps ] && A=(--ssl-reqd --ftp-pasv)
+          AUTH=(-u "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}")
+          n=0
+          while IFS= read -r f; do
+            curl -sS "${A[@]}" "${AUTH[@]}" -Q "-DELE ${DIR%/}/$f" "$PROTO://$HOST/" >/dev/null 2>&1 && n=$((n+1)) || true
+          done < /tmp/delete.txt
+          echo "حذف سمت سرور: $n"
+
+      # ── مسیر کامل: همگام‌سازی درختی (اولین اجرا / نبود مارکر / شکست افزایشی / full هفتگی)
+      - name: Deploy via FTP (full sync fallback)
+        if: steps.delta.outputs.mode == 'full' || steps.inc.outcome == 'failure'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -170,34 +300,173 @@ jobs:
           done
           echo "⚠️ انتشار گزارش تشخیص انجام نشد"
 
-      # ── گیت ۵: صحت پس از استقرار — هش فایل‌های زنده == کامیت (ضد نسخهٔ مخلوط)
+      # ── گیت ۵ (v34.8.40 TRUTHFUL-GREEN): دولایه —
+      #    لایهٔ ۱ readback از خود FTP (مسدودکننده؛ مستقل از کش HTTP هاست)
+      #    لایهٔ ۲ تازگی HTTP زنده (هشداری؛ پنجرهٔ ۱۲×۳۰s + هدر no-cache)
       - name: Post-deploy integrity check
         run: |
           BASE="https://staging.pishtaj.ir"
-          FILES="crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js"
+                    # ⚠ FILES باید «چندخطی» باشد (یک نام در هر خط). رشتهٔ یک‌خطیِ فاصله‌دار با
+          #   `while IFS= read -r f` فقط یک‌بار حلقه می‌زند و *کل* رشته را یک نام فایل
+          #   می‌گیرد → sha1sum خطا (want تهی) و curl خطا → گیت بی‌قیدوشرط قرمز.
+          #   الگوی درست: BYTES_FILES در _tools/ci/verify-deploy.sh.
+          FILES="crm/sw.js
+          crm/shell.js
+          crm/client-server.js
+          crm/key-registry.js
+          crm/sales-domain-v2.js"
           PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
+          HOST="${{ secrets.FTP_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
+          DIR="${{ secrets.FTP_SERVER_DIR }}"
+          PROTO="${{ steps.delta.outputs.proto }}"
+          A=(--ftp-pasv); [ "$PROTO" = ftps ] && A=(--ssl-reqd --ftp-pasv)
+          AUTH=(-u "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}")
           echo "کامیت: ${{ github.sha }} | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
-          fail=1
-          for i in 1 2 3 4 5; do
+
+          # ── لایهٔ ۱: بایت‌های روی دیسک سرور == کامیت (بدون عبور از کش HTTP) — fail-closed
+          #    v34.36.4 (INTEGRITY-TRUTHFUL) سه افزودنی روی همان طراحی v34.8.40:
+          #    ۱) تفکیک «انتقال ناموفق/بدنهٔ تهی» از «محتوای متفاوت» — پیش‌تر هر دو با ≠
+          #       گزارش می‌شدند و در حالت تهی، got همیشه da39a3ee (هشِ رشتهٔ خالی) بود،
+          #       پس ریشه‌یابی از روی لاگ ناممکن بود؛
+          #    ۲) تلاش مجدد فایل‌به‌فایل (۳ بار، ۵s) — یک سکسکهٔ FTP نباید دیپلویِ درست
+          #       را قرمز کند (لایهٔ ۱ مسدودکننده است، پس تحملِ سکسکه لازم است)؛
+          #    ۳) fallback مقایسهٔ نرمال‌شده بدون \r — اگر تفاوت فقط پایان‌خط باشد
+          #       (انتقال ASCII سمت سرور) هشدار است نه شکست؛ همان منطق verdict در
+          #       _tools/ci/verify-deploy.sh که آنجا فقط تشخیصی بود و اینجا تعیین‌کننده است.
+          fail=0
+          rb_fetch() {   # $1=مسیر نسبی، $2=فایل مقصد؛ کد خروج = کد خروج curl
+            curl -sS "${A[@]}" "${AUTH[@]}" --connect-timeout 15 --max-time 60 \
+                 "$PROTO://$HOST/${DIR%/}/$1" -o "$2" 2>/dev/null
+          }
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if [ ! -f "$f" ]; then
+              echo "   ⛔ $f در چک‌اوتِ این ران نیست (مشکل داخلی گیت، نه استقرار)"; fail=1; continue
+            fi
+            want="$(sha1sum "$f" | cut -d' ' -f1)"
+            wsize="$(wc -c < "$f" | tr -d ' ')"
+            tmp="/tmp/rb_$(echo "$f" | tr '/' '_')"
+            tries=0; got_it=0
+            while [ "$tries" -lt 3 ]; do
+              tries=$((tries+1))
+              : > "$tmp"
+              if rb_fetch "$f" "$tmp"; then
+                if [ -s "$tmp" ]; then got_it=1; break; fi
+                echo "   … $f تلاش $tries: بدنهٔ تهی از FTP (انتقال ناقص)"
+              else
+                echo "   … $f تلاش $tries: دانلود FTP ناموفق (curl exit $?)"
+              fi
+              if [ "$tries" -lt 3 ]; then sleep 5; fi
+            done
+            if [ "$got_it" -ne 1 ]; then
+              echo "   ≠ $f (پس از $tries تلاش، readback از FTP ممکن نشد — قابل راستی‌آزمایی نیست)"; fail=1; continue
+            fi
+            got="$(sha1sum "$tmp" | cut -d' ' -f1)"
+            gsize="$(wc -c < "$tmp" | tr -d ' ')"
+            if [ "$want" = "$got" ]; then
+              echo "   ✅ $f — readback == کامیت ($gsize بایت)"
+              continue
+            fi
+            if [ "$(tr -d '\r' < "$f" | sha1sum | cut -d' ' -f1)" = "$(tr -d '\r' < "$tmp" | sha1sum | cut -d' ' -f1)" ]; then
+              echo "   ⚠ $f — تفاوت فقط پایان‌خط (\\r) است؛ محتوا == کامیت (want=${want:0:10} got=${got:0:10})"
+              continue
+            fi
+            echo "   ≠ $f (want=${want:0:10} got=${got:0:10} — روی دیسک سرور؛ اندازه کامیت=$wsize سرور=$gsize)"
+            { diff "$f" "$tmp" 2>/dev/null | head -3 || true; } | sed 's/^/       اولین تفاوت: /'
+            fail=1
+          done <<< "$FILES"
+          # v34.36.4: چکِ مارکر هم تلاش مجدد می‌گیرد — پیش‌تر یک سکسکهٔ FTP روی همین
+          # یک فایل، لایهٔ مسدودکننده را قرمز می‌کرد (بی‌آنکه فایلی واقعاً فرق داشته باشد).
+          marker_ok=0
+          for m in 1 2 3; do
+            marker_body="$(curl -sS "${A[@]}" "${AUTH[@]}" --connect-timeout 15 --max-time 40 \
+                 "$PROTO://$HOST/${DIR%/}/__deploy__.txt" 2>/dev/null || true)"
+            if printf '%s' "$marker_body" | grep -q "\"sha\":\"${{ github.sha }}\""; then
+              marker_ok=1; echo "✅ مارکر استقرار == کامیت این ران"; break
+            fi
+            if [ -z "$marker_body" ]; then
+              echo "   … مارکر __deploy__.txt تلاش $m: بدنهٔ تهی (انتقال FTP ناموفق)"
+            else
+              echo "   … مارکر __deploy__.txt تلاش $m: sha مطابقت ندارد → $(printf '%s' "$marker_body" | head -c 140)"
+            fi
+            if [ "$m" -lt 3 ]; then sleep 5; fi
+          done
+          if [ "$marker_ok" -ne 1 ]; then
+            echo "   ≠ مارکر __deploy__.txt با کامیت این ران مطابقت ندارد"; fail=1
+          fi
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::فایل‌های روی سرور (FTP readback) با کامیت یکی نیست — استقرار واقعاً ناقص است"
+            exit $fail
+          fi
+          echo "✅ لایهٔ ۱: بایت‌های دیسک سرور == کامیت (readback FTP)"
+
+          # ── لایهٔ ۲: تازگی HTTP زنده (هشداری — دیسک اثبات‌شده؛ کش هاست خودش تازه می‌شود)
+          #    v34.36.4: این لایه هم «بدنهٔ تهی/بدون پاسخ» را از «محتوای کهنه» جدا می‌کند و
+          #    تفاوتِ فقط-پایان‌خط را کهنه حساب نمی‌کند؛ شمار هر دسته در هشدار پایانی می‌آید
+          #    تا از روی annotation معلوم باشد مشکل از کش است یا از دسترس‌پذیری لبهٔ HTTP.
+          http_ok=0
+          http_stale=0
+          http_dead=0
+          http_eol=0
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             ok=1
             while IFS= read -r f; do
+              [ -z "$f" ] && continue
               want="$(sha1sum "$f" | cut -d' ' -f1)"
-              got="$(curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" | sha1sum | cut -d' ' -f1)"
-              if [ "$want" != "$got" ]; then ok=0; echo "   ≠ $f (want=${want:0:10} got=${got:0:10})"; fi
+              htmp="/tmp/http_$(echo "$f" | tr '/' '_')"
+              : > "$htmp"
+              curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+                     "$BASE/$f?v=${PTF_CRM_RELEASE#v}&r=$((RANDOM))$RANDOM" -o "$htmp" 2>/dev/null || true
+              if [ ! -s "$htmp" ]; then
+                ok=0; http_dead=$((http_dead+1)); echo "   (HTTP پاسخ نداد / بدنهٔ تهی) $f"
+                continue
+              fi
+              got="$(sha1sum "$htmp" | cut -d' ' -f1)"
+              if [ "$want" = "$got" ]; then continue; fi
+              if [ "$(tr -d '\r' < "$f" | sha1sum | cut -d' ' -f1)" = "$(tr -d '\r' < "$htmp" | sha1sum | cut -d' ' -f1)" ]; then
+                http_eol=$((http_eol+1)); echo "   ⚠ (HTTP) $f: تفاوت فقط پایان‌خط است — محتوا تازه است"
+                continue
+              fi
+              ok=0; http_stale=$((http_stale+1))
+              echo "   (HTTP هنوز کهنه) $f (want=${want:0:10} got=${got:0:10})"
             done <<< "$FILES"
-            live_sw="$(curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
-            if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: $live_sw"; fi
-            live_idx="$(curl -fsSL --max-time 30 "$BASE/crm/index.html?v=$(date +%s)" | grep -c "v=${PTF_CRM_RELEASE#v}" || true)"
-            if [ "$live_idx" -lt 1 ]; then ok=0; echo "   ≠ crm/index.html زنده هنوز نسخهٔ $PTF_CRM_RELEASE را ارجاع نمی‌دهد"; fi
-            if [ "$ok" -eq 1 ]; then fail=0; echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"; break; fi
-            echo "   … تلاش $i ناموفق؛ ۱۲ ثانیه صبر و تکرار"
-            sleep 12
+            sw_tmp="/tmp/http_assert_sw.js"
+            : > "$sw_tmp"
+            curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/crm/sw.js?v=$((RANDOM))$RANDOM" -o "$sw_tmp" 2>/dev/null || true
+            if [ ! -s "$sw_tmp" ]; then
+              ok=0; http_dead=$((http_dead+1)); echo "   (HTTP پاسخ نداد / بدنهٔ تهی) crm/sw.js — سنجهٔ RELEASE"
+            else
+              live_sw="$(grep -o "RELEASE = 'v[0-9.]*'" "$sw_tmp" | head -1 || true)"
+              if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then
+                ok=0; http_stale=$((http_stale+1)); echo "   (HTTP هنوز کهنه) crm/sw.js زنده: ${live_sw:-—} (انتظار RELEASE = '$PTF_CRM_RELEASE')"
+              fi
+            fi
+            idx_tmp="/tmp/http_assert_index.html"
+            : > "$idx_tmp"
+            curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/crm/index.html?v=$((RANDOM))$RANDOM" -o "$idx_tmp" 2>/dev/null || true
+            if [ ! -s "$idx_tmp" ]; then
+              ok=0; http_dead=$((http_dead+1)); echo "   (HTTP پاسخ نداد / بدنهٔ تهی) crm/index.html — سنجهٔ کش‌باستر"
+            else
+              live_idx="$(grep -c "v=${PTF_CRM_RELEASE#v}" "$idx_tmp" 2>/dev/null || true)"
+              if [ "${live_idx:-0}" -lt 1 ]; then
+                ok=0; http_stale=$((http_stale+1))
+                echo "   (HTTP هنوز کهنه) crm/index.html زنده هنوز نسخهٔ $PTF_CRM_RELEASE را ارجاع نمی‌دهد"
+              fi
+            fi
+            if [ "$ok" -eq 1 ]; then
+              http_ok=1
+              echo "✅ تلاش $i: HTTP زنده == کامیت (تلاش‌های پیشین: کهنه=$http_stale بی‌پاسخ=$http_dead فقط-پایان‌خط=$http_eol)"
+              break
+            fi
+            echo "   … تلاش $i از ۱۲ ناموفق؛ ۳۰ ثانیه صبر و تکرار (هشداری — دیسک از قبل اثبات‌شده)"
+            sleep 30
           done
-          if [ "$fail" -ne 0 ]; then
-            echo "::error::سایت زنده با کامیت دیپلوی‌شده یکی نیست — استقرار ناموفق اعلام می‌شود"
+          if [ "$http_ok" -ne 1 ]; then
+            echo "::warning::کش HTTP استیجینگ هنوز نسخهٔ تازه نمی‌دهد (کهنه=$http_stale · بی‌پاسخ/تهی=$http_dead · فقط-پایان‌خط=$http_eol)؛ فایل‌ها روی سرور درست‌اند (readback ✅) و کش ظرف چند دقیقه خودش تازه می‌شود. این ران سبز اعلام می‌شود."
+            echo "### ⚠️ کش HTTP استیجینگ دیر تازه شد" >> $GITHUB_STEP_SUMMARY
+            echo "فایل‌ها روی سرور == کامیت (readback FTP ✅)؛ لایهٔ HTTP در پنجرهٔ ۱۲×۳۰s تازه نشد — کش هاست خودش به‌روز می‌شود." >> $GITHUB_STEP_SUMMARY
           fi
-          exit $fail
-
+          exit 0
 
       - name: Fail if verification failed
         if: ${{ steps.verify.outcome == 'failure' }}
@@ -207,9 +476,11 @@ jobs:
 
       - name: Summary
         run: |
-          echo "### ✅ استقرار استیجینگ — اثبات‌شده" >> $GITHUB_STEP_SUMMARY
+          MODE="${{ steps.delta.outputs.mode }}"
+          echo "### ✅ استقرار استیجینگ — اثبات‌شده (حالت: ${MODE:-full})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| برنچ | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| کامیت | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| حالت | ${MODE:-full} — $( [ "$MODE" = incremental ] && echo "آپلود دلتا ($(wc -l < /tmp/upload.txt 2>/dev/null || echo '?') فایل)" || echo "همگام‌سازی کامل" ) |" >> $GITHUB_STEP_SUMMARY
           echo "| آدرس | https://staging.pishtaj.ir (Ctrl+Shift+R) |" >> $GITHUB_STEP_SUMMARY
-          echo "| راستی‌آزمایی | هش فایل‌ها + مارکر + سمت FTP ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| راستی‌آزمایی | readback FTP (مسدودکننده) ✅ + تازگی HTTP (هشداری) |" >> $GITHUB_STEP_SUMMARY

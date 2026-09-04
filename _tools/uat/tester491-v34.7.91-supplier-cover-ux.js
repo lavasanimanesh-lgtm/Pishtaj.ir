@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.36.3 — منطق فاکتور صوری/پوششی + چیدمان مودال ثبت فاکتور (SUP-VAT-002 / SUP-UX-002).
+/* v34.36.4 — منطق فاکتور صوری/پوششی + چیدمان مودال ثبت فاکتور (SUP-VAT-002 / SUP-UX-002).
    ۱) منفعت خالص پوششی (اعتبار VAT − کارمزد فاکتورساز) باید در مانده/اعتبار تأمین‌کننده دیده شود،
       نه فقط در گزارش‌های جدا.
    ۲) مودال هم‌راستا/مرتب: دکمه‌های یکدست هم‌عرض + فیلد مبلغ «بدون ارزش افزوده» + پیام کوتاه‌تر. */
@@ -15,8 +15,8 @@ var idx = read('crm/index.html');
 var sf = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.36.3', ver.crm_version === 'v34.36.3', ver.crm_version);
-T('supplier-finance.js cache-bust 34.36.3', /supplier-finance\.js\?v=34\.36\.3/.test(idx));
+T('VERSION.json = v34.36.4', ver.crm_version === 'v34.36.4', ver.crm_version);
+T('supplier-finance.js cache-bust 34.36.4', /supplier-finance\.js\?v=34\.36\.4/.test(idx));
 
 /* ---------- منطق پوششی: صادرکننده مطالبه ندارد ---------- */
 T('isCover در مانده تأمین‌کننده نادیده گرفته می‌شود', /if \(i\.isCover === true\) return;/.test(sf));
@@ -34,6 +34,6 @@ T('décor/cover box هنوز فیلد کارمزد دارد', /id="slInvCommissi
 
 T('tester491 در گیت CI', gate.indexOf('tester491-v34.7.91-supplier-cover-ux.js') > -1);
 
-console.log('\n— tester491 (v34.36.3: منفعت پوششی + چیدمان مودال — SUP-VAT-002/SUP-UX-002) —');
+console.log('\n— tester491 (v34.36.4: منفعت پوششی + چیدمان مودال — SUP-VAT-002/SUP-UX-002) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
