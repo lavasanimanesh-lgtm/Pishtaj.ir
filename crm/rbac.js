@@ -781,6 +781,7 @@ function verifyRoleFromServer(cb) {
           try { localStorage.removeItem('ptf_crm_session'); } catch (eSL) {}
           if (typeof ptfToast === 'function') ptfToast('🔄 نقش شما از سرور به‌روز شد: ' + (ROLES[d.role] ? ROLES[d.role].lb : d.role), 'info');
           if (typeof renderUsers2 === 'function') renderUsers2();
+          try{var _nr=document.getElementById('navRole');if(_nr){var _lb2=ROLES[d.role]?ROLES[d.role].lb:d.role;_nr.textContent=_lb2;_nr.title=_lb2;}}catch(eNR2){}
         }
       }
       cb && cb(d);
