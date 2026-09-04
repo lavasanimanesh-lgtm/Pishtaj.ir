@@ -1,0 +1,287 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Deploy to Production — بازسازی‌شده (۲۰۲۶-۰۸-۲۸، منطبق بر قرارداد tester536/436)
+#
+#   • گیت معماری + گیت CI + php -l قبل از انتقال فایل‌ها (شکست = توقف)
+#   • گیت‌های محتوای پروداکشن: robots ایندکس‌پذیر، بدون بنر استیجینگ
+#   • مارکر __deploy__.txt + گیت صحت پس از استقرار: هش فایل‌های زنده == کامیت
+#     (ضد «نسخهٔ مخلوط») + راستی‌آزمایی سمت FTP و سمت HTTP
+#   • تگ نسخه و Release بک‌آپ فقط بعد از سبزشدن گیت صحت ساخته می‌شوند
+#   • ابزارهای تشخیص/مهاجرت (H1) از انتقال مستثنی هستند
+#   • state-name تازه (v2): اولین اجرا آپلود کامل می‌زند
+#   ⛔ dangerously-clean-slate ممنوع: کانفیگ‌های سرور-تنها (llm/sms/storage-config.php) پاک می‌شوند
+#
+# رول‌بک: ref را روی یک تگ قبلی بگذارید. تگ‌های ساخته‌شده با ورک‌فلوی قدیمی
+#   (قبل از گیت صحت) به دیپلویی اشاره می‌کنند که هرگز زنده نشد؛ از اولین تگِ
+#   این نسخه به بعد معتبر است.
+#
+# سکرت‌ها: FTP_PROD_SERVER / FTP_PROD_USERNAME / FTP_PROD_PASSWORD / FTP_PROD_SERVER_DIR
+# ─────────────────────────────────────────────────────────────────────────────
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'برای تایید، عبارت DEPLOY را دقیقا تایپ کنید'
+        required: true
+        default: ''
+      ref:
+        description: 'چه چیزی منتشر شود؟ main برای انتشار عادی، یا نام یک تگ برای رول‌بک'
+        required: true
+        default: 'main'
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # ساخت تگ و Release — فقط بعد از گیت صحت سبز
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify confirmation
+        run: |
+          [ "${{ github.event.inputs.confirm }}" = "DEPLOY" ] || { echo "::error::باید عبارت DEPLOY وارد شود"; exit 1; }
+          echo "confirmation OK"
+
+      - name: Checkout target ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+
+      # فقط main یا تگ نسخه — جلوگیری از انتشار کار نیمه‌تمام
+      - name: Validate ref is main or a version tag
+        run: |
+          REF="${{ github.event.inputs.ref }}"
+          if [ "$REF" = "main" ]; then
+            echo "deploying from main"
+          elif git tag --list | grep -Fxq "$REF"; then
+            echo "rollback to tag: $REF"
+          else
+            echo "::error::فقط main یا یک تگ معتبر مجاز است: $REF"; exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── گیت ۱: نگهبان معماری (سریع — fail-fast)
+      - name: Architecture guard
+        run: node _tools/arch/arch-guard.js
+
+      # ── گیت ۲: سوئیت تسترهای CI
+      - name: CI gate
+        run: node _tools/uat/run-ci-gate.js
+
+      # ── گیت ۳: سینتکس PHP
+      - name: PHP syntax lint
+        run: |
+          sudo apt-get update -qq >/dev/null 2>&1 || true
+          sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
+          command -v php >/dev/null 2>&1 || { echo "::error::php-cli نصب نشد"; exit 1; }
+          fail=0
+          while IFS= read -r -d '' f; do
+            php -l "$f" >/dev/null 2>&1 || { echo "::error file=$f::php -l شکست خورد"; fail=1; }
+          done < <(find api -name '*.php' -print0)
+          [ "$fail" -eq 0 ] || exit 1
+          echo "php -l: سالم"
+
+      # ── گیت‌های محتوای پروداکشن
+      - name: Sanity check robots.txt
+        run: |
+          ! grep -qi '^\s*Disallow:\s*/\s*$' robots.txt || { echo "::error::robots.txt حالت noindex دارد؛ نسخهٔ استیجینگ وارد شده است."; exit 1; }
+          echo "robots.txt OK"
+
+      - name: Ensure no staging banner
+        run: |
+          ! grep -rql 'ptf-staging-banner' --include='*.html' . || { echo "::error::بنر استیجینگ پیدا شد؛ استقرار متوقف شد."; exit 1; }
+          echo "no staging banner"
+
+      - name: Write deploy marker
+        run: |
+          SHA="$(git rev-parse HEAD)"
+          cat > __deploy__.txt <<EOF
+          {"env":"production","ref":"${{ github.event.inputs.ref }}","sha":"${SHA}","run":${GITHUB_RUN_ID:-0},"utc":"$(date -u +%FT%TZ)"}
+          EOF
+          cat __deploy__.txt
+          echo "DEPLOY_SHA=$SHA" >> "$GITHUB_ENV"
+
+      # ── انتقال فایل‌ها (state تازه → اولین اجرا آپلود کامل)
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_PROD_SERVER }}
+          username: ${{ secrets.FTP_PROD_USERNAME }}
+          password: ${{ secrets.FTP_PROD_PASSWORD }}
+          server-dir: ${{ secrets.FTP_PROD_SERVER_DIR }}
+          state-name: .ftp-state-production-v2.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.ftp-state*
+            **/node_modules/**
+            *.md
+            *.zip
+            _audit/**
+            _human_test/**
+            _personas/**
+            _tools/**
+            ptf-all-photos/**
+            service-photos/**
+            ptf-snapshots/**
+            docs-deploy/**
+            tester*.js
+            FILES-CHANGED-*.txt
+            api/migrate.php
+            api/data-health-check.php
+
+      # ── گیت ۴ (تشخیصی): مارکر این ران + خودِ مسیر مقصد FTP — همیشه اجرا می‌شود تا شکست را توضیح دهد
+      - name: Verify deployment (FTP-side + live HTTP)
+        id: verify
+        continue-on-error: true   # برای تشخیص اجرا می‌شود؛ گارد پایانی job را می‌اندازد
+        env:
+          DIAG_FILE: __diag__.txt
+        run: |
+          bash _tools/ci/verify-deploy.sh \
+            --url "https://pishtaj.ir" \
+            --sha "$DEPLOY_SHA" \
+            --ftp-server "${{ secrets.FTP_PROD_SERVER }}" \
+            --ftp-user   "${{ secrets.FTP_PROD_USERNAME }}" \
+            --ftp-pass   "${{ secrets.FTP_PROD_PASSWORD }}" \
+            --ftp-dir    "${{ secrets.FTP_PROD_SERVER_DIR }}"
+
+      # ── انتشار گزارش تشخیص روی سایت (خواندنی بدون لاگ گیت‌هاب)
+      - name: Publish diagnostics (__diag__.txt)
+        if: always()
+        continue-on-error: true
+        run: |
+          [ -f __diag__.txt ] || { echo "فایل تشخیص ساخته نشد"; exit 0; }
+          HOST="${{ secrets.FTP_PROD_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
+          DIR="${{ secrets.FTP_PROD_SERVER_DIR }}"
+          for MODE in ftps ftp; do
+            ARGS=(--ftp-pasv); [[ "$MODE" == "ftps" ]] && ARGS=(--ssl-reqd --ftp-pasv)
+            if curl -sS "${ARGS[@]}" --connect-timeout 20 --max-time 120 \
+                 -T __diag__.txt -u "${{ secrets.FTP_PROD_USERNAME }}:${{ secrets.FTP_PROD_PASSWORD }}" \
+                 "$MODE://$HOST/${DIR%/}/__diag__.txt"; then
+              echo "✅ گزارش تشخیص: https://pishtaj.ir/__diag__.txt"; exit 0
+            fi
+          done
+          echo "⚠️ انتشار گزارش تشخیص انجام نشد"
+
+      # ── گیت ۵: صحت پس از استقرار — هش فایل‌های زنده == کامیت (ضد نسخهٔ مخلوط)
+      - name: Post-deploy integrity check
+        run: |
+          BASE="https://pishtaj.ir"
+          # ⚠ این فهرست باید «چندخطی» باشد (یک نام در هر خط). رشتهٔ یک‌خطیِ فاصله‌دار
+          #   با `while IFS= read -r f` فقط یک‌بار حلقه می‌زند و *کل* رشته را به‌عنوان
+          #   یک نام فایل می‌گیرد → sha1sum خطا می‌دهد (want تهی) و curl هم خطا می‌دهد
+          #   (got = هش ورودی تهی) → گیت بی‌قیدوشرط و برای همیشه قرمز می‌شود.
+          #   الگوی درست، همان BYTES_FILES در _tools/ci/verify-deploy.sh است.
+          FILES="crm/index.html
+          crm/sw.js
+          crm/shell.js
+          crm/client-server.js
+          crm/key-registry.js
+          crm/sales-domain-v2.js
+          crm/manifest.json"
+          PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
+          echo "کامیت: $DEPLOY_SHA | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
+          LIVE_TMP=".live-integrity.tmp"
+          fail=1
+          for i in 1 2 3 4 5; do
+            ok=1
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              if [ ! -f "$f" ]; then ok=0; echo "   ≠ $f در کامیت وجود ندارد"; continue; fi
+              # دانلود در فایل موقت: هم بایت‌دقیق است و هم «خطای دریافت» را از
+              # «محتوای متفاوت» جدا می‌کند (وگرنه هر دو یکسان و بی‌توضیح دیده می‌شوند)
+              if ! curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" -o "$LIVE_TMP"; then
+                ok=0; echo "   ≠ $f: دریافت از سایت زنده ناموفق بود (HTTP/شبکه)"; continue
+              fi
+              want="$(sha1sum "$f" | cut -d' ' -f1)"
+              got="$(sha1sum "$LIVE_TMP" | cut -d' ' -f1)"
+              if [ "$want" != "$got" ]; then
+                ok=0
+                w_norm="$(tr -d '\r' < "$f" | sha1sum | cut -d' ' -f1)"
+                g_norm="$(tr -d '\r' < "$LIVE_TMP" | sha1sum | cut -d' ' -f1)"
+                hint=""
+                [ "$w_norm" = "$g_norm" ] && hint=" — فقط تفاوت پایان‌خط (\r): سرور فایل را با تبدیل خط تحویل می‌دهد"
+                echo "   ≠ $f (want=${want:0:10} got=${got:0:10} | کامیت=$(wc -c < "$f") بایت، زنده=$(wc -c < "$LIVE_TMP") بایت)$hint"
+              fi
+            done <<< "$FILES"
+            rm -f "$LIVE_TMP"
+            live_sw="$(curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
+            if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: $live_sw"; fi
+            if [ "$ok" -eq 1 ]; then fail=0; echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"; break; fi
+            echo "   … تلاش $i ناموفق؛ ۱۲ ثانیه صبر و تکرار"
+            sleep 12
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::سایت زنده با کامیت دیپلوی‌شده یکی نیست — استقرار ناموفق اعلام می‌شود"
+          fi
+          exit $fail
+
+
+      - name: Fail if verification failed
+        if: ${{ steps.verify.outcome == 'failure' }}
+        run: |
+          echo "::error::راستی‌آزمایی استقرار (FTP-side/HTTP) شکست خورد — جزئیات در گام Verify deployment"
+          exit 1
+
+      # ── بعد از گیت صحت سبز: تگ نسخه + بک‌آپ (فقط انتشار از main)
+      - name: Create version tag
+        if: ${{ github.event.inputs.ref == 'main' }}
+        id: tag
+        run: |
+          TAG="v$(date -u +'%Y.%m.%d-%H%M')"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Production deploy $TAG (verified live)"
+          git push origin "$TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Build backup archive
+        if: ${{ github.event.inputs.ref == 'main' }}
+        run: |
+          zip -r "site-backup.zip" . \
+            -x '.git/*' 'node_modules/*' '_audit/*' '_human_test/*' \
+               '_personas/*' '_tools/*' 'ptf-all-photos/*' \
+               'service-photos/*' 'ptf-snapshots/*' '*.zip' > /dev/null
+          ls -lh site-backup.zip
+
+      - name: Publish Release (backup)
+        if: ${{ github.event.inputs.ref == 'main' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: نسخه پایدار ${{ steps.tag.outputs.tag }}
+          body: |
+            انتشار **راستی‌آزمایی‌شده** روی https://pishtaj.ir
+            (هش فایل‌های زنده + مارکر با کامیت مقایسه و تأیید شد)
+
+            **کامیت:** `${{ github.sha }}`
+
+            برای بازگشت به این نسخه:
+            تب Actions ← Deploy to Production ← Run workflow
+            و در فیلد `ref` مقدار `${{ steps.tag.outputs.tag }}` را وارد کنید.
+
+            فایل `site-backup.zip` نسخه کامل سایت در این لحظه است.
+          files: site-backup.zip
+
+      - name: Summary
+        run: |
+          echo "### 🚀 استقرار پروداکشن — اثبات‌شده" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| منبع | \`${{ github.event.inputs.ref }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| کامیت | \`$DEPLOY_SHA\` |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.ref }}" = "main" ]; then
+            echo "| تگ نسخه | \`${{ steps.tag.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| نوع | رول‌بک |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "| آدرس | https://pishtaj.ir |" >> $GITHUB_STEP_SUMMARY
+          echo "| راستی‌آزمایی | هش فایل‌ها + مارکر + سمت FTP ✅ |" >> $GITHUB_STEP_SUMMARY

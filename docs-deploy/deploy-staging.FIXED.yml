@@ -1,0 +1,249 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Deploy to Staging — بازسازی‌شده (۲۰۲۶-۰۸-۲۸، منطبق بر قرارداد tester536/436)
+#
+#   • تریگر main → استیجینگ همیشه با main همگام است (آخرین‌نویسنده = main، نه برنچ جلسه‌ای)
+#   • گیت معماری + گیت CI قبل از انتقال فایل‌ها (شکست = توقف استقرار)
+#   • مارکر __deploy__.txt + گیت صحت پس از استقرار: هش فایل‌های زنده با کامیت
+#     مقایسه می‌شود (ضد «نسخهٔ مخلوط») + راستی‌آزمایی سمت FTP و سمت HTTP
+#   • هدر no-cache فقط برای استیجینگ به crm/.htaccess تزریق می‌شود (در کامیت نیست)
+#   • state-name تازه (v2): اولین اجرا آپلود کامل می‌زند؛ بی‌اعتمادی به state قبلی
+#   ⛔ dangerously-clean-slate ممنوع: کانفیگ‌های سرور-تنها (llm/sms/storage-config.php) پاک می‌شوند
+#
+# سکرت‌ها: FTP_SERVER / FTP_USERNAME / FTP_PASSWORD / FTP_SERVER_DIR
+# ─────────────────────────────────────────────────────────────────────────────
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main          # ← همگام‌سازی خودکار استیجینگ با main
+      - development
+      - 'site/**'
+      - 'crm/**'
+      - 'staging/**'
+      - 'arena/**'    # نشست‌های Arena — پیش‌نمایش روی استیجینگ (آخرین push برنده است)
+    paths-ignore:     # تغییر صرفاً مستنداتی → محتوای سایت عوض نمی‌شود
+      - '**.md'
+      - 'FILES-CHANGED-*.txt'
+      - '_audit/**'
+      - '_personas/**'
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── گیت ۱: نگهبان معماری (سریع — fail-fast)
+      - name: Architecture guard
+        run: node _tools/arch/arch-guard.js
+
+      # ── گیت ۲: سوئیت تسترهای CI (sync/مالی/اعلان/امنیت)
+      - name: CI gate
+        run: node _tools/uat/run-ci-gate.js
+
+      # ── گیت ۳: سینتکس PHP
+      - name: PHP syntax lint
+        run: |
+          sudo apt-get update -qq >/dev/null 2>&1 || true
+          sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
+          command -v php >/dev/null 2>&1 || { echo "::error::php-cli نصب نشد"; exit 1; }
+          fail=0
+          while IFS= read -r -d '' f; do
+            php -l "$f" >/dev/null 2>&1 || { echo "::error file=$f::php -l شکست خورد"; fail=1; }
+          done < <(find api -name '*.php' -print0)
+          [ "$fail" -eq 0 ] || exit 1
+          echo "php -l: سالم"
+
+      # ── آماده‌سازی محتوای استیجینگ
+      - name: robots.txt → noindex
+        run: |
+          printf 'User-agent: *\nDisallow: /\n' > robots.txt
+
+      - name: Inject staging banner
+        env:
+          SHORT_SHA: ${{ github.sha }}
+        run: |
+          S="${SHORT_SHA:0:7}"
+          cat > _staging-banner.html <<BANNER
+          <div id="ptf-staging-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#b45309;color:#fff;font:700 12px Tahoma,sans-serif;text-align:center;padding:5px 8px;direction:rtl">
+            محیط تست (Staging) — برنچ: ${{ github.ref_name }} — کامیت: ${S} — $(date -u '+%Y-%m-%d %H:%M UTC') — این نسخه نهایی نیست
+          </div>
+          BANNER
+          find . -name '*.html' \
+            -not -path './.git/*' \
+            -not -path './node_modules/*' \
+            -not -path './_audit/*' \
+            -not -path './ptf-snapshots/*' \
+            -print0 |
+          while IFS= read -r -d '' f; do
+            if grep -qi '</body>' "$f"; then
+              perl -0pi -e 'BEGIN{local $/; open my $b,"<","_staging-banner.html"; $ban=<$b>} s{</body>}{$ban</body>}i' "$f"
+            fi
+          done
+          rm -f _staging-banner.html
+
+      # T0-6: کش استیجینگ — فقط همین‌جا تزریق می‌شود؛ فایل کامیت‌شده پاک است
+      - name: Staging no-cache headers (crm)
+        run: |
+          printf '\n# T0-6 (staging-only, injected by CI — do not commit)\n<IfModule mod_headers.c>\n  <FilesMatch "\\.(js|html)$">\n    Header set Cache-Control "no-cache, must-revalidate"\n  </FilesMatch>\n</IfModule>\n' >> crm/.htaccess
+          tail -7 crm/.htaccess
+
+      - name: Write deploy marker
+        run: |
+          cat > __deploy__.txt <<EOF
+          {"env":"staging","ref":"${{ github.ref_name }}","sha":"${{ github.sha }}","run":${GITHUB_RUN_ID:-0},"utc":"$(date -u +%FT%TZ)"}
+          EOF
+          cat __deploy__.txt
+
+      # ── انتقال فایل‌ها (state تازه → اولین اجرا آپلود کامل)
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          state-name: .ftp-state-staging-v2.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.ftp-state*
+            **/node_modules/**
+            *.md
+            *.zip
+            _audit/**
+            _human_test/**
+            _personas/**
+            _tools/**
+            ptf-all-photos/**
+            service-photos/**
+            ptf-snapshots/**
+            docs-deploy/**
+            tester*.js
+            FILES-CHANGED-*.txt
+
+      # ── گیت ۴ (تشخیصی): مارکر این ران + خودِ مسیر مقصد FTP — همیشه اجرا می‌شود تا شکست را توضیح دهد
+      - name: Verify deployment (FTP-side + live HTTP)
+        id: verify
+        continue-on-error: true   # برای تشخیص اجرا می‌شود؛ گارد پایانی job را می‌اندازد
+        env:
+          DIAG_FILE: __diag__.txt
+        run: |
+          bash _tools/ci/verify-deploy.sh \
+            --url "https://staging.pishtaj.ir" \
+            --sha "${{ github.sha }}" \
+            --ftp-server "${{ secrets.FTP_SERVER }}" \
+            --ftp-user   "${{ secrets.FTP_USERNAME }}" \
+            --ftp-pass   "${{ secrets.FTP_PASSWORD }}" \
+            --ftp-dir    "${{ secrets.FTP_SERVER_DIR }}"
+
+      # ── انتشار گزارش تشخیص روی سایت (خواندنی بدون لاگ گیت‌هاب)
+      - name: Publish diagnostics (__diag__.txt)
+        if: always()
+        continue-on-error: true
+        run: |
+          [ -f __diag__.txt ] || { echo "فایل تشخیص ساخته نشد"; exit 0; }
+          HOST="${{ secrets.FTP_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
+          DIR="${{ secrets.FTP_SERVER_DIR }}"
+          for MODE in ftps ftp; do
+            ARGS=(--ftp-pasv); [[ "$MODE" == "ftps" ]] && ARGS=(--ssl-reqd --ftp-pasv)
+            if curl -sS "${ARGS[@]}" --connect-timeout 20 --max-time 120 \
+                 -T __diag__.txt -u "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" \
+                 "$MODE://$HOST/${DIR%/}/__diag__.txt"; then
+              echo "✅ گزارش تشخیص: https://staging.pishtaj.ir/__diag__.txt"; exit 0
+            fi
+          done
+          echo "⚠️ انتشار گزارش تشخیص انجام نشد"
+
+      # ── گیت ۵: صحت پس از استقرار — هش فایل‌های زنده == کامیت (ضد نسخهٔ مخلوط)
+      - name: Post-deploy integrity check
+        run: |
+          BASE="https://staging.pishtaj.ir"
+          # ⚠ این فهرست باید «چندخطی» باشد (یک نام در هر خط). رشتهٔ یک‌خطیِ فاصله‌دار
+          #   با `while IFS= read -r f` فقط یک‌بار حلقه می‌زند و *کل* رشته را به‌عنوان
+          #   یک نام فایل می‌گیرد → sha1sum خطا می‌دهد (want تهی) و curl هم خطا می‌دهد
+          #   (got = هش ورودی تهی) → گیت بی‌قیدوشرط و برای همیشه قرمز می‌شود.
+          #   الگوی درست، همان BYTES_FILES در _tools/ci/verify-deploy.sh است.
+          FILES="crm/sw.js
+          crm/shell.js
+          crm/client-server.js
+          crm/key-registry.js
+          crm/sales-domain-v2.js"
+          PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
+          echo "کامیت: ${{ github.sha }} | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
+          LIVE_TMP=".live-integrity.tmp"
+          fail=1
+          for i in 1 2 3 4 5; do
+            ok=1
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              if [ ! -f "$f" ]; then ok=0; echo "   ≠ $f در کامیت وجود ندارد"; continue; fi
+              # دانلود در فایل موقت: هم بایت‌دقیق است و هم «خطای دریافت» را از
+              # «محتوای متفاوت» جدا می‌کند (وگرنه هر دو یکسان و بی‌توضیح دیده می‌شوند)
+              if ! curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" -o "$LIVE_TMP"; then
+                ok=0; echo "   ≠ $f: دریافت از سایت زنده ناموفق بود (HTTP/شبکه)"; continue
+              fi
+              want="$(sha1sum "$f" | cut -d' ' -f1)"
+              got="$(sha1sum "$LIVE_TMP" | cut -d' ' -f1)"
+              if [ "$want" != "$got" ]; then
+                ok=0
+                w_norm="$(tr -d '\r' < "$f" | sha1sum | cut -d' ' -f1)"
+                g_norm="$(tr -d '\r' < "$LIVE_TMP" | sha1sum | cut -d' ' -f1)"
+                hint=""
+                [ "$w_norm" = "$g_norm" ] && hint=" — فقط تفاوت پایان‌خط (\r): سرور فایل را با تبدیل خط تحویل می‌دهد"
+                echo "   ≠ $f (want=${want:0:10} got=${got:0:10} | کامیت=$(wc -c < "$f") بایت، زنده=$(wc -c < "$LIVE_TMP") بایت)$hint"
+              fi
+            done <<< "$FILES"
+            rm -f "$LIVE_TMP"
+            if ! curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" -o "$LIVE_TMP"; then
+              ok=0; echo "   ≠ crm/sw.js: دریافت برای بررسی RELEASE ناموفق بود"
+            else
+              live_sw="$(grep -o "RELEASE = 'v[0-9.]*'" "$LIVE_TMP" | head -1)"
+              if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: [$live_sw] در برابر انتظار [RELEASE = '$PTF_CRM_RELEASE']"; fi
+            fi
+            if ! curl -fsSL --max-time 30 "$BASE/crm/index.html?v=$(date +%s)" -o "$LIVE_TMP"; then
+              ok=0; echo "   ≠ crm/index.html: دریافت برای بررسی کش‌باستر ناموفق بود"
+            else
+              live_idx="$(grep -c "v=${PTF_CRM_RELEASE#v}" "$LIVE_TMP" || true)"
+              if [ "${live_idx:-0}" -lt 1 ]; then ok=0; echo "   ≠ crm/index.html زنده هنوز نسخهٔ $PTF_CRM_RELEASE را ارجاع نمی‌دهد"; fi
+            fi
+            rm -f "$LIVE_TMP"
+            if [ "$ok" -eq 1 ]; then fail=0; echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"; break; fi
+            echo "   … تلاش $i ناموفق؛ ۱۲ ثانیه صبر و تکرار"
+            sleep 12
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::سایت زنده با کامیت دیپلوی‌شده یکی نیست — استقرار ناموفق اعلام می‌شود"
+          fi
+          exit $fail
+
+
+      - name: Fail if verification failed
+        if: ${{ steps.verify.outcome == 'failure' }}
+        run: |
+          echo "::error::راستی‌آزمایی استقرار (FTP-side/HTTP) شکست خورد — جزئیات در گام Verify deployment"
+          exit 1
+
+      - name: Summary
+        run: |
+          echo "### ✅ استقرار استیجینگ — اثبات‌شده" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| برنچ | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| کامیت | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| آدرس | https://staging.pishtaj.ir (Ctrl+Shift+R) |" >> $GITHUB_STEP_SUMMARY
+          echo "| راستی‌آزمایی | هش فایل‌ها + مارکر + سمت FTP ✅ |" >> $GITHUB_STEP_SUMMARY
