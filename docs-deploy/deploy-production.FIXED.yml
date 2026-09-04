@@ -176,11 +176,10 @@ jobs:
       - name: Post-deploy integrity check
         run: |
           BASE="https://pishtaj.ir"
-          # ⚠ این فهرست باید «چندخطی» باشد (یک نام در هر خط). رشتهٔ یک‌خطیِ فاصله‌دار
-          #   با `while IFS= read -r f` فقط یک‌بار حلقه می‌زند و *کل* رشته را به‌عنوان
-          #   یک نام فایل می‌گیرد → sha1sum خطا می‌دهد (want تهی) و curl هم خطا می‌دهد
-          #   (got = هش ورودی تهی) → گیت بی‌قیدوشرط و برای همیشه قرمز می‌شود.
-          #   الگوی درست، همان BYTES_FILES در _tools/ci/verify-deploy.sh است.
+                    # ⚠ FILES باید «چندخطی» باشد (یک نام در هر خط). رشتهٔ یک‌خطیِ فاصله‌دار با
+          #   `while IFS= read -r f` فقط یک‌بار حلقه می‌زند و *کل* رشته را یک نام فایل
+          #   می‌گیرد → sha1sum خطا (want تهی) و curl خطا → گیت بی‌قیدوشرط قرمز.
+          #   الگوی درست: BYTES_FILES در _tools/ci/verify-deploy.sh.
           FILES="crm/index.html
           crm/sw.js
           crm/shell.js
@@ -190,35 +189,24 @@ jobs:
           crm/manifest.json"
           PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
           echo "کامیت: $DEPLOY_SHA | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
-          LIVE_TMP=".live-integrity.tmp"
+          # v34.8.40 (DEPLOY-GATE-WINDOW v2 — بازتولید؛ استیجینگ مستقیماً harden شد):
+          # انتظار اولیهٔ ۱۸۰s برای خروج از پنجرهٔ کهنگیِ کش مسیرمحور هاست +
+          # پنجرهٔ ۱۲×۳۰s + هدرهای no-cache و دوبلِ cache-buster در همهٔ fetchها.
+          echo "   انتظار اولیهٔ ۱۸۰ ثانیه برای پیر شدن کش مسیرمحور هاست…"
+          sleep 180
           fail=1
-          for i in 1 2 3 4 5; do
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             ok=1
             while IFS= read -r f; do
-              [ -z "$f" ] && continue
-              if [ ! -f "$f" ]; then ok=0; echo "   ≠ $f در کامیت وجود ندارد"; continue; fi
-              # دانلود در فایل موقت: هم بایت‌دقیق است و هم «خطای دریافت» را از
-              # «محتوای متفاوت» جدا می‌کند (وگرنه هر دو یکسان و بی‌توضیح دیده می‌شوند)
-              if ! curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" -o "$LIVE_TMP"; then
-                ok=0; echo "   ≠ $f: دریافت از سایت زنده ناموفق بود (HTTP/شبکه)"; continue
-              fi
               want="$(sha1sum "$f" | cut -d' ' -f1)"
-              got="$(sha1sum "$LIVE_TMP" | cut -d' ' -f1)"
-              if [ "$want" != "$got" ]; then
-                ok=0
-                w_norm="$(tr -d '\r' < "$f" | sha1sum | cut -d' ' -f1)"
-                g_norm="$(tr -d '\r' < "$LIVE_TMP" | sha1sum | cut -d' ' -f1)"
-                hint=""
-                [ "$w_norm" = "$g_norm" ] && hint=" — فقط تفاوت پایان‌خط (\r): سرور فایل را با تبدیل خط تحویل می‌دهد"
-                echo "   ≠ $f (want=${want:0:10} got=${got:0:10} | کامیت=$(wc -c < "$f") بایت، زنده=$(wc -c < "$LIVE_TMP") بایت)$hint"
-              fi
+              got="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/$f?v=$(date +%s)&r=$((RANDOM))$RANDOM" | sha1sum | cut -d' ' -f1)"
+              if [ "$want" != "$got" ]; then ok=0; echo "   ≠ $f (want=${want:0:10} got=${got:0:10})"; fi
             done <<< "$FILES"
-            rm -f "$LIVE_TMP"
-            live_sw="$(curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
+            live_sw="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/crm/sw.js?v=$(date +%s)&r=$((RANDOM))$RANDOM" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
             if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: $live_sw"; fi
             if [ "$ok" -eq 1 ]; then fail=0; echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"; break; fi
-            echo "   … تلاش $i ناموفق؛ ۱۲ ثانیه صبر و تکرار"
-            sleep 12
+            echo "   … تلاش $i از ۱۲ ناموفق؛ ۳۰ ثانیه صبر و تکرار"
+            sleep 30
           done
           if [ "$fail" -ne 0 ]; then
             echo "::error::سایت زنده با کامیت دیپلوی‌شده یکی نیست — استقرار ناموفق اعلام می‌شود"
