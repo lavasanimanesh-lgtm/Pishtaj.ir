@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.35.0 — OFFICIAL-OFFER-OUTPUT-001 (بازپیاده‌سازی PR #57 روی main):
+/* v34.36.0 — OFFICIAL-OFFER-OUTPUT-001 (بازپیاده‌سازی PR #57 روی main):
    خروجی چاپ/PDF رسمی بدون watermark «PREVIEW» از سه مسیر:
    ۱) فرم باز (offerPrintCurrent — از وضعیت فعلی فرم، بدون ذخیره)
    ۲) سند ذخیره‌شده در اسناد پرونده (offerFormalPrint)
@@ -21,10 +21,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.35.0', ver.crm_version === 'v34.35.0', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.35.0', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.35.0'") > -1);
-T('sw RELEASE = v34.35.0', sw.indexOf("RELEASE = 'v34.35.0'") > -1);
-T('offers-pro.js cache-bust 34.35.0', idx.indexOf('offers-pro.js?v=34.35.0') > -1);
+T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.36.0', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.36.0'") > -1);
+T('sw RELEASE = v34.36.0', sw.indexOf("RELEASE = 'v34.36.0'") > -1);
+T('offers-pro.js cache-bust 34.36.0', idx.indexOf('offers-pro.js?v=34.36.0') > -1);
 
 /* ---------- فرم: materialize مشترک + دکمه رسمی ---------- */
 T('offMaterializeCurrentDocument تعریف شده', off.indexOf('function offMaterializeCurrentDocument()') > -1);
@@ -76,6 +76,6 @@ try {
 
 T('tester461 در گیت CI', gate.indexOf('tester461-v34.7.58-offer-formal-output.js') > -1);
 
-console.log('\n— tester461 (v34.35.0: خروجی چاپ/PDF رسمی بدون watermark) —');
+console.log('\n— tester461 (v34.36.0: خروجی چاپ/PDF رسمی بدون watermark) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
