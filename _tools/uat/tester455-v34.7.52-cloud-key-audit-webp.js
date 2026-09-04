@@ -16,9 +16,9 @@ var surplus = read('crm/surplus.js');
 var php = read('api/storage.php');
 
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.35.0'/.test(idx));
+T('index PTF_CRM_RELEASE = v34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.36\.0'/.test(idx));
 T('sw RELEASE = v34.36.0', sw.indexOf("RELEASE = 'v34.36.0'") > -1);
-T('storage.js cache-bust 34.36.0', /storage\.js\?v=34\.35.0/.test(idx));
+T('storage.js cache-bust 34.36.0', /storage\.js\?v=34\.36\.0/.test(idx));
 
 T('compressImage WebP سپس JPEG می‌سازد', st.indexOf("cv.toBlob(function (webp)") > -1 && st.indexOf("'image/jpeg', 0.82") > -1 && st.indexOf('function pickBest') > -1);
 T('کوچک‌ترین خروجی انتخاب می‌شود', st.indexOf('opts.sort(function (a, b) { return a.size - b.size; })') > -1);

@@ -19,7 +19,7 @@ var gate = read('_tools/uat/run-ci-gate.js');
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
 T('index PTF_CRM_RELEASE = v34.36.0', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.36.0'") > -1);
 T('sw RELEASE = v34.36.0', sw.indexOf("RELEASE = 'v34.36.0'") > -1);
-T('letters.js cache-bust 34.36.0', /letters\.js\?v=34\.35.0/.test(idx));
+T('letters.js cache-bust 34.36.0', /letters\.js\?v=34\.36\.0/.test(idx));
 
 /* هندلرهای سربرگ (ptfLhp*) */
 T('هندلر فونت سربرگ', lt.indexOf('window.ptfLhpFont = function') > -1);

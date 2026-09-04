@@ -21,7 +21,7 @@ var sup = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('vat-shared.js و vat-quarterly.js در index', /vat-shared\.js\?v=34\.35.0/.test(idx) && /vat-quarterly\.js\?v=34\.35.0/.test(idx));
+T('vat-shared.js و vat-quarterly.js در index', /vat-shared\.js\?v=34\.36\.0/.test(idx) && /vat-quarterly\.js\?v=34\.36\.0/.test(idx));
 
 /* ---------- shared ---------- */
 T('ptfVatRateOf تعریف شده', /window\.ptfVatRateOf = function/.test(shared));

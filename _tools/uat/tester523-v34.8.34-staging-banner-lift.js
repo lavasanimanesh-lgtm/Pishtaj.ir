@@ -17,7 +17,7 @@ var uk = read('crm/ui-kit.js');
 T('toast دسکتاپ هم از آفست پیروی می‌کند (var)', /bottom:calc\(20px \+ var\(--ptf-unsaved-banner-offset,0px\)\)/.test(uk));
 var ver = JSON.parse(read('VERSION.json'));
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.35.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.35.0'/.test(read('crm/sw.js')));
+T('قرارداد نسخهٔ UI/sw = 34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.36\.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.36\.0'/.test(read('crm/sw.js')));
 
 console.log('\n— tester523 (v34.36.0: STAGING-BANNER-LIFT) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

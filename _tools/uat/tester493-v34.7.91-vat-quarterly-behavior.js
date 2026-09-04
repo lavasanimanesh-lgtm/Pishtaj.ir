@@ -20,7 +20,7 @@ var shared = read('crm/vat-shared.js');
 var q = read('crm/vat-quarterly.js');
 
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('vat-quarterly.js cache-bust 34.36.0', /vat-quarterly\.js\?v=34\.35.0/.test(idx));
+T('vat-quarterly.js cache-bust 34.36.0', /vat-quarterly\.js\?v=34\.36\.0/.test(idx));
 T('توابع خالص export شده‌اند', /window\.ptfVatCalcSeason = calc/.test(q) && /window\.ptfVatState = stateFor/.test(q));
 
 /* ---------- sandbox ---------- */

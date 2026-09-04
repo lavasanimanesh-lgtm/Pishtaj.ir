@@ -19,7 +19,7 @@ var ht = read('api/.htaccess');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('inqreader.js cache-bust 34.36.0', /inqreader\.js\?v=34\.35.0/.test(idx));
+T('inqreader.js cache-bust 34.36.0', /inqreader\.js\?v=34\.36\.0/.test(idx));
 
 /* ① کلاینت */
 T('ptfRfqZipEntries تعریف شد', /window\.ptfRfqZipEntries = function \(r\)\s*\{/.test(inq));

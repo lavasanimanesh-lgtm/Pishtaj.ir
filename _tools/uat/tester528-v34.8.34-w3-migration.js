@@ -53,7 +53,7 @@ T('A11: تطابق کامل ۱۷ کلید کلاینت/سرور', JSON.stringify
 
 var ver = JSON.parse(read('VERSION.json'));
 T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.35.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.35.0'/.test(read('crm/sw.js')));
+T('قرارداد نسخهٔ UI/sw = 34.36.0', /window\.PTF_CRM_RELEASE = 'v34\.36\.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.36\.0'/.test(read('crm/sw.js')));
 
 console.log('\n— tester528 (v34.36.0: W3 migration) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
