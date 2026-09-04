@@ -250,6 +250,7 @@ var SUITE = [
   { g: 'AI/مدیریت سایت (36.2): ریشه‌کنی «خروجی AI ساختار JSON معتبر ندارد» — تعمیر JSON بریده + salvage+retry برای همهٔ اکشن‌های سئو + پیام عملیاتی با علت و نمونهٔ خام', f: '_tools/uat/tester590-v34.36.2-ai-json-repair.js' },
   { g: 'UI/پنل حساب', f: '_tools/uat/tester591-v34.36.3-collapsible-account-panels.js' },
   { g: 'استقرار/گیت صحت (36.4): INTEGRITY-TRUTHFUL — readback مسدودکننده از FTP + تازگی HTTP هشدارِ صرف، تفکیک «بدنهٔ تهی» از «ناهمسانی محتوا»، تلاش مجدد فایل‌به‌فایل، fallback پایان‌خط و اجرای واقعیِ بلوک با curl ساختگی', f: '_tools/uat/tester592-v34.36.4-deploy-integrity-truthful.js' },
+  { g: 'استقرار/مسیر افزایشی (36.4): DELTA-FAILSAFE — اجرای واقعیِ گامِ دلتا در ریپوی gitِ ایزوله (مارکر معتبر/ناشناخته/نبود · FTP مرده · schedule · ورودی full · مسیر غیرِ ASCII) و قفلِ «هرگز هیچ دیپلویی»', f: '_tools/uat/tester593-v34.36.4-deploy-delta-failsafe.js' },
   { g: 'UX (29.3): ریشه‌کنی واقعی تب‌های خالی CMS — برخورد کلاس pn/tb با CSS سراسری (سنجش computed visibility)', f: '_tools/uat/tester578-v34.29.7-cms-css-visibility.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },

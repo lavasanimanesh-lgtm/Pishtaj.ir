@@ -129,6 +129,11 @@ jobs:
       # ── v34.8.40 (DEPLOY-SPEEDUP): محاسبهٔ دلتا نسبت به مارکر ران موفق قبلی
       - name: Compute deploy delta (git-based)
         id: delta
+        # v34.36.4: هیچ خطایی در *محاسبهٔ* دلتا نباید جلوی خودِ دیپلوی را بگیرد. با
+        # continue-on-error، گام‌های بعدی اجرا می‌مانند (conclusion = success) و شرطِ
+        # همگام‌سازیِ کامل — «هر چیزی جز مسیرِ افزایشیِ موفق» — ما را به مسیرِ اثبات‌شدهٔ
+        # full برمی‌گرداند. پیش‌تر یک خطای زمانِ اجرا در همین گام یعنی «هیچ دیپلویی».
+        continue-on-error: true
         run: |
           set -euo pipefail
           HOST="${{ secrets.FTP_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
@@ -186,14 +191,31 @@ jobs:
               | sort -u | grep -vE "$EX_RE" > /tmp/upload.txt || true
             git diff --name-only --diff-filter=D "$PREV_SHA" "$GITHUB_SHA" \
               | grep -vE "$EX_RE" | grep -vE "$ASCII_RE" > /tmp/delete.txt || true
-            echo "آپلود: $(wc -l < /tmp/upload.txt) فایل | حذف: $(([ -f /tmp/delete.txt ] && wc -l < /tmp/delete.txt || echo 0)) فایل"
+            # v34.36.4 — باگِ زمانِ اجرایِ وصلهٔ v34.8.40 (اولین اجرای واقعی‌اش لو داد):
+            # این گزارش با `$(( … ))` نوشته شده بود، یعنی «ارزیابیِ حسابی» به‌جای
+            # «جانشینیِ فرمان». زیرِ `set -e` گام همان‌جا می‌مرد؛ از آن‌سو `mode=incremental`
+            # پیش‌تر در GITHUB_OUTPUT نوشته شده بود، پس نه آپلودِ افزایشی اجرا شد (گامِ بعدی
+            # skip شد) و نه همگام‌سازیِ کامل (شرطش `mode == 'full'` بود) ⇒ **هیچ فایلی دیپلوی
+            # نشد** و ران قرمز شد (run 33914510099). شکلِ درست: `$( … )`.
+            n_up="$(wc -l < /tmp/upload.txt | tr -d ' ')"
+            n_del="$( [ -f /tmp/delete.txt ] && wc -l < /tmp/delete.txt | tr -d ' ' || echo 0 )"
+            echo "آپلود: $n_up فایل | حذف: $n_del فایل"
+            # سپرِ «دلتایِ تهی»: اگر فهرستِ آپلود خالی یا ناپدید باشد، مسیرِ افزایشی بی‌صدا
+            # «هیچ» دیپلوی می‌کرد؛ صریح به همگام‌سازیِ کامل برمی‌گردیم (آخرین مقدارِ output می‌برد).
+            if [ ! -s /tmp/upload.txt ]; then
+              echo "::warning::فهرستِ دلتا خالی است → همگام‌سازیِ کامل"
+              MODE="full"; echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+            fi
           fi
+          echo "حالتِ نهاییِ استقرار: $MODE"
 
       # ── مسیر افزایشی: آپلود فقط دلتا (شکست → گام full بعدی خودکار اجرا می‌شود)
       - name: Incremental FTP upload (delta only)
         id: inc
         continue-on-error: true
-        if: steps.delta.outputs.mode == 'incremental'
+        # v34.36.4: فقط وقتی دلتا *کامل و موفق* محاسبه شده باشد — اگر گامِ دلتا وسطِ کار
+        # مرده باشد /tmp/upload.txt قابلِ اعتماد نیست و باید full دیپلوی شود.
+        if: steps.delta.outputs.mode == 'incremental' && steps.delta.outcome == 'success'
         run: |
           set -uo pipefail
           HOST="${{ secrets.FTP_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
@@ -241,7 +263,12 @@ jobs:
 
       # ── مسیر کامل: همگام‌سازی درختی (اولین اجرا / نبود مارکر / شکست افزایشی / full هفتگی)
       - name: Deploy via FTP (full sync fallback)
-        if: steps.delta.outputs.mode == 'full' || steps.inc.outcome == 'failure'
+        # v34.36.4: «هر چیزی جز مسیرِ افزایشیِ موفق» ⇒ همگام‌سازیِ کامل. پیش‌تر شرط فقط
+        # `mode == 'full'` بود؛ اگر گامِ دلتا وسطِ کار می‌مرد در حالی که mode=incremental را
+        # نوشته بود، نه inc اجرا می‌شد و نه full ⇒ **هیچ فایلی دیپلوی نمی‌شد** (run 33914510099).
+        # حالا سه حالت پوشش دارد: شکستِ دلتا · دلتایِ تهی/ناقص · شکستِ آپلودِ افزایشی.
+        # عمداً بدونِ always() — پس گیتِ CI قرمز همچنان جلوی خودِ دیپلوی را می‌گیرد.
+        if: steps.delta.outputs.mode != 'incremental' || steps.delta.outcome == 'failure' || steps.inc.outcome == 'failure'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
