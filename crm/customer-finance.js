@@ -916,6 +916,129 @@
     if (tbl) tbl.innerHTML = window.cfFinanceRowsHtml();
   };
 
+  /* ═══ v34.36.3 (CUST-ACCOUNTS-BOX — درخواست کارفرما ۲۰۲۶-۰۹-۰۴) ═══
+     معادلِ پنلِ «فاکتور، حساب و پرداخت تأمین‌کنندگان» برای مشتریان: جعبهٔ «حساب
+     مشتریان» بالای فهرست مشتریان، با همان سه قاعدهٔ سمت تامین‌کنندگان:
+       • پیش‌فرض **بسته** (و وضعیتِ باز/بسته ذخیره نمی‌شود — هر رندرِ تازه بسته است)؛
+       • **جست‌وجو** بر اساس نام/کد مشتری؛
+       • محاسبهٔ مانده‌ها تا **نخستین بازکردن** به تعویق می‌افتد (پیمایشِ همهٔ
+         مشتریان و PTF.ar برای هرکدام هزینهٔ واقعی دارد).
+     منبعِ عددها دقیقاً همانِ جعبهٔ «حساب مشتریان» در هاب مالی است (cfAccountRows ⇒
+     accountPosition ⇒ قراردادِ canonical مطالبات در ar-reconcile) تا دو نما هرگز عددِ
+     متفاوتی نگویند. RBAC: نقشِ ارشد یا ledgerScope غیرِ 'none' (کارشناسِ فروش این
+     جعبه را نمی‌بیند)؛ خودِ accountPosition هم اسناد غیررسمی را بر اساس نقش فیلتر
+     می‌کند. id کادر جست‌وجو `cfBoxQ` است (نه cfBoxSearch) تا با نامِ تابعِ سراسری
+     برخورد نکند؛ `cfSearch`/`_cfSearch` متعلق به جعبهٔ هاب مالی است و دست‌نخورده ماند. */
+  var CF_BOX_MAX = 60;
+  var CF_BOX_EMPTY = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">';
+  function canSeeCust() {
+    try {
+      if (typeof isSenior === 'function' && isSenior()) return true;
+      return typeof ptfCanSeeLedger === 'function' && !!ptfCanSeeLedger('official');
+    } catch (e) { return false; }
+  }
+  function cfBoxRowHtml(r) {
+    var open = accountIsOpen(r);
+    var en = (typeof ptfCustEnByCd === 'function' && r.cd) ? ptfCustEnByCd(r.cd) : '';
+    return '<tr' + (open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(r.co || r.cd) + '</b>' +
+      ((en && en !== r.co) ? '<div style="font-size:10.5px;color:#64748b" dir="ltr">' + escP(en) + '</div>' : '') +
+      '<br><small style="color:#94a3b8;direction:ltr">' + escP(r.cd || '') + '</small></td>' +
+      '<td style="font-weight:' + (open ? '900' : '400') + ';color:' + (open ? '#b45309' : '#64748b') + '">' + m(r.balance) + ' ریال</td>' +
+      '<td style="color:#047857">' + (r.credit ? m(r.credit) + ' ریال' : '—') + '</td>' +
+      '<td><button class="ba" onclick="cfOpen(\'' + ptfOnClickArg(r.cd) + '\')">📘 حساب و اسناد</button></td></tr>';
+  }
+  function cfBoxRows(query) {
+    if (!canSeeCust()) return '';
+    var q = norm(query == null ? (window._cfBoxSearch || '') : query);
+    var rows = window.cfAccountRows(q);            /* فیلتر نام/کد + «حسابِ باز ابتدا» */
+    var openRows = rows.filter(accountIsOpen);
+    var list = q ? rows : openRows;                /* بدونِ جست‌وجو: فقط حساب‌های دارای مانده/اعتبار */
+    var shown = list.slice(0, CF_BOX_MAX);
+    var out = shown.map(cfBoxRowHtml).join('');
+    if (list.length > shown.length) {
+      out += CF_BOX_EMPTY + '… و ' + (list.length - shown.length).toLocaleString('fa-IR') +
+        ' حساب دیگر — نام یا کد مشتری را در کادر جست‌وجو بنویسید.</td></tr>';
+    } else if (!q && rows.length > openRows.length) {
+      out += CF_BOX_EMPTY + (rows.length - openRows.length).toLocaleString('fa-IR') +
+        ' حساب با ماندهٔ صفر — برای دیدن هر مشتری، نام یا کدش را جست‌وجو کنید.</td></tr>';
+    }
+    return out;
+  }
+  var _cfBoxLazyTries = 0;
+  window.ptfCfBoxLazy = function (force) {
+    var det = document.getElementById('cfBox');
+    /* بسته است ⇒ محاسبه نکن؛ نشانِ «در انتظار» بگذار تا نخستین open کار را انجام دهد. */
+    if (det && !det.open && force !== true) { window._cfBoxLazyPending = true; return; }
+    var body = document.getElementById('cfBoxBody');
+    if (!body) {
+      if (_cfBoxLazyTries < 8) {
+        _cfBoxLazyTries++;
+        setTimeout(function () { if (typeof window.ptfCfBoxLazy === 'function') window.ptfCfBoxLazy(force); }, 40);
+      }
+      return;
+    }
+    var rows = cfBoxRows();
+    body.innerHTML = rows || (CF_BOX_EMPTY + 'حسابی برای نمایش نیست.</td></tr>');
+    window._cfBoxLazyDone = true;
+    window._cfBoxLazyPending = false;
+  };
+  /* جست‌وجو **فقط tbody** را به‌روز می‌کند تا فوکوس و مکانِ نشانگرِ کادر حفظ شود
+     (هم‌خانواده با قاعدهٔ UR-2026-08-01-02). */
+  window.cfBoxSearch = function (v) {
+    window._cfBoxSearch = String(v || '');
+    var body = document.getElementById('cfBoxBody');
+    if (!body) return;
+    var rows = cfBoxRows();
+    body.innerHTML = rows || (CF_BOX_EMPTY + 'موردی مطابق این جست‌وجو نیست.</td></tr>');
+    window._cfBoxLazyDone = true;
+  };
+  window.ptfCfBoxToggle = function (el) { if (el && el.open) window.ptfCfBoxLazy(true); };
+  /* نمای کامل (همهٔ مشتریان + سورت ستون‌ها) در تبِ «حساب مشتریان» هاب مالی. */
+  window.cfBoxOpenHub = function () {
+    try {
+      if (typeof curRole === 'function' && ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) === -1) {
+        alert('هاب مالی مدیریتی فقط برای نقش‌های ارشد است'); return;
+      }
+      if (typeof goPanel === 'function') goPanel('petty');
+      if (typeof window.finHubSet === 'function') window.finHubSet('custacc');
+    } catch (e) {}
+  };
+  function cfBox() {
+    if (!canSeeCust()) return '';
+    var loading = CF_BOX_EMPTY + '⏳ با بازکردن این بخش، حساب مشتریان محاسبه می‌شود…</td></tr>';
+    return '<details id="cfBox" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-bottom:14px" ontoggle="ptfCfBoxToggle(this)">' +
+      '<summary style="cursor:pointer;font-weight:900;color:#0c4a6e">📘 حساب مشتریان — مطالبات، دریافت و اعتبار ' +
+      '<small style="font-weight:400;color:#0369a1">(پیش‌فرض بسته — برای بازکردن کلیک کنید)</small></summary>' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">' +
+      '<input id="cfBoxQ" type="text" value="' + escP(window._cfBoxSearch || '') + '" oninput="cfBoxSearch(this.value)" placeholder="🔍 جست‌وجوی نام یا کد مشتری" aria-label="جست‌وجو در حساب مشتریان" style="flex:1 1 240px;min-width:200px;padding:8px 10px;border:1px solid #bae6fd;border-radius:10px;font-size:12px;background:#fff;color:#0f172a">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><small style="color:#0369a1">منبعِ عددها همانِ «حساب مشتریان» در هاب مالی است؛ حساب‌های باز ابتدا.</small>' +
+      '<button class="bt bt-o" onclick="cfBoxOpenHub()">📈 نمای کامل در هاب مالی</button></div></div>' +
+      '<div class="tb2" style="margin-top:10px"><table><thead><tr><th>مشتری</th><th>مطالبات باز</th><th>اعتبار نزد مشتری</th><th></th></tr></thead>' +
+      '<tbody id="cfBoxBody">' + loading + '</tbody></table></div></details>';
+  }
+  /* hook با تلاشِ مجدد (هم‌الگوی scoring.js) — ترتیبِ بارگیریِ اسکریپت‌های defer
+     تضمین نمی‌کند buildCustomers همین لحظه تعریف شده باشد. */
+  function hookCustBox() {
+    if (window._cfBoxHooked || typeof window.buildCustomers !== 'function') return false;
+    window._cfBoxHooked = true;
+    var _bc = window.buildCustomers;
+    window.buildCustomers = function () { return cfBox() + _bc(); };
+    return true;
+  }
+  /* تلاشِ مجدد فقط وقتی لازم است که buildCustomers هنوز تعریف نشده باشد.
+     گاردِ `typeof setInterval` عمدی است: این ماژول در harnessهای آزمون (vm بدون
+     تایمر) هم بارگذاری می‌شود و هرگز نباید با ReferenceError کلِ پنل را بیندازد. */
+  try {
+    if (!hookCustBox() && typeof setInterval === 'function') {
+      var _cfBoxTries = 0;
+      var _cfBoxTimer = setInterval(function () {
+        _cfBoxTries++;
+        if (hookCustBox() || _cfBoxTries > 60) { if (typeof clearInterval === 'function') clearInterval(_cfBoxTimer); }
+      }, 300);
+    }
+  } catch (eCfBoxHook) {}
+
+
   var old = window.buildPetty;
   if (typeof old === 'function') window.buildPetty = function () { return old() + window.cfFinanceHtml(); };
 })();

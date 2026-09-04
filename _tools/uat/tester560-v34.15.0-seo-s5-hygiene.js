@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester560 — v34.36.0: سئوی بین‌المللی + بهداشت گروهی
+/* tester560 — v34.36.3: سئوی بین‌المللی + بهداشت گروهی
    ۱) hreflang دوطرفهٔ fa ↔ en/ (idempotent + stub مستثنا + بک‌آپ)
    ۲) خود-کانونیکال‌سازی گروهی (فقط mismatch/no-canonical؛ stub مستثنا)
    ۳) alt تصویر گروهی: اسکن → بینایی AI (چندتصویری) → بازبینی → اعمال */
@@ -55,7 +55,11 @@ T('ALT: افزودن/تصحیح alt روی اولین تگِ همان src + بک
 T('ALT/LLM: seo_alt حداکثر ۸ تصویر + realpath زیر ریشهٔ سایت', ALTLLM.indexOf('count($imgs) > 8') > -1 && ALTLLM.indexOf('strpos($rp, realpath($ROOTL)) !== 0') > -1);
 T('ALT/LLM: mime-map چهارگانه + خواندن از دیسک سرور', ALTLLM.indexOf('image/webp') > -1 && ALTLLM.indexOf('image/gif') > -1 && ALTLLM.indexOf('file_get_contents($rp)') > -1);
 T('ALT/LLM: پاسخ JSON با همان ترتیب srcها', ALTLLM.indexOf('SAME order as given') > -1 && ALTLLM.indexOf('implode(\' | \', $srcs)') > -1);
-T('ALT/LLM: فراخوانی با چندتصویر (opts.images) و ۹۰۰ توکن', ALTLLM.indexOf("llm_call($cfg, $sys, $user, null, null, 900, ['images' => $pack])") > -1);
+/* v34.36.3 (AI-JSON-REPAIR): همان قراردادِ چندتصویر (opts.images/$pack) پابرجاست، ولی
+   اکشن از llm_call تک‌ضربه به llm_call_json (salvage+retry) رفت و سقف توکن از ۹۰۰ به
+   ۱۸۰۰ بالا رفت — ۹۰۰ توکن برای ۸ متن جایگزین فارسی عملاً همیشه پاسخ را می‌برید و
+   خطای «خروجی AI ساختار JSON معتبر ندارد» می‌ساخت. */
+T('ALT/LLM: فراخوانی با چندتصویر (opts.images) و مسیر مقاوم JSON (سقف ۱۸۰۰)', ALTLLM.indexOf("llm_call_json($cfg, $sys, $user, null, null, 1800, ['images' => $pack])") > -1);
 T('IMG-LLM: gemini چند تصویر می‌پذیرد', ONCE.indexOf("foreach ((array)($opts['images'] ?? []) as $imI)") > -1 && ONCE.indexOf("['inline_data' => ['mime_type' => $imI[1] ?? 'image/jpeg'") > -1);
 T('IMG-LLM: openai هم چند image_url می‌سازد', ONCE.indexOf("'type' => 'image_url'") > -1 && ONCE.indexOf('data:\' . ($imI[1] ?? \'image/jpeg\')') > -1);
 T('IMG-LLM: تصاویر در کلید کش می‌آیند (ضد تصادم پاسخ‌ها)', ONCE.indexOf("hash('sha256', json_encode($opts['images']))") > -1);

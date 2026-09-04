@@ -119,37 +119,79 @@
       '<span class="payable-action-icon" aria-hidden="true">' + icon + '</span><span class="payable-action-label">' + shortLabel + '</span></button>';
   }
 
-  /* باکس «بدهی غیرنقدی تامین‌کنندگان» بالای ماژول تامین‌کنندگان — رویت لحظه‌ای مدیران */
-  function payablesBoxHtml() {
+  /* باکس «بدهی غیرنقدی تامین‌کنندگان» بالای ماژول تامین‌کنندگان — رویت لحظه‌ای مدیران
+     ═══ v34.36.3 (PAYABLES-BOX-COLLAPSED — تصمیم کارفرما ۲۰۲۶-۰۹-۰۴) ═══
+     این جعبه هم مثل پنلِ «فاکتور، حساب و پرداخت تأمین‌کنندگان» **پیش‌فرض بسته** شد و
+     **جست‌وجو** گرفت. چون بسته است، جمع و شمارِ قلم‌های باز روی عنوان (summary) می‌ماند
+     تا بدونِ بازکردن وضعیت کلی دیده شود. وضعیتِ باز/بسته ذخیره نمی‌شود (هر رندرِ تازه
+     بسته شروع می‌شود)، ولی رفرشِ برنامه‌ای پس از ثبتِ پرداخت، وضعیتِ همان لحظه را حفظ
+     می‌کند تا جعبه وسطِ کارِ کاربر بسته نشود.
+     سازگاری: id="payablesBox" و همهٔ کلاس‌های CSS (payables-head/summary/actions/
+     payable-debt-row/payables-empty) و handlerها (ptfPayablesOpen/ptfScoreReport) دست‌نخورده.
+     توجه: id کادر جست‌وجو `payablesQ` است نه `payablesSearch` — جلوگیری از برخوردِ نامِ
+     تابعِ سراسری با id عنصر. */
+  var PAYABLES_ROW_MAX = 8;
+  function payablesRowHtml(d) {
+    var fxTx = Object.keys(d.fx).map(function (c) { return fmtT(d.fx[c]) + ' ' + c + ' (بی‌نرخ)'; }).join(' + ');
+    return '<div class="payable-debt-row">' +
+      '<div class="payable-debt-info"><b>' + escP(d.sup) + '</b> <small style="color:#94a3b8">(' + d.cnt + ' قلم باز)</small>' +
+      '<div><b style="color:#b45309">' + fmtT(Math.round(d.irr)) + ' ریال</b>' + (fxTx ? ' <small style="color:#dc2626">+ ' + fxTx + '</small>' : '') + '</div></div>' +
+      payableAction('💳', 'جزئیات', 'پرداخت و جزئیات بدهی ' + escP(d.sup), 'amber', "ptfPayablesOpen('" + ptfOnClickArg(d.sup) + "')", 'payable-debt-action') +
+      '</div>';
+  }
+  function payablesRowsHtml(query) {
+    var q = String(query == null ? (window._payablesSearch || '') : query).trim().toLowerCase();
+    var all = ptfSupplierDebts();
+    var list = q ? all.filter(function (d) { return String(d.sup || '').toLowerCase().indexOf(q) > -1; }) : all;
+    var rows = list.slice(0, PAYABLES_ROW_MAX).map(payablesRowHtml).join('');
+    var more = list.length > PAYABLES_ROW_MAX
+      ? '<div class="payables-empty">… و ' + (list.length - PAYABLES_ROW_MAX).toLocaleString('fa-IR') +
+        ' تأمین‌کنندهٔ دیگر — نام را جست‌وجو کنید یا «📋 بستانکاری‌ها» را بزنید.</div>'
+      : '';
+    var empty = '<div class="payables-empty">' + (q
+      ? 'بدهی غیرنقدی مطابق این جست‌وجو نیست.'
+      : 'بدهی غیرنقدی بازی وجود ندارد — خرید نقدی همان لحظه تسویه می‌شود ✅') + '</div>';
+    return (rows || empty) + more;
+  }
+  function payablesBoxHtml(keepOpen) {
     if (!canSeeSup()) return '';
     var debts = ptfSupplierDebts();
     var tot = debts.reduce(function (s, d) { return s + d.irr; }, 0);
-    var rows = debts.slice(0, 8).map(function (d) {
-      var fxTx = Object.keys(d.fx).map(function (c) { return fmtT(d.fx[c]) + ' ' + c + ' (بی‌نرخ)'; }).join(' + ');
-      return '<div class="payable-debt-row">' +
-        '<div class="payable-debt-info"><b>' + escP(d.sup) + '</b> <small style="color:#94a3b8">(' + d.cnt + ' قلم باز)</small>' +
-        '<div><b style="color:#b45309">' + fmtT(Math.round(d.irr)) + ' ریال</b>' + (fxTx ? ' <small style="color:#dc2626">+ ' + fxTx + '</small>' : '') + '</div></div>' +
-        payableAction('💳', 'جزئیات', 'پرداخت و جزئیات بدهی ' + escP(d.sup), 'amber', "ptfPayablesOpen('" + ptfOnClickArg(d.sup) + "')", 'payable-debt-action') +
-        '</div>';
-    }).join('');
-    var total = debts.length ? '<span class="payables-total">جمع: ' + fmtT(Math.round(tot)) + ' ریال</span>' : '';
-    return '<div id="payablesBox">' +
+    var summaryState = debts.length
+      ? (debts.length.toLocaleString('fa-IR') + ' تأمین‌کننده · ' + fmtT(Math.round(tot)) + ' ریال باز')
+      : 'بدونِ بدهی باز ✅';
+    return '<details id="payablesBox"' + (keepOpen ? ' open' : '') + '>' +
+      '<summary class="payables-toggle" style="cursor:pointer;font-weight:900;color:#92400e;font-size:13.5px;line-height:2">💳 بدهی غیرنقدی تأمین‌کنندگان — ' +
+      '<span class="payables-total" style="margin:0">' + summaryState + '</span>' +
+      ' <small style="font-weight:400;color:#b45309">(پیش‌فرض بسته — برای بازکردن کلیک کنید)</small></summary>' +
       '<div class="payables-head">' +
-      '<div class="payables-summary"><h4>💳 بدهی غیرنقدی تأمین‌کنندگان</h4>' + total + '</div>' +
+      /* v34.36.3: جمع کل روی summary (همان عنوانِ تاشو) است؛ تکرارش داخلِ جعبه حذف شد
+         تا یک عدد دو بار پشتِ سر هم دیده نشود. */
+      '<div class="payables-summary"><h4>💳 بدهی غیرنقدی تأمین‌کنندگان</h4></div>' +
       '<div class="payables-actions">' +
       payableAction('📋', 'بستانکاری‌ها', 'مشاهده همه بستانکاری‌های تأمین‌کنندگان', 'blue', 'ptfPayablesOpen()', '') +
       payableAction('📈', 'امتیازها', 'گزارش درخواستی امتیازهای تأمین‌کنندگان', 'violet', 'ptfScoreReport()', '') +
       '</div></div>' +
-      (rows || '<div class="payables-empty">بدهی غیرنقدی بازی وجود ندارد — خرید نقدی همان لحظه تسویه می‌شود ✅</div>') + '</div>';
+      '<input id="payablesQ" type="text" value="' + escP(window._payablesSearch || '') + '" oninput="ptfPayablesSearch(this.value)" placeholder="🔍 جست‌وجوی نام تأمین‌کننده" aria-label="جست‌وجو در بدهی غیرنقدی تأمین‌کنندگان" style="width:100%;max-width:340px;box-sizing:border-box;padding:8px 10px;border:1px solid #fcd34d;border-radius:10px;font-size:12px;background:#fff;color:#0f172a;margin-bottom:6px">' +
+      '<div id="payablesRows">' + payablesRowsHtml() + '</div>' +
+      '</details>';
   }
+  /* v34.36.3: جست‌وجو فقط ناحیهٔ ردیف‌ها را به‌روز می‌کند تا فوکوسِ کادر حفظ شود. */
+  window.ptfPayablesSearch = function (v) {
+    window._payablesSearch = String(v || '');
+    var el = document.getElementById('payablesRows');
+    if (el) el.innerHTML = payablesRowsHtml();
+  };
 
   /* v34.8.8/F4 — refresh the owning supplier/payables box only. `refreshBox` was a
      private no-op inside cheques.js and therefore threw from this module after a
-     payable write, even though the write itself had already happened. */
+     payable write, even though the write itself had already happened.
+     v34.36.3: وضعیتِ باز/بستهٔ همین لحظه حفظ می‌شود (keepOpen) تا جعبه بلافاصله پس از
+     ثبتِ پرداخت وسطِ کارِ کاربر بسته نشود؛ رندرِ تازهٔ پنل همچنان بسته شروع می‌شود. */
   function refreshPayablesBox() {
     try {
       var box = document.getElementById('payablesBox');
-      if (box) box.outerHTML = payablesBoxHtml();
+      if (box) box.outerHTML = payablesBoxHtml(!!box.open);
     } catch (e) {}
   }
 

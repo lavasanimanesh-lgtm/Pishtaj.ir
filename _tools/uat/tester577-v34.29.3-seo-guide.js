@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester577 — v34.36.0: راهنمای سئو برای کاربران ناآشنا — چک‌لیست زنده + ۶ گام + دکمه‌های اجرای ابزار */
+/* tester577 — v34.36.3: راهنمای سئو برای کاربران ناآشنا — چک‌لیست زنده + ۶ گام + دکمه‌های اجرای ابزار */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
 var p = 0, f = 0;

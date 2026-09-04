@@ -712,30 +712,74 @@
   function slPrintRows(rows) { return rows.map(function (e) { var item = e.itemName||e.note||'', visibleRef = e.type === 'فاکتور خرید' ? supplierInvoiceSummary(e) : (e.ref || ''); return '<tr><td>' + slFaDigits(e.dateFa) + '</td><td>' + escP(e.type === 'payment' ? 'پرداخت' : e.type) + '</td><td><b>' + escP(e.no) + '</b>' + (visibleRef ? '<br><small>' + escP(visibleRef) + '</small>' : '') + (item ? '<br><small style="color:#0e7490">📦 '+escP(item)+'</small>' : '') + '</td><td>' + (e.debit ? slFaDigits(money(e.debit)) : '—') + '</td><td>' + (e.credit ? slFaDigits(money(e.credit)) : '—') + '</td><td><b>' + slFaDigits(money(e.balance)) + ' ' + slCurFa(e.cur) + '</b></td></tr>'; }).join(''); }
   window.slLedgerPrint = function (supCd) { var sup=supplier(supCd), rows=slEventRows(supCd,slFiltersFromDom()), w=window.open('','_blank'); if(!w)return; w.document.write('<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>گردش حساب '+escP(sup.co||'')+'</title><style>body{font-family:Tahoma;direction:rtl;padding:20px;color:#111}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}@media print{button{display:none}}</style></head><body><h2>گردش حساب تأمین‌کننده — '+escP(sup.co||'')+'</h2><table><thead><tr><th>تاریخ</th><th>نوع</th><th>سند/مرجع</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr></thead><tbody>'+slPrintRows(rows)+'</tbody></table></body></html>'); w.document.close(); w.print(); };
 
-    function slBoxRows() {
+    /* ═══ v34.36.3 (SUP-BOX-COLLAPSED — تصمیم کارفرما ۲۰۲۶-۰۹-۰۴) ═══
+       پنلِ «فاکتور، حساب و پرداخت تأمین‌کنندگان» بالای فهرست تامین‌کنندگان:
+       ۱) پیش‌فرض **بسته** است (پیش‌تر `<details open>` بود و فهرست اصلی را پایین می‌راند)؛
+       ۲) کادر **جست‌وجو** دارد (نام/نام‌انگلیسی/کد، با نرمال‌سازی فارسیِ dedupNorm)؛
+       ۳) محاسبهٔ مانده‌ها تا **نخستین بازکردن** به تعویق می‌افتد — پیش‌تر ۳۰ms پس از هر
+          رندر همهٔ تامین‌کنندگان پیمایش می‌شدند، حتی وقتی کسی کاری با این جعبه نداشت؛
+       ۴) ردیف‌ها «حسابِ باز ابتدا، سپس بیشترین مانده» چیده و به ۶۰ ردیف محدود می‌شوند
+          (هم‌ترتیب با جعبهٔ «حساب تأمین‌کنندگان» در هاب مالی)؛ بقیه با جست‌وجو پیدا می‌شوند؛
+       ۵) وضعیتِ باز/بسته **ذخیره نمی‌شود** — هر رندرِ تازه بسته شروع می‌شود (تصمیم کارفرما).
+       سازگاری: id="slBox"/"slBoxBody" و نامِ تابع‌های slBoxRows/ptfSlBoxLazy حفظ شده‌اند
+       (pinهای tester487/tester494) و فراخوانِ cheques.js بدونِ تغییر کار می‌کند.
+       توجه: id کادر جست‌وجو عمداً `slBoxQ` است نه `slBoxSearch` — نامِ تابعِ سراسری با
+       id عنصر برخورد می‌کند (همان کلاسی که در pgTitle ریشه‌کن شد). */
+    var SL_BOX_MAX = 60;
+    function slBoxRows(query) {
       if (!canSee()) return '';
+      var q = nrm(query == null ? (window._slBoxSearch || '') : query);
       var sups = getData('ptf_crm_suppliers'), sd = data();
-      return sups.map(function (s) {
+      /* پیش‌تر برای هر تامین‌کننده .some() روی کل فهرست فاکتور/پرداخت اجرا می‌شد (O(n·m))؛
+         اکنون یک‌بار مجموعهٔ شناسه‌ها ساخته می‌شود (O(n+m)) — همان معنا، بدونِ تغییرِ قاعده. */
+      var hasInv = {}, hasPay = {};
+      (sd.invoices || []).forEach(function (i) { if (i && i.supplierCd) hasInv[i.supplierCd] = true; });
+      (sd.payments || []).forEach(function (p) { if (p && p.supplierCd) hasPay[p.supplierCd] = true; });
+      var rows = [];
+      sups.forEach(function (s) {
+        if (!s || !s.cd) return;
+        if (q && nrm(s.co).indexOf(q) === -1 && nrm(s.cd).indexOf(q) === -1 &&
+            nrm(s.name).indexOf(q) === -1 && nrm(s.coEn).indexOf(q) === -1) return;
         var b = balance(s.cd);
-        var has = (sd.invoices || []).some(function (i) { return i.supplierCd === s.cd; }) ||
-          (sd.payments || []).some(function (p) { return p.supplierCd === s.cd; }) ||
-          legacyOpen(s).length;
-        if (!b.length && !has) return '';
-        return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>';
-      }).filter(Boolean).join('');
+        var has = !!hasInv[s.cd] || !!hasPay[s.cd] || legacyOpen(s).length;
+        if (!b.length && !has) return;
+        var open = b.some(function (z) { return Math.abs(+z.amount || 0) > 0.000001 || Math.abs(+z.irr || 0) > 0.000001; });
+        var exposure = b.reduce(function (sum, z) { return sum + Math.abs(+z.irr || +z.amount || 0); }, 0);
+        rows.push({
+          open: open, exposure: exposure, co: String(s.co || ''),
+          html: '<tr' + (open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(s.co || '') + '</b><br><small style="direction:ltr;color:#94a3b8">' + escP(s.cd || '') + '</small></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>'
+        });
+      });
+      rows.sort(function (a, c) {
+        if (a.open !== c.open) return a.open ? -1 : 1;             /* حساب‌های باز ابتدا */
+        if (a.open && a.exposure !== c.exposure) return c.exposure - a.exposure;
+        return String(a.co).localeCompare(String(c.co), 'fa');
+      });
+      var shown = rows.slice(0, SL_BOX_MAX), out = shown.map(function (r) { return r.html; }).join('');
+      if (rows.length > shown.length) {
+        out += '<tr><td colspan="3" style="text-align:center;color:#64748b;padding:10px;font-size:12px">… و ' +
+          (rows.length - shown.length).toLocaleString('fa-IR') +
+          ' حساب دیگر — نام یا کد تأمین‌کننده را در کادر جست‌وجو بنویسید.</td></tr>';
+      }
+      return out;
     }
     /* v34.7.91 (SUP-FIX-001): lazy-load کادر «فاکتور، حساب و پرداخت».
        اصلاح باگ «در حال محاسبه ولی چیزی لود نمی‌شود»: قبلاً setTimeout(30ms) قبل از
        ساخته شدن slBoxBody در DOM اجرا می‌شد و body=null بود؛ سپس _slBoxLazyDone=true
        می‌شد و حتی رندر مجدد هم جدول را نمی‌ساخت. حالا تا پیدا شدن body چند تلاش کوتاه
-       انجام و در غیر این صورت از render suppl و goPanel هم صدا زده می‌شود. */
+       انجام و در غیر این صورت از render suppl و goPanel هم صدا زده می‌شود.
+       v34.36.3: چون پنل پیش‌فرض بسته است، در حالتِ بسته محاسبه نمی‌کنیم (فقط نشانِ
+       «در انتظار» می‌گذاریم) و نخستین open کار را انجام می‌دهد؛ force=true یعنی
+       «همین حالا حساب کن» (از ontoggle). */
     var _slBoxLazyTries = 0;
-    window.ptfSlBoxLazy = function () {
+    window.ptfSlBoxLazy = function (force) {
+      var det = document.getElementById('slBox');
+      if (det && !det.open && force !== true) { window._slBoxLazyPending = true; return; }
       var body = document.getElementById('slBoxBody');
       if (!body) {
         if (_slBoxLazyTries < 8) {
           _slBoxLazyTries++;
-          setTimeout(function () { if (typeof window.ptfSlBoxLazy === 'function') window.ptfSlBoxLazy(); }, 40);
+          setTimeout(function () { if (typeof window.ptfSlBoxLazy === 'function') window.ptfSlBoxLazy(force); }, 40);
         }
         return;
       }
@@ -743,12 +787,23 @@
       if (rows) body.innerHTML = rows;
       else body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">گردش حسابی برای نمایش نیست.</td></tr>';
       window._slBoxLazyDone = true;
+      window._slBoxLazyPending = false;
     };
+    /* v34.36.3: جست‌وجو **فقط tbody** را به‌روز می‌کند تا فوکوس و مکانِ نشانگرِ کادرِ
+       جست‌وجو حفظ شود (هم‌خانواده با قاعدهٔ UR-2026-08-01-02 در جعبهٔ هاب مالی). */
+    window.slBoxSearch = function (v) {
+      window._slBoxSearch = String(v || '');
+      var body = document.getElementById('slBoxBody');
+      if (!body) return;
+      var rows = slBoxRows();
+      body.innerHTML = rows || '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">موردی مطابق این جست‌وجو نیست.</td></tr>';
+      window._slBoxLazyDone = true;
+    };
+    window.ptfSlBoxToggle = function (el) { if (el && el.open) window.ptfSlBoxLazy(true); };
     function box() {
       if (!canSee()) return '';
-      var loading = '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">⏳ در حال محاسبه گردش حساب تامین‌کنندگان…</td></tr>';
-      setTimeout(function () { if (typeof window.ptfSlBoxLazy === 'function') window.ptfSlBoxLazy(); }, 30);
-      return '<details id="slBox" open style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-bottom:14px"><summary style="cursor:pointer;font-weight:900;color:#0c4a6e">🧾 فاکتور، حساب و پرداخت تأمین‌کنندگان</summary><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><small style="color:#0369a1">فاکتور، پرداخت و چک؛ برای باز/بستن روی عنوان کلیک کنید.</small><button class="bt" onclick="slNewInvoice()">＋ فاکتور خرید</button></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>تأمین‌کننده</th><th>مانده</th><th></th></tr></thead><tbody id="slBoxBody">' + loading + '</tbody></table></div></details>';
+      var loading = '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">⏳ با بازکردن این بخش، گردش حساب تأمین‌کنندگان محاسبه می‌شود…</td></tr>';
+      return '<details id="slBox" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-bottom:14px" ontoggle="ptfSlBoxToggle(this)"><summary style="cursor:pointer;font-weight:900;color:#0c4a6e">🧾 فاکتور، حساب و پرداخت تأمین‌کنندگان <small style="font-weight:400;color:#0369a1">(پیش‌فرض بسته — برای بازکردن کلیک کنید)</small></summary><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><input id="slBoxQ" type="text" value="' + escP(window._slBoxSearch || '') + '" oninput="slBoxSearch(this.value)" placeholder="🔍 جست‌وجوی نام یا کد تأمین‌کننده" aria-label="جست‌وجو در حساب تأمین‌کنندگان" style="flex:1 1 240px;min-width:200px;padding:8px 10px;border:1px solid #bae6fd;border-radius:10px;font-size:12px;background:#fff;color:#0f172a"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><small style="color:#0369a1">فاکتور، پرداخت و چک؛ حساب‌های باز ابتدا.</small><button class="bt" onclick="slNewInvoice()">＋ فاکتور خرید</button></div></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>تأمین‌کننده</th><th>مانده</th><th></th></tr></thead><tbody id="slBoxBody">' + loading + '</tbody></table></div></details>';
     }
   var oldBuild = window.buildSuppliers;
   if (typeof oldBuild === 'function' && !window._slHooked) { window._slHooked = true; window.buildSuppliers = function () { return box() + oldBuild(); }; }

@@ -722,6 +722,41 @@
               '<br><small>«رها کردن امن» فقط برای کلیدهای لاگ/اعلان است (نسخهٔ مرجع روی سرور). برای سایر کلیدها «⬆ تلاش مجدد ارسال» را در «تشخیص همگام‌سازی» همان تنظیمات بزنید.</small></div>';
           }
         } catch (eDirtyBox) {}
+        /* v34.36.1 (P0-3/F4 — فارِنزیک روی صفحه): علتِ آخرین شکستِ «انتقال یک‌باره»
+           در همان جعبهٔ کهربایی نشان داده می‌شود. پیش از این، شکستِ مهاجرت هیچ ردِ
+           پایداری به جا نمی‌گذاشت و کاربر فقط یک alert مبهم («network») می‌دید؛
+           برای همین بن‌بست «۴۸ از ۴۹ کلید» بدون کنسول قابل تشخیص نبود. */
+        try {
+          var mLast = (typeof window.ptfSyncLastError === 'function') ? (window.ptfSyncLastError() || null) : null;
+          if (!green && mLast && mLast.scope === 'migration') {
+            var M_LABEL = {
+              conflicts: 'تعارض داده با نسخهٔ سرور', forbidden: 'خارج از allowlist نقش فعلی',
+              rejected: 'رد شده توسط سپر داده/یکپارچگی', skipped: 'بزرگ‌تر از سقف ۸MB',
+              failed: 'شکست ارسال/تایم‌اوت', blocked: 'در انتظار پایان فرمان دامنه',
+              needLogin: 'نشست منقضی', unacknowledged: 'بدون تأیید سرور ماند'
+            };
+            h2 += '<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #d97706">⛔ <b>آخرین تلاشِ انتقال ناتمام ماند:</b> ' +
+              escP(M_LABEL[mLast.status] || mLast.status || 'علت نامشخص') +
+              (mLast.reason ? ' — ' + escP(mLast.reason) : '') +
+              ' <small style="color:#94a3b8">(' + escP(mLast.fa || mLast.t || '') + ')</small>' +
+              (function () {
+                /* detail = «cls:key|key ; cls:key (round n, error x)» ⇒ فقط نام کلیدها
+                   (بدون پیشوند ptf_crm_) نشان داده می‌شود؛ در صورت پارس‌نشدن، همان
+                   متن خامِ بریده‌شده (شفافیت قبل از زیبایی). */
+                try {
+                  var names = String(mLast.detail || '').split(/\s*;\s*/).map(function (part) {
+                    var kv = part.split(':');
+                    if (!M_LABEL[kv[0]]) return ''; /* فقط کلاس‌های شناخته‌شده */
+                    return String(kv[1] || '').split('|').map(function (n) { return n.replace('ptf_crm_', '').trim(); }).filter(Boolean).join('، ');
+                  }).filter(Boolean).join(' / ');
+                  return names ? '<br><small>کلیدهای درگیر: ' + escP(names) + '</small>' : '';
+                } catch (eDet) {
+                  return mLast.detail ? '<br><small>کلیدهای درگیر: ' + escP(String(mLast.detail).slice(0, 240)) + '</small>' : '';
+                }
+              })() +
+              '<br><small>دوباره «⬆️ تکمیل انتقال یک‌باره» را بزنید؛ نشانگرهای این دستگاه پاک نشده‌اند و دادهٔ محلی محفوظ است.</small></div>';
+          }
+        } catch (eMigBox) {}
         h2 += '</div>';
         return h2;
       })();

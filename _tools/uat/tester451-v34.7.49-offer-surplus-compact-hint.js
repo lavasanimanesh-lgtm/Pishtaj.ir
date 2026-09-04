@@ -10,7 +10,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 var su = read('crm/surplus.js');
 var ver = JSON.parse(read('VERSION.json'));
 
-T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
+T('VERSION.json = v34.36.3', ver.crm_version === 'v34.36.3', ver.crm_version);
 T('hookOfferNew برای tester171 مانده', su.indexOf('function hookOfferNew') > -1);
 T('polling جدید اضافه نشده', su.indexOf('setInterval') === -1);
 T('لیست پشت‌سرهم نام کالاها از کادر پیش‌فرض حذف شده', su.indexOf('مازاد موجود:') === -1 && su.indexOf('avail.slice(0,5)') === -1);
