@@ -1407,6 +1407,7 @@
     /* v34.23.0: خودترمیمی پیوست‌های گم‌شدهٔ درخواست‌های سایت (نتیجهٔ زدودن files در
        پاک‌ساز قدیمی سرور) — idempotent؛ فقط وقتی می‌نویسد که رکوردی درمان شود. */
     try { if (typeof window.ptfRfqHealSiteFiles === 'function') window.ptfRfqHealSiteFiles(); } catch (eHl) {}
+    try { if (typeof window.ptfHealMissingCustomersFromRfqs === 'function') window.ptfHealMissingCustomersFromRfqs(); } catch (eHlC) {}
     /* v34.23.0: پیش‌فرض فهرست = تاریخ نزولی — درخواست تازه (تاییدِ سایت یا ثبت داخلی)
        همیشه بالای فهرست می‌نشیند؛ ترتیب آرایه پس از همگام‌سازی چنددستگاهه معتبر نیست. */
     if (!window.ptfSortState.rfq) window.ptfSortState.rfq = { key: 'dt', dir: 'desc' };
@@ -1610,7 +1611,7 @@
     /* ساخت مشتری جدید خودکار (US-380 AC2) */
     var indMap = { 'پایپینگ': 'نفت و گاز', 'شیرآلات': 'نفت و گاز', 'برق': 'نفت و گاز', 'ابزار دقیق': 'نفت و گاز' };
     var newC = {
-      cd: genCode('CUST'), co: r.company, kind: 'حقوقی',
+      cd: (typeof window.ptfAllocCustCode === 'function' ? window.ptfAllocCustCode(custs) : genCode('CUST')), co: r.company, kind: 'حقوقی',
       ind: indMap[r.category] || 'سایر', venSt: 'unreg',
       coWeb: r.email || '', coTels: [], coAddr: '',
       people: r.contact ? (function () { var chN = chOf(r.phone); return [{ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: chN.tels, mobs: chN.mobs, mails: r.email ? [{ n: r.email, lb: '' }] : [], primary: true, src: 'site' }]; })() : [],
