@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester564 — v34.37.2: سطل بازیافت CRM
+/* tester564 — v34.37.3: سطل بازیافت CRM
    زمینه: entity_delete سروری فقط tombstone می‌نویسد (بدون snapshot) — رکورد حذف‌شده
    هرگز قابل بازگشت نبود و tombstone چسبنده تا ابد باز-ذخیره را هم می‌بلعید (RCA دو پیشنهاد گمشده).
    ۱) snapshot در لحظهٔ حذف (کلاینت، choke-point روتر) → آرشیو kind=recycle

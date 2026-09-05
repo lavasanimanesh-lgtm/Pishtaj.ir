@@ -21,7 +21,7 @@ T('مکاتبات دو خروجی صریح با و بدون امضای دیجی�
 T('پرونده فروش نیز هر دو خروجی نامه را ارائه می‌کند',/letPrint\([^\n]+false,true/.test(sales)&&/letPrint\([^\n]+false,false/.test(sales));
 
 /* رفتار خواندن امضا از getData وقتی localStorage اصلی توسط IDB migration خالی شده است. */
-/* v34.37.2 (R2/T5-2c): helpers کش Dev-KV امضا هم استخراج می‌شوند */
+/* v34.37.3 (R2/T5-2c): helpers کش Dev-KV امضا هم استخراج می‌شوند */
 global._sigRecoveryCache={};global._sigRecoveryChecked={};
 ['sigRecoveryKey','sigRecoveryRead','sigRecoveryWrite','sigRecoveryHydrate','sigProfileMap','sigUserAliases','sigProfileFor'].forEach(function(name){var re=new RegExp('function '+name+'\\([^)]*\\) \\{[\\s\\S]*?\\n\\}');var m=letters.match(re);if(m)eval(m[0].replace('function '+name,'global.'+name+'=function'));});
 global.curSession=function(){return{user:'u1',name:'User One'};};

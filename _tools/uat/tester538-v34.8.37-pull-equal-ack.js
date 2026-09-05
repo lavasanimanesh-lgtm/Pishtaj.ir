@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester538 — v34.37.2 (PULL-EQUAL-ACK + DEPLOY-GATE-WINDOW)
+/* tester538 — v34.37.3 (PULL-EQUAL-ACK + DEPLOY-GATE-WINDOW)
    بررسی تکمیلی RCA نوار زرد personal_cheques (نشست سوم ۲۰۲۶-۰۸-۲۸):
    ۱) PULL-EQUAL-ACK — اگر pull مقدار سروری را عیناً برابر مقدار محلیِ یک کلید
       dirty برگرداند، پرچم «هنوز نرسیده» باید پاک شود (تغییر رسیده است).
@@ -34,7 +34,7 @@ T('رفتار قبلی dirtyِ واقعاً-متفاوت حفظ شده (merge/ke
   var pend = fs.existsSync(path.join(ROOT, pendPath)) ? read(pendPath) : '';
   var wideApplied = /for i in 1 2 3 4 5 6 7 8 9 10 11 12; do/.test(w) && /sleep 30/.test(w) && /sleep 180/.test(w);
   var widePending = /for i in 1 2 3 4 5 6 7 8 9 10 11 12; do/.test(pend) && /sleep 30/.test(pend) && /sleep 180/.test(pend) && /Pragma: no-cache/.test(pend);
-  /* v34.37.2: استیجینگ دیگر به «پنجرهٔ HTTP تنها» وابسته نیست — لایهٔ ۱ readback مستقیم
+  /* v34.37.3: استیجینگ دیگر به «پنجرهٔ HTTP تنها» وابسته نیست — لایهٔ ۱ readback مستقیم
      از FTP است (مسدودکننده و مستقل از کشِ مسیرمحورِ هاست)، پس «انتظار اولیهٔ ۱۸۰s» در
      استیجینگ اتلافِ محض بود و حذف شد؛ لایهٔ ۲ (HTTP) با ۱۲×۳۰s فقط هشدار می‌دهد.
      بنابراین برای استیجینگ، «گسترش پنجره» یعنی همین ساختار دولایه — با پینِ صریحِ هر دو

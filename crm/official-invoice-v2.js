@@ -71,6 +71,36 @@
   /* کلید پایدار ردیف — با re-render وضعیت باز/بسته از بین نمی‌رود */
   function rowKey(no) { return String(no || '').replace(/[^A-Za-z0-9]/g, '_'); }
 
+  /* ═══ v34.37.3 (INV-PANEL-COLS — گزارش کارفرما: «بهم‌ریختگی چینش ستون‌ها») ═══
+     پیش از این عرض ستون‌ها دو بار دستی نوشته می‌شد (یک‌بار در سربرگ، یک‌بار در
+     ردیف) و flex-wrap روی ردیف باعث می‌شد هر ردیف با نام مشتریِ بلند ستون‌هایش را
+     جابه‌جا کند؛ یعنی ترازِ ستون‌ها بین ردیف‌ها هیچ‌گاه تضمین‌شده نبود.
+     قرارداد جدید: یک قالب مشترک برای سربرگ و ردیف + ستون انعطاف‌پذیر (مشتری) که
+     به‌جای راندنِ بقیه، خودش کوتاه (ellipsis) می‌شود. */
+  var INV_COLS = [
+    { id: 'arrow',  style: 'width:30px;flex:0 0 30px' },
+    { id: 'doc',    style: 'min-width:112px;flex:0 0 112px' },
+    { id: 'cust',   style: 'min-width:140px;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
+    { id: 'status', style: 'min-width:126px;flex:0 0 126px' },
+    { id: 'amt',    style: 'min-width:116px;flex:0 0 116px;text-align:left' },
+    { id: 'open',   style: 'min-width:116px;flex:0 0 116px;text-align:left' },
+    { id: 'act',    style: 'min-width:138px;flex:0 0 138px' }
+  ];
+  function invCol(id, extra) {
+    for (var i = 0; i < INV_COLS.length; i++) if (INV_COLS[i].id === id) return INV_COLS[i].style + (extra ? ';' + extra : '');
+    return extra || '';
+  }
+  function invHeaderHtml() {
+    return '<span style="' + invCol('arrow') + '"></span>' +
+      '<span style="' + invCol('doc') + '">سند مبنا</span>' +
+      '<span style="' + invCol('cust') + '">مشتری</span>' +
+      '<span style="' + invCol('status') + '">وضعیت فاکتور</span>' +
+      '<span style="' + invCol('amt') + '">مبلغ</span>' +
+      '<span style="' + invCol('open') + '">مطالبه باز</span>' +
+      '<span style="' + invCol('act') + '">اقدام</span>';
+  }
+  window.ptfInvPanelColStyles = function () { return INV_COLS.map(function (c) { return c.id + '|' + c.style; }); };
+
   /* ═══ v34.37.2 (INV-PANEL-ORPHANS) — سه نقصِ یک‌ریشه در لایهٔ نمایش فاکتورها ═══
      گزارش کارفرما: «در قسمت فاکتورها، فاکتورهای ثبت‌شده و ارجاع‌شده نمایش داده
      نمی‌شوند.» (تحلیل کامل: ARENA-CRM-INVOICE-PANEL-ASSESSMENT-2026-09-05.md)
@@ -150,7 +180,16 @@
 
   window.renderInvoices = function () {
     var el = document.getElementById('invWrap'); if (!el) return;
-    var offers = data('ptf_crm_offers').filter(function (o) { return o && o.invRef && !o.rialOf; });
+    /* v34.37.3 (INV-REF-UNDO-IMMEDIATE — دستور کارفرما): «لغو ارجاع باید ردیف را
+       بلافاصله از ردیف‌های ثبت‌شده/ارجاع‌شده پاک کند». تا وقتی فرمان در راه است یا
+       projection پاسخ به‌دلیل گاردِ watermarkِ krevs پذیرفته نشده (crm/sync.js:887)،
+       invRef در آینهٔ محلی زنده می‌ماند و ردیف برمی‌گشت. این مجموعهٔ نشست، ردیفِ
+       لغو‌شده را تا تأیید/ردِ سرور پنهان می‌کند (sales-domain-v2.js آن را پر و خالی
+       می‌کند؛ در حالت رد، همان‌جا بازگردانی می‌شود). */
+    var pendingRevoke = window._ptfInvRefPendingRevoke || {};
+    var offers = data('ptf_crm_offers').filter(function (o) {
+      return o && o.invRef && !o.rialOf && !pendingRevoke[String(o.no || '')];
+    });
     var invs = data('ptf_crm_invoices');
     var canUndo = (typeof window.ptfCanRepairOfferWin === 'function') && window.ptfCanRepairOfferWin();
     var q = normRef(((document.getElementById('invSrch') || {}).value || ''));
@@ -252,14 +291,14 @@
 
       return '<div data-inv-row="' + key + '" style="border:1px solid var(--brd);border-radius:12px;background:#fff;margin-bottom:7px;overflow:hidden">' +
         /* ردیف فشرده — کل ردیف کلیک‌پذیر است، فلش هم برای دسترس‌پذیری دکمهٔ مستقل دارد */
-        '<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer;flex-wrap:wrap" onclick="ptfInvRowToggle(\'' + key + '\')">' +
-        '<button type="button" id="invA_' + key + '" class="bt bt-o" aria-expanded="' + (isOpen ? 'true' : 'false') + '" title="نمایش/پنهان‌کردن جزئیات" style="padding:1px 8px;font-size:13px;line-height:1.6;min-width:28px" onclick="event.stopPropagation();ptfInvRowToggle(\'' + key + '\')">' + (isOpen ? '▾' : '◀') + '</button>' +
-        '<span style="min-width:118px"><b dir="ltr">' + esc(comp ? comp.no : o.no) + '</b>' + (comp ? ' <small style="color:#0e7490">💱</small>' : '') + '</span>' +
-        '<span style="flex:1;min-width:150px">' + esc(pair.fa || '-') + '</span>' +
-        '<span style="min-width:120px">' + status + '</span>' +
-        '<span style="min-width:120px;text-align:left" title="جمع فاکتورهای فعال">' + money(billed || rialTotal) + '</span>' +
-        '<span style="min-width:120px;text-align:left;color:' + (openSum > 0.5 ? '#b45309' : '#065f46') + '" title="مطالبه باز">' + money(openSum) + '</span>' +
-        '<span onclick="event.stopPropagation()">' + mainBtn + '</span>' +
+        '<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer" onclick="ptfInvRowToggle(\'' + key + '\')">' +
+        '<span style="' + invCol('arrow') + ';display:flex;align-items:center"><button type="button" id="invA_' + key + '" class="bt bt-o" aria-expanded="' + (isOpen ? 'true' : 'false') + '" title="نمایش/پنهان‌کردن جزئیات" style="padding:1px 8px;font-size:13px;line-height:1.6;width:30px" onclick="event.stopPropagation();ptfInvRowToggle(\'' + key + '\')">' + (isOpen ? '▾' : '◀') + '</button></span>' +
+        '<span style="' + invCol('doc') + ';white-space:nowrap"><b dir="ltr">' + esc(comp ? comp.no : o.no) + '</b>' + (comp ? ' <small style="color:#0e7490">💱</small>' : '') + '</span>' +
+        '<span style="' + invCol('cust') + '" title="' + esc(pair.fa || '-') + '">' + esc(pair.fa || '-') + '</span>' +
+        '<span style="' + invCol('status') + '">' + status + '</span>' +
+        '<span style="' + invCol('amt') + ';white-space:nowrap" title="جمع فاکتورهای فعال">' + money(billed || rialTotal) + '</span>' +
+        '<span style="' + invCol('open') + ';white-space:nowrap;color:' + (openSum > 0.5 ? '#b45309' : '#065f46') + '" title="مطالبه باز">' + money(openSum) + '</span>' +
+        '<span style="' + invCol('act') + ';display:flex;align-items:center;justify-content:flex-start;gap:6px;white-space:nowrap" onclick="event.stopPropagation()">' + mainBtn + '</span>' +
         '</div>' +
         /* کشوی جزئیات */
         '<div id="invD_' + key + '" style="display:' + (isOpen ? '' : 'none') + ';padding:0 11px 11px;border-top:1px solid var(--brd);background:#fcfdff">' +
@@ -331,10 +370,8 @@
       '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:7px">' +
       '<button class="bt bt-o" style="font-size:11px" onclick="ptfInvRowsToggleAll(true)">باز کردن همه</button>' +
       '<button class="bt bt-o" style="font-size:11px" onclick="ptfInvRowsToggleAll(false)">بستن همه</button></div>' +
-      '<div style="display:flex;align-items:center;gap:9px;padding:4px 11px;font-size:11px;color:#64748b;font-weight:700;flex-wrap:wrap">' +
-      '<span style="min-width:28px"></span><span style="min-width:118px">سند مبنا</span><span style="flex:1;min-width:150px">مشتری</span>' +
-      '<span style="min-width:120px">وضعیت فاکتور</span><span style="min-width:120px;text-align:left">مبلغ</span>' +
-      '<span style="min-width:120px;text-align:left">مطالبه باز</span><span>اقدام</span></div>' + rows +
+      '<div style="display:flex;align-items:center;gap:9px;padding:4px 11px;font-size:11px;color:#64748b;font-weight:700">' +
+      invHeaderHtml() + '</div>' + rows +
       (orphanHtml
         ? '<div style="margin-top:10px;border-top:2px dashed #fdba74;padding-top:8px">' +
           '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#9a3412;font-weight:700">' +

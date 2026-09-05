@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester578 — v34.37.2: ریشه‌کنی واقعی «تب‌های خالی» مدیریت سایت — برخورد نام کلاس CSS
+/* tester578 — v34.37.3: ریشه‌کنی واقعی «تب‌های خالی» مدیریت سایت — برخورد نام کلاس CSS
    RCA (بوت کامل jsdom + سنجش getComputedStyle، نه طول innerHTML):
      تب «📄 صفحهٔ جدید» و «🛠 کیفیت» درست رندر می‌شدند (۱۰٬۳۹۷ و ۹٬۵۱۰ کاراکتر) ولی
      همهٔ فرم‌ها داخل <div class="pn"> بودند و index.html قاعدهٔ سراسری
@@ -38,7 +38,7 @@ T('FIX: فرم جایگزین v34.26.1 هم دیگر داخل .pn نیست (fall
 })());
 T('FIX: هیچ <table class="tb"> در cms.js/gsc.js (برخورد با نوار بالای چسبان)',
   !/<table class="tb"/.test(cms) && !/<table class="tb"/.test(gsc) && (cms.match(/<table class="cms-tbl"/g) || []).length >= 8);
-T('FIX: PTF_CMS_JS_VER = v34.37.2 (سپر نسخهٔ کهنه، همسو با VER پوسته)', cms.indexOf("window.PTF_CMS_JS_VER = 'v34.37.2';") > -1);
+T('FIX: PTF_CMS_JS_VER = v34.37.3 (سپر نسخهٔ کهنه، همسو با VER پوسته)', cms.indexOf("window.PTF_CMS_JS_VER = 'v34.37.3';") > -1);
 
 /* ── ۲) نگهبان عمومی: هیچ کلاس خروجیِ ماژول با قاعدهٔ تک‌کلاسیِ display:none برخورد نکند ── */
 function cssSources() {
@@ -75,8 +75,8 @@ T('GUARD: هیچ <table class="tb…"> در ماژول‌های مدیریت س�
 
 /* ── ۳) گیت و نسخه ── */
 T('GATE: tester578 در run-ci-gate.js ثبت است', read('_tools/uat/run-ci-gate.js').indexOf('tester578-v34.29.7-cms-css-visibility.js') > -1);
-T('VER: VERSION.json = v34.37.2', JSON.parse(read('VERSION.json')).crm_version === 'v34.37.2');
-T('VER: یادداشت انتشار نسخهٔ جاری موجود است', (function () { try { var cv = JSON.parse(read('VERSION.json')).crm_version; return fs.existsSync(path.join(ROOT, 'RELEASE-NOTES-' + cv + '.md')); } catch (e) { return false; } })()); /* v34.37.2: متا-چک نسخه-آگnostic — کلیدواژهٔ RCA مال نسخهٔ خودِ تستر است */
+T('VER: VERSION.json = v34.37.3', JSON.parse(read('VERSION.json')).crm_version === 'v34.37.3');
+T('VER: یادداشت انتشار نسخهٔ جاری موجود است', (function () { try { var cv = JSON.parse(read('VERSION.json')).crm_version; return fs.existsSync(path.join(ROOT, 'RELEASE-NOTES-' + cv + '.md')); } catch (e) { return false; } })()); /* v34.37.3: متا-چک نسخه-آگnostic — کلیدواژهٔ RCA مال نسخهٔ خودِ تستر است */
 
 
 /* ── ۴) اثبات رفتاری (اختیاری — فقط اگر jsdom نصب باشد؛ بوت کامل اپ + computed style) ── */
