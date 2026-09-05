@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* ═══ tester595 — v34.37.3 (TOMBSTONE-SCOPE + CODE-RETIRED) ═══
+/* ═══ tester595 — v34.37.4 (TOMBSTONE-SCOPE + CODE-RETIRED) ═══
    گزارش کارفرما: «در CRM مشتریانی که جدیداً اضافه می‌شوند پاک می‌شوند.»
 
    زنجیرهٔ ریشه‌ای که این تستر می‌بندد (هر چهار حلقه):
@@ -239,6 +239,6 @@ T('۳.۷ tombstone هنوز در هر دو مسیر push و pull اعمال می
     routerSrc.indexOf('window._ptfCodeRetryTried') > -1);
 })();
 
-console.log('\n— tester595 (v34.37.3: سنگ‌قبرِ دامنه‌دار + کد بازنشسته + سپر حذف انبوه) —');
+console.log('\n— tester595 (v34.37.4: سنگ‌قبرِ دامنه‌دار + کد بازنشسته + سپر حذف انبوه) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 if (f) process.exit(1);

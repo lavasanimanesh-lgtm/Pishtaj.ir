@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester576 — v34.37.3: آزمون اتصال GSC — علتِ دقیق «ثبت نقشه ناموفق / property_not_found» */
+/* tester576 — v34.37.4: آزمون اتصال GSC — علتِ دقیق «ثبت نقشه ناموفق / property_not_found» */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
 var p = 0, f = 0;

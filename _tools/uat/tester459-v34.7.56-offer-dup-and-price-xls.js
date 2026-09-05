@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.37.3 — BUG-OFFER-DUP-SKIP-267:
+/* v34.37.4 — BUG-OFFER-DUP-SKIP-267:
    درخواست واقعی می‌تواند چند ردیف هم‌محتوا داشته باشد (۲۶۷ ردیف، ۶ ردیف هم‌امضا).
    قبلاً هر سه لایه (offAppendInqRows / offSmartInsert / offDedupeOfferItems) با امضای
    محتوایی حذفشان می‌کردند. حالا «تکراری» = همان ردیفِ مبدأ (هویت + نوبت تکرار).
@@ -18,10 +18,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.37.3', ver.crm_version === 'v34.37.3', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.37.3', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.37.3'") > -1);
-T('sw RELEASE = v34.37.3', sw.indexOf("RELEASE = 'v34.37.3'") > -1);
-T('offers.js cache-bust 34.37.3', idx.indexOf('offers.js?v=34.37.3') > -1);
+T('VERSION.json = v34.37.4', ver.crm_version === 'v34.37.4', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.37.4', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.37.4'") > -1);
+T('sw RELEASE = v34.37.4', sw.indexOf("RELEASE = 'v34.37.4'") > -1);
+T('offers.js cache-bust 34.37.4', idx.indexOf('offers.js?v=34.37.4') > -1);
 
 /* ---------- قراردادهای ایستا ---------- */
 T('نشان BUG-OFFER-DUP-SKIP-267 ثبت شده', off.indexOf('BUG-OFFER-DUP-SKIP-267') > -1);
@@ -122,6 +122,6 @@ try {
   T('sandbox ورود قیمت اجرا شد', false, String(e2 && e2.message || e2));
 }
 
-console.log('\n— tester459 (v34.37.3: رفع حذف کاذب اقلام هم‌محتوا + قیمت از اکسل) —');
+console.log('\n— tester459 (v34.37.4: رفع حذف کاذب اقلام هم‌محتوا + قیمت از اکسل) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

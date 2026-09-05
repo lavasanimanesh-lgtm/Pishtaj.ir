@@ -887,7 +887,11 @@ function refToInvoice(offerNo) {
    این موضوع یک‌بار واقعاً گاز گرفت: دکمهٔ «↩️ لغو ارجاع» در v34.37.0 اشتباهاً
    همین‌جا اضافه شد و هیچ‌وقت دیده نشد.
    ⇒ هر تغییر در پنل فاکتورها باید در official-invoice-v2.js انجام شود.
-   (فعلاً به‌عنوان مرجع تاریخی و مسیر fallback نگه داشته شده است.) */
+   (فعلاً به‌عنوان مرجع تاریخی و مسیر fallback نگه داشته شده است.)
+   v34.37.4 (INV-LEGACY-NULLGUARD): مسیر fallback یک‌بار واقعاً اجرا شد (باقی‌ماندهٔ ریس «ثبت‌زودهنگام»
+   در perms.js — گزارش «فهرست فاکتورها برای رییس خالی است»)؛ به همین دلیل
+   خواندن inv.offerCurrency در renderInvoices گارد تهی گرفت تا نبودِ فاکتورِ
+   مطابقت‌یافته، پنل را با TypeError نکشد. اصل عوض نشده: تغییرِ قابلیت فقط در v2. */
 function buildInvoices() {
   /* v34.7.80 (TAX-RETURNS-SEPARATION): اظهارنامه‌ها از فاکتورها جدا شد — دیگر اینجا رندر نمی‌شوند. */
   /* v34.9.2: جستجو در فاکتورها (شماره/مشتری/شماره فاکتور) + نام دوگانهٔ مشتری */
@@ -951,7 +955,7 @@ function renderInvoices() {
           var p = (typeof ptfCustNamePair === 'function') ? ptfCustNamePair(o.buyerCd, o.buyerCo) : { fa: o.buyerCo || '-', en: oEn };
           return (typeof ptfCustCellHtml === 'function') ? ptfCustCellHtml(p.fa, p.en, o.buyerCd) : escP(p.fa);
         })() +
-      '<div style="font-size:11.5px;color:#64748b">مبلغ CO: ' + (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : total.toLocaleString('fa-IR') + ' ریال') + (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <span style="color:#0e7490">| مبنا: ' + escP(o.currency || inv.offerCurrency) + (o.fxBasis ? ' / ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') : '') + (o.fxRateRef ? ' / ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</span>' : '') + ' | ارجاع: ' + escP(o.invRef.t) + ' توسط ' + escP(o.invRef.by) + ' (' + escP(o.invRef.role) + ')</div>' + /* v17.4 US-416 */
+      '<div style="font-size:11.5px;color:#64748b">مبلغ CO: ' + (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : total.toLocaleString('fa-IR') + ' ریال') + (((o.currency || (inv && inv.offerCurrency)) && (o.currency || (inv && inv.offerCurrency)) !== 'IRR') ? ' <span style="color:#0e7490">| مبنا: ' + escP(o.currency || (inv && inv.offerCurrency)) + (o.fxBasis ? ' / ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') : '') + (o.fxRateRef ? ' / ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</span>' : '') + ' | ارجاع: ' + escP(o.invRef.t) + ' توسط ' + escP(o.invRef.by) + ' (' + escP(o.invRef.role) + ')</div>' + /* v17.4 US-416 */
       (inv ? '<div style="font-size:12px;color:#10b981;margin-top:3px">🧾 فاکتور ' + escP(inv.no) + ' — ' + escP(inv.t) + ' — ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال' +
         (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <small style="color:#0e7490">| فاکتور ریالیِ درخواست ' + escP(o.currency || inv.offerCurrency) + '</small>' : '') +
         ((inv.files||[]).length ? ' | ' + inv.files.map(function(f,fi){ return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key||'') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '') +

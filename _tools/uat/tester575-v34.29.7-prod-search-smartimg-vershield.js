@@ -49,7 +49,7 @@ T('SMART-IMG: فرم محصول عکس را از حدس پر می‌کند نه 
 
 /* ── ۳) سمت سرور: عکس هوشمند + لینک نسبی ── */
 T('PHP: cms_prod_img_guess سمت سرور فقط وقتی عکس خالی/لوگو است فعال می‌شود', php.indexOf('function cms_prod_img_guess') > -1 && php.indexOf("substr($img, -12) === 'ptf-logo.png'") > -1);
-T('PHP: cta/footer محصول با cms_rel_links_fix اصلاح می‌شوند (لینک مرده → knowledge-center)', php.indexOf('function cms_rel_links_fix') > -1 && php.indexOf("cms_rel_links_fix($sk['cta']") > -1 && php.indexOf("cms_rel_links_fix($sk['footer']") > -1); /* v34.37.3: استخراج با هُلپر مقاوم */
+T('PHP: cta/footer محصول با cms_rel_links_fix اصلاح می‌شوند (لینک مرده → knowledge-center)', php.indexOf('function cms_rel_links_fix') > -1 && php.indexOf("cms_rel_links_fix($sk['cta']") > -1 && php.indexOf("cms_rel_links_fix($sk['footer']") > -1); /* v34.37.4: استخراج با هُلپر مقاوم */
 T('PHP: مسیرهای ../ و http و // و tel: از قاعدهٔ بازنویسی مستثنا هستند', php.indexOf("strpos($u, '../') === 0") > -1 && php.indexOf('(https?:)?') > -1 && php.indexOf("stripos($u, 'tel:')") > -1);
 
 /* ── ۴) سپر نسخهٔ کهنه ── */

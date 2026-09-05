@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester524 — v34.37.3 (NOTIFS-UNION): پایان نوار زرد پایدار [notifs].
+/* tester524 — v34.37.4 (NOTIFS-UNION): پایان نوار زرد پایدار [notifs].
    ریشه: merge سرور (append + md5-dedupe) با merge کلاینت (dedupe cd + اتحاد
    readBy/done + مرتب‌سازی iso نزولی) هرگز فرم برابر تولید نمی‌کرد ⇒ sameSyncJson
    پاس نمی‌شد ⇒ dirty دائمی. فیکس: notifs = کلید union مشترک با merge کانونیکال
@@ -135,9 +135,9 @@ function eqJson(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.37.3', ver.crm_version === 'v34.37.3', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.37.3', /window\.PTF_CRM_RELEASE = 'v34\.37\.3'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.3'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.37.4', ver.crm_version === 'v34.37.4', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.37.4', /window\.PTF_CRM_RELEASE = 'v34\.37\.4'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.4'/.test(read('crm/sw.js')));
 
-console.log('\n— tester524 (v34.37.3: NOTIFS-UNION convergence) —');
+console.log('\n— tester524 (v34.37.4: NOTIFS-UNION convergence) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
