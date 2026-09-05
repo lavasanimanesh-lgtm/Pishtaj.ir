@@ -296,6 +296,12 @@ function dedupStamp(rec) {
   try {
     rec.crAt = typeof faDateTime === 'function' ? faDateTime() : new Date().toLocaleDateString('fa-IR');
     rec.crBy = (typeof curSession === 'function' && curSession()) ? curSession().user : '';
+    /* v34.37.0 (TOMBSTONE-SCOPE): مهر ساخت ماشین‌خوان. بدون این، گاردِ «سنگ‌قبر حق
+       حذف رکوردِ تازه‌تر را ندارد» (api/crm.php: sync_tombstone_outranks_row) هیچ
+       تاریخی برای مقایسه ندارد و رکورد تازه دوباره قربانی سنگ‌قبر قدیمی می‌شود.
+       crAt شمسی است و قابل مقایسه نیست؛ این فیلد فقط افزوده می‌شود و چیزی را
+       بازنویسی نمی‌کند (رکورد بازیافت‌شده مهر اصلی خودش را نگه می‌دارد). */
+    if (!rec.createdAtISO) rec.createdAtISO = new Date().toISOString();
   } catch (e) { rec.crAt = rec.crAt || ''; rec.crBy = rec.crBy || ''; }
   return rec;
 }

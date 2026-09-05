@@ -859,41 +859,35 @@ function saveBuyQ() {
 }
 
 /* ============ AC3: ارجاع فاکتور + پنل حسابدار ============ */
+/* v18.9 (US-431 فاز۱): ارجاع فاکتور از ماژول پیشنهادها بازنشسته شد — پس از برد،
+   ارجاع فقط از داخل پرونده فروش انجام می‌شود (sfInvoiceRef).
+   v34.37.0: ~۲۰ خط منطقِ ارجاع/پیامک/audit که بعد از alert+return اینجا مانده بود
+   حذف شد؛ آن کد هرگز اجرا نمی‌شد و برای هرکس که دنبال «کجا ارجاع ثبت می‌شود»
+   می‌گشت یک تلهٔ تمام‌عیار بود. تنها نویسندهٔ invRef اکنون salesfiles.js است. */
 function refToInvoice(offerNo) {
   if (!isSenior()) { alert('فقط نقش‌های ارشد می‌توانند برای صدور فاکتور ارجاع دهند'); return; }
   var offers = getData('ptf_crm_offers');
   var o = String(offerNo || '') ? offers.filter(function (x) { return x && String(x.no || '') === String(offerNo); })[0] : null; /* v34.7.26 (S3/F2-D): گارد شمارهٔ تهی */
   if (!o) return;
   if (o.kind !== 'CO') { alert('فقط پیشنهاد مالی (CO) قابل ارجاع برای فاکتور است'); return; }
-  // v18.9 (US-431 فاز۱): پس از برد و تشکیل پرونده فروش، ارجاع فاکتور از ماژول پیشنهادها ممنوع است.
   if (o.st === 'won') {
     alert('🔒 این پیشنهاد برنده و پرونده فروش آن تشکیل شده است.\nارجاع فاکتور رسمی باید فقط از داخل پرونده فروش و پس از تحویل به کارفرما انجام شود.');
     try { if (typeof goPanelByName === 'function') goPanelByName('deals'); } catch(e) {}
     return;
   }
   alert('🔒 فقط پیش‌فاکتور برنده قابل ارجاع بود؛ در معماری جدید پس از برد، ارجاع فاکتور فقط از داخل پرونده فروش انجام می‌شود.');
-  return;
-  o.invRef = { by: curSession().name, role: roleDef().lb, t: faDate() };
-  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
-  audit('فاکتور', 'ارجاع ' + offerNo + ' برای صدور فاکتور', offerNo);
-  // استثنا (AC4 اعلانات): فقط حسابدار
-  notify({ toRoles: ['accountant'], title: 'پیش‌فاکتور ' + offerNo + ' برای صدور فاکتور ارجاع شد',
-    body: 'خریدار: ' + (o.buyerCo || '-'), kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true });
-  // US-150 AC6: پیامک خودکار به حسابدار(ان)
-  if (typeof smsSendSingle === 'function' && confirm('📱 پیامک اطلاع‌رسانی هم برای حسابدار ارسال شود؟')) {
-    var accs = getData('ptf_crm_users').filter(function (u) { return u.roleId === 'accountant' && u.mobile; });
-    if (!accs.length) alert('⚠️ کاربری با نقش حسابدار و شماره موبایل ثبت نشده');
-    accs.forEach(function (u) {
-      smsSendSingle(u.mobile,
-        'حسابدار محترم شرکت پیشرو تجهیز فرتاک،\n' +
-        'یک پیش‌فاکتور (' + offerNo + ') جهت صدور فاکتور رسمی به کارتابل شما ارجاع شد. لطفاً پس از صدور فاکتور، فایل PDF آن را در سامانه بارگذاری نمایید.\nhttps://pishtaj.ir/crm/',
-        function (d) { addLog(d.ok && d.sent ? 'پیامک ارجاع فاکتور به ' + u.name + ' ارسال شد' : 'پیامک ارجاع فاکتور در صف قرار گرفت'); });
-    });
-  }
-  alert('✅ برای حسابدار ارسال شد (فقط حسابدار مطلع می‌شود)');
-  if (typeof renderOffers === 'function') renderOffers();
 }
 
+/* ⚠️ کد بازنشسته — این پنل اجرا نمی‌شود.
+   ═══ v34.37.1 (INV-PANEL-DEAD-CODE) ═══
+   `crm/official-invoice-v2.js` (که در انتهای بارگذاری می‌آید) هر سهِ
+   buildInvoices / renderInvoices / showInvModal را روی window بازنویسی می‌کند و
+   perms.js هم پنل «inv» را با تاخیر ۱۲۰۰ms ثبت می‌کند؛ بنابراین آنچه کاربر
+   می‌بیند همیشه نسخهٔ v2 است و این سه تابع هرگز صدا زده نمی‌شوند.
+   این موضوع یک‌بار واقعاً گاز گرفت: دکمهٔ «↩️ لغو ارجاع» در v34.37.0 اشتباهاً
+   همین‌جا اضافه شد و هیچ‌وقت دیده نشد.
+   ⇒ هر تغییر در پنل فاکتورها باید در official-invoice-v2.js انجام شود.
+   (فعلاً به‌عنوان مرجع تاریخی و مسیر fallback نگه داشته شده است.) */
 function buildInvoices() {
   /* v34.7.80 (TAX-RETURNS-SEPARATION): اظهارنامه‌ها از فاکتورها جدا شد — دیگر اینجا رندر نمی‌شوند. */
   /* v34.9.2: جستجو در فاکتورها (شماره/مشتری/شماره فاکتور) + نام دوگانهٔ مشتری */

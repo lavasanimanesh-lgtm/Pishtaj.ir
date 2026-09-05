@@ -23,6 +23,13 @@ _tools/rewrite/__pycache__/
 __pycache__/
 *.pyc
 
+# پیکربندی فضای ابری (کلید/رمز S3 آروان) — فقط نمونهٔ storage-config.sample.php
+# در گیت است. فایل واقعی روی میزبان ساخته می‌شود و هرگز نباید کامیت شود.
+storage-config.php
+../storage-config.php
+llm-config.php
+sms-config.php
+
 # کلیدهای اتصال به Google Search Console (هرگز کامیت نشود)
 api/gsc-config.php
 crm/data/gsc-token.json

@@ -2087,6 +2087,45 @@
     if (extraArchiveStr) addFrom(extraArchiveStr);
     return out;
   }
+  /* ═══ v34.37.0 (TOMBSTONE-SCOPE) — قرینهٔ دقیق sync_tombstone_* در api/crm.php ═══
+     ریشهٔ باگ «مشتری تازه پاک می‌شود»: سنگ‌قبر تاریخ نداشت و alias زیررشته‌ای بود.
+     قرارداد: فقط ردیفی نجات می‌یابد که «اثبات‌پذیر» بعد از سنگ‌قبر ساخته شده باشد؛
+     اگر هر یک از دو تاریخ ناخوانا بود، رفتار دقیقاً مثل نسخهٔ قبلی است. */
+  function ptfTombstoneEpoch(d) {
+    if (!d || typeof d !== 'object') return 0;
+    var fields = ['deletedAt', 'purgedAt', 'iso', 'at', 'ts'];
+    for (var i = 0; i < fields.length; i++) {
+      var v = String(d[fields[i]] || '').trim();
+      if (v && /^\d{4}-\d{2}-\d{2}[T ]/.test(v)) { var t = Date.parse(v); if (t) return t; }
+    }
+    return 0;
+  }
+  function ptfRowCreatedEpoch(r) {
+    if (!r || typeof r !== 'object') return 0;
+    var fields = ['createdAt', 'createdAtISO', 'crAtISO', 'createdISO', 'iso'];
+    for (var i = 0; i < fields.length; i++) {
+      var v = String(r[fields[i]] || '').trim();
+      if (v && /^\d{4}-\d{2}-\d{2}[T ]/.test(v)) { var t = Date.parse(v); if (t) return t; }
+    }
+    return 0;
+  }
+  function ptfTombstoneOutranksRow(tombEpoch, row) {
+    if (!(tombEpoch > 0)) return true;
+    var rowEpoch = ptfRowCreatedEpoch(row);
+    if (!(rowEpoch > 0)) return true;
+    return rowEpoch <= tombEpoch;
+  }
+  function ptfTombstoneMark(map, id, epoch) {
+    id = String(id == null ? '' : id).trim();
+    if (!id) return;
+    epoch = +epoch || 0;
+    if (!(id in map)) { map[id] = epoch; return; }
+    if (map[id] === 0 || epoch === 0) { map[id] = 0; return; }
+    if (epoch > map[id]) map[id] = epoch;
+  }
+  window.ptfTombstoneEpoch = ptfTombstoneEpoch;
+  window.ptfRowCreatedEpoch = ptfRowCreatedEpoch;
+  window.ptfTombstoneOutranksRow = ptfTombstoneOutranksRow;
   window.ptfApplyDeletionTombstones = function (key, jsonStr, extraArchiveStr) {
     if (key === 'ptf_crm_deleted_archive') {
       var aliases={};ptfReadArchive(extraArchiveStr).forEach(function(d){if(d&&String(d.kind||'').toLowerCase()==='archive_purge')(d.aliases||[]).forEach(function(a){a=String(a||'').trim();if(a.length>=6)aliases[a]=true;});});
@@ -2098,26 +2137,41 @@
     ptfReadArchive(extraArchiveStr).forEach(function (d) {
       if (!d || typeof d !== 'object') return;
       var kind = String(d.kind || '').toLowerCase();
+      var tombEpoch = ptfTombstoneEpoch(d);
       if (kind === 'archive_purge' && d.identities && Array.isArray(d.identities[key])) {
-        d.identities[key].forEach(function (purgedId) { purgedId=String(purgedId||'').trim(); if(purgedId)ids[purgedId]=true; });
-        (d.aliases||[]).forEach(function(alias){alias=String(alias||'').trim();if(alias.length>=6)purgeAliases[alias]=true;});
+        d.identities[key].forEach(function (purgedId) { ptfTombstoneMark(ids, purgedId, tombEpoch); });
+        /* v34.37.0 (③ — قرینهٔ api/crm.php): تطبیق زیررشته‌ای alias فقط برای پاک‌سازی
+           گراف کل پروژه (سنگ‌قبر بدون collection). سنگ‌قبر تک‌رکوردی نباید هیچ ردیف
+           دیگری را صرفاً به‌خاطر ذکر کد در متنش پاک کند. */
+        if (!String(d.collection || '').trim() && Array.isArray(d.aliases)) {
+          d.aliases.forEach(function (alias) { alias = String(alias || '').trim(); if (alias.length >= 6) ptfTombstoneMark(purgeAliases, alias, tombEpoch); });
+        }
       }
       if (!kindSet[kind]) return;
-      var id = String(d.id || d.no || d.cd || '').trim();
-      if (id) ids[id] = true;
+      ptfTombstoneMark(ids, String(d.id || d.no || d.cd || ''), tombEpoch);
     });
     if (!Object.keys(ids).length && !Object.keys(purgeAliases).length) return jsonStr;
     try {
       var arr = JSON.parse(jsonStr || '[]');
       if (!arr || typeof arr !== 'object') return jsonStr;
       if(key==='ptf_crm_supplier_finance'&&!Array.isArray(arr)){
-        ['invoices','payments','adjustments'].forEach(function(bucket){if(!Array.isArray(arr[bucket]))return;arr[bucket]=arr[bucket].filter(function(r){var id=String((r&&(r._id||r.cd))||'').trim();return!id||!ids[id];});});
-        (arr.payments||[]).forEach(function(payment){if(Array.isArray(payment.allocations))payment.allocations=payment.allocations.filter(function(a){return!ids[String((a&&a.invoiceCd)||'').trim()];});});
+        ['invoices','payments','adjustments'].forEach(function(bucket){if(!Array.isArray(arr[bucket]))return;arr[bucket]=arr[bucket].filter(function(r){var id=String((r&&(r._id||r.cd))||'').trim();return!id||!(id in ids)||!ptfTombstoneOutranksRow(ids[id],r);});});
+        (arr.payments||[]).forEach(function(payment){if(Array.isArray(payment.allocations))payment.allocations=payment.allocations.filter(function(a){return!(String((a&&a.invoiceCd)||'').trim() in ids);});});
         return JSON.stringify(arr);
       }
       if (!Array.isArray(arr)) return jsonStr;
       var purgeAliasList=Object.keys(purgeAliases);
-      var filtered = arr.filter(function (r) { var id = ptfRecordIdentityForKey(key, r); if(id&&ids[id])return false;var encoded='';try{encoded=JSON.stringify(r||{});}catch(e){}return !purgeAliasList.some(function(alias){return encoded.indexOf(alias)>-1;}); });
+      var filtered = arr.filter(function (r) {
+        var id = ptfRecordIdentityForKey(key, r);
+        if (id && (id in ids) && ptfTombstoneOutranksRow(ids[id], r)) return false;
+        if (!purgeAliasList.length) return true;
+        /* v34.37.0 (② — قرینهٔ api/crm.php): تطبیق زیررشته‌ای فقط برای «پاک‌سازی گراف کل
+           پروژه» می‌ماند. سنگ‌قبر تک‌رکوردی aliasی وارد این فهرست نمی‌کند، پس مشتریِ
+           بی‌ربطی که فقط کدِ حذف‌شده را در متنش دارد دیگر پاک نمی‌شود. */
+        var encoded = '';
+        try { encoded = JSON.stringify(r || {}); } catch (eEnc) {}
+        return !purgeAliasList.some(function (alias) { return encoded.indexOf(alias) > -1 && ptfTombstoneOutranksRow(purgeAliases[alias], r); });
+      });
       return JSON.stringify(filtered);
     } catch (e) { return jsonStr; }
   };

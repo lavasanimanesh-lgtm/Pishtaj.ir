@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester531 — v34.36.4 (T5-2): چک‌های شخصی دیگر فقط-دستگاه نیستند.
+/* tester531 — v34.37.1 (T5-2): چک‌های شخصی دیگر فقط-دستگاه نیستند.
    کلید جدید ptf_crm_personal_cheques: SYNC_KEYS (۶ جایگاه نقش) + رجیستری فرمانی +
    مهاجرت یک‌بارهٔ بوت (ادغام همهٔ ptf_personal_cheques_<user> → مشترک؛ پاک‌سازی legacy
    فقط بعد از ACK سرور). chPersonalAll حالا از مشترک می‌خواند (با دید legacy در انتظار). */
@@ -71,9 +71,9 @@ T('مهاجرت در بوت صدا زده می‌شود', /window\.chMigratePers
     T('رفتاری: کلید مشترک ۲ رکورد دارد', idbShared.length === 2, idbShared.length);
 
     var ver = JSON.parse(read('VERSION.json'));
-    T('VERSION.json = v34.36.4', ver.crm_version === 'v34.36.4', ver.crm_version);
-    T('قرارداد نسخهٔ UI/sw = 34.36.4', /window\.PTF_CRM_RELEASE = 'v34\.36\.4'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.36\.4'/.test(read('crm/sw.js')));
-    console.log('\n— tester531 (v34.36.4: personal cheques sync) —');
+    T('VERSION.json = v34.37.1', ver.crm_version === 'v34.37.1', ver.crm_version);
+    T('قرارداد نسخهٔ UI/sw = 34.37.1', /window\.PTF_CRM_RELEASE = 'v34\.37\.1'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.1'/.test(read('crm/sw.js')));
+    console.log('\n— tester531 (v34.37.1: personal cheques sync) —');
     console.log('PASS: ' + p + ' | FAIL: ' + f);
     process.exit(f ? 1 : 0);
   }, 10);

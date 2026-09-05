@@ -750,6 +750,50 @@ function sync_decode_archive($json) {
     $a = json_decode((string)$json, true);
     return is_array($a) ? $a : [];
 }
+/* ═══ v34.37.0 (TOMBSTONE-SCOPE — RCA «مشتری تازه پاک می‌شود») ═══
+   سه ضعف سنگ‌قبرها که با هم یک باگ P0 از دست رفتن داده می‌ساختند:
+   ① سنگ‌قبر تاریخ نداشت ⇒ رکوردی که «بعد از» حذف ساخته شده بود هم قربانی می‌شد.
+      چون مولد کد کلاینت پس از حذفِ آخرین مشتری همان cd را دوباره صادر می‌کند،
+      مشتری کاملاً جدید در اولین data_push/data_pull پاک می‌شد.
+   ② aliases با strpos روی کل JSON ردیف تطبیق می‌خورد ⇒ هر رکورد بی‌ربطی که آن کد
+      را در توضیحاتش ذکر کرده بود هم پاک می‌شد.
+   ③ تفکیکی بین «سنگ‌قبر یک رکورد» (entity_delete/packinglist — دارای collection)
+      و «پاک‌سازی کل گراف پروژه» (sd_archive_purge_plan_data — بدون collection)
+      نبود؛ در حالی که تطبیق زیررشته‌ای فقط برای دومی معنا دارد.
+   قرارداد جدید — فقط و فقط رکوردی نجات پیدا می‌کند که «اثبات‌پذیر» تازه‌تر باشد:
+   اگر تاریخ سنگ‌قبر یا تاریخ ساخت رکورد ناخوانا باشد، رفتار دقیقاً مثل قبل است. */
+function sync_tombstone_epoch($d) {
+    if (!is_array($d)) return 0;
+    foreach (['deletedAt','purgedAt','iso','at','ts'] as $f) {
+        $v = trim((string)($d[$f] ?? ''));
+        if ($v !== '' && preg_match('/^\d{4}-\d{2}-\d{2}[T ]/', $v)) { $t = strtotime($v); if ($t) return (int)$t; }
+    }
+    return 0;
+}
+function sync_row_created_epoch($r) {
+    if (!is_array($r)) return 0;
+    foreach (['createdAt','createdAtISO','crAtISO','createdISO','iso'] as $f) {
+        $v = trim((string)($r[$f] ?? ''));
+        if ($v !== '' && preg_match('/^\d{4}-\d{2}-\d{2}[T ]/', $v)) { $t = strtotime($v); if ($t) return (int)$t; }
+    }
+    return 0;
+}
+/* true = این سنگ‌قبر حق حذف این ردیف را دارد. */
+function sync_tombstone_outranks_row($tombEpoch, $row) {
+    if ($tombEpoch <= 0) return true;                 /* سنگ‌قبر قدیمی بدون تاریخ → رفتار قبلی */
+    $rowEpoch = sync_row_created_epoch($row);
+    if ($rowEpoch <= 0) return true;                  /* ردیف بدون تاریخ ساخت → رفتار قبلی */
+    return $rowEpoch <= $tombEpoch;                   /* فقط ردیفِ اثبات‌پذیر تازه‌تر نجات می‌یابد */
+}
+/* ثبت یک شناسه در نقشهٔ سنگ‌قبرها: ۰ (تاریخ‌ناشناس) همیشه می‌چربد؛ وگرنه تازه‌ترین تاریخ. */
+function sync_tombstone_mark(array &$ids, $id, $epoch) {
+    $id = trim((string)$id);
+    if ($id === '') return;
+    $epoch = (int)$epoch;
+    if (!array_key_exists($id, $ids)) { $ids[$id] = $epoch; return; }
+    if ($ids[$id] === 0 || $epoch === 0) { $ids[$id] = 0; return; }
+    if ($epoch > $ids[$id]) $ids[$id] = $epoch;
+}
 function sync_apply_tombstones($key, $json, $serverArchiveJson = '', $incomingArchiveJson = '') {
     if ($key === 'ptf_crm_deleted_archive') {
         $purgeAliases=[];foreach(array_merge(sync_decode_archive($serverArchiveJson),sync_decode_archive($incomingArchiveJson))as $d)if(is_array($d)&&strtolower((string)($d['kind']??''))==='archive_purge')foreach(($d['aliases']??[])as $alias){$alias=trim((string)$alias);if(strlen($alias)>=6)$purgeAliases[$alias]=true;}
@@ -757,30 +801,51 @@ function sync_apply_tombstones($key, $json, $serverArchiveJson = '', $incomingAr
     }
     $kinds = sync_tombstone_kinds_for_key($key);
     $kindSet = array_fill_keys(array_map('strtolower', $kinds), true);
+    /* $ids[id] = تازه‌ترین epoch سنگ‌قبرِ آن شناسه (۰ = تاریخ‌ناشناس ⇒ رفتار قبلی) */
     $ids = []; $purgeAliases = [];
     foreach (array_merge(sync_decode_archive($serverArchiveJson), sync_decode_archive($incomingArchiveJson)) as $d) {
         if (!is_array($d)) continue;
         $kind = strtolower((string)($d['kind'] ?? ''));
+        $tombEpoch = sync_tombstone_epoch($d);
         if ($kind === 'archive_purge' && is_array($d['identities'][$key] ?? null)) {
-            foreach ($d['identities'][$key] as $purgedId) { $purgedId=trim((string)$purgedId); if($purgedId!=='')$ids[$purgedId]=true; }
-            if (is_array($d['aliases'] ?? null)) foreach ($d['aliases'] as $alias) { $alias=trim((string)$alias); if(strlen($alias)>=6)$purgeAliases[$alias]=true; }
+            foreach ($d['identities'][$key] as $purgedId) sync_tombstone_mark($ids, $purgedId, $tombEpoch);
+            /* v34.37.0 (③): تطبیق زیررشته‌ای alias فقط برای پاک‌سازی گرافِ کل پروژه
+               معنا دارد (سنگ‌قبر بدون فیلد collection). سنگ‌قبرِ «یک رکورد» — که
+               entity_delete و حذف پکینگ‌لیست می‌سازند و collection دارد — نباید هیچ
+               ردیف دیگری را صرفاً به‌خاطر ذکر شدن آن کد در متنش پاک کند. */
+            if (trim((string)($d['collection'] ?? '')) === '' && is_array($d['aliases'] ?? null)) {
+                foreach ($d['aliases'] as $alias) {
+                    $alias = trim((string)$alias);
+                    if (strlen($alias) >= 6) sync_tombstone_mark($purgeAliases, $alias, $tombEpoch);
+                }
+            }
         }
         if (!isset($kindSet[$kind])) continue;
-        $id = trim((string)($d['id'] ?? $d['no'] ?? $d['cd'] ?? ''));
-        if ($id !== '') $ids[$id] = true;
+        sync_tombstone_mark($ids, (string)($d['id'] ?? $d['no'] ?? $d['cd'] ?? ''), $tombEpoch);
     }
     if (!$ids && !$purgeAliases) return $json;
     $arr = json_decode((string)$json, true);
     if (!is_array($arr)) return $json;
     if ($key === 'ptf_crm_supplier_finance' && (isset($arr['invoices']) || isset($arr['payments']) || isset($arr['schema']))) {
-        foreach(['invoices','payments','adjustments']as $bucket){if(!is_array($arr[$bucket]??null))continue;$arr[$bucket]=array_values(array_filter($arr[$bucket],function($r)use($ids){if(!is_array($r))return true;$id=trim((string)($r['cd']??$r['_id']??''));return$id===''||!isset($ids[$id]);}));}
+        foreach(['invoices','payments','adjustments']as $bucket){if(!is_array($arr[$bucket]??null))continue;$arr[$bucket]=array_values(array_filter($arr[$bucket],function($r)use($ids){if(!is_array($r))return true;$id=trim((string)($r['cd']??$r['_id']??''));return$id===''||!isset($ids[$id])||!sync_tombstone_outranks_row((int)$ids[$id],$r);}));}
         foreach($arr['payments']??[]as &$payment)if(is_array($payment)&&is_array($payment['allocations']??null))$payment['allocations']=array_values(array_filter($payment['allocations'],function($a)use($ids){return!is_array($a)||!isset($ids[trim((string)($a['invoiceCd']??''))]);}));unset($payment);
         return json_encode($arr,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     }
     $out = [];
     foreach ($arr as $r) {
-        $id = sync_record_id_for_key($key, $r); $purged = ($id !== '' && isset($ids[$id]));
-        if (!$purged && $purgeAliases && is_array($r)) { $encoded=json_encode($r,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); foreach($purgeAliases as $alias=>$_)if(strpos((string)$encoded,(string)$alias)!==false){$purged=true;break;} }
+        $id = sync_record_id_for_key($key, $r);
+        $purged = ($id !== '' && isset($ids[$id]) && sync_tombstone_outranks_row((int)$ids[$id], $r));
+        if (!$purged && $purgeAliases && is_array($r)) {
+            /* v34.37.0 (②): تطبیق زیررشته‌ای فقط برای «پاک‌سازی گراف کل پروژه» باقی می‌ماند
+               (سنگ‌قبر بدون collection) — آنجا هدف صراحتاً حذف هر رکوردِ وابسته است، حتی
+               روی دستگاهی که سرور هرگز ندیده. سنگ‌قبر تک‌رکوردی اصلاً به اینجا نمی‌رسد
+               (aliasهایش بالاتر جمع نشده‌اند)، پس دیگر مشتریِ بی‌ربطی که فقط کد را در
+               توضیحاتش ذکر کرده قربانی نمی‌شود. گاردِ تاریخ روی این مسیر هم اعمال است. */
+            $encoded = json_encode($r, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            foreach ($purgeAliases as $alias => $aliasEpoch) {
+                if (strpos((string)$encoded, (string)$alias) !== false && sync_tombstone_outranks_row((int)$aliasEpoch, $r)) { $purged = true; break; }
+            }
+        }
         if (!$purged) $out[] = $r;
     }
     return json_encode(array_values($out), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -1582,20 +1647,31 @@ switch($action) {
             }
         }
         if (!$dupFound && ($supNameNorm !== '' || $supPhoneNorm !== '')) {
+            /* v34.37.0 (SUP-DEDUP-BEST): پیش از این حلقه روی «اولین تطابق» می‌شکست.
+               اگر همان شرکت دو ثبت‌نام داشت و اولی پیوست داشت، رکورد دومِ بی‌پیوست
+               هرگز شانس بازیابی پیوست نمی‌گرفت. حالا همهٔ تطابق‌ها جمع می‌شوند و
+               رکوردِ «در انتظار/ردشده و بدون پیوست» ترجیح داده می‌شود. */
+            $supMatches = [];
             foreach (load_data('suppliers') as $idx => $row) {
                 if (!is_array($row)) continue;
                 $rcode = (string)($row['code'] ?? '');
+                $why = '';
                 if ($supNameNorm !== '' && ptf_dedup_norm($row['company'] ?? '') === $supNameNorm) {
-                    $dupFound = ['list'=>'suppliers','idx'=>$idx,'code'=>$rcode,'co'=>($row['company'] ?? ''),'why'=>'نام شرکت/فروشگاه','row'=>$row]; break;
-                }
-                $rowPhones = [$row['phone'] ?? '', $row['ph'] ?? '', $row['mob'] ?? ''];
-                foreach ($rowPhones as $rp) {
-                    $rpN = ptf_dedup_phone($rp);
-                    if ($supPhoneNorm !== '' && $rpN !== '' && $rpN === $supPhoneNorm) {
-                        $dupFound = ['list'=>'suppliers','idx'=>$idx,'code'=>$rcode,'co'=>($row['company'] ?? ''),'why'=>'شماره تماس','row'=>$row]; break 2;
+                    $why = 'نام شرکت/فروشگاه';
+                } else {
+                    foreach ([$row['phone'] ?? '', $row['ph'] ?? '', $row['mob'] ?? ''] as $rp) {
+                        if (is_array($rp)) continue;
+                        $rpN = ptf_dedup_phone($rp);
+                        if ($supPhoneNorm !== '' && $rpN !== '' && $rpN === $supPhoneNorm) { $why = 'شماره تماس'; break; }
                     }
                 }
+                if ($why === '') continue;
+                $supMatches[] = ['list'=>'suppliers','idx'=>$idx,'code'=>$rcode,'co'=>($row['company'] ?? ''),'why'=>$why,'row'=>$row];
             }
+            foreach ($supMatches as $m) {
+                if (in_array(($m['row']['status'] ?? ''), ['pending','rejected'], true) && empty($m['row']['attachment'])) { $dupFound = $m; break; }
+            }
+            if (!$dupFound && $supMatches) $dupFound = $supMatches[0];
             if (!$dupFound) {
                 foreach (load_data('ptf_crm_suppliers') as $idx => $row) {
                     if (!is_array($row)) continue;
@@ -1614,15 +1690,54 @@ switch($action) {
                 }
             }
         }
+        /* ═══ v34.37.0 (SUP-UPLOAD-ORDER + SUP-ATTACH-PHONE) ═══
+           ریشهٔ «فایلم رفت و هیچ‌جا نیست»: save_attachment پیش از شاخهٔ duplicate اجرا
+           می‌شد، پس فایل واقعاً روی فضای ابری نوشته می‌شد و بعد پاسخ ok:false duplicate
+           صادر می‌شد بدون آنکه هیچ رکوردی به آن آبجکت اشاره کند — هم آبجکتِ یتیمِ
+           پولی روی آروان، هم مدرکِ گم‌شده از دید تامین‌کننده.
+           حالا پیش از هر آپلودی مشخص می‌شود که این درخواست اصلاً «مقصدی» دارد یا نه.
+           SUP-ATTACH-PHONE: گاردِ بازیابی فقط فیلد phone را می‌سنجید، در حالی که تشخیصِ
+           تکراری روی phone/ph/mob انجام می‌شود؛ پس اگر تطابق روی ph یا mob بود، دکمهٔ
+           «ارسال دوبارهٔ فایل» همیشه duplicate می‌گرفت. حالا هر سه فیلد سنجیده می‌شود. */
+        $supDupRow = is_array($dupFound['row'] ?? null) ? $dupFound['row'] : [];
+        $supReopenEligible = ($dupFound
+            && ($supDupRow['status'] ?? '') === 'rejected'
+            && !empty($supDupRow['reopen'])
+            && ($dupFound['list'] ?? '') === 'suppliers');
+        $supPhoneMatchesDup = false;
+        if ($supPhoneNorm !== '') {
+            foreach ([$supDupRow['phone'] ?? '', $supDupRow['ph'] ?? '', $supDupRow['mob'] ?? ''] as $dp) {
+                if (is_array($dp)) continue;
+                if (ptf_dedup_phone($dp) === $supPhoneNorm) { $supPhoneMatchesDup = true; break; }
+            }
+        }
+        $supRecoveryEligible = ($dupFound
+            && ($dupFound['list'] ?? '') === 'suppliers'
+            && in_array(($supDupRow['status'] ?? ''), ['pending', 'rejected'], true)
+            && empty($supDupRow['attachment'])
+            && $supPhoneMatchesDup);
+        $supWillReject = ($dupFound && !$supReopenEligible && !$supRecoveryEligible);
         $attachmentError = '';
         $attachmentDiag = null;
-        $attachment = save_attachment('attachment', 'ven', $attachmentError, $attachmentDiag);
+        $attachment = null;
+        if (!$supWillReject) {
+            $attachment = save_attachment('attachment', 'ven', $attachmentError, $attachmentDiag);
+        }
         /* v34.36.2 (SUP-UPLOAD-RCA): اگر کاربر در مرورگر فایل انتخاب کرده (کلاینت نام/حجم
            را اعلام می‌کند) ولی پیوست ذخیره نشد، «موفقیت بی‌صدا» ممنوع است — علت دقیق
            در warning و attachmentError به کاربر و CRM برمی‌گردد. */
         $supDeclFile = (trim((string)($_POST['attachment_name'] ?? '')) !== '' || (int)($_POST['attachment_size'] ?? 0) > 0);
-        if ($attachment === null && $supDeclFile && $attachmentError === '') {
+        if ($attachment === null && $supDeclFile && $attachmentError === '' && !$supWillReject) {
             $attachmentError = 'فایل انتخاب‌شده به سرور نرسید';
+        }
+        /* v34.37.0 (SUP-UPLOAD-TRACE): تا امروز تنها ردِ خطا روی خودِ رکورد می‌نشست؛
+           اگر رکورد به‌خاطر duplicate ساخته نمی‌شد هیچ ردی نمی‌ماند و پشتیبانی نمی‌توانست
+           تیکت را بازتولید کند. لاگ سروری فقط متادیتای محدودیت‌های میزبان دارد. */
+        if ($attachmentError !== '') {
+            @error_log('[PTF supplier-attach] ' . $attachmentError . ' | ' . json_encode(
+                is_array($attachmentDiag) ? $attachmentDiag : ptf_upload_limits_diag(),
+                JSON_UNESCAPED_UNICODE
+            ));
         }
         $attachmentWarning = $attachmentError ? ('پیوست ذخیره نشد: ' . $attachmentError) : '';
         $attachmentReceipt = $attachment
@@ -1630,7 +1745,7 @@ switch($action) {
             : null;
         /* v34.7.71 (SUP-RESUBMIT-001): تکمیل مدارک — رکورد ردشده با دلیل نقصان مدارک
            به‌جای ساخت رکورد تکراری، باز می‌شود و مدارک جدید جایگزین/پیوست می‌شود. */
-        if ($dupFound && ($dupFound['row']['status'] ?? '') === 'rejected' && !empty($dupFound['row']['reopen']) && $dupFound['list'] === 'suppliers') {
+        if ($supReopenEligible) {
             $suppliers = load_data('suppliers');
             $oldCode = (string)($dupFound['row']['code'] ?? $dupFound['code']);
             $suppliers[$dupFound['idx']] = [
@@ -1666,10 +1781,7 @@ switch($action) {
            سالم ذخیره شده باشد، (۲) رکورد موجود هیچ پیوستی نداشته باشد (جایگزینی/بازنویسی
            ممنوع) و (۳) شمارهٔ تماس با همان رکورد یکی باشد (اثبات هویت ساده در برابر
            سواستفاده)، پیوست به همان رکورد اضافه می‌شود — بدون ساخت رکورد تکراری. */
-        if ($dupFound && $dupFound['list'] === 'suppliers' && $attachment !== null
-            && in_array(($dupFound['row']['status'] ?? ''), ['pending', 'rejected'], true)
-            && empty($dupFound['row']['attachment'])
-            && $supPhoneNorm !== '' && ptf_dedup_phone($dupFound['row']['phone'] ?? '') === $supPhoneNorm) {
+        if ($supRecoveryEligible && $attachment !== null) {
             $suppliers = load_data('suppliers');
             $ai = (int)$dupFound['idx'];
             if (isset($suppliers[$ai]) && is_array($suppliers[$ai])) {
@@ -1690,11 +1802,23 @@ switch($action) {
             }
         }
         if ($dupFound) {
+            /* v34.37.0: اگر کاربر فایلی همراه کرده بود، صریح بگو که ذخیره نشد و چرا —
+               پیش از این فایل بی‌صدا آپلود و دور ریخته می‌شد و کاربر فکر می‌کرد رسیده. */
+            $dupMsg = 'این تامین‌کننده قبلاً با ' . $dupFound['why'] . ' در سیستم ثبت شده است' .
+                ($dupFound['co'] ? ' («' . $dupFound['co'] . '»' . ($dupFound['code'] ? ' — ' . $dupFound['code'] : '') . ')' : '') .
+                '. اگر رکورد متعلق به شماست، نیازی به ثبت مجدد نیست؛ کارشناسان ما با شما تماس می‌گیرند.';
+            if ($supDeclFile) {
+                $dupMsg .= ' ⚠️ فایل پیوست شما ذخیره نشد' .
+                    ($supRecoveryEligible ? '' : ($dupFound['list'] === 'suppliers' && !$supPhoneMatchesDup
+                        ? ' (شمارهٔ تماس این ارسال با شمارهٔ ثبت‌نام قبلی یکی نیست؛ با همان شمارهٔ قبلی دوباره تلاش کنید)'
+                        : ' (برای این رکورد از قبل مدرک ثبت شده یا در فهرست تاییدشدهٔ CRM است)')) .
+                    ' — فایل را با ذکر کد ' . ($dupFound['code'] ?: 'شرکت') . ' برای واحد سورسینگ ایمیل/واتساپ کنید.';
+            }
             echo json_encode([
                 'ok' => false, 'error' => 'duplicate',
-                'message' => 'این تامین‌کننده قبلاً با ' . $dupFound['why'] . ' در سیستم ثبت شده است' .
-                    ($dupFound['co'] ? ' («' . $dupFound['co'] . '»' . ($dupFound['code'] ? ' — ' . $dupFound['code'] : '') . ')' : '') .
-                    '. اگر رکورد متعلق به شماست، نیازی به ثبت مجدد نیست؛ کارشناسان ما با شما تماس می‌گیرند.'
+                'message' => $dupMsg,
+                'attachmentStored' => false,
+                'declaredFile' => $supDeclFile
             ], JSON_UNESCAPED_UNICODE);
             break;
         }

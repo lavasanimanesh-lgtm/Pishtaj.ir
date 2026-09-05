@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.36.4';
+const SD_SERVICE_VERSION = '34.37.1';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -2669,6 +2669,69 @@ try {
         $archive[$recycleIdx]['restoredBy'] = $user;
         $changes = [$collection => $rows, 'ptf_crm_deleted_archive' => $archive];
         $result = ['collection' => $collection, 'id' => $id, 'restored' => true, 'tombstonesNeutralized' => $neutralized, 'mode' => 'entity-command'];
+    }
+    elseif ($action === 'revoke_invoice_ref') {
+        /* ═══ v34.37.0 (INV-REF-UNDO) ═══
+           گزارش کارفرما: «ارجاع فاکتور بدون تایید ثبت می‌شود و اگر اشتباه بود هیچ راه
+           بازگشتی نیست.» تا امروز invRef فقط نوشته می‌شد؛ تنها فرمانی که می‌توانست
+           پاکش کند revoke_orphan_delete بود که با وجود پروندهٔ فعال همیشه ۴۰۹
+           می‌داد — و ارجاع اصلاً فقط از داخل پرونده ممکن است، پس آن در ساختاراً بسته بود.
+           این فرمان مستقل، فقط همان ارجاع را برمی‌گرداند و به وضعیت «برنده» و پرونده
+           دست نمی‌زند. گاردهای fail-closed:
+           ① نقش ادمین/رئیس هیئت‌مدیره
+           ② هیچ فاکتور فعالی (رسمی یا غیررسمی) روی این پیشنهاد ثبت نشده باشد
+           ③ دلیل اجباری — در ptf_crm_corrections با snapshot کامل invRef ثبت می‌شود
+           پس از موفقیت، چون invRef سیگنالِ sfStageOf است، مرحلهٔ پرونده خودبه‌خود
+           از ۸ به ۷ برمی‌گردد و دکمهٔ «ارجاع فاکتور» دوباره فعال می‌شود. */
+        sd_require_role(SD_OFFER_REPAIR_ROLES);
+        $no = sd_text($body['offerNo'] ?? '', 100);
+        $reason = sd_text($body['reason'] ?? '', 500);
+        if ($reason === '') sd_out(['ok'=>false,'error'=>'reason_required'],422);
+        $oi = -1;
+        foreach ($offers as $i => $o) {
+            if (!is_array($o) || (string)($o['no'] ?? '') !== $no) continue;
+            if ($oi >= 0) sd_out(['ok'=>false,'error'=>'duplicate_offer_no'],409);
+            $oi = $i;
+        }
+        if ($oi < 0) sd_out(['ok'=>false,'error'=>'offer_not_found'],404);
+        $offer = $offers[$oi];
+        if (empty($offer['invRef'])) sd_out(['ok'=>false,'error'=>'invoice_ref_not_found','hint'=>'این پیشنهاد ارجاع فعالی ندارد'],422);
+        /* ② هر فاکتور فعالِ متصل — رسمی یا غیررسمی — بازگشت را می‌بندد */
+        $blocking = [];
+        foreach ($invoices as $inv) {
+            if (!is_array($inv) || !sd_active($inv)) continue;
+            if ((string)($inv['offerNo'] ?? '') !== $no) continue;
+            $blocking[] = ['type'=>(!empty($inv['isUnofficial']) ? 'unofficial_invoice' : 'invoice'), 'id'=>(string)($inv['no'] ?? $inv['cd'] ?? $inv['_id'] ?? '')];
+        }
+        if ($blocking) sd_out(['ok'=>false,'error'=>'invoice_exists','dependencies'=>$blocking],409);
+        $prevRef = $offer['invRef'];
+        $corrections[] = [
+            '_id' => sd_uuid('COR'), 'entityType' => 'offer', 'entityId' => $offer['_id'] ?? $no,
+            'kind' => 'revoke_invoice_ref', 'beforeSnapshot' => ['no'=>$no, 'invRef'=>$prevRef],
+            'reason' => $reason, 'correctedBy' => $user, 'correctedAt' => sd_now()
+        ];
+        unset($offer['invRef']);
+        $offer['invRefRevokedAt'] = sd_now();
+        $offer['invRefRevokedBy'] = $user;
+        $offer['invRefRevokedReason'] = $reason;
+        $offer['invRefRevokedSnapshot'] = $prevRef;
+        $offers[$oi] = $offer;
+        /* رد پای انسانی روی خط زمانی پرونده — همان‌جا که ارجاع ثبت شده بود */
+        $caseTouched = '';
+        $fromFile = (string)($prevRef['fromFile'] ?? '');
+        foreach ($cases as $ci => $case) {
+            if (!is_array($case)) continue;
+            $isTarget = ($fromFile !== '' && ((string)($case['cd'] ?? '') === $fromFile || (string)($case['_id'] ?? '') === $fromFile));
+            if (!$isTarget && !sd_case_offer_linked($case, $offer)) continue;
+            $case['timeline'] = is_array($case['timeline'] ?? null) ? $case['timeline'] : [];
+            $case['timeline'][] = ['t'=>sd_now(), 'by'=>$user, 'tx'=>'↩️ ارجاع فاکتور رسمی لغو شد — دلیل: ' . $reason];
+            $case['updatedAtISO'] = sd_now();
+            $cases[$ci] = $case;
+            $caseTouched = (string)($case['_id'] ?? $case['cd'] ?? '');
+            break;
+        }
+        $changes = ['ptf_crm_offers'=>$offers, 'ptf_crm_deals'=>$cases, 'ptf_crm_corrections'=>$corrections];
+        $result = ['offerNo'=>$no, 'revoked'=>true, 'caseId'=>$caseTouched, 'previousRef'=>$prevRef];
     }
     else sd_out(['ok'=>false,'error'=>'unknown_action'],404);
 

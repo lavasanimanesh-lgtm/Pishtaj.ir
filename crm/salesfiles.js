@@ -391,6 +391,40 @@
 
   /* راهنمای اجرایی مرحله از همان شماره مشتق‌شده sfStageOf ساخته می‌شود؛ بنابراین UI
      یک «وضعیت دستی» دوم ایجاد نمی‌کند و همیشه دقیقاً می‌گوید کدام شاهد مرحله بعد را می‌سازد. */
+  /* ═══ v34.37.0 (INV-REF-UNDO) — دکمهٔ «لغو ارجاع فاکتور» روی کارت پرونده ═══
+     فقط وقتی دیده می‌شود که (۱) ارجاع فعال باشد، (۲) هنوز هیچ فاکتور فعالی روی همان
+     پیشنهاد ثبت نشده باشد، (۳) نقش، ادمین/رئیس هیئت‌مدیره باشد. اگر فاکتور ثبت شده
+     باشد به‌جای دکمه، دلیلِ بسته بودن مسیر نوشته می‌شود (به‌جای غیب شدن بی‌توضیح). */
+  window.sfInvRefActiveInvoice = function (offerNo) {
+    var live = [];
+    try { live = getData('ptf_crm_invoices') || []; } catch (e) { return null; }
+    for (var i = 0; i < live.length; i++) {
+      var inv = live[i];
+      if (!inv || String(inv.offerNo || '') !== String(offerNo)) continue;
+      var s = String((inv.status || inv.st) || '').toLowerCase();
+      if (['void', 'voided', 'deleted', 'superseded', 'replaced'].indexOf(s) > -1 || inv.voided) continue;
+      return inv;
+    }
+    return null;
+  };
+  window.sfInvoiceRefUndoHtml = function (r) {
+    try {
+      if (!r || !r.wonOffer) return '';
+      var o = (getData('ptf_crm_offers') || []).filter(function (x) { return x && x.no === r.wonOffer; })[0];
+      if (!o || !o.invRef) return '';
+      var blocking = window.sfInvRefActiveInvoice(r.wonOffer);
+      if (blocking) {
+        return '<div style="margin-top:7px;font-size:11px;color:#9a3412">🔒 فاکتور <b dir="ltr">' + escP(String(blocking.no || blocking.cd || '')) +
+          '</b> برای این پیشنهاد ثبت شده است؛ لغو ارجاع دیگر ممکن نیست (ابتدا فاکتور را ابطال کنید).</div>';
+      }
+      if (typeof window.ptfCanRepairOfferWin === 'function' && !window.ptfCanRepairOfferWin()) {
+        return '<div style="margin-top:7px;font-size:11px;color:#64748b">↩️ ارجاع اشتباه بود؟ لغو آن فقط توسط ادمین یا رئیس هیئت‌مدیره ممکن است.</div>';
+      }
+      return '<button class="bt bt-o" style="margin-top:7px;margin-right:6px;padding:5px 11px;font-size:11.5px;color:#b45309;border-color:#fde68a" ' +
+        'title="ارجاع را برمی‌گرداند تا بتوانید با مبنای ریالی/نرخ درست دوباره ارجاع دهید" ' +
+        'onclick="event.stopPropagation();ptfRevokeInvoiceRef(\'' + ptfOnClickArg(r.wonOffer) + '\')">↩️ لغو ارجاع فاکتور</button>';
+    } catch (e) { return ''; }
+  };
   window.sfStageGuidance = function (r) {
     var n = sfStageOf(r);
     var defs = {
@@ -694,8 +728,17 @@
      هسته برنامه‌ای قابل تست؛ خروجی {ok, why} — UI فقط wrapper.
      قفل دولایه: ① نقش ارشد ② پرونده برنده. قفل مرحله‌ای (پس از تحویل کارفرما — مرحله ۷)
      طبق تصمیم کارفرما حذف شد؛ پس از برد، ارجاع فاکتور در هر مرحله مجاز است.
-     پس از ارجاع، مرحله خودکار ۸ «در حال صدور فاکتور» می‌شود (invRef سیگنال sfStageOf است). */
-  window.sfInvoiceRefCommit = function (cd, rialBasisNo) {
+     پس از ارجاع، مرحله خودکار ۸ «در حال صدور فاکتور» می‌شود (invRef سیگنال sfStageOf است).
+
+     ═══ v34.37.0 (INV-REF-CONFIRM) ═══
+     گزارش کارفرما: «تایید کاربر اخذ نمی‌شود و با زدن دکمهٔ ارجاع سریعاً به فاکتورها
+     می‌رود.» ریشه: sfInvoiceRef مستقیم commit می‌کرد و تنها دیالوگِ روی مسیر، پرسشِ
+     «پیامک فرستاده شود؟» بود که *بعد* از ثبت قطعی می‌آمد و کاربر آن را تاییدِ ارجاع
+     می‌پنداشت. حالا منطقِ حل‌وفصل (resolve) از منطقِ نوشتن جدا شده است:
+       sfInvoiceRefPlan()   → فقط محاسبه و اعتبارسنجی، هیچ نوشتنی ندارد (قابل تست)
+       sfInvoiceRefConfirm()→ مودال تایید با خلاصهٔ کامل + تیکِ پیامک
+       sfInvoiceRefCommit() → نوشتن (قرارداد و خروجی قبلی دست‌نخورده) */
+  window.sfInvoiceRefPlan = function (cd, rialBasisNo) {
     var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
     if (!r || !r.wonOffer) return { ok: false, why: 'nofile' };
     if (typeof isSenior === 'function' && !isSenior()) return { ok: false, why: 'role' };
@@ -725,7 +768,27 @@
     var rialTotal = comp ? (comp.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : fxTotal;
     /* v34.31.0: نرخ = نرخ صریح ابزار تبدیل؛ در نبود آن نرخ برگرفته از جمع دو سند */
     var _ri = comp ? ((typeof window.sfInvoiceRialRateOf === 'function') ? window.sfInvoiceRialRateOf(comp, fxTotal, rialTotal) : { rate: comp.fxConvert ? (+comp.fxConvert.rate || 0) : 0, derived: false }) : { rate: 0, derived: false };
-    var rialRate = _ri.rate, rialRateDerived = !!(_ri.derived && rialRate > 0);
+    return {
+      ok: true,
+      caseCd: cd, caseNo: r.inqNo || cd, buyerCo: r.buyerCo || '',
+      offerNo: o.no, currency: o.currency || 'IRR', isFx: isFx, totalFx: fxTotal,
+      rialBasis: rialBasis, rialTotal: rialTotal,
+      rialRate: _ri.rate, rialRateDerived: !!(_ri.derived && _ri.rate > 0),
+      rialBasisKind: compKind, hasCompanion: !!comp
+    };
+  };
+  window.sfInvoiceRefCommit = function (cd, rialBasisNo) {
+    var plan = window.sfInvoiceRefPlan(cd, rialBasisNo);
+    if (!plan.ok) return plan;
+    var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
+    var offers = getData('ptf_crm_offers');
+    var o = offers.filter(function (x) { return x.no === r.wonOffer; })[0];
+    if (!o) return { ok: false, why: 'nooffer' };
+    if (o.invRef) return { ok: false, why: 'already' };
+    var comp = plan.hasCompanion ? offers.filter(function (x) { return x && x.no === plan.rialBasis; })[0] : null;
+    var compKind = plan.rialBasisKind, isFx = plan.isFx;
+    var rialBasis = plan.rialBasis, rialTotal = plan.rialTotal;
+    var rialRate = plan.rialRate, rialRateDerived = plan.rialRateDerived;
     /* AC3: سند مالی ضمیمه ارجاع = snapshot قطعی برد، نه پیشنهاد زندهٔ قابل‌تغییر */
     if (typeof sfAwardEnsure === 'function') sfAwardEnsure(r);
     /* v34.31.0: ریال‌بِیزیس‌کایند = صریح/همراه(ابزار تبدیل)/ثبت‌شدهٔ مستقل؛ ریال‌ریت‌دِرایود = نرخ
@@ -743,11 +806,13 @@
     }
     return { ok: true };
   };
-  /* v34.7.76 (INV-RIAL-BASIS): موفقیت ارجاع — پیامک/توست/render (برای مسیر عادی و پس از ساخت ریالی) */
-  window.sfInvoiceRefFinish = function (cd) {
+  /* v34.7.76 (INV-RIAL-BASIS): موفقیت ارجاع — پیامک/توست/render (برای مسیر عادی و پس از ساخت ریالی)
+     v34.37.0: پرسشِ پیامک از اینجا برداشته شد. آن confirm بعد از ثبتِ قطعی می‌آمد و
+     کاربر آن را «تایید ارجاع» می‌فهمید. تصمیم پیامک حالا داخل مودال تایید گرفته
+     می‌شود و به‌صورت آرگومان صریح به اینجا می‌رسد. */
+  window.sfInvoiceRefFinish = function (cd, sendSms) {
     if (typeof ptfToast === 'function') ptfToast('🧾 برای حسابدار ارجاع شد — مرحله پرونده: در حال صدور فاکتور', 'ok');
-    /* پیامک اختیاری به حسابدار (الگوی US-150) */
-    if (typeof smsSendSingle === 'function' && confirm('📱 پیامک اطلاع‌رسانی هم برای حسابدار ارسال شود؟')) {
+    if (sendSms && typeof smsSendSingle === 'function') {
       var accs = getData('ptf_crm_users').filter(function (u) { return u.roleId === 'accountant' && u.mobile; });
       if (!accs.length) alert('⚠️ کاربری با نقش حسابدار و شماره موبایل ثبت نشده');
       accs.forEach(function (u) {
@@ -756,26 +821,68 @@
     }
     if (typeof renderDeals === 'function') renderDeals();
   };
+  function sfInvRefWhyFa(why) {
+    return ({
+      role: '⛔ فقط نقش‌های ارشد می‌توانند ارجاع فاکتور بدهند.',
+      already: 'ℹ️ این پرونده قبلا برای فاکتور ارجاع شده است.',
+      nofile: '⛔ پرونده برنده یافت نشد.', nooffer: '⛔ پیشنهاد برنده پرونده یافت نشد.'
+    })[why] || '⛔ ارجاع ممکن نیست';
+  }
+  /* v34.37.0 (INV-REF-CONFIRM): مودال تایید — خلاصهٔ کامل آنچه ثبت خواهد شد،
+     هشدار صریح دربارهٔ بازگشت‌پذیری، و تصمیم پیامک در همین‌جا (نه بعد از ثبت). */
+  window.sfInvoiceRefConfirm = function (cd, rialBasisNo) {
+    var plan = window.sfInvoiceRefPlan(cd, rialBasisNo);
+    if (!plan.ok) { alert(sfInvRefWhyFa(plan.why)); return; }
+    var fa = function (n) { return (+n || 0).toLocaleString('fa-IR'); };
+    var row = function (lb, val) {
+      return '<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed var(--brd,#e2e8f0);font-size:12.5px">' +
+        '<span style="color:#64748b;min-width:150px">' + lb + '</span><span style="flex:1;font-weight:700">' + val + '</span></div>';
+    };
+    var basisLb = plan.rialBasisKind === 'registered' ? 'پیشنهاد ریالی ثبت‌شدهٔ پرونده'
+      : plan.rialBasisKind === 'companion' ? 'نسخهٔ ریالی همراه (ابزار تبدیل)'
+      : plan.rialBasisKind === 'explicit' ? 'انتخاب کاربر' : 'خود پیشنهاد (ریالی)';
+    var html = '<div class="md-b" id="sfInvRefConfirmDlg" style="display:grid;z-index:2650" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:600px;max-height:92vh;overflow:auto">' +
+      '<h3>🧾 تایید ارجاع فاکتور رسمی به حسابدار</h3>' +
+      '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px 12px;font-size:12px;color:#9a3412;margin-bottom:10px">' +
+      '⚠️ پس از ارجاع، پرونده در کارتابل حسابدار قرار می‌گیرد و مرحلهٔ آن به «در حال صدور فاکتور» می‌رود. ' +
+      '<b>لغو این ارجاع فقط تا پیش از ثبت فاکتور و فقط توسط ادمین/رئیس هیئت‌مدیره ممکن است.</b> اعداد زیر را کنترل کنید.</div>' +
+      '<div style="background:#f8fafc;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 12px;margin-bottom:10px">' +
+      row('پرونده', escP(plan.caseNo)) +
+      row('خریدار', escP(plan.buyerCo || '—')) +
+      row('پیشنهاد برنده', '<span dir="ltr">' + escP(plan.offerNo) + '</span>' + (plan.isFx ? ' <span style="color:#0e7490">(' + escP(plan.currency) + ')</span>' : '')) +
+      (plan.isFx ? row('مبلغ ارزی', '<span dir="ltr">' + (+plan.totalFx || 0).toLocaleString('en-US') + ' ' + escP(plan.currency) + '</span>') : '') +
+      row('مبنای ریالی صدور فاکتور', '<span dir="ltr">' + escP(plan.rialBasis) + '</span> <small style="color:#64748b;font-weight:400">— ' + basisLb + '</small>') +
+      (plan.rialRate ? row('نرخ تسعیر', fa(plan.rialRate) + ' ریال' + (plan.rialRateDerived ? ' <small style="color:#b45309;font-weight:400">(برگرفته از جمع سند ریالی)</small>' : '')) : '') +
+      row('جمع ریالی', '<span style="color:#065f46">' + fa(plan.rialTotal) + ' ریال</span>') +
+      '</div>' +
+      '<label style="display:flex;gap:8px;align-items:center;font-size:12.5px;cursor:pointer;margin-bottom:12px">' +
+      '<input type="checkbox" id="sfInvRefSms"> 📱 پیامک اطلاع‌رسانی هم برای حسابدار ارسال شود</label>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button class="bt bt-o" onclick="document.getElementById(\'sfInvRefConfirmDlg\').remove()">انصراف</button>' +
+      '<button class="bt" onclick="sfInvoiceRefDo(\'' + ptfOnClickArg(cd) + '\',\'' + ptfOnClickArg(rialBasisNo || '') + '\')">🧾 تایید و ارجاع به حسابدار</button></div>' +
+      '</div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+  };
+  /* اجرای واقعی پس از تایید کاربر در مودال */
+  window.sfInvoiceRefDo = function (cd, rialBasisNo) {
+    var smsEl = document.getElementById('sfInvRefSms');
+    var sendSms = !!(smsEl && smsEl.checked);
+    var dlg = document.getElementById('sfInvRefConfirmDlg');
+    if (dlg) dlg.remove();
+    var res = sfInvoiceRefCommit(cd, rialBasisNo || '');
+    if (!res.ok) { alert(sfInvRefWhyFa(res.why)); return; }
+    sfInvoiceRefFinish(cd, sendSms);
+  };
   window.sfInvoiceRef = function (cd) {
-    var res = sfInvoiceRefCommit(cd);
+    var res = window.sfInvoiceRefPlan(cd);
     if (!res.ok) {
-      if (res.why === 'need_rial') {
-        sfInvoiceRefRialPrompt(cd, res.offerNo, res.currency, res.totalFx);
-        return;
-      }
-      if (res.why === 'pick_rial') {
-        sfInvoiceRefPickRial(cd, res);
-        return;
-      }
-      var msgs = {
-        role: '⛔ فقط نقش‌های ارشد می‌توانند ارجاع فاکتور بدهند.',
-        already: 'ℹ️ این پرونده قبلا برای فاکتور ارجاع شده است.',
-        nofile: '⛔ پرونده برنده یافت نشد.', nooffer: '⛔ پیشنهاد برنده پرونده یافت نشد.'
-      };
-      alert(msgs[res.why] || '⛔ ارجاع ممکن نیست');
+      if (res.why === 'need_rial') { sfInvoiceRefRialPrompt(cd, res.offerNo, res.currency, res.totalFx); return; }
+      if (res.why === 'pick_rial') { sfInvoiceRefPickRial(cd, res); return; }
+      alert(sfInvRefWhyFa(res.why));
       return;
     }
-    sfInvoiceRefFinish(cd);
+    /* v34.37.0: هیچ نوشتنی تا وقتی کاربر در مودال تایید نکند */
+    window.sfInvoiceRefConfirm(cd);
   };
   /* v34.31.0 (FX-RIAL-REF): چند پیشنهاد ریالی ثبت‌شده در پرونده — کاربر یکی را
      به‌عنوان مبنای صدور فاکتور انتخاب می‌کند؛ نرخ تسعیر از جمع همان سند برگرفته می‌شود. */
@@ -801,9 +908,9 @@
     if (!no) { alert('یکی از پیشنهادهای ریالی را انتخاب کنید'); return; }
     var dlg = document.getElementById('sfIrPickDlg');
     if (dlg) dlg.remove();
-    var res = sfInvoiceRefCommit(cd, no);
-    if (!res.ok) { alert('ارجاع با سند ریالی انتخابی ناموفق بود: ' + (res.why || '')); return; }
-    sfInvoiceRefFinish(cd);
+    /* v34.37.0 (INV-REF-CONFIRM): انتخاب سند ریالی «تاییدِ ارجاع» نیست — مودال تایید
+       با همان سند انتخاب‌شده باز می‌شود تا کاربر نرخ و جمع را هم ببیند. */
+    window.sfInvoiceRefConfirm(cd, no);
   };
   /* v34.7.76 (INV-RIAL-BASIS): ارجاع پیشنهاد ارزیِ بدون نسخهٔ ریالی — ابتدا نرخ تسعیر گرفته
      می‌شود، نسخهٔ ریالی ساخته و سپس همان به حسابدار ارجاع می‌شود. */
@@ -843,9 +950,9 @@
     if (typeof window.ptfOfferRialConvertCommit !== 'function') { alert('ماژول تبدیل ارزی بارگذاری نشده است'); return; }
     window.ptfOfferRialConvertCommit(offerNo, rate, dateISO, function (res) {
       if (!res || !res.ok) { alert(typeof window.ptfOfferRialWhyFa === 'function' ? window.ptfOfferRialWhyFa(res && res.why) : ('ساخت نسخهٔ ریالی ناموفق بود')); return; }
-      var res2 = sfInvoiceRefCommit(cd, res.no);
-      if (!res2.ok) { alert('ارجاع پس از ساخت نسخهٔ ریالی ناموفق بود: ' + (res2.why || '')); return; }
-      sfInvoiceRefFinish(cd);
+      /* v34.37.0 (INV-REF-CONFIRM): نسخهٔ ریالی ساخته شد — ولی ارجاع هنوز ثبت نشده؛
+         کاربر باید نرخ و جمع نهایی را در مودال تایید ببیند و تایید کند. */
+      window.sfInvoiceRefConfirm(cd, res.no);
     });
   };
 
@@ -1232,7 +1339,7 @@
           var on = stg.id <= _stg;
           return '<span title="' + escP(stg.lb) + '" style="flex:1;min-width:26px;text-align:center;border-radius:6px;padding:3px 2px;font-size:10px;font-weight:800;' + (stg.id === _stg ? 'background:#0e7490;color:#fff' : on ? 'background:#cffafe;color:#155e75' : 'background:#f1f5f9;color:#94a3b8') + '">' + stg.id + '</span>';
         }).join('') + '</div>' +
-        (_guide ? '<div style="background:#fff;border:1px solid #7dd3fc;border-radius:10px;padding:8px 10px;margin-top:8px;color:#0c4a6e"><b>🎯 کار لازم برای مرحله بعد' + (_nextLb ? ' — ' + escP(_nextLb) : '') + ':</b><div style="margin-top:3px;font-size:12px">' + escP(_guide.task) + '</div>' + (_guide.evidence ? '<small style="display:block;margin-top:3px;color:#64748b">شاهد لازم: ' + escP(_guide.evidence) + '</small>' : '') + (_guide.button && _guide.onclick ? '<button class="bt" style="margin-top:7px;padding:5px 11px;font-size:11.5px" onclick="event.stopPropagation();' + _guide.onclick + '">' + _guide.button + '</button>' : '') + '</div>' : '') +
+        (_guide ? '<div style="background:#fff;border:1px solid #7dd3fc;border-radius:10px;padding:8px 10px;margin-top:8px;color:#0c4a6e"><b>🎯 کار لازم برای مرحله بعد' + (_nextLb ? ' — ' + escP(_nextLb) : '') + ':</b><div style="margin-top:3px;font-size:12px">' + escP(_guide.task) + '</div>' + (_guide.evidence ? '<small style="display:block;margin-top:3px;color:#64748b">شاهد لازم: ' + escP(_guide.evidence) + '</small>' : '') + (_guide.button && _guide.onclick ? '<button class="bt" style="margin-top:7px;padding:5px 11px;font-size:11.5px" onclick="event.stopPropagation();' + _guide.onclick + '">' + _guide.button + '</button>' : '') + (typeof window.sfInvoiceRefUndoHtml === 'function' ? window.sfInvoiceRefUndoHtml(r) : '') + '</div>' : '') +
         '<div style="color:#64748b;margin-top:6px">مرحله از شواهد واقعی محاسبه می‌شود. اصلاح/حذف شاهد، مرحله را دوباره محاسبه می‌کند؛ وجود شاهد تکمیل‌شدهٔ بعدی مانع عقب‌گرد است.</div></div>';
     }
     h += '</div><div data-sf-pane="docs" style="display:' + (pane === 'docs' ? '' : 'none') + '">';

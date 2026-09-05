@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester563 — v34.36.4: نام دوگانهٔ مشتری در فهرست‌ها (فارسی + انگلیسی زیر هم)
+/* tester563 — v34.37.1: نام دوگانهٔ مشتری در فهرست‌ها (فارسی + انگلیسی زیر هم)
    زمینه: buyerCo در پیشنهادات/پرونده‌ها تاریخی‌اً نام انگلیسی (coEn) را نگه می‌دارد
    → فهرست پیشنهادات/فاکتورها/پرونده‌های فروش فقط انگلیسی بود.
    ۱) هلپرهای مشترک در index.html (FaByCd/FaByEn/NamePair/CellHtml)
@@ -27,7 +27,12 @@ T('HLP: تکرار نمی‌شود اگر en === fa', ih.indexOf('if (e2 && e2 !
 /* ═══ ۲) اعمال در فهرست‌ها ═══ */
 T('OFF: ستون خریدار از NamePair/CellHtml (فارسی + انگلیسی زیر هم + cd)', offers.indexOf('ptfCustNamePair(o.buyerCd, o.buyerCo)') > -1 && offers.indexOf('ptfCustCellHtml(p.fa, p.en, o.buyerCd)') > -1);
 T('OFF: نمایش انگلیسیِ تنهاِ قدیمی حذف شد', offers.indexOf("escP(o.buyerCo || '-') + (function(){ var en") === -1);
-T('INV: پنل فاکتور رسمی — نام دوگانه در سرتیتر هر پیشنهاد', inv.indexOf('ptfCustNamePair(o.buyerCd,o.buyerCo)') > -1 && inv.indexOf("dir=\"ltr\">'+esc(p.en)+'</div>'") > -1 && inv.indexOf('esc(o.buyerCo||' + String.fromCharCode(39,39) + ')') === -1);
+/* v34.37.1: پنل ردیفی — نام فارسی روی ردیف، نام انگلیسی داخل کشو (هر دو از همان
+   ptfCustNamePair). پین به قرارداد تبدیل شد، نه به فاصله‌گذاری و تگ خاص. */
+T('INV: پنل فاکتور رسمی — نام دوگانه در سرتیتر هر پیشنهاد',
+  /ptfCustNamePair\(o\.buyerCd,\s*o\.buyerCo\)/.test(inv) &&
+  /dir="ltr"[\s\S]{0,60}esc\((?:p|pair)\.en\)/.test(inv) &&
+  inv.indexOf('esc(o.buyerCo||' + String.fromCharCode(39,39) + ')') === -1);
 T('RB: کارتابل ارجاع فاکتور (rbac) — نام دوگانه', rb.indexOf('ptfCustNamePair(o.buyerCd, o.buyerCo)') > -1 && rb.indexOf("escP(o.buyerCo || '-') + (oEn ?") === -1);
 T('SF: پرونده‌های فروش — نام دوگانه بدون cd (تطبیق نام)', sf.indexOf("ptfCustNamePair('', r.buyerCo)") > -1 && sf.indexOf('ptfCustCellHtml(p.fa, p.en, \'\')') > -1);
 
@@ -36,7 +41,7 @@ T('SRCH: پیشنهادات — نام فارسی در رشتهٔ جستجو', o
 T('SRCH: پرونده‌ها — نام فارسی در رشتهٔ جستجو', sf.indexOf('ptfCustFaByEn(r.buyerCo)') > -1);
 
 /* ═══ بهداشت ═══ */
-T('HYG: fallback امن اگر هلپرها نباشند (هر چهار نقطه)', offers.indexOf('{ fa: o.buyerCo ||') > -1 && sf.indexOf("{ fa: r.buyerCo || '-'") > -1 && inv.indexOf("{fa:o.buyerCo||''") > -1);
+T('HYG: fallback امن اگر هلپرها نباشند (هر چهار نقطه)', offers.indexOf('{ fa: o.buyerCo ||') > -1 && sf.indexOf("{ fa: r.buyerCo || '-'") > -1 && /\{\s*fa:\s*o\.buyerCo\s*\|\|\s*''/.test(inv));
 T('HYG: بلوک‌های جدید بدون LS مستقیم (A10)', [offers, inv, sf, rb].every(function (t) {
   var i = 0, clean = true;
   while ((i = t.indexOf('ptfCustNamePair', i + 1)) > -1) { if (/localStorage\s*\./.test(t.slice(i, i + 400))) clean = false; }
