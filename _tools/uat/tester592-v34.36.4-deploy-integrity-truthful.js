@@ -396,6 +396,69 @@ T('ضدواگرایی: هر دو workflow نشانهٔ fallback پایان‌خ�
   (st.match(/tr -d '\\r'/g) || []).length >= 2 && (pr.match(/tr -d '\\r'/g) || []).length >= 2);
 
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (eClean) {}
+/* ═══ v34.37.2 (INTEGRITY-INDENT) — رگرسیونِ «گیتِ استقرار بی‌قیدوشرط قرمز» ═══
+   یافته: `FILES` یک رشتهٔ چندخطیِ داخل YAML است، پس همهٔ خطها جز اولی با فاصله‌های
+   تورفتگیِ YAML شروع می‌شوند. حلقه با `IFS= read -r f` آن فاصله‌ها را حفظ می‌کرد و
+   `[ ! -f "$f" ]` برای ۴ فایل از ۵ فایل صادق می‌شد ⇒ «در چک‌اوتِ این ران نیست» و
+   fail=1 در *هر* اجرا. نتیجه: استقرار استیجینگ و پروداکشن ماه‌ها قرمز بود — حتی
+   روی main — و علتش هیچ ربطی به خودِ استقرار نداشت.
+   دقیقاً همان تلهٔ `FILES` که کامنتِ بالای همان بلوک دربارهٔ شکل دیگرش هشدار داده بود. */
+(function () {
+  [["staging", st], ["production", pr]].forEach(function (pair) {
+    var name = pair[0], src = pair[1];
+    /* هر حلقه‌ای که از <<< "$FILES" تغذیه می‌شود باید تورفتگی را trim کند (بدون IFS=) */
+    var blocks = src.split('done <<< "$FILES"');
+    blocks.pop();
+    blocks.forEach(function (b, i) {
+      var loop = b.lastIndexOf('read -r f; do');
+      var ls = b.lastIndexOf('\n', loop) + 1;
+      var head = b.slice(ls, b.indexOf('\n', loop));
+      T('INDENT/' + name + '#' + (i + 1) + ': حلقهٔ $FILES تورفتگی YAML را trim می‌کند (IFS= ندارد)',
+        /^while read -r f; do/.test(head.trim()), head.trim());
+    });
+    /* حلقه‌هایی که از فایل می‌خوانند باید IFS= را نگه دارند (نام فایل دست‌نخورده) */
+    T('INDENT/' + name + ': حلقه‌های فایل‌محور همچنان IFS= دارند (بدون رگرسیون معکوس)',
+      src.indexOf('done < /tmp/upload.txt') === -1 || /while IFS= read -r f; do[\s\S]*?done < \/tmp\/upload\.txt/.test(src));
+  });
+  /* اجرای واقعی: با curl ساختگیِ همیشه‌ناموفق هم نباید حتی یک «در چک‌اوت نیست» بدهد */
+  ['staging', 'production'].forEach(function (which) {
+    var file = which === 'staging' ? 'deploy-staging.yml' : 'deploy-production.yml';
+    var src = which === 'staging' ? st : pr;
+    var i = src.indexOf('- name: Post-deploy integrity check');
+    if (i < 0) { T('INDENT/' + which + ': بلوک صحت پیدا شد', false); return; }
+    var blk = src.slice(i, src.indexOf('\n      - name:', i + 10));
+    var run = blk.slice(blk.indexOf('run: |') + 7);
+    var stop = run.indexOf('done <<< "$FILES"');
+    /* curl را با تابع پوسته سایه می‌کنیم: هیچ شبکه‌ای لمس نمی‌شود و اجرا آنی است.
+       (پروداکشن rb_fetch ندارد و مستقیم curl صدا می‌زند — سایه‌زدنِ curl هر دو را می‌گیرد.) */
+    run = 'curl(){ for a in "$@"; do [ "$a" = "-o" ] && o=1 && continue; [ -n "$o" ] && : > "$a" && o=; done; return 7; }\n' +
+      'sleep(){ :; }\n' + /* پروداکشن پیش از حلقه sleep 180 دارد (پنجرهٔ کهنگیِ کش هاست) */
+      run.slice(0, stop + 'done <<< "$FILES"'.length).replace(/\$\{\{[^}]*\}\}/g, 'X');
+    /* برشِ لایهٔ ۱ ممکن است داخل یک حلقهٔ بیرونی باشد (پروداکشن: for i in 1..12).
+       تا وقتی bash -n سالم نشده، `done` می‌بندیم — حداکثر ۴ لایه. */
+    var tmp = path.join(require('os').tmpdir(), 'ptf-indent-' + which + '.sh');
+    var closed = run;
+    for (var k = 0; k <= 4; k++) {
+      fs.writeFileSync(tmp, closed);
+      if (spawnSync('bash', ['-n', tmp], { encoding: 'utf8' }).status === 0) break;
+      closed = run + '\n' + Array(k + 2).join('done\n');
+    }
+    T('INDENT/' + which + ': برشِ لایهٔ ۱ از نظر نحوی سالم است (هارنس معتبر)',
+      spawnSync('bash', ['-n', tmp], { encoding: 'utf8' }).status === 0);
+    var r = spawnSync('bash', [tmp], { encoding: 'utf8', timeout: 60000 });
+    var out = String(r.stdout || '') + String(r.stderr || '');
+    T('INDENT/' + which + ': اجرای واقعیِ لایهٔ ۱ هیچ «در چک‌اوتِ این ران نیست» نمی‌دهد',
+      out.indexOf('در چک‌اوتِ این ران نیست') === -1,
+      (out.match(/⛔[^\n]*/g) || []).slice(0, 2).join(' | '));
+    /* هر فایلِ فهرست باید از گاردِ «در چک‌اوت نیست» عبور کرده و به مرحلهٔ قضاوت برسد.
+       استیجینگ «تلاش n:» چاپ می‌کند و پروداکشن مستقیم قضاوت ≠/⚠ — هر دو یعنی رسیده. */
+    var reached = (out.match(/[≠⚠✓] +crm\//g) || []).length;
+    var listed = ((src.slice(src.indexOf('FILES="', i)).match(/^[^\n]*\n(?:[^\n]*\n)*?[^\n]*"\n/) || [''])[0].match(/crm\/[A-Za-z0-9._-]+/g) || []).length;
+    T('INDENT/' + which + ': همهٔ ' + listed + ' فایلِ فهرست از گارد عبور و وارد قضاوت می‌شوند',
+      listed >= 5 && reached >= listed, 'رسیده: ' + reached + ' از ' + listed);
+  });
+})();
+
 console.log('\n— tester592 (v34.37.1: INTEGRITY-TRUTHFUL — گیتِ صحتِ استقرار، اجراشده با curl ساختگی) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
