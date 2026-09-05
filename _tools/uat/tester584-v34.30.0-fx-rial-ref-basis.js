@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester584 — v34.37.5 (FX-RIAL-REF): «پرونده‌ای که پیشنهاد برنده‌اش ارزی است و یک
+/* tester584 — v34.37.6 (FX-RIAL-REF): «پرونده‌ای که پیشنهاد برنده‌اش ارزی است و یک
  * پیشنهاد ریالی هم قبلاً برایش ثبت شده، هنگام ارجاع برای فاکتور باید همان نسخهٔ
  * ریالیِ ثبت‌شده را به بخش فاکتورها بفرستد تا حسابدار فاکتور ریالی را با نرخ
  * تسعیر درست بزند.»
@@ -34,7 +34,7 @@ T('SRC: هستهٔ تشخیص (sfInvoiceRialResolve + sfInvoiceRialRateOf) در 
 var resolveSlice = salesSrc.slice(i0, i1 + '/*--SF-FXRIALREF-END--*/'.length);
 
 /* ── برش خود تابع ارجاع (از تعریف تا کامیتِ موفقیتِ مسیر عادی) ──
-   v34.37.5 (INV-REF-CONFIRM): منطق حل‌وفصل به sfInvoiceRefPlan منتقل شد و
+   v34.37.6 (INV-REF-CONFIRM): منطق حل‌وفصل به sfInvoiceRefPlan منتقل شد و
    sfInvoiceRefCommit آن را صدا می‌زند؛ برش از همان‌جا شروع می‌شود تا هر دو داخل
    هارنس باشند. رفتار و خروجی commit عیناً همان است. */
 var c0 = salesSrc.indexOf('window.sfInvoiceRefPlan');
@@ -167,7 +167,7 @@ function boot(deal, offers) {
 (function () {
   T('WIRE: sfInvoiceRef مسیر پیک‌ریال را به دیالوگ انتخاب می‌فرستد', /if \(res\.why === 'pick_rial'\) \{\s*sfInvoiceRefPickRial\(cd, res\);/.test(salesSrc));
   T('WIRE: دیالوگ انتخاب نامزد + تأیید (sfInvoiceRefPickRial/Do) تعریف شده', salesSrc.indexOf('window.sfInvoiceRefPickRial = function') > -1 && salesSrc.indexOf('window.sfInvoiceRefPickRialDo = function') > -1);
-  /* v34.37.5: انتخاب سند ریالی «تاییدِ ارجاع» نیست — مودال تایید با همان شماره باز
+  /* v34.37.6: انتخاب سند ریالی «تاییدِ ارجاع» نیست — مودال تایید با همان شماره باز
    می‌شود و نوشتن فقط پس از تایید صریح کاربر انجام می‌گیرد. */
 T('WIRE: تأیید دیالوگ انتخاب، مودال تایید را با شمارهٔ انتخابی باز می‌کند', /sfInvoiceRefPickRialDo[\s\S]{0,900}sfInvoiceRefConfirm\(cd, no\)/.test(salesSrc));
   T('WIRE: اینو‌ریف فیلدهای ریال‌بِیزیس‌کایند و ریال‌ریت‌دِرایود را ذخیره می‌کند', salesSrc.indexOf('rialRateDerived: rialRateDerived, rialBasisKind: compKind') > -1);

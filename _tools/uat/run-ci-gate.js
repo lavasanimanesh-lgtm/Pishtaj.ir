@@ -262,6 +262,7 @@ var SUITE = [
   { g: 'UI فاکتورها (37.3): «لغو ارجاع» باید ردیف را بلافاصله از ثبت‌شده/ارجاع‌شده پاک کند (اعمال محلی + بازگشت در رد) + تراز ستون‌های پنل با قالب مشترک', f: '_tools/uat/tester600-v34.37.3-invoice-panel-undo-immediate.js' },
   { g: 'UI فاکتورها (37.4): ریشۀ «فهرست خالی فاکتورها با اکانت رییس» — میان‌بر allow-override در perms.js باید پنلِ لحظۀ کلیک را اجرا کند (late bind، بی‌خبر از ترتیب defer) و رندر بازنشستۀ rbac.js نباید روی «ارجاع بی‌فاکتور» با TypeError پنل را بیندازد', f: '_tools/uat/tester601-v34.37.4-perm-allow-late-bind.js' },
   { g: 'سایت/SEO (37.5): «ثبت نقشهٔ سایت از CRM» — نوشتنِ نقشه باید صادق باشد (وضعیت sitemap در پاسخ انتشار، هشدار پنل، cms_log خطا)، راهنمای GSC باید Full بگوید (نه Restricted)، و api/.htaccess باید gsc.php را در allowlist داشته باشد', f: '_tools/uat/tester602-v34.37.5-sitemap-honest.js' },
+  { g: 'CRM/مالی (37.6): همپوشانی ستون‌های پنل فاکتورها — clip در قالب مشترک، shrink مجاز، لبهٔ همسان سربرگ، tabular-nums مبالغ', f: '_tools/uat/tester603-v34.37.6-invoice-panel-clip.js' },
   { g: 'سایت/ثبت‌نام تامین‌کننده (37.0): پایان آبجکت یتیم — تکراری پیش از آپلود بررسی می‌شود + بازیابی پیوست روی phone/ph/mob + انتخاب بهترین رکورد + هم‌ترازی accept با allowlist', f: '_tools/uat/tester597-v34.37.0-supplier-attach-order.js' },
   { g: 'UX (29.3): ریشه‌کنی واقعی تب‌های خالی CMS — برخورد کلاس pn/tb با CSS سراسری (سنجش computed visibility)', f: '_tools/uat/tester578-v34.29.7-cms-css-visibility.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },

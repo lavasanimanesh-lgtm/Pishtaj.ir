@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.37.5 — ارجاع سند برد به حسابدار + افزودن سند فاکتور/مودیان پس از ثبت.
+/* v34.37.6 — ارجاع سند برد به حسابدار + افزودن سند فاکتور/مودیان پس از ثبت.
    درخواست: ① هنگام ارجاع فاکتور از پرونده، سند برد هم در دسترس حسابدار باشد تا بر
    اساس آن فاکتور بزند. ② پس از ثبت فاکتور، امکان افزودن سند فاکتور حسابداری یا سند
    سامانه مودیان وجود داشته باشد.
@@ -20,12 +20,12 @@ var sf = read('crm/salesfiles.js');
 var api = read('api/sales-domain.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.37.5', ver.crm_version === 'v34.37.5', ver.crm_version);
-T('official-invoice-v2.js cache-bust 34.37.5', /official-invoice-v2\.js\?v=34\.37\.5/.test(idx));
+T('VERSION.json = v34.37.6', ver.crm_version === 'v34.37.6', ver.crm_version);
+T('official-invoice-v2.js cache-bust 34.37.6', /official-invoice-v2\.js\?v=34\.37\.6/.test(idx));
 
 /* ① ارجاع سند برد به حسابدار */
 T('دکمهٔ سند برد در پنل فاکتورها', inv.indexOf('🏆 سند برد (PDF)') > -1);
-/* v34.37.5: پنل فاکتورها از فرم مینیفای به فرم خوانا بازنویسی شد (نمایش ردیفی).
+/* v34.37.6: پنل فاکتورها از فرم مینیفای به فرم خوانا بازنویسی شد (نمایش ردیفی).
    پین‌ها به «قرارداد» تبدیل شدند نه «فاصله‌گذاری»، تا رفتار قفل بماند و قالب آزاد باشد. */
 T('فراخوانی sfAwardPrint با fromFile', /sfAwardPrint\([\s\S]{0,40}arg\(o\.invRef\.fromFile\)/.test(inv));
 T('شرط o.invRef.fromFile', /o\.invRef\s*&&\s*o\.invRef\.fromFile/.test(inv));
@@ -51,6 +51,6 @@ T('correction برای رد ممیزی', /invoice_attachment_add[\s\S]*?kind'\s*
 
 T('tester477 در گیت CI', gate.indexOf('tester477-v34.7.75-invoice-award-ref-and-attach-later.js') > -1);
 
-console.log('\n— tester477 (v34.37.5: ارجاع سند برد + افزودن سند فاکتور/مودیان پس از ثبت) —');
+console.log('\n— tester477 (v34.37.6: ارجاع سند برد + افزودن سند فاکتور/مودیان پس از ثبت) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

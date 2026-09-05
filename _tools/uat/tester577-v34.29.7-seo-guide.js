@@ -12,11 +12,11 @@ T('GUIDE: همهٔ دکمه‌های راهنما به توابع موجود ا�
 T('GUIDE: چک‌لیست زندهٔ ۴گانه (اتصال GSC + ایراد عنوان/توضیح + خارج از نقشه + ایندکس‌نشده)', cms.indexOf('seoGuideGsc') > -1 && cms.indexOf('صفحات با ایراد عنوان/توضیح') > -1 && cms.indexOf('صفحات خارج از نقشهٔ سایت') > -1 && cms.indexOf('صفحات ایندکس‌نشده') > -1);
 T('GUIDE: ۶ گام + نکن‌ها + برنامهٔ ۱۵ دقیقه‌ای + واژه‌نامه', ['راهنمای سئو برای همه', 'این کارها را نکنید', 'برنامهٔ ۱۵ دقیقه‌ای هفتگی', 'واژه‌نامهٔ کوچک'].every(function (x) { return cms.indexOf(x) > -1; }));
 T('GUIDE: زبان غیرفنی — واژه‌نامه ایندکس/کرال/CTR/slugin توضیح ساده دارد', cms.indexOf('<b>ایندکس (Index):</b>') > -1 && cms.indexOf('<b>CTR:</b>') > -1);
-T('GUIDE: toggle ماندگار از لایهٔ داده است (ptf_seo_guide_pref — بدون storage مستقیم طبق گارد A10)', cms.indexOf("setData('ptf_seo_guide_pref'") > -1 && cms.indexOf('cmsSeoGuideToggle') > -1); /* v34.37.5 (UX-R4): پیش‌فرض بسته */
+T('GUIDE: toggle ماندگار از لایهٔ داده است (ptf_seo_guide_pref — بدون storage مستقیم طبق گارد A10)', cms.indexOf("setData('ptf_seo_guide_pref'") > -1 && cms.indexOf('cmsSeoGuideToggle') > -1); /* v34.37.6 (UX-R4): پیش‌فرض بسته */
 T('GUIDE: probe اتصال GSC پس از رندر صدا زده می‌شود', cms.indexOf('cmsSeoGuideGscProbe(); /* v34.29.2') > -1);
 
 T('BEHAV: رندر جعبه با دادهٔ نمونه — چیپ‌های وضعیت و دکمه‌ها', (function () {
-  var slice = cms.slice(cms.indexOf('var _seoGuideMem'), cms.indexOf('function renderCmsSeo')); /* v34.37.5: از متغیر ماژول شروع می‌شود */
+  var slice = cms.slice(cms.indexOf('var _seoGuideMem'), cms.indexOf('function renderCmsSeo')); /* v34.37.6: از متغیر ماژول شروع می‌شود */
   global.window = {};
   global.getData = function () { return '1'; }; /* کاربر صریحاً بازش کرده */
   global.setData = function () {};
@@ -28,7 +28,7 @@ T('BEHAV: رندر جعبه با دادهٔ نمونه — چیپ‌های وض�
   return h.indexOf('10 صفحهٔ ایراد جدی') > -1 && h.indexOf('7 ایراد جزئی') > -1 && h.indexOf('10 صفحه هنوز در نقشه نیست') > -1 && h.indexOf('🧪 آزمون اتصال') > -1 && h.indexOf('پنهان کردن راهنما') > -1;
 })());
 T('BEHAV: حالت سبز (همه سالم) و حالت جمع‌شده', (function () {
-  var slice = cms.slice(cms.indexOf('var _seoGuideMem'), cms.indexOf('function renderCmsSeo')); /* v34.37.5: از متغیر ماژول شروع می‌شود */
+  var slice = cms.slice(cms.indexOf('var _seoGuideMem'), cms.indexOf('function renderCmsSeo')); /* v34.37.6: از متغیر ماژول شروع می‌شود */
   global.window = {};
   var mode = 'green';
   global.getData = function () { return mode === 'green' ? '1' : '0'; }; /* سبز = کاربر بازش کرده؛ جمع‌شده = بسته */

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.37.5 — جداسازی اظهارنامه‌ها از بخش فاکتورها + پنل مستقل «📁 اظهارنامه‌ها».
+/* v34.37.6 — جداسازی اظهارنامه‌ها از بخش فاکتورها + پنل مستقل «📁 اظهارنامه‌ها».
    درخواست: بخش فاکتورها گاهی بهم می‌ریخت و «بارگذاری اظهارنامه» داخل آن نمایش داده می‌شد.
    رفع: ① حذف اظهارنامه از مسیر فاکتورها (rbac.js) ② پنل مستقل در گروه «کالا و اسناد»
    با تفکیک عملکرد سالانه (هر سال) و ارزش افزوده فصلی (هر فصل و سال انتخابی). */
@@ -19,8 +19,8 @@ var shell = read('crm/shell.js');
 var perms = read('crm/perms.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.37.5', ver.crm_version === 'v34.37.5', ver.crm_version);
-T('tax-returns.js cache-bust 34.37.5', /tax-returns\.js\?v=34\.37\.5/.test(idx));
+T('VERSION.json = v34.37.6', ver.crm_version === 'v34.37.6', ver.crm_version);
+T('tax-returns.js cache-bust 34.37.6', /tax-returns\.js\?v=34\.37\.6/.test(idx));
 
 /* ① حذف اظهارنامه از فاکتورها */
 T('taxHtml از buildInvoices حذف شد', rbac.indexOf('ptfTaxReturnsHtml') === -1 && rbac.indexOf('var taxHtml') === -1);
@@ -32,7 +32,7 @@ T('ptfTaxPlannerHtml حفظ شد', unof.indexOf('window.ptfTaxPlannerHtml') > -1
 T('دکمهٔ سایدبار taxret وجود دارد', idx.indexOf("goPanel('taxret',this)") > -1);
 T('taxret در گروه g-goods (shell.js)', /g-goods[^\]]*items:\s*\[[^\]]*taxret/.test(shell));
 T('taxret در ALL_PANELS (perms.js)', perms.indexOf("{ id: 'taxret', lb: 'اظهارنامه‌ها' }") > -1);
-/* v34.37.5: ثبت پنل‌ها از capture به دیرهنگام‌بندیِ نام‌محور (PTF_PERM_PANELS) عوض شد؛
+/* v34.37.6: ثبت پنل‌ها از capture به دیرهنگام‌بندیِ نام‌محور (PTF_PERM_PANELS) عوض شد؛
    قرارداد ثابت است: «taxret با نام‌های buildTaxReturns/renderTaxReturns ثبت شده» — به الگو بسته، نه جمله. */
 T('taxret در reg (perms.js)', /'taxret',\s*'[^']*',\s*'buildTaxReturns',\s*'renderTaxReturns'/.test(perms));
 T('دسترسی حسابدار به taxret', rbac.indexOf("'inv','recv','petty','chqprint','cart','ai','taxret'") > -1);
@@ -53,6 +53,6 @@ T('هوک goPanel برای taxret', tax.indexOf("if (id === 'taxret')") > -1);
 
 T('tester482 در گیت CI', gate.indexOf('tester482-v34.7.80-tax-returns-separation.js') > -1);
 
-console.log('\n— tester482 (v34.37.5: جداسازی اظهارنامه‌ها از فاکتورها + پنل مستقل) —');
+console.log('\n— tester482 (v34.37.6: جداسازی اظهارنامه‌ها از فاکتورها + پنل مستقل) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

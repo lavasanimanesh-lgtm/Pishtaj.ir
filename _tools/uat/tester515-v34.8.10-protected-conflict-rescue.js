@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.37.5 — PROTECTED-CONFLICT-RESCUE.
+/* v34.37.6 — PROTECTED-CONFLICT-RESCUE.
    RCA (کارفرما، مدیر بازرگانی): ptf_crm_opex (و جفتش sharetx) همگرا نمی‌شد.
    این کلیدها «مالی محافظت‌شده»‌اند: data_push سرور همیشه merge محافظت‌شده برمی‌گرداند
    و اگر امضایش با snapshot خام مرورگر فرق کند → protectedConflict. مسیر legacy
@@ -17,22 +17,22 @@ var cs = read('crm/client-server.js');
 var sync = read('crm/sync.js');
 var api = read('api/crm.php');
 
-T('VERSION.json = v34.37.5', ver.crm_version === 'v34.37.5', ver.crm_version);
+T('VERSION.json = v34.37.6', ver.crm_version === 'v34.37.6', ver.crm_version);
 
 /* ---------- نجات تعارض محافظت‌شده ---------- */
 T('sync.js حل‌کنندهٔ protected را expose می‌کند', /window\.ptfSyncResolveProtectedConflictFromServer = function/.test(sync));
 T('حل‌کنندهٔ protected از ptfMergeProtectedFinanceConflict استفاده می‌کند', /ptfMergeProtectedFinanceConflict\(k, current, typeof submittedStr[\s\S]{0,120}serverStr\)/.test(sync));
-T('v34.37.5: پذیرش verbatim کانونیکال وقتی لوکال از لحظهٔ ارسال تغییر نکرده', /sameSyncJson\(current, submittedStr\)\) \{\s*\n\s*merged = serverStr;/.test(sync));
-T('v34.37.5: مسیر protected دیگر پاس tombstone ندارد (پایداری امضا)', (function () {
+T('v34.37.6: پذیرش verbatim کانونیکال وقتی لوکال از لحظهٔ ارسال تغییر نکرده', /sameSyncJson\(current, submittedStr\)\) \{\s*\n\s*merged = serverStr;/.test(sync));
+T('v34.37.6: مسیر protected دیگر پاس tombstone ندارد (پایداری امضا)', (function () {
   var body = sync.split('window.ptfSyncResolveProtectedConflictFromServer = function')[1] || '';
   body = body.split('\n  };')[0];
   return body.indexOf('ptfApplyDeletionTombstones') < 0;
 })());
 T('flush فاز B کلید محافظت‌شده را دیگر skip نمی‌کند', !/if \(protectedKeys\.indexOf\(k\) >= 0\) return;/.test(cs));
-/* v34.37.5: منطق نجات به helper مشترک rescueConflictedKeys رفت تا «انتقال یک‌باره»
+/* v34.37.6: منطق نجات به helper مشترک rescueConflictedKeys رفت تا «انتقال یک‌باره»
    هم همان درمان را داشته باشد (پیش از این فقط مسیر flush بود و مهاجرت تک‌تیر می‌ماند). */
 T('flush برای protected از حل‌کنندهٔ مخصوص با snapshot ارسالی صدا می‌زند', /ptfSyncResolveProtectedConflictFromServer\(k, srvStr, \(payload \|\| \{\}\)\[k\]\)/.test(cs) && /function rescueConflictedKeys\(result, payload\)/.test(cs));
-T('مسیر مهاجرت هم همان helper نجات را صدا می‌زند (v34.37.5)', /var rescued = rescueConflictedKeys\(d, payload\);/.test(cs));
+T('مسیر مهاجرت هم همان helper نجات را صدا می‌زند (v34.37.6)', /var rescued = rescueConflictedKeys\(d, payload\);/.test(cs));
 T('protectedConflicts از ptfBPushBatch عبور می‌کند (وگرنه نجات مرده است)', /var dProtected = Array\.isArray\(d\.protectedConflicts\)/.test(cs) && /addUnique\(protectedConflicts, dProtected\);/.test(cs) && /dProtected\.indexOf\(k\) < 0/.test(cs));
 T('کلید عادی همچنان از حل‌کنندهٔ عمومی می‌گذرد', /ptfSyncResolveConflictFromServer\(k, srvStr\)/.test(cs));
 T('آستانهٔ تخلیه به ۸KB کاهش یافت (حافظهٔ آزادتر)', /bytes <= 8 \* 1024/.test(cs));
@@ -48,7 +48,7 @@ T('پاسخ protectedConflicts همچیشه serverData کامل دارد', /prot
   function sig(a) { return JSON.stringify(a.map(function (r) { return JSON.stringify(Object.keys(r).sort().map(function (k) { return [k, r[k]]; })); })); }
   var oldFlowConflict = sig(clientSnapshot) !== sig(serverCanonical); /* push → conflict */
   var oldFlowDeadEnd = oldFlowConflict && true; /* v34.8.7 rescue: skip protected */
-  /* v34.37.5: adopt canonical → next push identical signature → saved */
+  /* v34.37.6: adopt canonical → next push identical signature → saved */
   var adopted = serverCanonical.slice();
   var nextFlowSaved = sig(adopted) === sig(serverCanonical);
   T('شبیه‌سازی: snapshot خام با canonical سرور فرق دارد (ریشهٔ conflict)', oldFlowConflict === true);
@@ -56,6 +56,6 @@ T('پاسخ protectedConflicts همچیشه serverData کامل دارد', /prot
   T('شبیه‌سازی: پس از اعمال merge محافظت‌شده، push بعدی پذیرفته می‌شود', nextFlowSaved === true);
 })();
 
-console.log('\n— tester515 (v34.37.5: نجات تعارض کلیدهای مالی محافظت‌شده در فاز B) —');
+console.log('\n— tester515 (v34.37.6: نجات تعارض کلیدهای مالی محافظت‌شده در فاز B) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

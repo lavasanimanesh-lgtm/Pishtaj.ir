@@ -76,15 +76,30 @@
      ردیف) و flex-wrap روی ردیف باعث می‌شد هر ردیف با نام مشتریِ بلند ستون‌هایش را
      جابه‌جا کند؛ یعنی ترازِ ستون‌ها بین ردیف‌ها هیچ‌گاه تضمین‌شده نبود.
      قرارداد جدید: یک قالب مشترک برای سربرگ و ردیف + ستون انعطاف‌پذیر (مشتری) که
-     به‌جای راندنِ بقیه، خودش کوتاه (ellipsis) می‌شود. */
+     به‌جای راندنِ بقیه، خودش کوتاه (ellipsis) می‌شود.
+     v34.37.6 (INV-PANEL-COL-CLIP — گزارش کارفرما: «اعداد و سرستون‌ها در هم می‌روند؛
+     شماره سند مبنا روی اسم مشتری می‌افتد؛ مبلغ با مطالبه باز درهم می‌رود؛ سرستون
+     اقدام بالای مقادیر نیست») — سه نقص در همان قرارداد بسته شد:
+     ① ستون‌های ثابت flex:0 0 بودند: در پنلِ باریک کوتاه نمی‌شدند و از ظرف بیرون
+       می‌زدند؛ حالا flex:0 1 با کفِ min-width — جمع‌شدنِ سربرگ و ردیف هم‌اندازه
+       می‌ماند چون هر دو از همین یک قالب می‌خوانند.
+     ② محتوای بلندتر از ستون هیچ clip نداشت (شمارۀ سند با بَجِ 💱 در ۱۱۲px، مبلغ
+       ریالیِ ۱۰ رقمی در ۱۱۶px، دکمۀ ≈۱۷۰px «ثبت فاکتور» در ۱۳۸px) و در RTL سرریز
+       به سمت چپ روی ستون بعدی نوشته می‌شد — همان «همپوشانی»؛ حالا تمام سلول‌ها
+       overflow:hidden + text-overflow:ellipsis (بدترین حالت: سه‌نقطه با title که
+       مقدار/شمارۀ کامل را نشان می‌دهد، نه همپوشانی) + عرض‌های واقعی + ارقام
+       هم‌عرض (tabular-nums) برای دو ستون مبلغ.
+     ③ جعبۀ سربرگ border نداشت ولی ردیف‌ها داخل کارتِ ۱px لبه‌دار بودند — کل تراز
+       ۱–۲px جابه‌جا؛ حالا سربرگ هم همان لبه/گِردی دارد. برچسب‌ها هم صریح شدند:
+       «شماره سند مبنا»، «مبلغ فاکتور (ریال)»، «مطالبه باز (ریال)». */
   var INV_COLS = [
     { id: 'arrow',  style: 'width:30px;flex:0 0 30px' },
-    { id: 'doc',    style: 'min-width:112px;flex:0 0 112px' },
-    { id: 'cust',   style: 'min-width:140px;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
-    { id: 'status', style: 'min-width:126px;flex:0 0 126px' },
-    { id: 'amt',    style: 'min-width:116px;flex:0 0 116px;text-align:left' },
-    { id: 'open',   style: 'min-width:116px;flex:0 0 116px;text-align:left' },
-    { id: 'act',    style: 'min-width:138px;flex:0 0 138px' }
+    { id: 'doc',    style: 'min-width:96px;flex:0 1 132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
+    { id: 'cust',   style: 'min-width:90px;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
+    { id: 'status', style: 'min-width:92px;flex:0 1 128px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
+    { id: 'amt',    style: 'min-width:110px;flex:0 1 146px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums' },
+    { id: 'open',   style: 'min-width:110px;flex:0 1 146px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums' },
+    { id: 'act',    style: 'min-width:122px;flex:0 1 176px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }
   ];
   function invCol(id, extra) {
     for (var i = 0; i < INV_COLS.length; i++) if (INV_COLS[i].id === id) return INV_COLS[i].style + (extra ? ';' + extra : '');
@@ -92,11 +107,11 @@
   }
   function invHeaderHtml() {
     return '<span style="' + invCol('arrow') + '"></span>' +
-      '<span style="' + invCol('doc') + '">سند مبنا</span>' +
+      '<span style="' + invCol('doc') + '">شماره سند مبنا</span>' +
       '<span style="' + invCol('cust') + '">مشتری</span>' +
       '<span style="' + invCol('status') + '">وضعیت فاکتور</span>' +
-      '<span style="' + invCol('amt') + '">مبلغ</span>' +
-      '<span style="' + invCol('open') + '">مطالبه باز</span>' +
+      '<span style="' + invCol('amt') + '" title="جمع فاکتورهای فعال (ریال)">مبلغ فاکتور (ریال)</span>' +
+      '<span style="' + invCol('open') + '" title="ماندۀ وصولی‌نشده (ریال)">مطالبه باز (ریال)</span>' +
       '<span style="' + invCol('act') + '">اقدام</span>';
   }
   window.ptfInvPanelColStyles = function () { return INV_COLS.map(function (c) { return c.id + '|' + c.style; }); };
@@ -293,11 +308,11 @@
         /* ردیف فشرده — کل ردیف کلیک‌پذیر است، فلش هم برای دسترس‌پذیری دکمهٔ مستقل دارد */
         '<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer" onclick="ptfInvRowToggle(\'' + key + '\')">' +
         '<span style="' + invCol('arrow') + ';display:flex;align-items:center"><button type="button" id="invA_' + key + '" class="bt bt-o" aria-expanded="' + (isOpen ? 'true' : 'false') + '" title="نمایش/پنهان‌کردن جزئیات" style="padding:1px 8px;font-size:13px;line-height:1.6;width:30px" onclick="event.stopPropagation();ptfInvRowToggle(\'' + key + '\')">' + (isOpen ? '▾' : '◀') + '</button></span>' +
-        '<span style="' + invCol('doc') + ';white-space:nowrap"><b dir="ltr">' + esc(comp ? comp.no : o.no) + '</b>' + (comp ? ' <small style="color:#0e7490">💱</small>' : '') + '</span>' +
+        '<span style="' + invCol('doc') + '" title="' + esc(comp ? comp.no : o.no) + '"><b dir="ltr">' + esc(comp ? comp.no : o.no) + '</b>' + (comp ? ' <small style="color:#0e7490">💱</small>' : '') + '</span>' +
         '<span style="' + invCol('cust') + '" title="' + esc(pair.fa || '-') + '">' + esc(pair.fa || '-') + '</span>' +
         '<span style="' + invCol('status') + '">' + status + '</span>' +
-        '<span style="' + invCol('amt') + ';white-space:nowrap" title="جمع فاکتورهای فعال">' + money(billed || rialTotal) + '</span>' +
-        '<span style="' + invCol('open') + ';white-space:nowrap;color:' + (openSum > 0.5 ? '#b45309' : '#065f46') + '" title="مطالبه باز">' + money(openSum) + '</span>' +
+        '<span style="' + invCol('amt') + '" title="جمع فاکتورهای فعال (ریال)">' + money(billed || rialTotal) + '</span>' +
+        '<span style="' + invCol('open') + ';color:' + (openSum > 0.5 ? '#b45309' : '#065f46') + '" title="ماندۀ وصولی‌نشده (ریال)">' + money(openSum) + '</span>' +
         '<span style="' + invCol('act') + ';display:flex;align-items:center;justify-content:flex-start;gap:6px;white-space:nowrap" onclick="event.stopPropagation()">' + mainBtn + '</span>' +
         '</div>' +
         /* کشوی جزئیات */
@@ -370,7 +385,7 @@
       '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:7px">' +
       '<button class="bt bt-o" style="font-size:11px" onclick="ptfInvRowsToggleAll(true)">باز کردن همه</button>' +
       '<button class="bt bt-o" style="font-size:11px" onclick="ptfInvRowsToggleAll(false)">بستن همه</button></div>' +
-      '<div style="display:flex;align-items:center;gap:9px;padding:4px 11px;font-size:11px;color:#64748b;font-weight:700">' +
+      '<div style="display:flex;align-items:center;gap:9px;padding:4px 11px;font-size:11px;color:#64748b;font-weight:700;background:#f1f5f9;border:1px solid var(--brd);border-radius:12px;margin:0 0 3px">' +
       invHeaderHtml() + '</div>' + rows +
       (orphanHtml
         ? '<div style="margin-top:10px;border-top:2px dashed #fdba74;padding-top:8px">' +
