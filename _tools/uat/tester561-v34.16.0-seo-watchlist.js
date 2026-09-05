@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester561 — v34.36.0: واچ‌لیست جایگاه (S3-id)
+/* tester561 — v34.36.4: واچ‌لیست جایگاه (S3-id)
    سرور: watch_toggle/watch_list با روند از اسنپ‌شات‌های موجود (بدون دادهٔ جدید)
    کلاینت: ⭐ در جدول کوئری‌ها + کارت روند جایگاه (دلتا/رنگ/میله) */
 var fs = require('fs'), path = require('path');

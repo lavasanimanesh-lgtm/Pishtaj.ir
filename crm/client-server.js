@@ -205,8 +205,12 @@
       if (window.__ptfBKeys) return window.__ptfBKeys;
       /* سعی می‌کنیم از state/sync.js لیست را بگیریم — fallback: کلیدهای معروف */
       if (window._ptfSyncKeys) { window.__ptfBKeys = window._ptfSyncKeys.slice(); return window.__ptfBKeys; }
-      var known = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_surplus','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_treasury_calls','ptf_crm_bank_recon','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings'];
-      window.__ptfBKeys = known;
+      var known = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_surplus','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_treasury_calls','ptf_crm_bank_recon','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings','ptf_crm_fin_events','ptf_crm_personal_cheques'];
+      /* v34.36.1 (F6): فهرست ناقص را cache نکن. هر دو کلید مالی جاافتاده
+         (ptf_crm_fin_events / ptf_crm_personal_cheques) اضافه شدند و اگر sync.js
+         دیرتر بار شود، کش‌نکردن اجازه می‌دهد فهرست مرجعِ ۶۶ کلیدی بعداً جایگزین
+         شود؛ پیش از این، کش شدنِ فهرست دست‌نویس باعث می‌شد کلیدهای جامانده هرگز
+         در «انتقال یک‌باره» ارسال نشوند («۴۸ از ۴۹ کلید» دائمی). */
       return known;
     } catch (e) { return []; }
   }
@@ -532,13 +536,23 @@
       try { return !(typeof window.ptfSyncCommandKeyHeld === 'function' && window.ptfSyncCommandKeyHeld(k)); } catch (e) { return true; }
     });
     var blocked = Object.keys(payload || {}).filter(function (k) { return keys.indexOf(k) < 0; });
-    if (!keys.length) { cb && cb({ ok: !blocked.length, pushed: 0, total: Object.keys(payload || {}).length, failed: blocked, blocked: blocked }); return; }
+    if (!keys.length) { cb && cb({ ok: !blocked.length, pushed: 0, total: Object.keys(payload || {}).length, failed: blocked, blocked: blocked, protectedConflicts: [] }); return; }
     var batches = [];
     for (var i = 0; i < keys.length; i += BATCH_SIZE) batches.push(keys.slice(i, i + BATCH_SIZE));
     /* Capture one baseline for the entire batch sequence; reading krevs again between
        chunks could make later chunks compare against a revision committed by chunk 1. */
     var batchBase = options.base || bPullRevs();
     var savedKeys = [], failed = blocked.slice(), rejected = [], skipped = [], forbidden = [], conflicts = [], lastError = '';
+    var lastRev = 0; /* v34.36.1: rev سراسری سرور از پاسخ push — برای ثبت دقیق watermark پس از ACK */
+    /* v34.36.1 (PROTECTED-RESCUE-REACHABLE — RCA بن‌بست ptf_crm_opex، ۲۰۲۶-۰۹-۰۴):
+       سرور برای کلیدهای مالی محافظت‌شده هم conflicts و هم protectedConflicts را
+       می‌فرستد (api/crm.php:2152,2237) ولی این تابع هرگز protectedConflicts را
+       نمی‌خواند؛ در نتیجه در ptfBFlushQueue عبارت (result.protectedConflicts || [])
+       همیشه [] بود و شاخهٔ نجاتِ محافظت‌شدهٔ v34.8.10 (کد مرده) هرگز اجرا نشد —
+       opex همیشه به merge عمومیِ «محلی-برتر» می‌افتاد و هر push دوباره conflict
+       می‌داد (حلقهٔ بی‌پایان + قفل شدن «انتقال یک‌باره»). حالا عیناً مثل conflicts
+       تجمع و منتقل می‌شود. */
+    var protectedConflicts = [];
     var serverDataAgg = {}, krevsAgg = {}; /* v34.8.7: برای نجات تعارض در flush */
     function addUnique(target, values) {
       (Array.isArray(values) ? values : []).forEach(function (k) { if (target.indexOf(k) < 0) target.push(k); });
@@ -554,8 +568,10 @@
         skipped: skipped,
         forbidden: forbidden,
         conflicts: conflicts,
+        protectedConflicts: protectedConflicts, /* v34.36.1 */
         serverData: serverDataAgg,
         krevs: krevsAgg,
+        rev: lastRev, /* v34.36.1 */
         blocked: blocked,
         error: lastError
       });
@@ -569,7 +585,7 @@
         if (d && d.needLogin) {
           for (var j = idx; j < batches.length; j++) addUnique(failed, batches[j]);
           lastError = 'needLogin';
-          cb && cb({ ok: false, pushed: savedKeys.length, total: Object.keys(payload || {}).length, savedKeys: savedKeys, failed: failed, rejected: rejected, skipped: skipped, forbidden: forbidden, conflicts: conflicts, error: lastError, needLogin: true });
+          cb && cb({ ok: false, pushed: savedKeys.length, total: Object.keys(payload || {}).length, savedKeys: savedKeys, failed: failed, rejected: rejected, skipped: skipped, forbidden: forbidden, conflicts: conflicts, protectedConflicts: protectedConflicts, error: lastError, needLogin: true });
           return;
         }
         if (!d || !d.ok) {
@@ -590,19 +606,23 @@
         var dSkipped = Array.isArray(d.skipped) ? d.skipped : [];
         var dForbidden = Array.isArray(d.forbidden) ? d.forbidden : [];
         var dConflicts = Array.isArray(d.conflicts) ? d.conflicts : [];
+        var dProtected = Array.isArray(d.protectedConflicts) ? d.protectedConflicts : []; /* v34.36.1 */
         addUnique(rejected, dRejected);
         addUnique(skipped, dSkipped);
         addUnique(forbidden, dForbidden);
         addUnique(conflicts, dConflicts);
+        addUnique(protectedConflicts, dProtected); /* v34.36.1 */
         /* v34.8.7: پاسخ هر دسته serverData/krevs تعارض‌ها را هم با خودش بیاورد. */
         if (d.serverData && typeof d.serverData === 'object') Object.keys(d.serverData).forEach(function (k) { serverDataAgg[k] = d.serverData[k]; });
         if (d.krevs && typeof d.krevs === 'object') Object.keys(d.krevs).forEach(function (k) { krevsAgg[k] = d.krevs[k]; });
+        if (+d.rev > lastRev) lastRev = +d.rev; /* v34.36.1 */
         /* A malformed response that lists a key both saved and rejected must fail
            closed; only the intersection-free savedKeys are eligible for queue clear. */
         addUnique(savedKeys, d.savedKeys.filter(function (k) {
           return batchKeys.indexOf(k) >= 0 &&
             dRejected.indexOf(k) < 0 && dSkipped.indexOf(k) < 0 &&
-            dForbidden.indexOf(k) < 0 && dConflicts.indexOf(k) < 0;
+            dForbidden.indexOf(k) < 0 && dConflicts.indexOf(k) < 0 &&
+            dProtected.indexOf(k) < 0; /* v34.36.1: fail-closed روی کلید مالی محافظت‌شده */
         }));
         batchKeys.forEach(function (k) {
           if (savedKeys.indexOf(k) >= 0 || rejected.indexOf(k) >= 0 || skipped.indexOf(k) >= 0 || forbidden.indexOf(k) >= 0 || conflicts.indexOf(k) >= 0) return;
@@ -679,6 +699,10 @@
         try { if (acked.length && typeof window.ptfSyncAcknowledgeKeys === 'function') window.ptfSyncAcknowledgeKeys(acked, payload); } catch (eAck) {}
         var result = Object.assign({}, d || {}, { ok: !!(d && d.ok && clear.ok && !failed.length && !blocked.length && !kept.length), pushed: acked.length, failed: failed, blocked: blocked, pending: kept });
         if (!clear.ok && !result.error) result.error = 'queue_persist_failed';
+        /* v34.36.1 (WATERMARK-ACK — R3): پاسخ push موفق، watermark هر کلید را جلو
+           می‌بَرد (پیش از این فقط شاخهٔ نجات تعارض این کار را می‌کرد ⇒ کلیدِ
+           ACK‌شده در push بعدی با base کهنه conflict می‌شد). */
+        bAdvanceWatermarksFromPush(result.krevs, result.rev, saved);
         /* v34.8.36 (FORBIDDEN-DROP — RCA نوار زرد پایدار personal_cheques، 2026-08-28):
            قرارداد مسیر legacy — کلیدی که سرور صراحتاً «خارج از allowlist نقش» اعلام
            کرد نباید در صف IDB و dirty ابدی بماند (هر flush دوباره forbidden می‌داد و
@@ -697,26 +721,14 @@
            همان کلید را با base درست می‌فرستد. */
         try {
           var conflKeys = (result.conflicts || []).slice();
-          var protectedKeys = (result.protectedConflicts || []);
           if (conflKeys.length && (result.serverData || result.krevs)) {
-            var rescuedKeys = [];
-            conflKeys.forEach(function (k) {
-              var srvStr = (result.serverData || {})[k];
-              if (typeof srvStr !== 'string') return;
-              /* v34.8.10: کلید محافظت‌شده → merge محافظت‌شده مخصوص خودش؛
-                 کلید عادی → merge هوشمند عمومی. */
-              if (protectedKeys.indexOf(k) >= 0) {
-                if (typeof window.ptfSyncResolveProtectedConflictFromServer === 'function' && window.ptfSyncResolveProtectedConflictFromServer(k, srvStr, payload[k])) rescuedKeys.push(k);
-              } else if (typeof window.ptfSyncResolveConflictFromServer === 'function' && window.ptfSyncResolveConflictFromServer(k, srvStr)) rescuedKeys.push(k);
-            });
-            if (rescuedKeys.length) {
-              var metaLike = {}; var krMap = result.krevs || {};
-              rescuedKeys.forEach(function (k) { if (+krMap[k]) metaLike[k] = { rev: +krMap[k] }; });
-              bSaveRevsFromMeta(metaLike, result.rev);
-              if ((flushRescueRound || 0) < 3) {
-                flushRescueRound = (flushRescueRound || 0) + 1;
-                setTimeout(function () { try { window.ptfBFlushQueue(function () {}); } catch (eRetry) {} }, 900);
-              }
+            /* v34.36.1: منطق نجات به rescueConflictedKeys منتقل شد تا مسیر
+               «انتقال یک‌باره» هم همان درمان را داشته باشد (پیش از این فقط اینجا بود
+               و برای کلید مالی محافظت‌شده عملاً مرده — protectedConflicts نمی‌رسید). */
+            var rescuedKeys = rescueConflictedKeys(result, payload);
+            if (rescuedKeys.length && (flushRescueRound || 0) < 3) {
+              flushRescueRound = (flushRescueRound || 0) + 1;
+              setTimeout(function () { try { window.ptfBFlushQueue(function () {}); } catch (eRetry) {} }, 900);
             }
           } else if (!conflKeys.length) {
             flushRescueRound = 0;
@@ -749,6 +761,69 @@
     });
   };
 
+  /* ---------- v34.36.1 (MIGRATION-CONVERGENCE) — کمکی‌های مشترکِ صف و مهاجرت ----------
+     RCA بن‌بست «۴۸ از ۴۹ کلید» (۲۰۲۶-۰۹-۰۴): مسیر «انتقال یک‌باره» یک تیرِ
+     همه-یا-هیچ بود، پاسخ سرور (serverData/krevs/protectedConflicts) را دور می‌ریخت،
+     هیچ تلاش مجددی نداشت و نشانگرها را پیش از ارسال پاک می‌کرد. این سه تابع منطق
+     همگرایی را بین صف (ptfBFlushQueue) و مهاجرت (ptfBFinalize) مشترک می‌کنند. */
+  function bAdvanceWatermarksFromPush(krevsPlain, globalRev, ackedKeys) {
+    /* WATERMARK-ACK (R3): کلیدی که همین لحظه ACK شده باید watermark‌اش جلو برود؛
+       وگرنه push بعدی با base کهنه می‌رود و سرور دوباره conflict می‌دهد. مسیر legacy
+       همین کار را با applyKrevs(d.krevs) می‌کند (sync.js).
+       ackedKeys (اختیاری) = فهرست سفیدِ کلیدهایی که سرور واقعاً ذخیره کرد. سرور برای
+       کلیدِ «در تعارض/رد شده» هم krevs می‌فرستد؛ اگر watermark آن‌ها جلو برود، push
+       بعدی با base برابرِ سرور می‌رود ⇒ دیگر conflict نمی‌دهد ⇒ کپی محلیِ همگرانشده
+       نسخهٔ معتبر سرور را **کورکورانه بازنویسی** می‌کند (از دست رفتن ردیف). پس فقط
+       کلیدهای ACK‌شده جلو می‌روند؛ بقیه کهنه می‌مانند تا pull نسخهٔ سرور را بیاورد. */
+    try {
+      var kr = krevsPlain || {}, meta = {};
+      var onlyAcked = Array.isArray(ackedKeys);
+      Object.keys(kr).forEach(function (k) {
+        if (!(+kr[k] > 0)) return;
+        if (onlyAcked && ackedKeys.indexOf(k) < 0) return;
+        /* کلیدهای مشترکِ union (audit/avatars/notifs) عمداً جلو نمی‌روند: مقدار
+           ذخیره‌شدهٔ سرور unionِ چند دستگاه است نه عینِ payload ما، و pull بعدی باید
+           آن نسخهٔ کامل‌تر را بیاورد (پیش‌رفتن watermark = گم شدن ردیف سایر دستگاه‌ها). */
+        try { if (typeof window.ptfSyncIsSharedUnionKey === 'function' && window.ptfSyncIsSharedUnionKey(k)) return; } catch (eUnion) {}
+        meta[k] = { rev: +kr[k] };
+      });
+      if (Object.keys(meta).length) bSaveRevsFromMeta(meta, globalRev);
+    } catch (eAdvance) {}
+  }
+  function rescueConflictedKeys(result, payload) {
+    /* درمان تعارض با نسخهٔ معتبر سرور؛ فهرست کلیدهای نجات‌یافته را برمی‌گرداند. */
+    var rescued = [];
+    try {
+      var conflKeys = ((result && result.conflicts) || []).slice();
+      var protectedKeys = ((result && result.protectedConflicts) || []).slice();
+      if (!conflKeys.length || !((result && result.serverData) || (result && result.krevs))) return rescued;
+      conflKeys.forEach(function (k) {
+        var srvStr = (result.serverData || {})[k];
+        if (typeof srvStr !== 'string') return;
+        /* کلید مالی محافظت‌شده → merge محافظت‌شده (VERBATIM-CONVERGENCE: کپی محلی
+           عیناً نسخهٔ سرور می‌شود تا امضای snapshot در push بعدی مطابقت کند)؛
+           کلید عادی → merge هوشمند عمومی. تا v34.36.1 شاخهٔ محافظت‌شده در فاز B
+           کدِ مرده بود چون protectedConflicts هرگز از ptfBPushBatch عبور نمی‌کرد. */
+        if (protectedKeys.indexOf(k) >= 0) {
+          if (typeof window.ptfSyncResolveProtectedConflictFromServer === 'function' && window.ptfSyncResolveProtectedConflictFromServer(k, srvStr, (payload || {})[k])) rescued.push(k);
+        } else if (typeof window.ptfSyncResolveConflictFromServer === 'function' && window.ptfSyncResolveConflictFromServer(k, srvStr)) rescued.push(k);
+      });
+      if (rescued.length) {
+        var metaLike = {}, krMap = (result && result.krevs) || {};
+        rescued.forEach(function (k) { if (+krMap[k]) metaLike[k] = { rev: +krMap[k] }; });
+        bSaveRevsFromMeta(metaLike, result && result.rev);
+      }
+    } catch (eRescueKeys) {}
+    return rescued;
+  }
+  /* «ردِ بی‌ضرر»: کپی محلیِ کلید آرایهٔ خالی است و سرور به‌خاطر سپر ضد داده‌صفر
+     آن را رد کرده. روی این دستگاه چیزی نیست که از دست برود و pull بعدی همان کلید
+     را از سرور پر می‌کند ⇒ مانعِ پایان انتقال نیست. هر مقدار ناخالی همچنان
+     fail-closed می‌ماند (هرگز بی‌صدا رها نمی‌شود). */
+  function isEmptyArrayPayload(str) {
+    try { var v = JSON.parse(str); return Array.isArray(v) && v.length === 0; } catch (e) { return false; }
+  }
+
   /* ---------- هم‌گرایی یک‌باره (تأیید کاربر) ---------- */
   function flushRequired() {
     try {
@@ -759,11 +834,38 @@
     } catch (e) { return true; }
   }
   function markFlushed() { try { localStorage.setItem(flushKey(), '1'); } catch (e) {} }
+  var MIGRATION_ROUNDS = 3;
+  function shortKeyName(k) { return String(k || '').replace('ptf_crm_', ''); }
+  var MIGRATION_CLASSES = [
+    ['conflicts', 'تعارض داده با نسخهٔ سرور'],
+    ['forbidden', 'خارج از allowlist نقش فعلی'],
+    ['rejected', 'رد شده توسط سپر داده/یکپارچگی'],
+    ['skipped', 'بزرگ‌تر از سقف ۸MB یا payload نامعتبر'],
+    ['failed', 'شکست ارسال/تایم‌اوت'],
+    ['blocked', 'در انتظار پایان فرمان دامنه']
+  ];
+  /* کلاسِ هر کلید از همهٔ نوبت‌ها انباشته می‌شود: نوبتِ آخر ممکن است کلیدی را که در
+     نوبتِ اول forbidden شده دیگر ارسال نکند، ولی کاربر باید همان کلید را ببیند. */
+  function noteMigrationClasses(d, seen) {
+    MIGRATION_CLASSES.forEach(function (pair) {
+      ((d && d[pair[0]]) || []).forEach(function (k) { if (seen[k] === undefined) seen[k] = pair[0]; });
+    });
+  }
+  function migrationBlockers(seen, unresolved) {
+    var out = [];
+    MIGRATION_CLASSES.forEach(function (pair) {
+      var keys = unresolved.filter(function (k) { return seen[k] === pair[0]; });
+      if (keys.length) out.push({ cls: pair[0], label: pair[1], keys: keys });
+    });
+    return out;
+  }
+
   window.ptfBFinalize = function (opts) {
     opts = opts || {};
     /* هم‌گرایی یک‌باره: دادهٔ محلی → سرور. در حالت خودکار فقط دستگاه تازه
        (بدون payload کسب‌وکاری) مجاز است؛ دادهٔ موجود هرگز بدون تأیید overwrite نمی‌شود. */
-    if (!flushRequired()) {
+    /* v34.36.1 (F1): opts.force = «اجرای دوبارهٔ مهاجرت» بدون پاک‌کردن نشانگرها. */
+    if (!opts.force && !flushRequired()) {
       window.ptfBFlushQueue(function () {});
       return;
     }
@@ -787,33 +889,129 @@
         return { ok: false, reason: 'local_data_requires_review' };
       }
       var ok = confirm('🌐 هم‌گرایی داده با سرور\n\nدادهٔ محلی مرورگر شما یک‌بار به سرور منتقل می‌شود تا با دیتابیس یکپارچه شود (localStorage پس از آن فقط کش می‌شود).\n\nادامه می‌دهید؟');
-      if (!ok) { alert('می‌توانید بعداً از «تنظیمات → هم‌گرایی داده» این کار را انجام دهید.'); return; }
-      /* «flushed» فقط بعد از ACK کامل همهٔ کلیدها ثبت می‌شود. */
-      window.ptfBPushBatch(payload, function (d) {
-        if (d && d.ok) {
-          markFlushed();
-          markSynced();
-          try { if (d.savedKeys && typeof window.ptfSyncAcknowledgeKeys === 'function') window.ptfSyncAcknowledgeKeys(d.savedKeys, payload); } catch (eAck) {}
-          /* v34.8.9 (STORAGE-INDEPENDENCE): موفقیت همگرایی = پایان وابستگی به
-             localStorage: فاز B خودکار فعال و کلیدهای حجیم به IndexedDB تخلیه
-             می‌شوند. قبلاً پرچم روشن نمی‌شد و بن‌بست «۱۰۰٪ پر» باقی می‌ماند. */
-          try { window.ptfBEnableAfterConvergence(); } catch (eEnable) {}
-          alert('✅ هم‌گرایی انجام شد.\nحالت سرور-محور هم خودکار فعال شد: دادهٔ حجیم به IndexedDB منتقل و localStorage از این پس فقط کش سبک است.');
-          location.reload();
-          return;
-        }
-        if (d && d.needLogin) {
-          alert('⚠️ نشست شما منقضی شده است؛ دوباره وارد شوید، سپس هم‌گرایی را از «تنظیمات → هم‌گرایی داده» انجام دهید. دادهٔ محلی شما محفوظ است.');
-          return;
-        }
-        alert('⚠️ فقط ' + (d.pushed || 0) + ' از ' + (d.total || Object.keys(payload).length) + ' کلید هم‌گرایی شد (' + ((d && d.error) || 'network') + '). دادهٔ محلی شما محفوظ است؛ از «تنظیمات → هم‌گرایی داده» دوباره تلاش کنید.');
-      });
+      if (!ok) { alert('می‌توانید بعداً از «تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه» این کار را انجام دهید.'); return; }
+      /* v34.36.1 (P0-1): معیارِ پایان = تأییدِ تک‌تک کلیدها روی سرور، با همان
+         موتور نجات/تلاش‌مجددِ صف. «flushed» فقط پس از ACK کامل ثبت می‌شود. */
+      convergeMigration(payload, { acked: {}, submitted: {}, seen: {} }, 0);
     });
   };
 
+  /* یک نوبت همگرایی. acked/submitted بین نوبت‌ها انباشته می‌شود تا کلیدهای
+     تأییدشده هرگز دوباره ارسال نشوند و گزارش نهایی دقیق باشد. */
+  function convergeMigration(payload, st, round) {
+    var acked = st.acked, submitted = st.submitted, seen = st.seen;
+    Object.keys(payload || {}).forEach(function (k) { submitted[k] = payload[k]; });
+    window.ptfBPushBatch(payload, function (d) {
+      d = d || {};
+      var ackedList = ((d.savedKeys) || []).slice();
+      /* R3: watermark فقط کلیدهای واقعاً ACK‌شده را از همین پاسخ جلو ببر. */
+      bAdvanceWatermarksFromPush(d.krevs, d.rev, ackedList);
+      var benignRejected = ((d.rejected) || []).filter(function (k) { return isEmptyArrayPayload((payload || {})[k]); });
+      ackedList.concat(benignRejected).forEach(function (k) { if (acked[k] === undefined) acked[k] = 1; });
+      /* P0-1: همان درمان تعارضِ صف — نسخهٔ معتبر سرور را محلی کن تا نوبت بعد مطابقت کند. */
+      var rescued = rescueConflictedKeys(d, payload);
+      noteMigrationClasses(d, seen);
+      /* معیارِ پایان، مجموعهٔ تجمعیِ همهٔ کلیدهایی است که یک‌بار ارسال شدند — نه فقط
+         کلیدهای نوبتِ آخر. کلیدی که سرور آن را forbidden/skipped اعلام کرده از payload
+         نوبت‌های بعد بیرون می‌رود ولی هرگز «همگراشده» حساب نمی‌شود: تنها کپیِ محلیِ
+         آن هنوز روی سرور نیست و «پاک‌سازی کش محلی» نباید مجاز شود (fail-closed). */
+      var unresolved = Object.keys(submitted).filter(function (k) { return acked[k] === undefined; });
+      var unresolvedRound = Object.keys(payload || {}).filter(function (k) { return acked[k] === undefined; });
+      /* کلیدهای تأییدشده: dirty پاک + صف آفلاین تمیز (نسل تازه‌ترِ نوشته‌شده حفظ می‌شود). */
+      try { if (ackedList.length && typeof window.ptfSyncAcknowledgeKeys === 'function') window.ptfSyncAcknowledgeKeys(ackedList, payload); } catch (eAckMig) {}
+      try { if (ackedList.length) queueClearMatching(ackedList, payload); } catch (eQClearMig) {}
+      try {
+        if (benignRejected.length) {
+          queueClear(benignRejected);
+          if (typeof window.ptfSyncAcknowledgeKeys === 'function') window.ptfSyncAcknowledgeKeys(benignRejected, null);
+        }
+      } catch (eBenign) {}
+
+      if (d.needLogin) {
+        try { if (typeof window.ptfSyncNoteError === 'function') window.ptfSyncNoteError('migration', 'needLogin', 'نشست منقضی — انتقال یک‌باره متوقف شد', 'needLogin:' + unresolved.join('|')); } catch (eNoteLogin) {}
+        alert('⚠️ نشست شما منقضی شده است؛ دوباره وارد شوید، سپس «تکمیل انتقال یک‌باره» را از «تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه» بزنید. دادهٔ محلی شما محفوظ است.');
+        return;
+      }
+      if (!unresolved.length) {
+        markFlushed();
+        markSynced();
+        /* v34.8.9 (STORAGE-INDEPENDENCE): موفقیت همگرایی = پایان وابستگی به
+           localStorage: فاز B خودکار فعال و کلیدهای حجیم به IndexedDB تخلیه می‌شوند. */
+        try { window.ptfBEnableAfterConvergence(); } catch (eEnable) {}
+        try {
+          if (typeof audit === 'function') audit('سیستم', '✅ انتقال یک‌باره کامل شد — ' + Object.keys(acked).length + ' کلید روی سرور تأیید شد' +
+            (benignRejected.length ? ' (' + benignRejected.map(shortKeyName).join('، ') + ' با کپی محلی خالی از سرور بازخوانی می‌شود)' : ''), 'SYNC');
+        } catch (eAuditOk) {}
+        alert('✅ هم‌گرایی انجام شد.\nحالت سرور-محور هم خودکار فعال شد: دادهٔ حجیم به IndexedDB منتقل و localStorage از این پس فقط کش سبک است.');
+        location.reload();
+        return;
+      }
+      /* نوبت بعد فقط با کلیدهای «قابل‌تلاش» و با مقدارِ الانِ محلی (rescue آن‌ها را
+         بازنویسی کرده). کلیدهای غیرقابل‌حل (forbidden/skipped/…) fail-closed می‌مانند. */
+      /* چه چیزی ارزشِ تلاشِ دوباره دارد؟
+           - rescued: کپی محلی با نسخهٔ سرور جایگزین شد ⇒ push بعدی مطابقت می‌کند.
+           - failed/blocked: موقتی‌اند (شبکه/فرمان دامنه).
+         تعارضی که نجات نیافت (سرور serverData نفرستاد) با همان payload و همان base
+         دوباره همان تعارض را می‌دهد ⇒ تلاشِ مجدد فقط ترافیک بیهوده است؛ فوراً گزارش
+         می‌شود. forbidden/skipped/rejected هم قطعی‌اند (نقش/حجم/سپر داده). */
+      var retryable = unresolvedRound.filter(function (k) {
+        return rescued.indexOf(k) >= 0 ||
+          ((d.failed) || []).indexOf(k) >= 0 ||
+          ((d.blocked) || []).indexOf(k) >= 0;
+      });
+      if (retryable.length && round < MIGRATION_ROUNDS) {
+        setTimeout(function () {
+          readQueuePayload(retryable, function (nextPayload) {
+            if (!Object.keys(nextPayload || {}).length) { reportMigrationBlocked(d, st, round); return; }
+            convergeMigration(nextPayload, st, round + 1);
+          });
+        }, 900);
+        return;
+      }
+      reportMigrationBlocked(d, st, round);
+    });
+  }
+
+  /* P0-3: گزارشِ دقیق و عملی به‌جای «network» مبهم + ثبت دائمی برای تشخیص. */
+  function reportMigrationBlocked(d, st, round) {
+    var acked = st.acked;
+    var unresolved = Object.keys(st.submitted).filter(function (k) { return acked[k] === undefined; });
+    var blockers = migrationBlockers(st.seen, unresolved);
+    var ackCount = Object.keys(acked || {}).length;
+    var total = ackCount + unresolved.length;
+    var lines = blockers.map(function (b) { return '• ' + b.label + ': ' + b.keys.map(shortKeyName).join('، '); });
+    var listed = [];
+    blockers.forEach(function (b) { b.keys.forEach(function (k) { listed.push(k); }); });
+    var orphan = unresolved.filter(function (k) { return listed.indexOf(k) < 0; });
+    if (orphan.length) lines.push('• بدون تأیید سرور ماند: ' + orphan.map(shortKeyName).join('، '));
+    var reasonCode = blockers.length ? blockers[0].cls : 'unacknowledged';
+    /* noteSyncError(scope, status, reason, detail):
+         status = کد ماشین (نگاشت برچسب در جعبهٔ وضعیت دستگاه)،
+         reason = متن خوانا برای کاربر (شمار نوبت و خطای سرور)،
+         detail = فقط «کلاس:کلید|کلید» تا جعبهٔ دستگاه بتواند نام کلیدها را تمیز
+                  رندر کند (نویز فنی داخل detail = کلیدِ جعلی در UI). */
+    var detail = blockers.map(function (b) { return b.cls + ':' + b.keys.join('|'); }).join(' ; ') || 'no-ack';
+    var reasonText = 'انتقال یک‌باره ناتمام ماند (نوبت ' + (round + 1) + (((d && d.error)) ? '، خطای سرور: ' + d.error : '') + ')';
+    try { if (typeof window.ptfSyncNoteError === 'function') window.ptfSyncNoteError('migration', reasonCode, reasonText, detail); } catch (eNote) {}
+    try { if (typeof audit === 'function') audit('سیستم', '⛔ انتقال یک‌باره ناتمام — ' + ackCount + ' از ' + total + ' کلید تأیید شد؛ باقی‌مانده: ' + (lines.join(' / ') || 'نامشخص'), 'SYNC'); } catch (eAuditMig) {}
+    var guide = [];
+    if (blockers.some(function (b) { return b.cls === 'conflicts'; })) guide.push('تعارض: در «تنظیمات ← بک‌آپ و بازگردانی ← تشخیص همگام‌سازی» دکمهٔ «تلاش مجدد ارسال» را بزنید، ۳۰ ثانیه صبر کنید، سپس دوباره «تکمیل انتقال یک‌باره» را بزنید.');
+    if (blockers.some(function (b) { return b.cls === 'forbidden'; })) guide.push('نقش: این کلیدها در allowlist نقش فعلی نیستند؛ انتقال را با نقش بالاتر (مدیر / مدیر بازرگانی، یا حسابدار برای کلیدهای مالی) انجام دهید.');
+    if (blockers.some(function (b) { return b.cls === 'rejected'; })) guide.push('سپر داده: کپی محلی این کلید با نسخهٔ ناخالی سرور ناسازگار است؛ یک‌بار «تلاش مجدد ارسال» بزنید و صفحه را رفرش کنید تا نسخهٔ سرور جایگزین شود.');
+    if (blockers.some(function (b) { return b.cls === 'skipped'; })) guide.push('حجم: این کلید از سقف ۸MB بزرگ‌تر است؛ نیاز به تخلیهٔ پیوست/آرشیو دارد — با پشتیبانی هماهنگ کنید.');
+    if (blockers.some(function (b) { return b.cls === 'failed'; })) guide.push('ارسال: اتصال پایدار لازم است' + ((d && d.error) ? ' — خطای سرور: ' + d.error : '') + '.');
+    if (blockers.some(function (b) { return b.cls === 'blocked'; })) guide.push('فرمان دامنه: تا پایان اجرای فرمان جاری صبر کنید و دوباره تلاش کنید.');
+    alert('⚠️ انتقال یک‌باره کامل نشد — ' + ackCount + ' از ' + total + ' کلید روی سرور تأیید شد.\n\nکلیدهای باقی‌مانده:\n' + (lines.join('\n') || '• نامشخص') +
+      '\n\n' + (guide.join('\n') || '') + '\n\nدادهٔ محلی شما محفوظ است و نشانگرهای این دستگاه دست‌نخورده ماندند (دوباره تلاش کنید).');
+  }
+
   window.ptfBConfirmFlush = function () {
-    try { localStorage.removeItem(flushKey()); localStorage.removeItem(syncedKey()); } catch (e) {}
-    window.ptfBFinalize();
+    /* v34.36.1 (F1 — دامِ «سبز→کهربایی»): قبلاً پیش از هر تلاش، ptf_b_flushed و
+       ptf_b_synced پاک می‌شد؛ یک درخواستِ شکست‌خورده دستگاهِ همگراشده را کهربایی
+       می‌کرد، آینهٔ IndexedDB را خاموش می‌کرد و pullهای بعدی دوباره localStorage را
+       پمپ می‌کردند. حالا همان «اجرای دوبارهٔ مهاجرت» با opts.force و بدونِ لمسِ
+       نشانگرها انجام می‌شود (نشانگر فقط پس از ACK کامل در convergeMigration ثبت می‌شود). */
+    window.ptfBFinalize({ force: true });
   };
 
   /* کاربران جدید نباید تنظیمات را بدانند. فقط در دستگاه واقعاً تازه (هیچ key

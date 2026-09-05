@@ -275,9 +275,17 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
         foreach ((array)($opts['images'] ?? []) as $imI) {
             if (is_array($imI) && !empty($imI[0])) $parts[] = ['inline_data' => ['mime_type' => $imI[1] ?? 'image/jpeg', 'data' => $imI[0]]];
         }
+        $genCfg = ['temperature' => 0.15, 'maxOutputTokens' => $maxTok, 'responseMimeType' => 'application/json'];
+        /* v34.36.2 (AI-JSON-REPAIR): در مدل‌های استدلالیِ Gemini (2.5x) «فکر کردن» از همان
+           سقف maxOutputTokens خرج می‌شود و پاسخ JSON ناتمام می‌ماند. این فیلد فقط وقتی
+           ارسال می‌شود که مالک در llm-config.php صراحتاً عدد گذاشته باشد؛ پیش‌فرض = رفتار
+           فعلی دست‌نخورده (بدون فیلد) تا هیچ ریسکی روی مدل‌های قدیمی نباشد. */
+        if (isset($cfg['gemini_thinking_budget']) && is_numeric($cfg['gemini_thinking_budget'])) {
+            $genCfg['thinkingConfig'] = ['thinkingBudget' => (int)$cfg['gemini_thinking_budget']];
+        }
         $payload = json_encode([
             'contents' => [['parts' => $parts]],
-            'generationConfig' => ['temperature' => 0.15, 'maxOutputTokens' => $maxTok, 'responseMimeType' => 'application/json']
+            'generationConfig' => $genCfg
         ], JSON_UNESCAPED_UNICODE);
         $base = rtrim((string)($cfg['gemini_base'] ?? $cfg['base'] ?? 'https://generativelanguage.googleapis.com/v1beta'), '/');
         $url = $base . '/models/' . rawurlencode($model) . ':generateContent?key=' . rawurlencode($apiKey);
@@ -352,8 +360,13 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
     if (!empty($json['promptFeedback']['blockReason'])) return ['ok' => false, 'http' => $code, 'error' => 'مسدود شدن درخواست توسط فیلتر ایمنی (دلیل: ' . $json['promptFeedback']['blockReason'] . ')', 'raw' => mb_substr($cleanBody, 0, 500), 'transport' => $transport['transport']];
 
     $text = '';
+    /* v34.36.2 (AI-JSON-REPAIR): دلیل توقف مدل همیشه نگه داشته می‌شود — پیش‌تر فقط وقتی
+       متن خالی بود خوانده می‌شد، بنابراین «بریدن پاسخ در سقف توکن» هیچ نشانه‌ای نداشت
+       و کاربر فقط «خروجی AI ساختار JSON معتبر ندارد» می‌دید. */
+    $finish = '';
     if ($provider === 'gemini') {
         foreach (($json['candidates'][0]['content']['parts'] ?? []) as $part) if (isset($part['text'])) $text .= $part['text'];
+        $finish = strtoupper((string)($json['candidates'][0]['finishReason'] ?? ''));
         if ($text === '') {
             $finishReason = $json['candidates'][0]['finishReason'] ?? 'توقف نامعلوم';
             if ($finishReason === 'MAX_TOKENS' && $maxTok < 2000) return llm_call_once($cfg, $model, $system, $userText, $inlineB64, $inlineMime, 2500, $opts);
@@ -361,6 +374,7 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
         }
     } else {
         $text = $json['choices'][0]['message']['content'] ?? '';
+        $finish = strtoupper((string)($json['choices'][0]['finish_reason'] ?? ''));
         if ($text === '') return ['ok' => false, 'http' => $code, 'error' => 'پاسخ متنی خالی از مدل OpenAI-compatible دریافت شد', 'raw' => mb_substr($cleanBody, 0, 500), 'transport' => $transport['transport']];
     }
 
@@ -380,7 +394,7 @@ function llm_call_once($cfg, $model, $system, $userText, $inlineB64 = null, $inl
     if ($ptTok <= 0) $ptTok = (int)ceil((mb_strlen($system . $userText, 'UTF-8') + 12) / 3);
     if ($ctTok <= 0) $ctTok = (int)ceil((mb_strlen($text, 'UTF-8') + 12) / 3);
     try { llm_usage_log($model, $ptTok, $ctTok, (int)round((microtime(true) - $t0) * 1000)); } catch (Throwable $eUsage) {}
-    $result = ['ok' => true, 'text' => trim($text), 'model' => $model, 'transport' => $transport['transport']];
+    $result = ['ok' => true, 'text' => trim($text), 'model' => $model, 'transport' => $transport['transport'], 'finish' => $finish]; /* v34.36.2: finish (دلیل توقف) برای تشخیص بریدن پاسخ */
     if (!$skipCache) {
         $cacheData[$cacheKey] = ['t' => time(), 'res' => $result];
         if (count($cacheData) > 500) {
@@ -439,40 +453,198 @@ function llm_test_diagnosis($r, $cfg) {
    RCA خطای «خروجی AI ساختار JSON معتبر ندارد» در seo_product: پاسخ بلند در سقف
    توکن بریده می‌شود (JSON ناقص) یا کاماهای انتهایی/پوشش متن دارد. سه لایه:
    ۱) salvage: استخراج {..} + حذف کاماهای انتهایی ۲) retry یک‌باره با دو برابر
-   توکن + skip_cache ۳) فقط بعد از آن خطا. */
-function llm_json_salvage($text) {
+   توکن + skip_cache ۳) فقط بعد از آن خطا.
+
+   ═══ v34.36.2 (AI-JSON-REPAIR): ریشه‌کنی همان خطا در «مدیریت سایت» ═══
+   RCA: اکشن‌های سئوی مدیریت سایت (seo_fix/seo_review/seo_expand/seo_clusters/
+   seo_intlinks/seo_alt) با llm_call تک‌ضربه اجرا می‌شدند و salvage فقط سه لایهٔ
+   بالا را داشت؛ هیچ‌کدام JSONِ «بریده وسط رشته/آبجکت» را نجات نمی‌داد
+   (نمونهٔ واقعی: {"title":"...","fixes":[{"iss) — مدل به سقف توکن خورده بود.
+   دو لایهٔ تازه: ۴) حذف پوشش markdown/پیشوند توضیحی ۵) تعمیر ساختار ناتمام
+   (بستن رشتهٔ باز + بازگشت به آخرین مرز امن + بستن براکت‌های باز).
+   به‌علاوه همهٔ اکشن‌های سئو اکنون از llm_call_json (salvage + retry) عبور می‌کنند
+   و سقف توکن اکشن‌های کوچک (intlinks ۷۰۰ / alt ۹۰۰) که عملاً همیشه می‌برید بالا رفت. */
+
+/* حذف پوشش ``` و ```json از هر کجای متن (پیش‌تر فقط ابتدا/انتها در llm_call_once) */
+function llm_json_strip_fences($t) {
+    $t = trim((string)$t);
+    $t = preg_replace('/```(?:json|javascript|js)?\s*/i', '', $t) ?? $t;
+    $t = str_replace('```', '', $t);
+    return trim($t);
+}
+
+/* پیمایش آگاهانه به رشته/گریز: انتهای نخستین مقدار JSON متوازن را پیدا می‌کند.
+   complete=false یعنی ساختار تا پایان متن باز ماند (پاسخ بریده). */
+function llm_json_scan($t) {
+    $t = (string)$t;
+    $n = strlen($t);
+    $start = -1;
+    for ($i = 0; $i < $n; $i++) { if ($t[$i] === '{' || $t[$i] === '[') { $start = $i; break; } }
+    if ($start < 0) return null;
+    $stack = [];
+    $inStr = false;
+    $esc = false;
+    for ($i = $start; $i < $n; $i++) {
+        $c = $t[$i];
+        if ($inStr) {
+            if ($esc) { $esc = false; continue; }
+            if ($c === '\\') { $esc = true; continue; }
+            if ($c === '"') $inStr = false;
+            continue;
+        }
+        if ($c === '"') { $inStr = true; continue; }
+        if ($c === '{' || $c === '[') { $stack[] = $c; continue; }
+        if ($c === '}' || $c === ']') {
+            if ($stack) array_pop($stack);
+            if (!$stack) return ['json' => substr($t, $start, $i - $start + 1), 'complete' => true, 'stack' => [], 'inStr' => false];
+        }
+    }
+    return ['json' => substr($t, $start), 'complete' => false, 'stack' => $stack, 'inStr' => $inStr];
+}
+
+/* دنبالهٔ بسته‌کنندهٔ لازم برای یک JSON ناتمام: بستن رشتهٔ باز + براکت‌ها به ترتیب معکوس */
+function llm_json_close_tail($s) {
+    $stack = []; $inStr = false; $esc = false;
+    $n = strlen((string)$s);
+    for ($i = 0; $i < $n; $i++) {
+        $c = $s[$i];
+        if ($inStr) {
+            if ($esc) { $esc = false; }
+            elseif ($c === '\\') { $esc = true; }
+            elseif ($c === '"') { $inStr = false; }
+            continue;
+        }
+        if ($c === '"') { $inStr = true; }
+        elseif ($c === '{' || $c === '[') { $stack[] = $c; }
+        elseif ($c === '}' || $c === ']') { if ($stack) array_pop($stack); }
+    }
+    $tail = $inStr ? '"' : '';
+    foreach (array_reverse($stack) as $open) $tail .= ($open === '{') ? '}' : ']';
+    return $tail;
+}
+
+/* v34.36.2: «پوست‌کردن» دنبالهٔ نیمه‌کاره در چند سطح.
+   سطح ۰ = فقط کاما/دونقطهٔ معلق (کمترین دست‌کاری)؛ سطح‌های بالاتر پله‌پله عضوِ
+   نیمه‌کارهٔ انتهایی را می‌اندازند: رشتهٔ ناتمام، «کلید»: بی‌مقدار، کلیدِ تنها، و
+   براکتِ تازه‌بازشدهٔ خالی (همراه با کامای پیشِ رویش). */
+function llm_json_peel($s, $level) {
+    $cand = preg_replace('/[,\s]+$/', '', (string)$s) ?? '';
+    $cand = preg_replace('/:\s*$/', '', $cand) ?? $cand;
+    $cand = preg_replace('/[,\s]+$/', '', $cand) ?? $cand;
+    for ($k = 0; $k < (int)$level; $k++) {
+        $before = $cand;
+        $cand = preg_replace('/"[^"]*$/', '', $cand) ?? $cand;      /* رشتهٔ ناتمامِ انتهایی */
+        $cand = preg_replace('/:\s*$/', '', $cand) ?? $cand;        /* «کلید»: بی‌مقدار */
+        $cand = preg_replace('/"[^"]*"$/', '', $cand) ?? $cand;      /* کلیدِ تنها */
+        $cand = preg_replace('/,\s*[{[]\s*$/', '', $cand) ?? $cand;/* «,{» یا «,[» خالی */
+        $cand = preg_replace('/[{[]\s*$/', '', $cand) ?? $cand;     /* براکت خالی انتهایی */
+        $cand = preg_replace('/[,\s]+$/', '', $cand) ?? $cand;
+        if ($cand === $before || $cand === '') break;
+    }
+    return $cand;
+}
+
+/* آیا نتیجهٔ تجزیه «محتوای واقعی» دارد؟ آرایه/آبجکتِ تهی و رشتهٔ خالی تنها،
+   موفقیتِ پوچ است و پذیرفته نمی‌شود (دادهٔ ساختگی به CMS نمی‌دهیم). */
+function llm_json_meaningful($d) {
+    if (!is_array($d) || count($d) === 0) return false;
+    foreach ($d as $v) {
+        if (is_array($v)) { if (llm_json_meaningful($v)) return true; continue; }
+        if (is_string($v)) { if (trim($v) !== '') return true; continue; }
+        return true; /* عدد/بولی = محتوا دارد */
+    }
+    return false;
+}
+
+/* تعمیر پاسخ بریده — سیاست: «بیشترین محتوای ممکن، بدون عضو پوچ».
+   ۱) ابتدا کل رشتهٔ ناتمام با بستنِ رشتهٔ باز و براکت‌ها بسته می‌شود (متنِ بریدهٔ
+      یک مقدار بلند — مثل بدنهٔ مقاله — دور ریخته نمی‌شود)؛ مگر اینکه بریدگی دقیقاً
+      بعدِ «کلید":" باشد که عضو پوچ می‌سازد.
+   ۲) اگر نشد، از انتها به «مرزهای امن» (پایان یک مقدار کامل) برمی‌گردیم و در هر مرز،
+      پوست‌کردن را پله‌پله (۰ تا ۴) زیاد می‌کنیم تا عضو نیمه‌کاره حذف شود.
+   نتیجهٔ پوچ هرگز پذیرفته نمی‌شود ⇒ «موفقیت بی‌محتوا» و دادهٔ ساختگی نمی‌سازیم. */
+function llm_json_repair_truncated($t) {
+    $sc = llm_json_scan($t);
+    if ($sc === null || !empty($sc['complete'])) return null;
+    $s = (string)$sc['json'];
+    $tailBad = '/(:\s*"|[,{[])$/';
+    /* گام ۱: بستن در همان نقطهٔ بریدگی */
+    if (preg_match($tailBad, $s) !== 1) {
+        $d = json_decode($s . llm_json_close_tail($s), true);
+        if (llm_json_meaningful($d)) return $d;
+    }
+    /* گام ۲: بازگشت به مرزهای امن + پوست‌کردن پله‌ای */
+    $n = strlen($s);
+    $tries = 0;
+    for ($i = $n; $i > 0 && $tries < 60; $i--) {
+        $c = $s[$i - 1];
+        if ($c !== '}' && $c !== ']' && $c !== '"' && $c !== 'e' && !ctype_digit($c)) continue;
+        $tries++;
+        $base = substr($s, 0, $i);
+        for ($lvl = 0; $lvl <= 4; $lvl++) {
+            $cand = llm_json_peel($base, $lvl);
+            if ($cand === '') continue;
+            if ($lvl === 0 && preg_match($tailBad, $cand) === 1) continue;
+            $d = json_decode($cand . llm_json_close_tail($cand), true);
+            if (llm_json_meaningful($d)) return $d;
+        }
+    }
+    return null;
+}
+
+function llm_json_salvage($text, &$how = '') {
+    $how = '';
     $t = trim((string)$text);
     if ($t === '') return null;
     $d = json_decode($t, true);
-    if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+    if ($d !== null && json_last_error() === JSON_ERROR_NONE) { $how = 'direct'; return $d; }
     $s = strpos($t, '{'); $e = strrpos($t, '}');
     if ($s !== false && $e !== false && $e > $s) {
         $d = json_decode(substr($t, $s, $e - $s + 1), true);
-        if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+        if ($d !== null && json_last_error() === JSON_ERROR_NONE) { $how = 'extract'; return $d; }
     }
     $t2 = preg_replace('/,\s*([\]}])/', '$1', $t); /* کاماهای انتهایی */
     if ($t2 !== null && $t2 !== $t) {
         $d = json_decode($t2, true);
-        if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+        if ($d !== null && json_last_error() === JSON_ERROR_NONE) { $how = 'trailing-comma'; return $d; }
         $s = strpos($t2, '{'); $e = strrpos($t2, '}');
         if ($s !== false && $e !== false && $e > $s) {
             $d = json_decode(substr($t2, $s, $e - $s + 1), true);
-            if ($d !== null && json_last_error() === JSON_ERROR_NONE) return $d;
+            if ($d !== null && json_last_error() === JSON_ERROR_NONE) { $how = 'trailing-comma+extract'; return $d; }
         }
     }
+    /* v34.36.2 لایهٔ ۴: پوشش markdown / پیشوند توضیحی مدل */
+    $t3 = llm_json_strip_fences($t2 ?: $t);
+    if ($t3 !== $t) {
+        $d = json_decode($t3, true);
+        if ($d !== null && json_last_error() === JSON_ERROR_NONE) { $how = 'fences'; return $d; }
+        $s = strpos($t3, '{'); $e = strrpos($t3, '}');
+        if ($s !== false && $e !== false && $e > $s) {
+            $d = json_decode(substr($t3, $s, $e - $s + 1), true);
+            if ($d !== null && json_last_error() === JSON_ERROR_NONE) { $how = 'fences+extract'; return $d; }
+        }
+    }
+    /* v34.36.2 لایهٔ ۵: تعمیر JSON بریده (سقف توکن) — بیشترین محتوای قابل نجات */
+    $d = llm_json_repair_truncated($t3);
+    if ($d !== null) { $how = 'repaired-truncated'; return $d; }
     return null;
 }
 function llm_call_json($cfg, $sys, $user, $b64 = null, $mime = null, $maxTok = 1200, $opts = []) {
     $res = llm_call($cfg, $sys, $user, $b64, $mime, $maxTok, $opts);
     if (empty($res['ok'])) return $res;
-    $d = llm_json_salvage($res['text'] ?? '');
-    if ($d !== null) { $res['jsonData'] = $d; return $res; }
-    /* تلاش دوم: سقف توکن دو برابر + دور زدن کش + تلنگر فشردگی */
+    $how = '';
+    $d = llm_json_salvage($res['text'] ?? '', $how);
+    if ($d !== null) { $res['jsonData'] = $d; $res['jsonSalvage'] = $how; return $res; }
+    /* تلاش دوم: سقف توکن دو برابر + دور زدن کش + تلنگر فشردگی
+       v34.36.2: دو برابرِ سقف‌های بزرگ (مثل ۴۰۰۰ مقاله) می‌تواند از حد مدل‌های
+       OpenAI-compatible بیرون بزند و HTTP 400 بسازد → سقف سخت ۸۰۰۰ و کف ۱۲۰۰. */
+    $retryTok = (int)min(8000, max(1200, $maxTok * 2));
     $res2 = llm_call($cfg, $sys . ' CRITICAL: reply with COMPLETE compact valid JSON only — never truncate.',
-        $user, $b64, $mime, (int)($maxTok * 2), array_merge($opts, ['skip_cache' => true]));
+        $user, $b64, $mime, $retryTok, array_merge($opts, ['skip_cache' => true]));
     if (!empty($res2['ok'])) {
-        $d2 = llm_json_salvage($res2['text'] ?? '');
-        if ($d2 !== null) { $res2['jsonData'] = $d2; $res2['json_retried'] = true; return $res2; }
+        $how2 = '';
+        $d2 = llm_json_salvage($res2['text'] ?? '', $how2);
+        if ($d2 !== null) { $res2['jsonData'] = $d2; $res2['json_retried'] = true; $res2['jsonSalvage'] = $how2; return $res2; }
         return $res2;
     }
     return $res; /* خطای اولیه معتبرتر است */
@@ -481,9 +653,30 @@ function llm_call_json($cfg, $sys, $user, $b64 = null, $mime = null, $maxTok = 1
 function out_json($res) {
 
     if (!$res['ok']) { echo json_encode($res, JSON_UNESCAPED_UNICODE); exit; }
-    $data = isset($res['jsonData']) ? $res['jsonData'] : llm_json_salvage($res['text'] ?? ''); /* v34.20.0 */
-    if ($data === null) { echo json_encode(['ok' => false, 'error' => 'خروجی AI ساختار JSON معتبر ندارد (پاسخ قابل تجزیه نبود)', 'raw' => mb_substr((string)($res['text'] ?? ''), 0, 300)], JSON_UNESCAPED_UNICODE); exit; }
-    echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
+    $how = '';
+    $data = isset($res['jsonData']) ? $res['jsonData'] : llm_json_salvage($res['text'] ?? '', $how); /* v34.20.0 */
+    if ($data === null) {
+        /* v34.36.2 (AI-JSON-REPAIR): پیام بن‌بست → پیام عملیاتی. علت واقعی (بریدن در
+           سقف توکن در برابر خروجی آزاد/غیر JSON) جدا گفته می‌شود و نمونهٔ خام +
+           مدل + نشانگر truncated برای تشخیص در CMS/کنسول برمی‌گردد. */
+        $base = 'خروجی AI ساختار JSON معتبر ندارد (پاسخ قابل تجزیه نبود)';
+        $finish = strtoupper((string)($res['finish'] ?? ''));
+        $truncated = ($finish === 'MAX_TOKENS' || $finish === 'LENGTH');
+        $msg = $truncated
+            ? $base . ' — پاسخ مدل به سقف توکن خورد و ناتمام ماند؛ همان کار را دوباره بزنید (یا متن ورودی را کوتاه‌تر کنید)'
+            : $base . ' — دوباره تلاش کنید؛ اگر تکرار شد، نمونهٔ خام خروجی در کنسول مرورگر (F12) و در window.__ptfAiLast موجود است';
+        echo json_encode([
+            'ok' => false,
+            'error' => $msg,
+            'errorBase' => $base,
+            'truncated' => $truncated,
+            'finish' => $finish,
+            'model' => (string)($res['model'] ?? ''),
+            'raw' => mb_substr((string)($res['text'] ?? ''), 0, 300)
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    echo json_encode(['ok' => true, 'data' => $data, 'jsonSalvage' => ($how ?: (isset($res['jsonSalvage']) ? (string)$res['jsonSalvage'] : 'pre')), 'jsonRetried' => !empty($res['json_retried'])], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -849,7 +1042,7 @@ switch ($action) {
                 . 'no prefix like «تصویر» or «عکس»; no quotes; no marketing claims; do not invent brand/model text you cannot read. '
                 . 'Reply ONLY valid JSON: {"alts":[{"src":"<same src>","alt":"..."}]} in the SAME order as given.';
             $user = "تصاویر به ترتیب: " . implode(' | ', $srcs) . "\nبرای هر src یک alt فارسی بنویس — همان ترتیب و همان srcها.";
-            out_json(llm_call($cfg, $sys, $user, null, null, 900, ['images' => $pack]));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 1800, ['images' => $pack])); /* v34.36.2: salvage+retry — سقف ۹۰۰ برای ۸ تصویر عملاً همیشه می‌برید */
             break;
         }
 
@@ -888,7 +1081,7 @@ switch ($action) {
                 . 'Persian anchor phrase (5-12 chars, no “اینجا/کلیک کنید”) plus a short suggestion of where/how to place it. '
                 . 'Reply ONLY valid JSON: {"links":[{"from":"<candidate path>","anchor":"...","how":"..."}]}';
             $user = "صفحهٔ هدف: $tgtPath\nعنوان هدف: $tgtTitle\n\nصفحات کاندید (مسیر | عنوان):\n" . $candTxt;
-            out_json(llm_call($cfg, $sys, $user, null, null, 700));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 1400)); /* v34.36.2: salvage+retry */
             break;
         }
 
@@ -914,7 +1107,7 @@ switch ($action) {
                 . 'Priority = impressions potential. Cluster title = short Persian topic. NEVER suggest a new page for a query the site already ranks position<=5 for. '
                 . 'Reply ONLY valid JSON: {"clusters":[{"topic":"...","action":"new|optimize","why":"...","queries":["..."],"target":"<existing path for optimize or empty>"}]}';
             $user = "کلمات جست‌وجو:\n$qt\n\nصفحات موجود:\n$pt";
-            out_json(llm_call($cfg, $sys, $user, null, null, 1400));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 2400)); /* v34.36.2: salvage+retry */
             break;
         }
 
@@ -986,7 +1179,7 @@ switch ($action) {
                 . 'added = 3-5 short Persian bullets naming what you added. '
                 . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","body":"...","added":["..."]}';
             $user = "موضوع: $topic\n\nمتن فعلی مقاله:\n" . $text;
-            out_json(llm_call($cfg, $sys, $user, null, null, 4000));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 6000)); /* v34.36.2: salvage+retry — مقالهٔ ۱۲۰۰+ کلمهٔ HTML در ۴۰۰۰ توکن جا نمی‌شد */
             break;
         }
 
@@ -1014,7 +1207,7 @@ switch ($action) {
                 . '"missing_keywords":["..."],"internal_links":[{"anchor":"...","target":"/knowledge-center/..."}],'
                 . '"summary":"..."}';
             $user = "عنوان (title): $title\nH1: $h1\nتوضیح (description): $desc\n\nبدنهٔ مقاله:\n" . $body;
-            out_json(llm_call($cfg, $sys, $user, null, null, 2500));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 3600)); /* v34.36.2: salvage+retry */
             break;
         }
 
@@ -1032,7 +1225,7 @@ switch ($action) {
             . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","fixes":[{"issue":"...","action":"..."}],'
             . '"alt":["..."],"sections":["..."],"links":[{"anchor":"...","target":"..."}]}';
         $user = "ایرادات گزارش‌شده: $issues\n\nمتن صفحه:\n" . $content;
-        out_json(llm_call($cfg, $sys, $user, null, null, 2000));
+        out_json(llm_call_json($cfg, $sys, $user, null, null, 2800)); /* v34.36.2: salvage+retry */
         break;
 
     default:

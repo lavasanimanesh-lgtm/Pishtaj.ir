@@ -109,6 +109,26 @@
     return { key: '', name: String(v), size: 0, cloud: false };
   }
   function siteJsArg(v) { return String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+  /* v34.36.2 (SUP-UPLOAD-RCA): تصویر محدودیت‌های آپلود میزبان از attachmentDiag سرور —
+     تا مدیر علت «پیوست نرسید» را همان‌جا ببیند و به پشتیبانی هاست/تامین‌کننده بگوید. */
+  function siteAttachmentDiagLine(d) {
+    if (!d || typeof d !== 'object') return '';
+    var parts = [];
+    if (d.storage) {
+      parts.push('فضای ابری: ' + (d.storageConfigReady ? 'پیکربندی حاضر است' : 'storage-config.php یافت/معتبر نشد'));
+      parts.push('cURL: ' + (d.curl ? 'فعال' : 'غیرفعال'));
+      if (d.storageError) parts.push('خطا: ' + d.storageError);
+    } else {
+      if (d.file_uploads != null) parts.push('file_uploads=' + d.file_uploads);
+      if (d.upload_max_filesize) parts.push('upload_max_filesize=' + d.upload_max_filesize);
+      if (d.post_max_size) parts.push('post_max_size=' + d.post_max_size);
+      if (d.post_count != null) parts.push('فیلدهای POST=' + d.post_count);
+      if (d.files_count != null) parts.push('FILES=' + d.files_count);
+      if (d.content_type) parts.push('Content-Type=' + d.content_type);
+      if (d.content_length) parts.push('Content-Length=' + d.content_length);
+    }
+    return parts.join(' · ');
+  }
   function siteAttachmentHtml(v) {
     var a = siteAttachmentMeta(v);
     if (!a) return '<div style="font-size:12px;color:#94a3b8;margin-bottom:10px">📎 پیوستی همراه این درخواست ارسال نشده است.</div>';
@@ -707,6 +727,13 @@
     var el = document.getElementById('supPendWrap');
     if (!el) return;
     var all = siteSuppliers();
+    /* v34.36.2 (SUP-INBOX-ORDER): جدیدترین ثبت‌نام اول — حتی اگر کشِ قدیمیِ مرورگر ترتیب
+       ثبت (قدیمی‌ترین اول) را نگه داشته باشد، درخواستِ تازه و پیوستش در صفحهٔ اول دیده
+       می‌شود و مدیر مجبور نیست «نمایش بیشتر» را پله‌پله بزند (یک علت رایجِ «فایل آپلود نشد»). */
+    all = all.slice().sort(function (a, b) {
+      var da = String((a && a.date) || ''), db = String((b && b.date) || '');
+      return da === db ? 0 : (db > da ? 1 : -1);
+    });
     var totalAll = siteSupTotal() || all.length; /* v34.7.91 (SUP-PERF-005): تعداد کل سروری، نه فقط لودشده */
     var pend = all.filter(function (s) { return s.status === 'pending'; });
     var rejected = all.filter(function (s) { return s.status === 'rejected'; }).length;
@@ -741,7 +768,10 @@
         var meta = siteAttachmentMeta(s.attachment);
         var attBadge = meta
           ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#6d28d9;border-color:#ddd6fe" title="مشاهدهٔ پیوست" onclick="supSiteDetail(\'' + ptfOnClickArg(s.code) + '\')">📎 ' + escP(meta.name) + '</button>'
-          : '<span class="bd" style="background:#f1f5f9;color:#94a3b8">بدون ضمیمه</span>';
+          /* v34.36.2: «فایل نرسید» از «اصلاً فایلی نفرستاده» جدا می‌شود — با علت واقعی */
+          : (s.attachmentError
+            ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#b91c1b;border-color:#fecaca;background:#fef2f2" title="' + escP(s.attachmentError) + '" onclick="supSiteDetail(\'' + ptfOnClickArg(s.code) + '\')">⚠️ پیوست نرسید</button>'
+            : '<span class="bd" style="background:#f1f5f9;color:#94a3b8">بدون ضمیمه</span>');
         var payBadge = window.ptfSupPayBadge(s) || '<span style="color:#cbd5e1">—</span>';
         h += '<tr><td><b>' + escP(s.code) + '</b></td><td>' + escP(s.company) + '</td><td>' + escP(s.name || '-') + '</td>' +
           '<td style="direction:ltr">' + escP(s.phone || '-') + '</td><td style="font-size:11px">' + escP(s.category || '-') + '</td><td style="font-size:11px">' + payBadge + '</td><td style="font-size:11px">' + (ST[s.status] || '') + '</td><td>' + attBadge + '</td><td>' +
@@ -799,6 +829,12 @@
       '<div style="margin:10px 0"><b style="font-size:13px;color:#475569">📝 شرح درخواست:</b>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:13px;line-height:2;white-space:pre-wrap;max-height:180px;overflow:auto;margin-top:6px">' + (s.message ? escP(s.message) : '<span style="color:#cbd5e1">—</span>') + '</div></div>' +
       siteAttachmentHtml(s.attachment) +
+      /* v34.36.2: اگر پیوست نرسیده، علت + محدودیت‌های میزبان همان‌جا مستند می‌شود */
+      (!s.attachment && s.attachmentError
+        ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 14px;font-size:12.5px;margin:-4px 0 10px;color:#991b1b;line-height:2">⚠️ <b>پیوست این ثبت‌نام به سرور نرسیده است.</b><br>علت گزارش‌شده هنگام ثبت: ' + escP(s.attachmentError) +
+          (siteAttachmentDiagLine(s.attachmentDiag) ? '<br><small dir="ltr" style="color:#7f1d1d">' + escP(siteAttachmentDiagLine(s.attachmentDiag)) + '</small>' : '') +
+          '<br><small style="color:#7f1d1d">تامین‌کننده می‌تواند با دکمهٔ «ارسال دوبارهٔ فایل» در صفحهٔ ثبت‌نام، همان فایل را به همین کد رهگیری اضافه کند — بدون ساخت رکورد تکراری.</small></div>'
+        : '') +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">' +
       (isSenior() && s.status === 'pending'
         ? '<button class="bt" style="background:#059669" onclick="this.closest(\'.md-b\').remove();supApprove(\'' + ptfOnClickArg(code) + '\')">✅ تایید و ورود به فهرست</button>'

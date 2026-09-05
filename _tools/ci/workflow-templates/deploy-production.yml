@@ -176,25 +176,89 @@ jobs:
       - name: Post-deploy integrity check
         run: |
           BASE="https://pishtaj.ir"
-          FILES="crm/index.html crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js crm/manifest.json"
+                    # ⚠ FILES باید «چندخطی» باشد (یک نام در هر خط). رشتهٔ یک‌خطیِ فاصله‌دار با
+          #   `while IFS= read -r f` فقط یک‌بار حلقه می‌زند و *کل* رشته را یک نام فایل
+          #   می‌گیرد → sha1sum خطا (want تهی) و curl خطا → گیت بی‌قیدوشرط قرمز.
+          #   الگوی درست: BYTES_FILES در _tools/ci/verify-deploy.sh.
+          FILES="crm/index.html
+          crm/sw.js
+          crm/shell.js
+          crm/client-server.js
+          crm/key-registry.js
+          crm/sales-domain-v2.js
+          crm/manifest.json"
           PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
           echo "کامیت: $DEPLOY_SHA | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
+          # v34.8.40 (DEPLOY-GATE-WINDOW v2 — بازتولید؛ استیجینگ مستقیماً harden شد):
+          # انتظار اولیهٔ ۱۸۰s برای خروج از پنجرهٔ کهنگیِ کش مسیرمحور هاست +
+          # پنجرهٔ ۱۲×۳۰s + هدرهای no-cache و دوبلِ cache-buster در همهٔ fetchها.
+          echo "   انتظار اولیهٔ ۱۸۰ ثانیه برای پیر شدن کش مسیرمحور هاست…"
+          sleep 180
           fail=1
-          for i in 1 2 3 4 5; do
+          reason=""
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             ok=1
+            dead=0
+            stale=0
+            eolonly=0
             while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              if [ ! -f "$f" ]; then
+                echo "   ⛔ $f در چک‌اوتِ این ران نیست (مشکل داخلی گیت، نه استقرار)"; ok=0; continue
+              fi
               want="$(sha1sum "$f" | cut -d' ' -f1)"
-              got="$(curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" | sha1sum | cut -d' ' -f1)"
-              if [ "$want" != "$got" ]; then ok=0; echo "   ≠ $f (want=${want:0:10} got=${got:0:10})"; fi
+              htmp="/tmp/live_$(echo "$f" | tr '/' '_')"
+              : > "$htmp"
+              curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/$f?v=$(date +%s)&r=$((RANDOM))$RANDOM" -o "$htmp" 2>/dev/null || true
+              # v34.36.4 (INTEGRITY-TRUTHFUL): بدنهٔ تهی یعنی «پاسخ نگرفتیم» (TLS/تایم‌اوت/۴۰۴)،
+              # نه «محتوا متفاوت است». پیش‌تر هر دو یک پیام ≠ داشتند و got همیشه da39a3ee…
+              # (هشِ رشتهٔ خالی) بود — همان چیزی که ریشه‌یابیِ runهای قرمز را ناممکن می‌کرد.
+              if [ ! -s "$htmp" ]; then
+                ok=0; dead=$((dead+1))
+                echo "   ⚠ $f: پاسخ زنده دریافت نشد (بدنهٔ تهی) — انتقال/دسترس‌پذیری، نه ناهمسانی محتوا"
+                continue
+              fi
+              got="$(sha1sum "$htmp" | cut -d' ' -f1)"
+              if [ "$want" = "$got" ]; then continue; fi
+              # تفاوتِ فقط-پایان‌خط (تبدیل \r\n سمت سرو) نسخهٔ مخلوط نیست → هشدار، نه شکست.
+              if [ "$(tr -d '\r' < "$f" | sha1sum | cut -d' ' -f1)" = "$(tr -d '\r' < "$htmp" | sha1sum | cut -d' ' -f1)" ]; then
+                eolonly=$((eolonly+1))
+                echo "   ⚠ $f: تفاوت فقط پایان‌خط (\\r) است؛ محتوا == کامیت (want=${want:0:10} got=${got:0:10})"
+                continue
+              fi
+              ok=0; stale=$((stale+1))
+              echo "   ≠ $f (want=${want:0:10} got=${got:0:10} | اندازه کامیت=$(wc -c < "$f" | tr -d ' ') زنده=$(wc -c < "$htmp" | tr -d ' '))"
+              { diff "$f" "$htmp" 2>/dev/null | head -3 || true; } | sed 's/^/       اولین تفاوت: /'
             done <<< "$FILES"
-            live_sw="$(curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
-            if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: $live_sw"; fi
-            if [ "$ok" -eq 1 ]; then fail=0; echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"; break; fi
-            echo "   … تلاش $i ناموفق؛ ۱۲ ثانیه صبر و تکرار"
-            sleep 12
+            sw_tmp="/tmp/live_assert_sw.js"
+            : > "$sw_tmp"
+            curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/crm/sw.js?v=$(date +%s)&r=$((RANDOM))$RANDOM" -o "$sw_tmp" 2>/dev/null || true
+            if [ ! -s "$sw_tmp" ]; then
+              ok=0; dead=$((dead+1)); echo "   ⚠ crm/sw.js: پاسخ زنده دریافت نشد — سنجهٔ RELEASE قابل سنجش نیست"
+            else
+              live_sw="$(grep -o "RELEASE = 'v[0-9.]*'" "$sw_tmp" | head -1 || true)"
+              if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then
+                ok=0; stale=$((stale+1))
+                echo "   ≠ crm/sw.js زنده: ${live_sw:-—} (انتظار RELEASE = '$PTF_CRM_RELEASE')"
+              fi
+            fi
+            if [ "$ok" -eq 1 ]; then
+              fail=0
+              if [ "$eolonly" -gt 0 ]; then
+                echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت ($eolonly مورد فقط تفاوت پایان‌خط)"
+                echo "::warning::سرور $eolonly فایل را با تبدیل پایان‌خط (\\r) تحویل می‌دهد — محتوا یکی است؛ برای حذف این هشدار، انتقال FTP را باینری کنید"
+              else
+                echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"
+              fi
+              break
+            fi
+            reason="ناهمسانی محتوا: $stale مورد"
+            if [ "$dead" -gt 0 ]; then reason="$reason · بدون پاسخ/تهی: $dead مورد"; fi
+            echo "   … تلاش $i از ۱۲ ناموفق ($reason)؛ ۳۰ ثانیه صبر و تکرار"
+            sleep 30
           done
           if [ "$fail" -ne 0 ]; then
-            echo "::error::سایت زنده با کامیت دیپلوی‌شده یکی نیست — استقرار ناموفق اعلام می‌شود"
+            echo "::error::سایت زنده با کامیت دیپلوی‌شده یکی نیست (${reason:-علت نامشخص}) — استقرار ناموفق اعلام می‌شود. اگر دستهٔ «بدون پاسخ/تهی» غالب است، مشکل از دسترس‌پذیری/کش لبهٔ HTTP است نه از محتوای دیپلوی‌شده؛ پیش از هر اقدامی یک‌بار دیگر اجرا کنید."
           fi
           exit $fail
 

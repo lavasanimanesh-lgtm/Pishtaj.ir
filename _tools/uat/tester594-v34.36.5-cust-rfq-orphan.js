@@ -48,4 +48,4 @@ if (failed.length) {
   console.log(failed.map(function (f) { return ' • ' + f; }).join('\n'));
   process.exit(1);
 }
-console.log('PASS tester588: مشتری یتیم درخواست — کد یکتا + heal + فیلتر');
+console.log('PASS tester594: مشتری یتیم درخواست — کد یکتا + heal + فیلتر');

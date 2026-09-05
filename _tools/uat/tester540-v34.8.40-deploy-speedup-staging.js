@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester540 — v34.36.0 (DEPLOY-SPEEDUP + TRUTHFUL-GREEN برای استیجینگ)
+/* tester540 — v34.36.4 (DEPLOY-SPEEDUP + TRUTHFUL-GREEN برای استیجینگ)
    ریشهٔ تغییر: دیپلوی استیجینگ برای یک تغییر کوچک ۸-۱۲ دقیقه طول می‌کشید و در پایان
    هم «Post-deploy integrity» قرمز می‌شد (false-red؛ کش مسیرمحور هاست).
    قرارداد جدید deploy-staging.yml:
@@ -39,7 +39,24 @@ function contract(st) {
   C('افزایشی: فهرست exclude هم‌ارز full-sync (بدون _tools/*.md/tester*)', (function () { var seg = st.slice(st.indexOf('Compute deploy delta'), st.indexOf('Incremental FTP upload')); return seg.indexOf('_tools') > -1 && seg.indexOf('\\.md$') > -1 && seg.indexOf('tester[^/]*\\.js$') > -1 && seg.indexOf('docs-deploy') > -1; })());
 
   /* ---------- fallback کامل ---------- */
-  C('fallback: FTP-Deploy-Action فقط در حالت full یا شکست افزایشی اجرا می‌شود', /if: steps\.delta\.outputs\.mode == 'full' \|\| steps\.inc\.outcome == 'failure'/.test(st));
+  /* v34.36.4: شرطِ پیشین `mode == 'full' || inc.outcome == 'failure'` بود و یک سوراخِ
+     واقعی داشت: اگر گامِ دلتا وسطِ کار می‌مرد (باگِ `$(( … ))` در گزارشِ شمارش —
+     run 33914510099) در حالی که mode=incremental را نوشته بود، نه inc اجرا می‌شد و
+     نه full ⇒ **هیچ فایلی دیپلوی نمی‌شد** و ران قرمز می‌ماند. شرطِ جدید «هر چیزی جز
+     مسیرِ افزایشیِ موفق» را به full می‌برد و پینِ زیر هم آن را قفل می‌کند. */
+  C('fallback: FTP-Deploy-Action در «هر چیزی جز مسیرِ افزایشیِ موفق» اجرا می‌شود (شکستِ دلتا · دلتایِ تهی · شکستِ افزایشی)',
+    /if: steps\.delta\.outputs\.mode != 'incremental' \|\| steps\.delta\.outcome == 'failure' \|\| steps\.inc\.outcome == 'failure'/.test(st));
+  var fbAt = st.indexOf('Deploy via FTP (full sync fallback)');
+  C('fallback: عمداً بدونِ always() است — گیتِ CI قرمز همچنان جلوی دیپلوی را می‌گیرد',
+    fbAt > -1 && st.slice(fbAt, fbAt + 400).indexOf('always()') === -1);
+  C('دلتا: گامِ محاسبهٔ دلتا continue-on-error دارد (خطای محاسبه = full، نه «هیچ دیپلویی»)',
+    /id: delta[\s\S]{0,600}continue-on-error: true/.test(st));
+  C('دلتا: گزارشِ شمارش با «جانشینیِ فرمان» نوشته می‌شود نه «ارزیابیِ حسابی» (باگِ run 33914510099)',
+    st.indexOf('n_del="$( [ -f /tmp/delete.txt ]') > -1 && !/\$\(\(\[/.test(st));
+  C('دلتا: سپرِ «دلتایِ تهی» → بازگشتِ صریح به همگام‌سازیِ کامل',
+    st.indexOf('فهرستِ دلتا خالی است') > -1 && /MODE="full"; echo "mode=\$MODE" >> "\$GITHUB_OUTPUT"/.test(st));
+  C('افزایشی: فقط وقتی دلتا کامل و موفق محاسبه شده باشد اجرا می‌شود',
+    /if: steps\.delta\.outputs\.mode == 'incremental' && steps\.delta\.outcome == 'success'/.test(st));
   C('fallback: state-name استیجینگ حفظ شده', /state-name: \.ftp-state-staging-v2\.json/.test(st));
   C('full هفتگی: schedule دارد و در schedule حالت full می‌شود', /cron: '0 4 \* \* 6'/.test(st) && /github\.event_name\}\"]? =? ?"schedule"|"\$\{\{ github\.event_name \}\}" = "schedule"/.test(st.replace(/\n/g, ' ')) || st.indexOf('"${{ github.event_name }}" = "schedule"') > -1);
   C('full دستی: ورودی full در workflow_dispatch', /inputs:/.test(st) && /full:/.test(st) && /description: 'همگام‌سازی کامل \(نه افزایشی\)'/.test(st));
@@ -88,6 +105,6 @@ if (wired) {
 }
 
 results.forEach(function (r) { T(r.n, r.c, r.d); });
-console.log('\n— tester540 (v34.36.0: DEPLOY-SPEEDUP + TRUTHFUL-GREEN استیجینگ' + (wired ? '' : ' — حالت وصلهٔ معلق') + ') —');
+console.log('\n— tester540 (v34.36.4: DEPLOY-SPEEDUP + TRUTHFUL-GREEN استیجینگ' + (wired ? '' : ' — حالت وصلهٔ معلق') + ') —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

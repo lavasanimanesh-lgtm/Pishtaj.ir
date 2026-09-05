@@ -20,6 +20,11 @@
     'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns', 'ptf_crm_fin_events', 'ptf_crm_bank_recon', 'ptf_crm_treasury_calls', 'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments', 'ptf_crm_corrections', 'ptf_crm_fin_findings', 'ptf_crm_personal_cheques'
   ];
   // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کلیدهای بحرانی که باید فوری sync شوند
+  /* v34.36.1 (F6 — PARITY): فهرست مرجع کلیدها در دسترس فاز B هم باشد. پیش از این
+     bKeysFallback() در client-server.js فهرست دست‌نویس قدیمی‌تری داشت و دو کلید
+     (ptf_crm_fin_events و ptf_crm_personal_cheques) هرگز در «انتقال یک‌باره»
+     ارسال نمی‌شدند ⇒ «۴۸ از ۴۹ کلید» برای همیشه. */
+  window._ptfSyncKeys = SYNC_KEYS;
   var URGENT_SYNC_KEYS = [
     'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_fin_events',
     'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_fiscal_snapshots',
@@ -241,6 +246,13 @@
       return { k: k, since: num ? v : 0, ageSec: num ? Math.max(0, Math.round((now - v) / 1000)) : -1 };
     }).sort(function (a, b) { return b.ageSec - a.ageSec; });
   };
+  /* v34.36.1 (SHARED-UNION PREDICATE — R3): کلیدهایی که سرور مقدارشان را با ادغامِ
+     چند دستگاه ذخیره می‌کند (api/crm.php → sync_shared_union_key). watermark این سه
+     کلید پس از ACKِ push جلو نمی‌رود: نسخهٔ ذخیره‌شدهٔ سرور union است نه عینِ
+     payload ما، و pull بعدی باید ردیف سایر دستگاه‌ها را بیاورد. فهرست سفیدِ
+     «رهایش امن» پایین هم دقیقاً همین سه کلید است. */
+  function isSharedUnionKey(k) { return ['ptf_crm_audit', 'ptf_crm_notifs', 'ptf_crm_avatars'].indexOf(k) >= 0; }
+  window.ptfSyncIsSharedUnionKey = isSharedUnionKey;
   window.ptfSyncDropDirtyKey = function (k) {
     if (['ptf_crm_audit', 'ptf_crm_notifs', 'ptf_crm_avatars'].indexOf(k) < 0) return false;
     delete state.dirty[k]; saveDirty();
@@ -249,7 +261,14 @@
   };
   window.ptfSyncMarkPendingKeys = function (keys) {
     (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
-      if (SYNC_KEYS.indexOf(k) > -1) state.dirty[k] = Date.now(); /* v34.9.1 */
+      if (SYNC_KEYS.indexOf(k) < 0) return;
+      /* v34.9.1: عدد = زمانِ dirty شدن (برای نمایش «چقدر وقت است مانده»).
+         v34.36.1 (F7): بازنشانیِ مهر زمانی در هر تلاشِ ناموفق، سنِ واقعی کلید را
+         صفر می‌کرد و یک کلیدِ گیرکرده همیشه «همین الان» دیده می‌شد. نخستین مهر
+         زمانی حفظ می‌شود (مقدار بولی قدیمی true هم به مهر زمانی ارتقا می‌یابد). */
+      var prev = state.dirty[k];
+      if (typeof prev === 'number' && prev > 0) return;
+      state.dirty[k] = Date.now();
     });
     saveDirty();
     if (Object.keys(state.dirty).length) { try { setSyncBadge('warn'); } catch (eBadge) {} }
@@ -491,6 +510,11 @@
     try { return JSON.parse(localStorage.getItem('ptf_sync_last_error') || 'null'); } catch (e) { return null; }
   }
   window.ptfSyncLastError = readSyncLastError;
+  /* v34.36.1 (P0-3): ثبت خطای دائمی برای مسیر فاز B هم در دسترس باشد. پیش از این
+     فقط push/pull مسیر legacy خطا را ثبت می‌کردند، بنابراین شکست «انتقال یک‌باره»
+     هیچ ردی در «تشخیص همگام‌سازی» به جا نمی‌گذاشت (F4: کاربر تنها یک alert مبهم
+     «network» می‌دید و هیچ فارِنسیکی وجود نداشت). */
+  window.ptfSyncNoteError = noteSyncError;
   window.ptfSyncServerStatus = function (cb) {
     /* اگر توکن نیست، نیازی به درخواست نیست: data_rev محافظت‌شده است و 401 می‌دهد. */
     if (!hasSyncToken()) { if (cb) cb({ status: 'needLogin', error: 'نشست/توکن یافت نشد' }); return; }
@@ -513,6 +537,15 @@
     var dirty = {}, queue = {};
     try { dirty = JSON.parse(localStorage.getItem('ptf_sync_dirty') || '{}') || {}; } catch (e) {}
     try { queue = JSON.parse(localStorage.getItem('ptf_b_queue') || '{}') || {}; } catch (e) {}
+    /* v34.36.1 (F5): وقتی فاز B روشن است صف آفلاین به IDB منتقل و از LS پاک می‌شود
+       (v34.8.34/W1)؛ خواندنِ تنها LS، باکس تشخیص را «صف: خالی» نشان می‌داد درحالی‌که
+       کلید واقعاً در انتظار ارسال بود — یعنی همان نشانهٔ گمراه‌کننده‌ای که عیب‌یابی
+       بن‌بست «۴۸ از ۴۹» را سخت کرد. مرجع زندهٔ فاز B با این LS union می‌شود. */
+    try {
+      if (typeof window.ptfBPendingKeys === 'function') {
+        (window.ptfBPendingKeys() || []).forEach(function (k) { if (!queue[k]) queue[k] = 1; });
+      }
+    } catch (eQDiag) {}
     var writeFail = Object.keys(state.writeFailures || {});
     return {
       dirty: Object.keys(dirty || {}), queue: Object.keys(queue || {}),
@@ -533,8 +566,11 @@
     if (!el) return;
     var c = diagCounts();
     var last = readSyncLastError();
+    /* v34.36.1 (P0-3): دامنهٔ «migration» هم ثبت می‌شود (شکست انتقال یک‌باره)؛
+       پیش از این هر دامنهٔ غیر push «دریافت (pull)» نشان داده می‌شد = برچسب گمراه‌کننده. */
+    var SCOPE_LABEL = { push: 'ارسال (push)', pull: 'دریافت (pull)', migration: 'انتقال یک‌باره', sync: 'همگام‌سازی', diag: 'تشخیص اتصال' };
     var statusLine = last
-      ? ('<b>آخرین خطا:</b> ' + escP(last.scope === 'push' ? 'ارسال (push)' : 'دریافت (pull)') + ' — ' +
+      ? ('<b>آخرین خطا:</b> ' + escP(SCOPE_LABEL[last.scope] || (last.scope === 'push' ? 'ارسال (push)' : 'دریافت (pull)')) + ' — ' +
          escP(last.status || '') + ' ' + escP(last.reason || '') + (last.detail ? ' — ' + escP(last.detail) : '') +
          ' <small style="color:#94a3b8">(' + escP(last.fa || last.t || '') + ')</small>')
       : '<b>آخرین خطا:</b> <span style="color:#059669">در این نشست خطای ثبت‌شده‌ای نیست</span>';

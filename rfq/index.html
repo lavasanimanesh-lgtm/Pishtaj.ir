@@ -673,6 +673,14 @@
 
       try {
         const fdRfq = new FormData(form);
+        /* v34.36.2 (SUP-UPLOAD-RCA): اعلام فایل انتخاب‌شده به سرور — اگر فایل در $_FILES
+           سرور ظاهر نشود (post_max_size / file_uploads=Off / فیلتر امنیتی)، سرور به‌جای
+           ثبتِ بی‌صدای بدون پیوست، علت دقیق را برمی‌گرداند. */
+        try {
+          const fiRfq = form.querySelector('input[type="file"][name="attachment"]');
+          const fRfq = (fiRfq && fiRfq.files && fiRfq.files[0]) ? fiRfq.files[0] : null;
+          if (fRfq) { fdRfq.append('attachment_name', fRfq.name); fdRfq.append('attachment_size', String(fRfq.size)); }
+        } catch (eDecl) {}
         if (typeof ptfCaptchaAppend === 'function') ptfCaptchaAppend(fdRfq);
         const res = await fetch(form.action, {
           method: 'POST',
