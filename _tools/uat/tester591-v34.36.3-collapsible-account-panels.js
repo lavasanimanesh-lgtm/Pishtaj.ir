@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* ═══════════════════════════════════════════════════════════════════════════
-   tester591 — v34.37.1 — پنل‌های تاشوِ بالای فهرست (کارفرما ۲۰۲۶-۰۹-۰۴)
+   tester591 — v34.37.2 — پنل‌های تاشوِ بالای فهرست (کارفرما ۲۰۲۶-۰۹-۰۴)
 
    خواستهٔ کارفرما:
      «در قسمت تامین‌کنندگان پنجرهٔ بالای فهرست یعنی حساب تامین‌کنندگان به‌صورت
@@ -24,7 +24,7 @@ var p = 0, f = 0;
 function T(n, c, d) { if (c) { p++; console.log('PASS', n); } else { f++; console.error('FAIL', n, d === undefined ? '' : d); } }
 function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
-var VER = 'v34.37.1';
+var VER = 'v34.37.2'; /* ابزار fix-version-drift این خط را خراب کرده بود (به‌سبب قاعدهٔ R-H که «var VER = 'v» را بدون نگاه‌داشتن به زمینهٔ regex بازنویسی می‌کرد) — در این فایل VER یک مقدار لفظیِ عامد است و window هم در Node وجود ندارد. */
 var ver = JSON.parse(read('VERSION.json'));
 var idx = read('crm/index.html');
 var slf = read('crm/supplier-finance.js');
@@ -32,8 +32,8 @@ var sc = read('crm/scoring.js');
 var cf = read('crm/customer-finance.js');
 var tc = read('crm/theme-contrast.js');
 var gate = read('_tools/uat/run-ci-gate.js');
-/* v34.37.1: شکلِ escape‌شدهٔ نسخهٔ جاری برای پین‌هایی که با new RegExp('…') ساخته می‌شوند
-   (در متنِ فایل به‌صورت 34\\.37\\.1 دیده می‌شود). از VER مشتق می‌شود، نه لفظیِ دستی —
+/* v34.37.2: شکلِ escape‌شدهٔ نسخهٔ جاری برای پین‌هایی که با new RegExp('…') ساخته می‌شوند
+   (در متنِ فایل به‌صورت 34\\.37\\.2 دیده می‌شود). از VER مشتق می‌شود، نه لفظیِ دستی —
    تا با هر bump خودبه‌خود به‌روز بماند و «نسخهٔ مخلوط» را همچنان بگیرد
    (کش‌باسترِ index.html باید با نسخهٔ رسمیِ VERSION.json یکی باشد). */
 var CUR_ESC2 = VER.replace(/^v/, '').split('.').join('\\.');
@@ -41,12 +41,12 @@ var CUR_ESC2 = VER.replace(/^v/, '').split('.').join('\\.');
 /* ═══════════ ۰) نسخه و ثبت در گیت ═══════════ */
 T('۰.۱ VERSION.json = ' + VER, ver.crm_version === VER, ver.crm_version);
 T('۰.۲ cache-bust هر سه فایل در index.html', ['supplier-finance.js', 'scoring.js', 'customer-finance.js'].every(function (m) {
-  /* v34.37.1: این پین به‌صورت رشتهٔ new RegExp('…') نوشته شده، پس escape آن «دوبل» است
-     (34\\.37\\.1) و ابزارِ bump-version-pins پیش‌تر فقط شکلِ تک‌escape را می‌دید — یکی از
-     دو نقطهٔ کوری که در v34.37.1 در خودِ ابزار رفع شد. */
+  /* v34.37.2: این پین به‌صورت رشتهٔ new RegExp('…') نوشته شده، پس escape آن «دوبل» است
+     (34\\.37\\.2) و ابزارِ bump-version-pins پیش‌تر فقط شکلِ تک‌escape را می‌دید — یکی از
+     دو نقطهٔ کوری که در v34.37.2 در خودِ ابزار رفع شد. */
   return new RegExp(m.replace('.', '\\.') + '\\?v=' + CUR_ESC2).test(idx);
 }));
-/* v34.37.1: نامِ *فایلِ* این تستر یک «هویتِ تاریخی» است، نه پینِ نسخه — ابزارِ bump
+/* v34.37.2: نامِ *فایلِ* این تستر یک «هویتِ تاریخی» است، نه پینِ نسخه — ابزارِ bump
    پیش‌تر آن را هم عوض می‌کرد و ارجاع به فایلِ واقعی می‌شکست (این پین قرمز می‌شد).
    هویت‌ها حالا در خودِ ابزار محافظت می‌شوند (IDENTITY_RE). */
 T('۰.۳ این تستر در گیت CI ثبت شده است', gate.indexOf('tester591-v34.36.3-collapsible-account-panels.js') > -1);

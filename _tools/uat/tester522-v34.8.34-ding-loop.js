@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
-/* tester522 — v34.37.1 (DING-LOOP): پایان «دینگ هر چند ثانیه + 🔄 N بخش از دستگاه
+/* tester522 — v34.37.2 (DING-LOOP): پایان «دینگ هر چند ثانیه + 🔄 N بخش از دستگاه
    دیگر به‌روز شد».
 
-   گزارش کارفرما پس از v34.37.1: تکرار کارت قطع شد ولی دینگ و پیام pull ادامه داشت.
+   گزارش کارفرما پس از v34.37.2: تکرار کارت قطع شد ولی دینگ و پیام pull ادامه داشت.
    ریشه: وقتی notifiedUsers گم‌شده دیده می‌شد، سپر dkey کارت دوم نمی‌ساخت ولی کد
    added=true برمی‌گرداند (دینگ هر تیک) و دوباره entity_upsert می‌فرستاد
    (rev++ → toast pull در هر چرخه).
@@ -132,9 +132,9 @@ T('پوش انبوه legacy فقط وقتی فرمان خاموش است', /else
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.37.1', ver.crm_version === 'v34.37.1', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.37.1', /window\.PTF_CRM_RELEASE = 'v34\.37\.1'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.1'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.37.2', ver.crm_version === 'v34.37.2', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.37.2', /window\.PTF_CRM_RELEASE = 'v34\.37\.2'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.2'/.test(read('crm/sw.js')));
 
-console.log('\n— tester522 (v34.37.1: DING-LOOP) —');
+console.log('\n— tester522 (v34.37.2: DING-LOOP) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

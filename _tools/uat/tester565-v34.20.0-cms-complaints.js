@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester565 — v34.37.1: سه رفع شکایت مالک
+/* tester565 — v34.37.2: سه رفع شکایت مالک
    A) گروه «مدیریت سایت» — سه‌گانه در کشوی موبایل هم سرگروه دارد (دسکتاپ از v34.13.0)
    B) فرم صفحهٔ جدید: شمارندهٔ زنده + نوار ابزار HTML + پیش‌نمایش + گسترش AI
    C) JSON مقاوم: salvage (کاما/پوشش) + retry دومقطعه با توکن دوبرابر برای seo_product/meta/article */
@@ -42,9 +42,9 @@ T('JSON: salvage سه‌مرحله‌ای (مستقیم → استخراج {..} 
 T('JSON: retry با توکن دوبرابر + skip_cache + تلنگر فشردگی', RETRY.indexOf('$maxTok * 2') > -1 && RETRY.indexOf("'skip_cache' => true") > -1 && RETRY.indexOf('COMPLETE compact valid JSON') > -1);
 T('JSON: retry فقط یک‌بار و در شکستِ هر دو، خطای اولیه برمی‌گردد', RETRY.indexOf('json_retried') > -1 && /return \$res; \/\* خطای اولیه معتبرتر است \*\//.test(RETRY));
 T('JSON: out_json پاسخ از پیش تجزیه‌شده (jsonData) را می‌پذیرد', OJ.indexOf("isset($res['jsonData'])") > -1);
-/* v34.37.1 (AI-JSON-REPAIR): شمار پین از ۳ → ۹ — همهٔ اکشن‌های سئوی مدیریت سایت
+/* v34.37.2 (AI-JSON-REPAIR): شمار پین از ۳ → ۹ — همهٔ اکشن‌های سئوی مدیریت سایت
    (seo_meta/seo_product/seo_article از v34.20.0 + seo_fix/seo_review/seo_expand/
-   seo_clusters/seo_intlinks/seo_alt از v34.37.1) باید از مسیر مقاوم عبور کنند. */
+   seo_clusters/seo_intlinks/seo_alt از v34.37.2) باید از مسیر مقاوم عبور کنند. */
 T('JSON: هر ۹ اکشن سئو از llm_call_json عبور می‌کنند', (llm.match(/out_json\(llm_call_json\(/g) || []).length === 9);
 T('JSON: seo_product دقیقاً همین مسیر', /seo_product[\s\S]{0,4200}out_json\(llm_call_json\(\$cfg, \$sys, \$user, null, null, 1600\)\)/.test(llm));
 

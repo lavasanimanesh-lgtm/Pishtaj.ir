@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =====================================================================
-   tester592 — v34.37.1 · INTEGRITY-TRUTHFUL (گیت صحتِ پس از استقرار)
+   tester592 — v34.37.2 · INTEGRITY-TRUTHFUL (گیت صحتِ پس از استقرار)
 
    چرا این تستر وجود دارد (RCA با شواهدِ ران):
    سه رانِ پیاپیِ استقرار — PR #3 (run 33909238999)، main (run 33866519467) و
@@ -459,6 +459,6 @@ try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (eClean) {}
   });
 })();
 
-console.log('\n— tester592 (v34.37.1: INTEGRITY-TRUTHFUL — گیتِ صحتِ استقرار، اجراشده با curl ساختگی) —');
+console.log('\n— tester592 (v34.37.2: INTEGRITY-TRUTHFUL — گیتِ صحتِ استقرار، اجراشده با curl ساختگی) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
