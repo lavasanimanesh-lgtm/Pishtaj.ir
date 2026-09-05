@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester566 — v34.37.3: دستیار هوش مصنوعی خارجی
+/* tester566 — v34.37.6: دستیار هوش مصنوعی خارجی
    ایدهٔ مالک: برای مطلب بلند، پرامپت آمادهٔ همان موضوع ساخته شود تا از AI خارجی
    (ChatGPT/Claude/Gemini) تولید شود — و خروجی با نشانگرهای استاندارد خودکار در
    فرم توزیع گردد (بدون هیچ وابستگی به مدل سروری/JSON). */
@@ -38,7 +38,7 @@ T('UI: باز و بسته شدن امن (id یکتا + حذف نمونهٔ قد�
 T('PARSE: تک‌خطی‌ها (TITLE/H1/DESCRIPTION/SLUG) با تحمل فاصله/حالت', PARSE.indexOf('TITLE|H1|DESCRIPTION|SLUG') > -1 && PARSE.indexOf('/i') > -1);
 T('PARSE: بلوکی‌ها (BODY/SPECS/FAQ) تا نشانگر بعدی یا پایان', PARSE.indexOf('BODY|SPECS|FAQ') > -1 && PARSE.indexOf('flush()') > -1);
 T('PARSE: محتوای هم‌خطِ بعد از دونقطه هم پذیرفته می‌شود', PARSE.indexOf('if (rest) buf.push(rest)') > -1);
-T('APPLY: گیت خروجی بی‌نشانگر با پیام فارسی', PGA.indexOf('نشانگرها پیدا نشد') > -1 && cms.indexOf('window.cmsExtErr = function') > -1); /* v34.37.3: پیام درون‌مودال به‌جای alert */
+T('APPLY: گیت خروجی بی‌نشانگر با پیام فارسی', PGA.indexOf('نشانگرها پیدا نشد') > -1 && cms.indexOf('window.cmsExtErr = function') > -1); /* v34.37.6: پیام درون‌مودال به‌جای alert */
 T('APPLY: slug سمت کلاینت تمیز می‌شود', PGA.indexOf("replace(/[^a-z0-9\\-]/g, '-')") > -1);
 T('APPLY: فقط فیلد خالی — بازنویسی با تأیید یک‌باره', FILL.indexOf('hasFilled ? confirm(') > -1 && FILL.indexOf('فقط فیلدهای خالی پر شوند') > -1);
 T('APPLY: گزارش تعداد فیلد + پیام بازبینی انسانی', FILL.indexOf('فیلد از خروجی هوش مصنوعی خارجی پر شد') > -1 && PGA.indexOf('بازبینی انسانی الزامی است') > -1 && PRA.indexOf('بازبینی انسانی الزامی است') > -1);

@@ -1,5 +1,5 @@
 /* =====================================================================
-   tester588 — v34.37.3 (MIGRATION-CONVERGENCE / RCA بن‌بست «۴۸ از ۴۹ کلید»)
+   tester588 — v34.37.6 (MIGRATION-CONVERGENCE / RCA بن‌بست «۴۸ از ۴۹ کلید»)
    ---------------------------------------------------------------------
    این تستر «رفتاری» است: sync.js + client-server.js را در یک VM با سرورِ
    ساختگی (fetch اسکریپت‌شده) اجرا می‌کند و همان سناریوی واقعی دستگاهِ
@@ -552,7 +552,7 @@ function waitFor(fn, timeoutMs) {
   T('سازگاری: merge محافظت‌شدهٔ سرور (recurring-owned) دست‌نخورده', apiSrc.indexOf('function sync_merge_protected_finance_snapshot') > -1);
   T('سازگاری: رهایش امن فقط برای whitelist لاگ/اعلان', syncSrc.indexOf("window.ptfSyncDropDirtyKey = function (k)") > -1 && syncSrc.indexOf("['ptf_crm_audit', 'ptf_crm_notifs', 'ptf_crm_avatars']") > -1);
 
-  console.log('\n— tester588 (v34.37.3: همگراییِ انتقال یک‌باره — MIGRATION-CONVERGENCE) —');
+  console.log('\n— tester588 (v34.37.6: همگراییِ انتقال یک‌باره — MIGRATION-CONVERGENCE) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   process.exit(f ? 1 : 0);
 })().catch(function (e) {

@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.37.3'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.37.6'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -359,7 +359,7 @@
         hideModal();
         renderCms();
         cmsDraftClear(KC_FIELDS); /* v34.10.0: انتشار شد — پیش‌نویس دیگر لازم نیست */
-        alert('✅ مقاله منتشر شد:\npishtaj.ir/' + d.url + (d.listed ? '\n(به فهرستِ مرکز دانش هم اضافه شد)' : '\n⚠️ به فهرستِ مرکز دانش اضافه نشد — دستی اضافه کنید'));
+        alert('✅ مقاله منتشر شد:\npishtaj.ir/' + d.url + (d.listed ? '\n(به فهرستِ مرکز دانش هم اضافه شد)' : '\n⚠️ به فهرستِ مرکز دانش اضافه نشد — دستی اضافه کنید') + (window.cmsSitemapNote ? window.cmsSitemapNote(d) : ''));
         if (!cmsSitemapAfterPublish() && typeof gscSubmitSitemap === 'function') gscSubmitSitemap(); /* v34.10.0: خودکار در صورت روشن‌بودن سوییچ */
       } else if (d.error === 'exists') {
         if (confirm('صفحه‌ای با این نامک وجود دارد — بازنویسی شود؟')) {
@@ -492,7 +492,7 @@
       dateFa: new Date().toLocaleDateString('fa-IR')
     }, function (d) {
       if (d.ok) {
-        alert('✅ مقاله منتشر شد:\npishtaj.ir/' + d.url + '\n\n(به فهرست وبلاگ و sitemap هم اضافه شد)');
+        alert('✅ مقاله منتشر شد:\npishtaj.ir/' + d.url + '\n\n' + (d.sitemap === 'failed' ? 'به فهرست وبلاگ اضافه شد — اما ثبت نقشه ناموفق بود ⚠️' : '(به فهرست وبلاگ و sitemap هم اضافه شد)') + (window.cmsSitemapNote ? window.cmsSitemapNote(d) : ''));
         audit('CMS', 'انتشار مقاله: ' + title, slug);
         hideModal();
         renderCms();
@@ -500,7 +500,7 @@
       } else if (d.error === 'exists') {
         if (confirm('صفحه‌ای با این نامک وجود دارد — بازنویسی شود؟')) {
           api('blog_create', { title: title, slug: slug, desc: desc, cat: catV, catLb: catLb, body: body, dateFa: new Date().toLocaleDateString('fa-IR'), overwrite: 1 }, function (d2) {
-            if (d2.ok) { alert('✅ بازنویسی شد'); hideModal(); renderCms(); cmsDraftClear(CB_FIELDS); cmsSitemapAfterPublish(); }
+            if (d2.ok) { alert('✅ بازنویسی شد' + (window.cmsSitemapNote ? window.cmsSitemapNote(d2) : '')); hideModal(); renderCms(); cmsDraftClear(CB_FIELDS); cmsSitemapAfterPublish(); }
             else alert('⚠️ ' + (d2.error || ''));
           });
         }
@@ -1251,14 +1251,14 @@
       if (d.ok) {
         cmsDraftClear(PAGE_FIELDS);
         audit('CMS', 'انتشار صفحهٔ عمومی: ' + title, folder + '/' + slug);
-        alert('✅ صفحه منتشر شد:\npishtaj.ir/' + d.url);
+        alert('✅ صفحه منتشر شد:\npishtaj.ir/' + d.url + (window.cmsSitemapNote ? window.cmsSitemapNote(d) : ''));
         if (typeof renderCms === 'function') renderCms(document.getElementById('cmsWrap'));
         cmsSitemapAfterPublish();
       } else if (d.error === 'exists') {
         if (confirm('صفحه‌ای با این نامک هست — بازنویسی شود؟')) {
           payload.overwrite = 1;
           api('page_create', payload, function (d2) {
-            if (d2.ok) { cmsDraftClear(PAGE_FIELDS); alert('✅ بازنویسی شد'); cmsSitemapAfterPublish(); }
+            if (d2.ok) { cmsDraftClear(PAGE_FIELDS); alert('✅ بازنویسی شد' + (window.cmsSitemapNote ? window.cmsSitemapNote(d2) : '')); cmsSitemapAfterPublish(); }
             else alert('⚠️ ' + (d2.error || ''));
           });
         }
@@ -1805,13 +1805,13 @@
           var it = items.filter(function (x) { return x.cd === cd; })[0];
           if (it) { it.siteSlug = slug; it.siteAt = new Date().toISOString(); if (window.ptfEntitySaveCollection) ptfEntitySaveCollection('ptf_crm_products', items, { reason: 'cms-product-publish' }); else setData('ptf_crm_products', items); }
         } catch (eM) {}
-        alert('✅ صفحه منتشر شد:\npishtaj.ir/' + d.url);
+        alert('✅ صفحه منتشر شد:\npishtaj.ir/' + d.url + (window.cmsSitemapNote ? window.cmsSitemapNote(d) : ''));
         cmsSitemapAfterPublish(); /* v34.11.0: ثبت خودکار نقشه */
       } else if (d.error === 'exists') {
         if (confirm('صفحه‌ای با این نامک هست — بازنویسی شود؟')) {
           payload.overwrite = 1;
           api('product_create', payload, function (d2) {
-            if (d2.ok) { cmsDraftClear(PROD_FIELDS); hideModal(); renderCms(); alert('✅ بازنویسی شد'); cmsSitemapAfterPublish(); }
+            if (d2.ok) { cmsDraftClear(PROD_FIELDS); hideModal(); renderCms(); alert('✅ بازنویسی شد' + (window.cmsSitemapNote ? window.cmsSitemapNote(d2) : '')); cmsSitemapAfterPublish(); }
             else alert('⚠️ ' + (d2.error || ''));
           });
         }
@@ -2034,6 +2034,15 @@
     if (cmsSitemapAutoOn()) { if (typeof gscSubmitSitemapQuiet === 'function') { gscSubmitSitemapQuiet(); return true; } }
     return false;
   }
+  /* ═══ v34.37.5 (SITEMAP-HONEST): «✅ به sitemap اضافه شد» فقط وقتی سرور نوشتن را تأیید کرده باشد
+     — اگر sitemap-*.xml روی هاست قابل‌نوشت نباشد، اکنون هشدار دقیق با علت و راه‌حل داده می‌شود
+     (به‌جای OK کاذب)؛ خودِ صفحه منتشر شده و فقط ثبتِ نقشه باید دستی تکرار شود. */
+  window.cmsSitemapNote = function (d) {
+    if (!d || d.sitemap !== 'failed') return '';
+    return '\n\n⚠️ نقشهٔ سایت به‌روز نشد: ' + (d.sitemap_error || 'خطای نوشتن فایل') +
+      ' — فایل‌های sitemap-*.xml در ریشۀ هاست باید برای PHP قابل‌نوشت باشند (chmod 664 یا هم‌مالک‌سازی با فایل‌های blog). ' +
+      'پس از رفع مجوز، یک‌بار «📤 سایت‌مپ + سرچ کنسول» را بزنید؛ خودِ صفحه منتشر شده و چیزی از دست نمی‌رود.';
+  };
 
   /* ═══ v34.10.0 (S1/DRAFTS): پیش‌نویس ماندگار — بستن مودال متن AI را نمی‌پراند ═══ */
   var KC_FIELDS = ['kcTitle', 'kcSlug', 'kcH1', 'kcDesc', 'kcCat', 'kcImg', 'kcBody'];

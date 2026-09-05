@@ -311,32 +311,44 @@ function sitemap_file_for($url) {
     return $top === '' ? 'sitemap-core.xml' : 'sitemap-misc.xml';
 }
 
-/* v34.11.0 (S2): اگر زیرنقشه در ایندکس نیست اضافه شود — بدون این، نقشهٔ جدید
+/* ═══ v34.37.5 (SITEMAP-HONEST): «به نقشه اضافه شد» فقط وقتی واقعی باشد ═══
+   ریشۀ «ثبت نقشۀ سایت از CRM انجام نمی‌شود» در لایۀ فایل: sitemap_add نتیجۀ نوشتن
+   را دور می‌ریخت؛ اگر sitemap-*.xml در ریشۀ هاست برای کاربر PHP قابل‌نوشت نبود
+   (مالکیتِ متفاوت/644 — رایج در استقرار گیت‌محور یا آپلود FTP با یوزر دیگر)، صفحه
+   منتشر می‌شد و پنل «✅ به sitemap هم اضافه شد» می‌گفت، ولی فایل هرگز عوض نمی‌شد
+   و URL در نقشه نمی‌نشست (در «🧭 انحراف نقشه» هم «خارج از نقشه» می‌ماند). اکنون هر
+   نوشتن سنجیده می‌شود، در cms_log ثبت می‌شود و نتیجۀ خطا به پاسخ اکشن‌ها (و
+   هشدار پنل) می‌رسد: Jok های انتشار حالا sitemap/sitemap_error دارند. */
+/* v34.11.0 (S2): اگر زیرنقشه در ایندکس نیست اضافه شود — بدون این، نقشۀ جدید
    هرگز به گوگل معرفی نمی‌شد (touch فقط lastmodِ موجود را به‌روز می‌کند). */
+function sitemap_write($f, $content) {
+    return file_put_contents($f, $content, LOCK_EX) !== false;
+}
 function sitemap_index_ensure($sub) {
     global $ROOT;
     $idx = $ROOT . '/sitemap-index.xml';
-    if (!is_file($idx)) return;
+    if (!is_file($idx)) return false;
     $s = (string)file_get_contents($idx);
     $loc = 'https://pishtaj.ir/' . $sub;
-    if (strpos($s, '<loc>' . $loc . '</loc>') !== false) { sitemap_touch_index($sub); return; }
+    if (strpos($s, '<loc>' . $loc . '</loc>') !== false) { return sitemap_touch_index($sub); }
     $entry = "  <sitemap>\n    <loc>" . htmlspecialchars($loc, ENT_XML1) . "</loc>\n    <lastmod>" . date('Y-m-d') . "</lastmod>\n  </sitemap>\n</sitemapindex>";
     $n = str_replace('</sitemapindex>', $entry, $s);
-    if ($n !== $s) file_put_contents($idx, $n, LOCK_EX);
+    return $n !== $s && sitemap_write($idx, $n);
 }
 function sitemap_touch_index($sub) {
     global $ROOT;
     $idx = $ROOT . '/sitemap-index.xml';
-    if (!is_file($idx)) return;
+    if (!is_file($idx)) return false;
     $s = (string)file_get_contents($idx);
     $loc = 'https://pishtaj.ir/' . $sub;
     /* فقط lastmod همان زیرنقشه به‌روز می‌شود */
-    $s = preg_replace(
+    $n = preg_replace(
         '#(<loc>' . preg_quote($loc, '#') . '</loc><lastmod>)[^<]*(</lastmod>)#',
         '${1}' . date('Y-m-d') . '${2}',
         $s, 1
     );
-    file_put_contents($idx, $s, LOCK_EX);
+    if ($n === null) $n = $s;
+    return sitemap_write($idx, $n);
 }
 
 function sitemap_add($url) {
@@ -350,30 +362,38 @@ function sitemap_add($url) {
            . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n"
            . "  <url><loc>" . htmlspecialchars($url, ENT_XML1) . "</loc><lastmod>" . date('Y-m-d') . "</lastmod></url>\n"
            . "</urlset>\n";
-        if (file_put_contents($f, $s, LOCK_EX) !== false) sitemap_index_ensure($sub); /* v34.11.0: ثبت در ایندکس اگر جدید است */
-        return;
+        if (!sitemap_write($f, $s)) { cms_log('sitemap_write_failed', 'create ' . $sub . ' | ' . $url); return ['ok' => false, 'file' => $sub, 'error' => 'write_failed']; }
+        if (!sitemap_index_ensure($sub)) { cms_log('sitemap_write_failed', 'index-ensure ' . $sub); return ['ok' => false, 'file' => 'sitemap-index.xml', 'error' => 'index_write_failed']; }
+        return ['ok' => true, 'file' => $sub, 'created' => true];
     }
-    if (strpos($s, '<loc>' . $url . '</loc>') !== false) return;   /* از قبل هست */
+    if (strpos($s, '<loc>' . $url . '</loc>') !== false) return ['ok' => true, 'file' => $sub, 'existed' => true];   /* از قبل هست */
     $entry = "  <url><loc>" . htmlspecialchars($url, ENT_XML1) . "</loc><lastmod>" . date('Y-m-d') . "</lastmod></url>\n</urlset>";
     $s = str_replace('</urlset>', $entry, $s);
-    if (file_put_contents($f, $s, LOCK_EX) !== false) sitemap_touch_index($sub);
+    if (!sitemap_write($f, $s)) { cms_log('sitemap_write_failed', 'append ' . $sub . ' | ' . $url); return ['ok' => false, 'file' => $sub, 'error' => 'write_failed']; }
+    if (!sitemap_touch_index($sub)) { cms_log('sitemap_write_failed', 'touch ' . $sub); return ['ok' => false, 'file' => 'sitemap-index.xml', 'error' => 'index_write_failed']; }
+    return ['ok' => true, 'file' => $sub];
 }
 function sitemap_remove($url) {
     global $ROOT;
-    /* ورودی‌های قدیمی ممکن است در هر زیرنقشه‌ای باشند، پس همه را می‌گردیم */
+    /* ورودی‌های قدیمی ممکن است در هر زیرنقشۀ دیگری هم باشند، پس همه را می‌گردیم */
     $hit = false;
     foreach (glob($ROOT . '/sitemap-*.xml') ?: [] as $f) {
         if (basename($f) === 'sitemap-index.xml') continue;
-        $s = (string)file_get_contents($f);
+        $s = (string)@file_get_contents($f);
         if (strpos($s, '<loc>' . $url . '</loc>') === false) continue;
         $n = preg_replace('#\s*<url><loc>' . preg_quote($url, '#') . '</loc>.*?</url>#s', '', $s, 1);
         if ($n !== null && $n !== $s) {
-            file_put_contents($f, $n, LOCK_EX);
+            if (!sitemap_write($f, $n)) { cms_log('sitemap_write_failed', 'remove ' . basename($f) . ' | ' . $url); continue; }
             sitemap_touch_index(basename($f));
             $hit = true;
         }
     }
     return $hit;
+}
+function cms_sm_resp($r) { /* v34.37.5 (SITEMAP-HONEST): استاندارد پاسخِ نوشتن نقشه در اکشن‌های انتشار */
+    if (!is_array($r) || !empty($r['ok'])) return ['sitemap' => 'ok'];
+    return ['sitemap' => 'failed',
+            'sitemap_error' => 'خطای نوشتن ' . (string)($r['file'] ?? 'sitemap') . ' در ریشۀ هاست (مجوز فایل‌های sitemap-*.xml برای PHP؟)'];
 }
 
 
@@ -1103,10 +1123,10 @@ switch ($action) {
             $s = substr($s, 0, $p) . $ins . substr($s, $p + strlen($mk));
             file_put_contents($idxFile, $s, LOCK_EX);
         }
-        sitemap_add($url);
+        $smR = sitemap_add($url); /* v34.37.5: نتیجه نوشتن نقشه به پنل برمی‌گردد */
         cms_log('blog_create', $slug);
         cms_ai_touch($DATA, 'blog/' . $slug . '.html', 'blog'); /* v34.17.0 */
-        jok(['url' => 'blog/' . $slug . '.html']);
+        jok(array_merge(['url' => 'blog/' . $slug . '.html'], cms_sm_resp($smR)));
         break;
 
     case 'kc_create':
@@ -1238,10 +1258,10 @@ switch ($action) {
             }
         }
 
-        sitemap_add($url);
+        $smR = sitemap_add($url); /* v34.37.5 */
         cms_log('kc_create', $slug);
         cms_ai_touch($DATA, 'knowledge-center/' . $slug . '.html', 'kc'); /* v34.17.0 */
-        jok(['url' => 'knowledge-center/' . $slug . '.html', 'listed' => $added]);
+        jok(array_merge(['url' => 'knowledge-center/' . $slug . '.html', 'listed' => $added], cms_sm_resp($smR)));
         break;
 
     case 'blog_list':
@@ -1629,11 +1649,11 @@ switch ($action) {
         if ($preview) jok(['html' => $html, 'url' => 'products/' . $slug . '.html']); /* v34.26.0 */
         if (file_exists($file)) cms_backup($DATA, $ROOT, 'products/' . $slug . '.html');
         if (file_put_contents($file, $html, LOCK_EX) === false) jerr('خطای نوشتن فایل محصول (مجوز write?)');
-        sitemap_add($url);
+        $smR = sitemap_add($url); /* v34.37.5 */
         cms_log('product_create', $slug . ($cd !== '' ? ' | cd=' . $cd : ''));
         cms_ai_touch($DATA, 'products/' . $slug . '.html', 'product'); /* v34.17.0 */
         $idxOk = cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer, $skStyle); /* v34.26.0: کارت در فهرست محصولات */
-        jok(['url' => 'products/' . $slug . '.html', 'index' => $idxOk ? 'products/index.html' : '']);
+        jok(array_merge(['url' => 'products/' . $slug . '.html', 'index' => $idxOk ? 'products/index.html' : ''], cms_sm_resp($smR)));
         break;
 
     /* ═══ v34.25.0 (IMG-UPLOAD): تصویر از بیرون برای صفحات و محصولات ═══
@@ -1783,10 +1803,10 @@ switch ($action) {
         $livePath = $ROOT . '/' . $rel;
         if (is_file($livePath)) cms_backup($DATA, $ROOT, $rel); /* نسخهٔ فعلی هم بک‌آپ می‌شود — بازگشتِ بازگشت ممکن است */
         if (file_put_contents($livePath, $bak, LOCK_EX) === false) jerr('خطای نوشتن فایل');
-        sitemap_add('https://pishtaj.ir/' . $rel);
+        $smR = sitemap_add('https://pishtaj.ir/' . $rel); /* v34.37.5 */
         if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
         cms_log('backup_restore', $rel . ' | ' . ($_POST['stamp'] ?? ''));
-        jok(['restored' => $rel]);
+        jok(array_merge(['restored' => $rel], cms_sm_resp($smR)));
         break;
 
     /* ═══ v34.14.0 (S4/PSI): PageSpeed Insights — صفحات پول‌ساز ═══ */
@@ -1980,11 +2000,11 @@ switch ($action) {
         if (file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
         if (file_exists($file)) cms_backup($DATA, $ROOT, $r['rel']);
         if (file_put_contents($file, $r['html'], LOCK_EX) === false) jerr('خطای نوشتن فایل (مجوز write?)');
-        sitemap_add($r['url']);
+        $smR = sitemap_add($r['url']); /* v34.37.5 */
         cms_section_cards_inject($ROOT, $r['folder'], $r['slug'], $r['title'], $r['desc'], $r['img_abs'], $r['url']); /* v34.33.0: کارت در صفحهٔ اصلی بخش */
         cms_log('page_create', $r['rel']);
         cms_ai_touch($DATA, $r['rel'], 'page'); /* v34.17.0 */
-        jok(['url' => $r['rel']]);
+        jok(array_merge(['url' => $r['rel']], cms_sm_resp($smR)));
         break;
 
     case 'product_list':
@@ -2060,14 +2080,14 @@ switch ($action) {
         if (strpos($restored, 'ptf-redirect') !== false && count($cands) > 1) $restored = (string)file_get_contents($cands[1]);
         if (strpos($restored, 'ptf-redirect') !== false) jerr('بک‌آپ سالمی یافت نشد');
         if (file_put_contents($ROOT . '/' . $from, $restored, LOCK_EX) === false) jerr('خطای بازیابی');
-        sitemap_add('https://pishtaj.ir/' . $from);
+        $smR = sitemap_add('https://pishtaj.ir/' . $from); /* v34.37.5 */
         $regFile = $DATA . '/cms-redirects.json';
         $reg = is_file($regFile) ? (json_decode((string)@file_get_contents($regFile), true) ?: []) : [];
         $reg = array_values(array_filter($reg, function ($r) use ($from) { return is_array($r) && ($r['from'] ?? '') !== $from; }));
         @file_put_contents($regFile, json_encode($reg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
         if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
         cms_log('redirect_remove', $from);
-        jok(['restored' => $from]);
+        jok(array_merge(['restored' => $from], cms_sm_resp($smR)));
         break;
 
     /* ═══ v34.10.0 (S1): صف متای AI ═══ */

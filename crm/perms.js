@@ -59,29 +59,52 @@
   };
   // ثبت builder مستقیم برای پنل‌های گارد‌دار (تا allow-override واقعا کار کند)
   window._ptfPanelBuilders = window._ptfPanelBuilders || {};
-  function reg(id, title, build, render) {
+  /* ═══ v34.37.4 (PERM-ALLOW-LATE-BIND) — ریشه‌کنی «فهرست فاکتورها برای رییس خالی است» ═══
+     قرارداد قبلی: reg() توابع build/render را در لحظهٔ *ثبت* (setTimeout 1200ms) به‌صورت
+     ارجاع می‌گرفت. پنل زندهٔ فاکتورها (crm/official-invoice-v2.js که در index.html
+     حدود ۶۵ اسکریپت بعد از perms.js با defer می‌آید) window.buildInvoices/renderInvoices
+     را هنگام اجرا بازنویسی می‌کند. اگر روی لود سرد/کند تایمر ۱۲۰۰ms *پیش از* اجرای
+     آن فایل می‌سوخت، بیلدرِ مسیر میان‌برِ allow-override برای تمام آن نشست به پنل
+     بازنشستهٔ rbac.js میخکوب می‌شد — و همان پنل روی «ارجاع بی‌فاکتور» با
+     TypeError: reading 'offerCurrency' می‌ترکید و کل پنل رندر نمی‌شد (گزارش کارفرما
+     ۱۴۰۵/۰۶/۱۴؛ ر.ک RELEASE-NOTES-v34.37.4.md).
+     ⇒ اکنون reg نام‌های تابع را می‌گیرد و در لحظهٔ *کلیک* از window می‌خواند
+     (late binding). ترتیب/زمان بارگذاری ماژول‌ها دیگر هیچ اهمیتی ندارد و هر
+     بازنویسیِ جدیدتر (v2 و بعدهایش) خودکار اعمال می‌شود. تابع نبود ⇒ رندر تهی،
+     نه خطا — طبق قرارداد ۲ گاردنامه «شکست بی‌صدا با پیام، نه فروریزش». */
+  function reg(id, title, buildName, renderName) {
     window._ptfPanelBuilders[id] = function (btn) {
       var btns = document.querySelectorAll('.sb-i');
       for (var i = 0; i < btns.length; i++) btns[i].classList.remove('act');
       if (btn) btn.classList.add('act');
       document.getElementById('pgTitle').textContent = title;
-      document.getElementById('panels').innerHTML = build();
+      var build = (buildName && typeof window[buildName] === 'function') ? window[buildName] : null;
+      var render = (renderName && typeof window[renderName] === 'function') ? window[renderName] : null;
+      if (!build && !render) { alert('⛔ ماژول این پنل هنوز بارگذاری نشده است — یک‌بار تازه‌سازی کنید'); return; }
+      document.getElementById('panels').innerHTML = build ? build() : '';
       if (render) render();
     };
   }
-  // ثبت پنل‌های دارای گارد داخلی (در لود بعدی ماژول‌ها موجودند)
-  setTimeout(function () {
-    if (typeof buildCartable === 'function') {
-      reg('let', '✉️ مکاتبات', window.buildLetters || function(){return '';}, window.renderLetters);
-      reg('cms', '🎛 مدیریت سایت', window.buildCms || function(){return '';}, window.renderCms);
-      reg('sms', '💬 سامانه پیامکی', window.buildSmsPanel || function(){return '';}, window.renderSmsPanel);
-      reg('rep', '📈 گزارشات', window.buildReports || function(){return '';}, window.renderReports);
-      reg('inv', '🧾 فاکتورها', window.buildInvoices || function(){return '';}, window.renderInvoices);
-      reg('recv', '💰 مطالبات', window.buildReceivables || function(){return '';}, window.renderReceivables);
-      reg('buyq', '🛒 قیمت‌های خرید', window.buildBuyQuotes || function(){return '';}, window.renderBuyQuotes);
-      reg('taxret', '📁 اظهارنامه‌ها', window.buildTaxReturns || function(){return '';}, window.renderTaxReturns);
+  var PTF_PERM_PANELS = [
+    ['let', '✉️ مکاتبات', 'buildLetters', 'renderLetters'],
+    ['cms', '🎛 مدیریت سایت', 'buildCms', 'renderCms'],
+    ['sms', '💬 سامانه پیامکی', 'buildSmsPanel', 'renderSmsPanel'],
+    ['rep', '📈 گزارشات', 'buildReports', 'renderReports'],
+    ['inv', '🧾 فاکتورها', 'buildInvoices', 'renderInvoices'],
+    ['recv', '💰 مطالبات', 'buildReceivables', 'renderReceivables'],
+    ['buyq', '🛒 قیمت‌های خرید', 'buildBuyQuotes', 'renderBuyQuotes'],
+    ['taxret', '📁 اظهارنامه‌ها', 'buildTaxReturns', 'renderTaxReturns']
+  ];
+  /* ثبت فوری (نه تایمردار): نام‌ها لحظهٔ اجرا گشوده می‌شوند، پس ماژولِ دیررس هم مشکلی ندارد.
+     تایمر ۱۲۰۰ms قبلی به‌عنوان re-register بی‌ضرر و idempotent نگه داشته شد. */
+  function regPermPanels() {
+    for (var i = 0; i < PTF_PERM_PANELS.length; i++) {
+      var p = PTF_PERM_PANELS[i];
+      reg(p[0], p[1], p[2], p[3]);
     }
-  }, 1200);
+  }
+  regPermPanels();
+  setTimeout(regPermPanels, 1200);
 
   /* ---- US-181: پیش‌فرض نقش برای هر کاربر دلخواه (نه فقط کاربر جاری) ---- */
   function roleDefaultFor(role, panelId) {

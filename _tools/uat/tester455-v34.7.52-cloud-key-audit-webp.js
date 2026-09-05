@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.37.3 — فشرده‌سازی WebP با fallback JPEG + گزارش فقط‌خواندنی کلید ابری */
+/* v34.37.6 — فشرده‌سازی WebP با fallback JPEG + گزارش فقط‌خواندنی کلید ابری */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
 var p = 0, f = 0;
@@ -15,10 +15,10 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var surplus = read('crm/surplus.js');
 var php = read('api/storage.php');
 
-T('VERSION.json = v34.37.3', ver.crm_version === 'v34.37.3', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.37.3', /window\.PTF_CRM_RELEASE = 'v34\.37\.3'/.test(idx));
-T('sw RELEASE = v34.37.3', sw.indexOf("RELEASE = 'v34.37.3'") > -1);
-T('storage.js cache-bust 34.37.3', /storage\.js\?v=34\.37\.3/.test(idx));
+T('VERSION.json = v34.37.6', ver.crm_version === 'v34.37.6', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.37.6', /window\.PTF_CRM_RELEASE = 'v34\.37\.6'/.test(idx));
+T('sw RELEASE = v34.37.6', sw.indexOf("RELEASE = 'v34.37.6'") > -1);
+T('storage.js cache-bust 34.37.6', /storage\.js\?v=34\.37\.6/.test(idx));
 
 T('compressImage WebP سپس JPEG می‌سازد', st.indexOf("cv.toBlob(function (webp)") > -1 && st.indexOf("'image/jpeg', 0.82") > -1 && st.indexOf('function pickBest') > -1);
 T('کوچک‌ترین خروجی انتخاب می‌شود', st.indexOf('opts.sort(function (a, b) { return a.size - b.size; })') > -1);
@@ -38,6 +38,6 @@ T('presign_get فقط 404 را file_not_found می‌داند', php.indexOf("$co
 T('tester455 در گیت CI', gate.indexOf('tester455-v34.7.52-cloud-key-audit-webp.js') > -1);
 T('surplus بدون setInterval (tester171)', surplus.indexOf('setInterval') === -1 && surplus.indexOf('function hookOfferNew') > -1);
 
-console.log('\n— tester455 (v34.37.3: گزارش کلید ابری + فشرده‌سازی WebP/JPEG) —');
+console.log('\n— tester455 (v34.37.6: گزارش کلید ابری + فشرده‌سازی WebP/JPEG) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

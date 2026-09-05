@@ -335,7 +335,14 @@
     if (host) host.insertAdjacentHTML('afterbegin', '<div id="' + markId + '" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:7px 11px;font-size:11.5px;margin-bottom:8px">⏳ ثبت خودکار نقشهٔ سایت در سرچ کنسول…</div>');
     api('sitemap_submit', { feed: 'https://pishtaj.ir/sitemap-index.xml' }, function (d) {
       var m = document.getElementById(markId);
-      if (!d || !d.ok) { if (m) m.innerHTML = '⚠️ ثبت خودکار نقشه ناموفق بود: ' + escP((d && d.error) || 'خطا'); return; }
+      var ok = !!(d && d.ok);
+      if (!ok) {
+        if (m) m.innerHTML = '⚠️ ثبت خودکار نقشه ناموفق بود: ' + escP((d && d.error) || 'خطا');
+        /* v34.37.5 (SITEMAP-HONEST): تب سرچ‌کنسول بسته است و خطای «ثبت خودکار» هیچ‌وقت دیده
+           نمی‌شد — کاربر فکر می‌کرد ثبت انجام شده. اکنون دست‌کم یک toast هشدار می‌رسد. */
+        else if (typeof ptfToast === 'function') ptfToast('⚠️ ثبت خودکار نقشه در سرچ کنسول ناموفق بود: ' + ((d && d.error) || 'خطا'), 'warn');
+        return;
+      }
       if (m) m.innerHTML = '✅ نقشهٔ سایت در سرچ کنسول ثبت/به‌روزرسانی شد (' + escP(d.state || '') + ' · خطا: ' + (d.errors || 0) + ')';
     });
   };
