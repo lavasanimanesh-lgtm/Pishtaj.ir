@@ -3578,6 +3578,21 @@ function custKindToggle() {
   }
 }
 
+/* v34.36.5 (CUST-RFQ-ORPHAN): کد مشتری تازه باید محلاً یکتا باشد — همان گارد v34.9.2 در saveCust.
+   بدون این، genCode تکراری دو رکورد با یک cd می‌سازد؛ nextByCd آخری را نگه می‌دارد و مشتری
+   جدید در سینک گم می‌شود در حالی که نامش به‌صورت snapshot روی درخواست می‌ماند. */
+window.ptfAllocCustCode = function (items) {
+  var list = items || [];
+  var cd = (typeof genCode === 'function') ? genCode('CUST') : ('CUST-' + Date.now());
+  var n = 0;
+  while (list.some(function (x) { return x && String(x.cd) === String(cd); }) && n < 8) {
+    cd = (typeof genCode === 'function') ? genCode('CUST') : (cd + '-' + Date.now().toString(36));
+    n++;
+  }
+  if (list.some(function (x) { return x && String(x.cd) === String(cd); })) cd = cd + '-' + Date.now().toString(36);
+  return cd;
+};
+
 function saveCust2(cd) {
   var comp = document.getElementById('nC2Comp').value.trim();
   if (!comp) { (window.ptfDlgAlert || alert)('نام شرکت را وارد کنید', { icon: '⚠️', title: 'اعتبارسنجی فرم' }); return; } /* v16.4 US-372 */
@@ -3585,7 +3600,7 @@ function saveCust2(cd) {
   var items = getData('ptf_crm_customers');
   var tel = document.getElementById('nC2Tel').value.trim();
   var rec = {
-    cd: cd || genCode('CUST'), co: comp,
+    cd: cd || (typeof window.ptfAllocCustCode === 'function' ? window.ptfAllocCustCode(items) : genCode('CUST')), co: comp,
     coEn: (document.getElementById('nC2CoEn')||{value:''}).value.trim(),
     creditLimit: (typeof ptfNum === 'function' ? ptfNum((document.getElementById('nC2Credit')||{value:''}).value) : +((document.getElementById('nC2Credit')||{value:''}).value)) || 0, /* v14.6 US-352 + v19.6 کامادار */
     kind: (document.getElementById('nC2Kind')||{value:'حقوقی'}).value,
@@ -3774,9 +3789,64 @@ function saveSup2(cd) {
   addLog('تامین‌کننده ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
 }
 
+/* v34.36.5 (CUST-RFQ-ORPHAN): اگر درخواستی custCd دارد ولی رکورد مشتری نیست
+   (برخورد expectCreate / pull بعد از silent-write / مهاجرت ناقص)، stub را از
+   snapshot نام درخواست بازسازی کن. صندوق بازیافت را دست نمی‌زند. هر کد در هر جلسه یک‌بار. */
+window.ptfHealMissingCustomersFromRfqs = function () {
+  var tried = window._ptfCustHealTried = window._ptfCustHealTried || {};
+  var custs = [];
+  try { custs = (typeof getData === 'function' ? getData('ptf_crm_customers') : []) || []; } catch (eG) { return 0; }
+  var byCd = {};
+  custs.forEach(function (c) { if (c && c.cd) byCd[String(c.cd)] = c; });
+  var recycled = {};
+  try {
+    ((typeof getData === 'function' ? getData('ptf_crm_deleted_archive') : []) || []).forEach(function (a) {
+      if (a && a.kind === 'recycle' && a.collection === 'ptf_crm_customers' && !a.restoredAt) {
+        recycled[String(a.id || a.cd || '')] = 1;
+      }
+    });
+  } catch (eA) {}
+  var rfqs = [];
+  try { rfqs = (typeof getData === 'function' ? getData('ptf_crm_rfqs') : []) || []; } catch (eR) { return 0; }
+  var added = 0;
+  rfqs.forEach(function (r) {
+    if (!r) return;
+    var cd = String(r.custCd || '').trim();
+    if (!cd || byCd[cd] || recycled[cd] || tried[cd]) return;
+    tried[cd] = 1;
+    var stub = {
+      cd: cd,
+      co: String(r.co || '').trim() || cd,
+      kind: 'حقوقی',
+      venSt: 'unreg',
+      people: [],
+      con: r.con || '',
+      ph: r.ph || '',
+      ds: 'بازسازی از درخواست ' + (r.cd || ''),
+      healedFromRfq: r.cd || '',
+      owner: r.crBy || r.owner || ''
+    };
+    if (r.con) {
+      stub.people = [{ nm: r.con, role: 'رابط', primary: true, tels: [], mobs: r.ph ? [{ n: r.ph, lb: '' }] : [] }];
+    }
+    if (typeof dedupStamp === 'function') dedupStamp(stub);
+    if (r.crBy) stub.crBy = r.crBy;
+    if (!stub.owner) stub.owner = stub.crBy || '';
+    custs.unshift(stub);
+    byCd[cd] = stub;
+    added++;
+  });
+  if (!added) return 0;
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'rfq-cust-heal' });
+  else if (typeof setData === 'function') setData('ptf_crm_customers', custs);
+  try { if (typeof audit === 'function') audit('مشتریان', 'بازسازی ' + added + ' مشتری گم‌شده از روی درخواست', 'heal'); } catch (eAu) {}
+  return added;
+};
+
 // رندر جدید جدول‌ها با ستون اشخاص + دکمه ویرایش/نمایش
 function renderCustomers2() {
   migrateContacts();
+  try { if (typeof window.ptfHealMissingCustomersFromRfqs === 'function') window.ptfHealMissingCustomersFromRfqs(); } catch (eHeal) {}
   var items = getData('ptf_crm_customers');
   var tb = document.getElementById('cTb');
   if (!tb) return;
@@ -3795,7 +3865,7 @@ function renderCustomers2() {
         if (uo) ownLb = uo.name || uo.nm || own;
       }
     } catch (eOw) {}
-    h += '<tr><td><strong>' + escP(c.cd) + '</strong>' + venBadge +
+    h += '<tr data-cust-cd="' + escP(c.cd) + '"><td><strong>' + escP(c.cd) + '</strong>' + venBadge +
       (own ? '<div style="font-size:10.5px;color:#64748b;margin-top:2px">👤 ' + escP(ownLb) + '</div>' : '') +
       '</td><td>' + escP(c.co) +
       ' <span style="background:' + (c.kind === 'حقیقی' ? '#fef3c7;color:#b45309' : '#e0e7ff;color:#4338ca') + ';border-radius:8px;padding:1px 7px;font-size:10.5px">' + escP(c.kind || 'حقوقی') + '</span></td><td>' + escP(c.ind||'-') + '</td>' +

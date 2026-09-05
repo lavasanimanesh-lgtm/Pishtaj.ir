@@ -99,6 +99,24 @@
     } catch (e) { return ''; }
   }
 
+  /* v34.36.5 (CUST-RFQ-ORPHAN): مشتریانی که همین کاربر روی درخواست‌شان گذاشته
+     باید دیده شوند حتی اگر owner/crBy خالی یا ناهماهنگ باشد — وگرنه «نام روی درخواست
+     هست ولی در فهرست مشتریان نیست». */
+  function rfqLinkedMine() {
+    var cds = {};
+    var myUser = currentUser();
+    if (!myUser) return cds;
+    try {
+      if (typeof getData !== 'function') return cds;
+      ((getData('ptf_crm_rfqs') || [])).forEach(function (r) {
+        if (!r || !r.custCd) return;
+        var who = String(r.crBy || r.owner || '').trim();
+        if (who && who === myUser) cds[String(r.custCd)] = true;
+      });
+    } catch (e) {}
+    return cds;
+  }
+
   function applyFilter(items, forcedState) {
     if (!Array.isArray(items)) return items;
     var scope = getScope();
@@ -107,10 +125,12 @@
 
     // نقش‌های غیرارشد همیشه فقط مشتریان خودشان را می‌بینند
     if (scope !== 'all') {
+      var linkedOwn = rfqLinkedMine();
       return items.filter(function (c) {
         if (!c) return false;
         var own = ownerOf(c);
-        return !!own && own === myUser;
+        if (!!own && own === myUser) return true;
+        return !!(c.cd && linkedOwn[c.cd]);
       });
     }
 
@@ -170,7 +190,7 @@
     rows.forEach(function (tr) {
       var first = tr.querySelector('td');
       if (!first) return;
-      var cd = (first.textContent || '').trim().split(/\s+/)[0];
+      var cd = (tr.getAttribute('data-cust-cd') || (first.textContent || '').trim().split(/\s+/)[0] || '').trim();
       if (!cd || !/^CUST|^C-/.test(cd)) return;
       var show = !!allowed[cd];
       if (typeof window.ptfSetRowVisible === 'function') window.ptfSetRowVisible(tr, show); else { tr.classList.toggle('ptf-filter-hidden', !show); tr.hidden = !show; tr.style.display = show ? '' : 'none'; }
@@ -178,6 +198,20 @@
     });
     var d = document.getElementById('dCust');
     if (d) d.textContent = visible;
+    var oldHint = document.getElementById('ptfMyCustHiddenHint');
+    if (oldHint) oldHint.remove();
+    var qNow = (((document.getElementById('cSrch') || {}).value) || '').trim();
+    if (!qNow && getScope() !== 'all' && visible === 0 && all.length > 0) {
+      var wrap = tb.parentNode;
+      if (wrap) {
+        var hint = document.createElement('div');
+        hint.id = 'ptfMyCustHiddenHint';
+        hint.setAttribute('role', 'status');
+        hint.style.cssText = 'margin:8px 0 0;padding:10px 12px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:12.5px;line-height:1.8';
+        hint.textContent = 'فهرست خالی به‌نظر می‌رسد چون فیلتر «مشتریان من» فعال است. اگر نام مشتری روی درخواست هست، صندوق بازیافت را هم بررسی کنید.';
+        wrap.appendChild(hint);
+      }
+    }
   }
 
   function injectToggle() {
@@ -262,6 +296,7 @@
     getScope: getScope,
     isSenior: isSenior,
     applyFilter: applyFilter,
+    rfqLinkedMine: rfqLinkedMine,
     SENIOR_ROLES: SENIOR_ROLES,
     STORAGE_KEY: STORAGE_KEY,
     VALID_STATES: VALID_STATES
