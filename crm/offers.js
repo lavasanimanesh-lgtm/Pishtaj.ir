@@ -3580,16 +3580,24 @@ function custKindToggle() {
 
 /* v34.36.5 (CUST-RFQ-ORPHAN): کد مشتری تازه باید محلاً یکتا باشد — همان گارد v34.9.2 در saveCust.
    بدون این، genCode تکراری دو رکورد با یک cd می‌سازد؛ nextByCd آخری را نگه می‌دارد و مشتری
-   جدید در سینک گم می‌شود در حالی که نامش به‌صورت snapshot روی درخواست می‌ماند. */
+   جدید در سینک گم می‌شود در حالی که نامش به‌صورت snapshot روی درخواست می‌ماند.
+   v34.37.0 (CODE-RETIRED): «یکتا در فهرست زنده» کافی نبود — کدِ مشتریِ حذف‌شده هم باید
+   مصرف‌شده حساب شود، وگرنه سنگ‌قبرِ دائمیِ آن کد مشتری تازه را در اولین سینک پاک می‌کند. */
 window.ptfAllocCustCode = function (items) {
   var list = items || [];
+  var retired = (typeof window.ptfCodeIsRetired === 'function')
+    ? function (c) { return window.ptfCodeIsRetired(c, 'ptf_crm_customers'); }
+    : function () { return false; };
+  var taken = function (c) {
+    return list.some(function (x) { return x && String(x.cd) === String(c); }) || retired(c);
+  };
   var cd = (typeof genCode === 'function') ? genCode('CUST') : ('CUST-' + Date.now());
   var n = 0;
-  while (list.some(function (x) { return x && String(x.cd) === String(cd); }) && n < 8) {
+  while (taken(cd) && n < 8) {
     cd = (typeof genCode === 'function') ? genCode('CUST') : (cd + '-' + Date.now().toString(36));
     n++;
   }
-  if (list.some(function (x) { return x && String(x.cd) === String(cd); })) cd = cd + '-' + Date.now().toString(36);
+  if (taken(cd)) cd = cd + '-' + Date.now().toString(36);
   return cd;
 };
 
@@ -3802,7 +3810,10 @@ window.ptfHealMissingCustomersFromRfqs = function () {
   try {
     ((typeof getData === 'function' ? getData('ptf_crm_deleted_archive') : []) || []).forEach(function (a) {
       if (a && a.kind === 'recycle' && a.collection === 'ptf_crm_customers' && !a.restoredAt) {
-        recycled[String(a.id || a.cd || '')] = 1;
+        /* v34.37.0 (ARCH-A3): کلید تهی هرگز وارد نقشه نشود — وگرنه هر مشتریِ بدون cd
+           «در سطل بازیافت» فرض می‌شد و heal آن را نادیده می‌گرفت. */
+        var rid = String(a.id || a.cd || '').trim();
+        if (rid) recycled[rid] = 1;
       }
     });
   } catch (eA) {}
@@ -3838,7 +3849,7 @@ window.ptfHealMissingCustomersFromRfqs = function () {
   });
   if (!added) return 0;
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'rfq-cust-heal' });
-  else if (typeof setData === 'function') setData('ptf_crm_customers', custs);
+  else setData('ptf_crm_customers', custs);
   try { if (typeof audit === 'function') audit('مشتریان', 'بازسازی ' + added + ' مشتری گم‌شده از روی درخواست', 'heal'); } catch (eAu) {}
   return added;
 };

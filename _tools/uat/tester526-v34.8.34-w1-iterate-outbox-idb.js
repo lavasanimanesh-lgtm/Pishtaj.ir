@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester526 — v34.36.4 (W1-iterate + T3-3):
+/* tester526 — v34.37.0 (W1-iterate + T3-3):
    ۱) تکمیل W1: صفر نقطهٔ setData مستقیم باقی‌مانده برای مشتریان/تامین‌کنندگان/کالاها
       (همه از روتر فرمانی یا fallback else-محافظت‌شده)؛ حذف‌های خطرناک حالا فرمان
       tombstone بازیافت‌پذیرند.
@@ -104,9 +104,9 @@ T('preload صف در بوت صدا زده می‌شود', /window\.ptfBQueueIdbP
     function finish() {
       /* ---------- نسخه ---------- */
       var ver = JSON.parse(read('VERSION.json'));
-      T('VERSION.json = v34.36.4', ver.crm_version === 'v34.36.4', ver.crm_version);
-      T('قرارداد نسخهٔ UI/sw = 34.36.4', /window\.PTF_CRM_RELEASE = 'v34\.36\.4'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.36\.4'/.test(read('crm/sw.js')));
-      console.log('\n— tester526 (v34.36.4: W1-iterate + OFFLINE-OUTBOX-IDB) —');
+      T('VERSION.json = v34.37.0', ver.crm_version === 'v34.37.0', ver.crm_version);
+      T('قرارداد نسخهٔ UI/sw = 34.37.0', /window\.PTF_CRM_RELEASE = 'v34\.37\.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.0'/.test(read('crm/sw.js')));
+      console.log('\n— tester526 (v34.37.0: W1-iterate + OFFLINE-OUTBOX-IDB) —');
       console.log('PASS: ' + p + ' | FAIL: ' + f);
       process.exit(f ? 1 : 0);
     }

@@ -188,6 +188,37 @@ function nextFromPool(prefix, year){
 }
 
 // Legacy max scan - fallback سینک اگر Pool خالی بود (تا TMP ندهد)
+/* ═══ v34.37.0 (CODE-RETIRED — RCA «مشتری تازه پاک می‌شود») ═══
+   این تابع کد بعدی را از «بیشینهٔ رکوردهای زنده + ۱» می‌ساخت. رکورد حذف‌شده در آن
+   فهرست نیست، پس بعد از حذفِ آخرین مشتری بیشینه پایین می‌آمد و همان cd دوباره صادر
+   می‌شد. چون سنگ‌قبرِ حذف (archive_purge در ptf_crm_deleted_archive) دائمی است و فقط
+   با cd کار می‌کند، مشتری کاملاً جدید در اولین سینک پاک می‌شد.
+   درمان: بایگانی حذف‌شده‌ها هم بخشی از دامنهٔ «کدهای مصرف‌شده» است — شمارنده دیگر
+   هرگز عقب نمی‌رود. (استخر کد سرور از قبل سالم بود؛ باگ فقط در همین مسیر fallback بود.) */
+function retiredCodesForKey(lk){
+  var out=[];
+  try {
+    if(typeof getData!=='function') return out;
+    (getData('ptf_crm_deleted_archive')||[]).forEach(function(a){
+      if(!a||typeof a!=='object') return;
+      var coll=String(a.collection||'');
+      if(a.identities && Array.isArray(a.identities[lk])) a.identities[lk].forEach(function(x){ if(x) out.push(String(x)); });
+      if(!coll || coll===lk){
+        ['id','cd','no'].forEach(function(f){ if(a[f]) out.push(String(a[f])); });
+      }
+    });
+  } catch(e){}
+  return out;
+}
+window.ptfRetiredCodesForKey = retiredCodesForKey;
+/* آیا این کد قبلاً مصرف و حذف شده است؟ (زنده نیست ولی سنگ‌قبر دارد) */
+window.ptfCodeIsRetired = function(code, lk){
+  var c=String(code||'').trim();
+  if(!c) return false;
+  var list=retiredCodesForKey(lk||'');
+  for(var i=0;i<list.length;i++) if(String(list[i]).trim()===c) return true;
+  return false;
+};
 function legacyMaxNext(prefix, year){
   try {
     var p=String(prefix||'ID').toUpperCase().trim();
@@ -208,6 +239,17 @@ function legacyMaxNext(prefix, year){
       if(y===curY) max=99; else max=0;
     } else if(p==='P'){
       max=1119;
+    }
+    /* v34.37.0: کدهای بازنشسته (حذف‌شده) هم مصرف‌شده حساب می‌شوند */
+    if(lk){
+      retiredCodesForKey(lk).forEach(function(code){
+        var n=extractNumLegacy(code, p);
+        if((p==='TO'||p==='CO'||p==='TC')){
+          var yy=String(code).match(/PTF-(?:TO|CO|TC)-(\d+)-/);
+          if(yy && yy[1]!==String(year||faYear())) return;
+        }
+        if(n>max) max=n;
+      });
     }
     if(lk && typeof getData==='function'){
       var arr=getData(lk)||[];

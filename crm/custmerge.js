@@ -203,7 +203,7 @@
     try {
       var arch2 = getData('ptf_crm_deleted_archive');
       arch2.unshift({
-        t: faDateTime(), by: curSession().name, user: curSession().user,
+        t: faDateTime(), iso: new Date().toISOString(), by: curSession().name, user: curSession().user,
         kind: 'customer', cd: drop.cd, name: drop.co,
         reason: '🔀 ادغام در ' + keep.co + ' (' + keep.cd + ') — US-363', rec: drop
       });

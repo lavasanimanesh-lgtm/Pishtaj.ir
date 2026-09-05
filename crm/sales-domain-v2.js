@@ -576,6 +576,44 @@
          کرده هرگز اشتباهاً حذف نمی‌شود (حذف فقط وقتی prev هم آن را داشته). */
   window.ptfEntitySaveCollection = function (collection, nextArr, opts) {
     opts = opts || {};
+    /* ═══ v34.37.0 (DELETE-BURST + CODE-COLLISION-RETRY) ═══
+       RCA «مشتری تازه پاک می‌شود» — دو حفرهٔ همین روتر:
+       ① دیفِ base↔nextArr برای هر cd غایب یک entity_delete واقعی (و سنگ‌قبر دائمی)
+          می‌فرستد. اگر nextArr از یک خواندنِ کهنه/ناقص ساخته شده باشد (پر شدن
+          localStorage، آینهٔ IDB خاموش)، تا ۴۰ حذف واقعی صادر می‌شد. حالا برای
+          مجموعه‌های هویتیِ کسب‌وکار، حذفِ انبوه و حذفِ «همه» مسدود و به مسیر legacy
+          (setData) تنزل می‌یابد — همان رفتار پیش از فاز فرمان‌ها، بدون تخریب سرور.
+       ② سرور برای برخورد کد صریحاً 409 با hint=regenerate_client_code می‌دهد ولی
+          کلاینت فقط یک توست نشان می‌داد و رکورد تازه هرگز روی سرور ثبت نمی‌شد.
+          حالا یک‌بار کد نو گرفته و دوباره ارسال می‌شود. */
+    var DELETE_BURST_GUARDED = {
+      'ptf_crm_customers': 1, 'ptf_crm_suppliers': 1, 'ptf_crm_leads': 1, 'ptf_crm_products': 1,
+      'ptf_crm_rfqs': 1, 'ptf_crm_offers': 1, 'ptf_crm_deals': 1, 'ptf_crm_projects': 1,
+      'ptf_crm_invoices': 1, 'ptf_crm_contracts': 1, 'ptf_crm_payables': 1,
+      'ptf_crm_case_receipts': 1, 'ptf_crm_personal_cheques': 1, 'ptf_crm_cheques': 1
+    };
+    var DELETE_BURST_MAX = 3;
+    var CLIENT_CODE_PREFIX = {
+      'ptf_crm_customers': 'CUST', 'ptf_crm_suppliers': 'SUP',
+      'ptf_crm_leads': 'LEAD', 'ptf_crm_products': 'PROD'
+    };
+    /* کد تازه‌ای که نه زنده است نه بازنشسته (سنگ‌قبر دارد) */
+    function allocFreshCode(collection, oldCd) {
+      var pfx = CLIENT_CODE_PREFIX[collection];
+      if (!pfx || typeof window.ptfUnifiedCode !== 'function') return '';
+      var live = [];
+      try { live = (typeof getData === 'function' ? getData(collection) : []) || []; } catch (eL) {}
+      var taken = function (c) {
+        if (!c || String(c) === String(oldCd)) return true;
+        if (live.some(function (x) { return x && String(x.cd) === String(c); })) return true;
+        try { if (typeof window.ptfCodeIsRetired === 'function' && window.ptfCodeIsRetired(c, collection)) return true; } catch (eR) {}
+        return false;
+      };
+      var cd = window.ptfUnifiedCode(pfx), n = 0;
+      while (taken(cd) && n < 8) { cd = window.ptfUnifiedCode(pfx); n++; }
+      if (taken(cd)) cd = String(oldCd || pfx) + '-' + Date.now().toString(36);
+      return cd;
+    }
     function legacyFallback(reason) {
       try { if (typeof setData === 'function') setData(collection, nextArr); } catch (eL) {}
       return { mode: 'legacy', reason: reason };
@@ -598,6 +636,28 @@
       try { if (JSON.stringify(pv) !== JSON.stringify(nx)) ups.push(nx); } catch (eJ) { ups.push(nx); }
     });
     Object.keys(prevByCd).forEach(function (cd) { if (!nextByCd[cd]) dels.push(cd); });
+    /* v34.37.0 (①): سپر حذفِ انبوه/تهی برای مجموعه‌های هویتیِ کسب‌وکار.
+       حذف واقعیِ کاربر همیشه یک‌به‌یک است؛ «۴ حذف در یک ذخیره» یا «فهرست تهی شد»
+       امضای یک خواندنِ کهنه است، نه نیت کاربر. در این حالت هیچ فرمان مخربی صادر
+       نمی‌شود و مسیر legacy (که سپر دادهٔ صفر سرور را هم دارد) کار را می‌برد. */
+    if (DELETE_BURST_GUARDED[collection] && dels.length && !opts.allowBulkDelete) {
+      var cap = (typeof opts.maxDeletes === 'number') ? opts.maxDeletes : DELETE_BURST_MAX;
+      var emptied = (nextArr.length === 0 && base.length > 0);
+      if (emptied || dels.length > cap) {
+        try {
+          console.warn('[PTF] حذف انبوه مسدود شد — ' + collection + ': ' + dels.length +
+            ' رکورد قرار بود حذف شود (سقف ' + cap + '). به مسیر امن legacy تنزل داده شد.', dels.slice(0, 12));
+        } catch (eW) {}
+        try {
+          if (typeof ptfToast === 'function') {
+            ptfToast('⛔ حذف ' + dels.length + ' رکورد از «' + collection.replace('ptf_crm_', '') +
+              '» مسدود شد (سپر حذف انبوه). اگر واقعاً قصد حذف داشتید، یک‌به‌یک انجام دهید.', 'warn');
+          }
+        } catch (eT) {}
+        try { if (typeof audit === 'function') audit('یکپارچگی داده', 'سپر حذف انبوه: ' + dels.length + ' حذف در ' + collection + ' مسدود شد (دلیل ذخیره: ' + (opts.reason || '-') + ')', collection); } catch (eAu) {}
+        return legacyFallback('delete-burst-blocked:' + dels.length);
+      }
+    }
     if (ups.length + dels.length > MAX_OPS) return legacyFallback('too-many-ops:' + (ups.length + dels.length));
     /* v34.8.24 (READBACK-FIX): نوشتن محلیِ بی‌صدا «قبل از» فرمان‌ها — ریشهٔ شکست
        tester442/445: جریان‌هایی که بلافاصله getData می‌خوانند (حذف پیشنهاد → مرحلهٔ
@@ -652,7 +712,51 @@
       } catch (eAckEmpty) {}
     }
     if (!cbTotal && typeof opts.cb === 'function' && !cbDone) { cbDone = true; try { opts.cb({ state: 'acked', upserts: 0, deletes: 0 }); } catch (eCbEmpty) {} }
-    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { expectCreate: !!newCds[r.cd], cb: function (st) { if (st && st.state !== 'acked') { failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } settleCb(st); } }); } catch (eU) { errors.push(eU); failDirty(); settleCb({ state: 'rejected', error: String(eU) }); } });
+    /* v34.37.0 (②): پاسخ 409 entity_id_exists سرور واقعاً مصرف شود.
+       سرور خودش hint=regenerate_client_code می‌فرستد؛ پیش از این کلاینت فقط توست
+       می‌داد و رکورد تازه هرگز روی سرور ثبت نمی‌شد (فقط silent-write محلی که اولین
+       pull آن را می‌شست). حالا یک نوبت با کد نو دوباره فرستاده می‌شود و کد محلی هم
+       اصلاح می‌گردد تا دفعهٔ بعد دوباره برخورد نکند. */
+    function retryWithFreshCode(coll, rec, st, settle) {
+      try {
+        if (!st || !/entity_id_exists/.test(String(st.error || ''))) return false;
+        if (!rec) return false;
+        var oldCd = String(rec.cd || '');
+        /* حفاظت ضد حلقه — بدون آلوده کردن خودِ رکورد با فیلد موقت */
+        window._ptfCodeRetryTried = window._ptfCodeRetryTried || {};
+        var guardKey = coll + '|' + oldCd;
+        if (window._ptfCodeRetryTried[guardKey]) return false;
+        var fresh = allocFreshCode(coll, oldCd);
+        if (!fresh || fresh === oldCd) return false;
+        window._ptfCodeRetryTried[guardKey] = 1;
+        var live = [];
+        try { live = (typeof getData === 'function' ? getData(coll) : []) || []; } catch (eG) { return false; }
+        var payload = null;
+        live.forEach(function (x) { if (x && String(x.cd) === oldCd) { x.cd = fresh; x.codeReassignedFrom = oldCd; payload = x; } });
+        if (!payload) return false;
+        try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite(coll, JSON.stringify(live)); } catch (eSw) {}
+        try { if (typeof audit === 'function') audit('یکپارچگی داده', 'برخورد کد در ' + coll + ': ' + oldCd + ' → ' + fresh + ' (کد نو صادر و دوباره ثبت شد)', fresh); } catch (eAu2) {}
+        try { if (typeof ptfToast === 'function') ptfToast('کد ' + oldCd + ' قبلاً مصرف شده بود؛ رکورد با کد ' + fresh + ' ثبت شد.', 'ok'); } catch (eT2) {}
+        window.ptfEntityUpsert(coll, payload, {
+          expectCreate: true,
+          cb: function (st2) {
+            if (st2 && st2.state !== 'acked') {
+              failDirty();
+              if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st2, 'ثبت در ' + coll.replace('ptf_crm_', '')), 'warn');
+            } else {
+              try {
+                window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
+                window._ptfEntityLastKnown[coll] = JSON.parse(JSON.stringify(live));
+              } catch (eS2) {}
+              if (typeof renderCustomers === 'function' && coll === 'ptf_crm_customers') { try { renderCustomers(); } catch (eR2) {} }
+            }
+            settle(st2);
+          }
+        });
+        return true;
+      } catch (eRetry) { return false; }
+    }
+    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { expectCreate: !!newCds[r.cd], cb: function (st) { if (st && st.state !== 'acked') { if (retryWithFreshCode(collection, r, st, settleCb)) return; failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } settleCb(st); } }); } catch (eU) { errors.push(eU); failDirty(); settleCb({ state: 'rejected', error: String(eU) }); } });
     dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff', cb: function (st) { if (st && st.state !== 'acked') failDirty(); settleCb(st); } }); } catch (eD) { errors.push(eD); failDirty(); settleCb({ state: 'rejected', error: String(eD) }); } });
     try {
       window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
@@ -1255,6 +1359,38 @@
     command('revoke_orphan_delete',{offerNo:no,delete:false,reason:reason.trim(),idempotencyKey:'REVOKE-WIN|'+no+'|'+Date.now()},{
       onAck:function(){toast('برد کنترل‌شده لغو و پیشنهاد به وضعیت قبل بازگردانده شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();},
       onReject:function(e){if(e.payload&&e.payload.dependencies)alert('⛔ این پیشنهاد وابستگی عملیاتی دارد و بازگشت خودکار متوقف شد:\n'+e.payload.dependencies.map(function(x){return x.type+' '+x.id;}).join('\n')+'\n\nابتدا وابستگی‌ها را از پرونده مربوط بررسی و اصلاح کنید.');else alert('⛔ '+e.message);}
+    });
+  };
+  /* ═══ v34.37.0 (INV-REF-UNDO) ═══
+     «ارجاع فاکتور اشتباه بود و راه برگشتی نیست» — این تابع همان راه برگشت است.
+     برخلاف ptfRevokeOfferWin (که با وجود پروندهٔ فعال همیشه ۴۰۹ می‌گیرد و عملاً
+     غیرقابل‌دسترس است)، این فرمان فقط invRef را برمی‌گرداند و به وضعیت «برنده» و
+     خود پرونده دست نمی‌زند. سرور fail-closed است: وجود هر فاکتور فعال ⇒ ۴۰۹. */
+  window.ptfRevokeInvoiceRef=function(no){
+    if(!canRepairOfferWin()){alert('⛔ لغو ارجاع فاکتور فقط برای ادمین یا رئیس هیئت‌مدیره مجاز است.');return;}
+    var offer=null;
+    try{ (getData('ptf_crm_offers')||[]).forEach(function(x){ if(x&&String(x.no||'')===String(no)) offer=x; }); }catch(eO){}
+    if(!offer){alert('⛔ پیشنهاد یافت نشد.');return;}
+    if(!offer.invRef){alert('ℹ️ این پیشنهاد ارجاع فعالی ندارد.');return;}
+    var ref=offer.invRef||{};
+    var summary='پیشنهاد: '+no+'\n'+
+      'ارجاع‌دهنده: '+(ref.by||'-')+' — تاریخ: '+(ref.t||'-')+'\n'+
+      (ref.rialBasis?('مبنای ریالی: '+ref.rialBasis+(ref.rialRate?(' — نرخ '+(+ref.rialRate).toLocaleString('fa-IR')):'')+'\n'):'');
+    var reason=prompt('↩️ لغو ارجاع فاکتور\n\n'+summary+'\nپس از لغو، مرحلهٔ پرونده به «تحویل‌شده» برمی‌گردد و می‌توانید با مبنای ریالی/نرخ درست دوباره ارجاع دهید.\n\nدلیل لغو:','ارجاع اشتباه / اصلاح مبنای ریالی');
+    if(reason===null||!reason.trim())return;
+    if(!confirm('⚠️ سرور ابتدا بررسی می‌کند که هیچ فاکتور فعالی روی این پیشنهاد ثبت نشده باشد. ادامه می‌دهید؟'))return;
+    command('revoke_invoice_ref',{offerNo:no,reason:reason.trim(),idempotencyKey:'REVOKE-INVREF|'+no+'|'+Date.now()},{
+      onAck:function(){
+        toast('↩️ ارجاع فاکتور لغو شد — پرونده به مرحلهٔ قبل بازگشت','ok');
+        if(typeof renderDeals==='function')renderDeals();
+        if(typeof renderInvoices==='function')renderInvoices();
+        if(typeof renderOffers==='function')renderOffers();
+      },
+      onReject:function(e){
+        if(e.payload&&e.payload.dependencies)
+          alert('⛔ برای این پیشنهاد فاکتور ثبت شده و لغو ارجاع متوقف شد:\n'+e.payload.dependencies.map(function(x){return (x.type==='unofficial_invoice'?'صورتحساب غیررسمی ':'فاکتور رسمی ')+x.id;}).join('\n')+'\n\nابتدا فاکتور را ابطال کنید، سپس ارجاع را لغو کنید.');
+        else alert('⛔ '+e.message);
+      }
     });
   };
   window.ptfRepairOrphanOffer=function(no){if(role()!=='admin'){alert('حذف پیشنهاد فقط برای ادمین مجاز است');return;}var reason=prompt('برد این پیشنهاد لغو و خود پیشنهاد حذف شود. دلیل:','برد اشتباه و پرونده تشکیل نشده');if(reason===null||!reason.trim())return;if(!confirm('⚠️ پس از پیش‌بررسی سرور، برد لغو و پیشنهاد با Tombstone حذف شود؟'))return;command('revoke_orphan_delete',{offerNo:no,delete:true,reason:reason.trim()},{onAck:function(){toast('برد یتیم لغو و پیشنهاد حذف شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();},onReject:function(e){if(e.payload&&e.payload.dependencies)alert('⛔ وابستگی وجود دارد:\n'+e.payload.dependencies.map(function(x){return x.type+' '+x.id;}).join('\n'));else alert('⛔ '+e.message);}});};

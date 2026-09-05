@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester584 — v34.36.4 (FX-RIAL-REF): «پرونده‌ای که پیشنهاد برنده‌اش ارزی است و یک
+/* tester584 — v34.37.0 (FX-RIAL-REF): «پرونده‌ای که پیشنهاد برنده‌اش ارزی است و یک
  * پیشنهاد ریالی هم قبلاً برایش ثبت شده، هنگام ارجاع برای فاکتور باید همان نسخهٔ
  * ریالیِ ثبت‌شده را به بخش فاکتورها بفرستد تا حسابدار فاکتور ریالی را با نرخ
  * تسعیر درست بزند.»
@@ -33,8 +33,11 @@ var i1 = salesSrc.indexOf('/*--SF-FXRIALREF-END--*/');
 T('SRC: هستهٔ تشخیص (sfInvoiceRialResolve + sfInvoiceRialRateOf) در salesfiles.js وجود دارد', i0 > -1 && i1 > i0);
 var resolveSlice = salesSrc.slice(i0, i1 + '/*--SF-FXRIALREF-END--*/'.length);
 
-/* ── برش خود تابع ارجاع (از تعریف تا کامیتِ موفقیتِ مسیر عادی) ── */
-var c0 = salesSrc.indexOf('window.sfInvoiceRefCommit');
+/* ── برش خود تابع ارجاع (از تعریف تا کامیتِ موفقیتِ مسیر عادی) ──
+   v34.37.0 (INV-REF-CONFIRM): منطق حل‌وفصل به sfInvoiceRefPlan منتقل شد و
+   sfInvoiceRefCommit آن را صدا می‌زند؛ برش از همان‌جا شروع می‌شود تا هر دو داخل
+   هارنس باشند. رفتار و خروجی commit عیناً همان است. */
+var c0 = salesSrc.indexOf('window.sfInvoiceRefPlan');
 var c1 = salesSrc.indexOf('/* v34.7.76 (INV-RIAL-BASIS): موفقیت ارجاع');
 T('SRC: برش sfInvoiceRefCommit پیدا شد', c0 > -1 && c1 > c0);
 var commitSlice = salesSrc.slice(c0, c1);
@@ -164,7 +167,9 @@ function boot(deal, offers) {
 (function () {
   T('WIRE: sfInvoiceRef مسیر پیک‌ریال را به دیالوگ انتخاب می‌فرستد', /if \(res\.why === 'pick_rial'\) \{\s*sfInvoiceRefPickRial\(cd, res\);/.test(salesSrc));
   T('WIRE: دیالوگ انتخاب نامزد + تأیید (sfInvoiceRefPickRial/Do) تعریف شده', salesSrc.indexOf('window.sfInvoiceRefPickRial = function') > -1 && salesSrc.indexOf('window.sfInvoiceRefPickRialDo = function') > -1);
-  T('WIRE: تأیید دیالوگ، ارجاع را با شمارهٔ انتخابی دوباره کمییت می‌کند', /sfInvoiceRefPickRialDo[\s\S]{0,700}sfInvoiceRefCommit\(cd, no\)/.test(salesSrc));
+  /* v34.37.0: انتخاب سند ریالی «تاییدِ ارجاع» نیست — مودال تایید با همان شماره باز
+   می‌شود و نوشتن فقط پس از تایید صریح کاربر انجام می‌گیرد. */
+T('WIRE: تأیید دیالوگ انتخاب، مودال تایید را با شمارهٔ انتخابی باز می‌کند', /sfInvoiceRefPickRialDo[\s\S]{0,900}sfInvoiceRefConfirm\(cd, no\)/.test(salesSrc));
   T('WIRE: اینو‌ریف فیلدهای ریال‌بِیزیس‌کایند و ریال‌ریت‌دِرایود را ذخیره می‌کند', salesSrc.indexOf('rialRateDerived: rialRateDerived, rialBasisKind: compKind') > -1);
   T('WIRE: برچسب نوع «پیشنهاد ریالی ثبت‌شدهٔ پرونده» در تایم‌لاین/اعلان ساخته می‌شود', salesSrc.indexOf("compKind === 'registered' ? ' (پیشنهاد ریالی ثبت‌شدهٔ پرونده)'") > -1);
   var rbac = fs.readFileSync(path.join(ROOT, 'crm/rbac.js'), 'utf8');

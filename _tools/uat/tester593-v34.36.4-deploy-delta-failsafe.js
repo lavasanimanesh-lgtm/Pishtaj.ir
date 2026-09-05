@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 /* =====================================================================
-   tester593 — v34.36.4 · DELTA-FAILSAFE (مسیرِ استقرارِ افزایشیِ استیجینگ)
+   tester593 — v34.37.0 · DELTA-FAILSAFE (مسیرِ استقرارِ افزایشیِ استیجینگ)
 
    چرا این تستر وجود دارد:
-   وصلهٔ معوقِ v34.8.40 (DEPLOY-SPEEDUP) در v34.36.4 اعمال شد و **اولین اجرای
+   وصلهٔ معوقِ v34.8.40 (DEPLOY-SPEEDUP) در v34.37.0 اعمال شد و **اولین اجرای
    واقعی‌اش** یک باگِ زمانِ اجرا را لو داد که هیچ پینِ ایستایی نمی‌گرفت:
 
        echo "… حذف: $(([ -f /tmp/delete.txt ] && wc -l < /tmp/delete.txt || echo 0)) فایل"
@@ -265,6 +265,6 @@ T('پین: گامِ دلتا پیش از گامِ آپلود و پیش از FTP-
   st.indexOf('Compute deploy delta') < incAt && incAt < st.indexOf('Deploy via FTP (full sync fallback)'));
 
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (eClean) {}
-console.log('\n— tester593 (v34.36.4: DELTA-FAILSAFE — اجرای واقعیِ گامِ دلتا در ریپوی gitِ ایزوله) —');
+console.log('\n— tester593 (v34.37.0: DELTA-FAILSAFE — اجرای واقعیِ گامِ دلتا در ریپوی gitِ ایزوله) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
