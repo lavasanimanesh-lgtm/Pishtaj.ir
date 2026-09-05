@@ -878,6 +878,16 @@ function refToInvoice(offerNo) {
   alert('🔒 فقط پیش‌فاکتور برنده قابل ارجاع بود؛ در معماری جدید پس از برد، ارجاع فاکتور فقط از داخل پرونده فروش انجام می‌شود.');
 }
 
+/* ⚠️ کد بازنشسته — این پنل اجرا نمی‌شود.
+   ═══ v34.37.1 (INV-PANEL-DEAD-CODE) ═══
+   `crm/official-invoice-v2.js` (که در انتهای بارگذاری می‌آید) هر سهِ
+   buildInvoices / renderInvoices / showInvModal را روی window بازنویسی می‌کند و
+   perms.js هم پنل «inv» را با تاخیر ۱۲۰۰ms ثبت می‌کند؛ بنابراین آنچه کاربر
+   می‌بیند همیشه نسخهٔ v2 است و این سه تابع هرگز صدا زده نمی‌شوند.
+   این موضوع یک‌بار واقعاً گاز گرفت: دکمهٔ «↩️ لغو ارجاع» در v34.37.0 اشتباهاً
+   همین‌جا اضافه شد و هیچ‌وقت دیده نشد.
+   ⇒ هر تغییر در پنل فاکتورها باید در official-invoice-v2.js انجام شود.
+   (فعلاً به‌عنوان مرجع تاریخی و مسیر fallback نگه داشته شده است.) */
 function buildInvoices() {
   /* v34.7.80 (TAX-RETURNS-SEPARATION): اظهارنامه‌ها از فاکتورها جدا شد — دیگر اینجا رندر نمی‌شوند. */
   /* v34.9.2: جستجو در فاکتورها (شماره/مشتری/شماره فاکتور) + نام دوگانهٔ مشتری */
@@ -977,12 +987,6 @@ function renderInvoices() {
       /* فاز ۲ / گام ۷: ویرایش/ابطال فاکتور فروش رسمی — فقط پیش از اولین وصولی، فقط نقش‌های ارشد */
       (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\',\'' + ptfOnClickArg(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ویرایش') + '">✏️ ویرایش</button>' : '') +
       (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfInvoiceVoid(\'' + ptfOnClickArg(inv._id || inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ابطال') + '">🗑 ابطال</button>' : '') +
-      /* v34.37.0 (INV-REF-UNDO): «اگر ارجاع اشتباه بود، از قسمت فاکتورها هم بشود برگرداند».
-         تا وقتی فاکتوری ثبت نشده، ادمین/رئیس می‌تواند ارجاع را همین‌جا لغو کند و پرونده
-         به مرحلهٔ قبل برگردد؛ پس از ثبت فاکتور، مسیر عمداً بسته است. */
-      (!inv && typeof window.ptfCanRepairOfferWin === 'function' && window.ptfCanRepairOfferWin()
-        ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#b45309;border-color:#fde68a" title="ارجاع را برمی‌گرداند تا پرونده با مبنای ریالی/نرخ درست دوباره ارجاع شود" onclick="ptfRevokeInvoiceRef(\'' + ptfOnClickArg(o.no) + '\')">↩️ لغو ارجاع</button>'
-        : '') +
       '</div></div></div>';
   });
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پیش‌فاکتور ارجاع‌شده‌ای وجود ندارد.<br><small>فقط پیش‌فاکتورهایی که نقش‌های ارشد ارجاع داده‌اند اینجا دیده می‌شوند.</small></div>';

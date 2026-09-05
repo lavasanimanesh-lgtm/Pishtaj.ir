@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester540 — v34.37.0 (DEPLOY-SPEEDUP + TRUTHFUL-GREEN برای استیجینگ)
+/* tester540 — v34.37.1 (DEPLOY-SPEEDUP + TRUTHFUL-GREEN برای استیجینگ)
    ریشهٔ تغییر: دیپلوی استیجینگ برای یک تغییر کوچک ۸-۱۲ دقیقه طول می‌کشید و در پایان
    هم «Post-deploy integrity» قرمز می‌شد (false-red؛ کش مسیرمحور هاست).
    قرارداد جدید deploy-staging.yml:
@@ -39,7 +39,7 @@ function contract(st) {
   C('افزایشی: فهرست exclude هم‌ارز full-sync (بدون _tools/*.md/tester*)', (function () { var seg = st.slice(st.indexOf('Compute deploy delta'), st.indexOf('Incremental FTP upload')); return seg.indexOf('_tools') > -1 && seg.indexOf('\\.md$') > -1 && seg.indexOf('tester[^/]*\\.js$') > -1 && seg.indexOf('docs-deploy') > -1; })());
 
   /* ---------- fallback کامل ---------- */
-  /* v34.37.0: شرطِ پیشین `mode == 'full' || inc.outcome == 'failure'` بود و یک سوراخِ
+  /* v34.37.1: شرطِ پیشین `mode == 'full' || inc.outcome == 'failure'` بود و یک سوراخِ
      واقعی داشت: اگر گامِ دلتا وسطِ کار می‌مرد (باگِ `$(( … ))` در گزارشِ شمارش —
      run 33914510099) در حالی که mode=incremental را نوشته بود، نه inc اجرا می‌شد و
      نه full ⇒ **هیچ فایلی دیپلوی نمی‌شد** و ران قرمز می‌ماند. شرطِ جدید «هر چیزی جز
@@ -105,6 +105,6 @@ if (wired) {
 }
 
 results.forEach(function (r) { T(r.n, r.c, r.d); });
-console.log('\n— tester540 (v34.37.0: DEPLOY-SPEEDUP + TRUTHFUL-GREEN استیجینگ' + (wired ? '' : ' — حالت وصلهٔ معلق') + ') —');
+console.log('\n— tester540 (v34.37.1: DEPLOY-SPEEDUP + TRUTHFUL-GREEN استیجینگ' + (wired ? '' : ' — حالت وصلهٔ معلق') + ') —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

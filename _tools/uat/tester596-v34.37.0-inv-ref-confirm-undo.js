@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* ═══ tester596 — v34.37.0 (INV-REF-CONFIRM + INV-REF-UNDO) ═══
+/* ═══ tester596 — v34.37.1 (INV-REF-CONFIRM + INV-REF-UNDO) ═══
    گزارش کارفرما: «در زمان ارجاع فاکتور از پرونده فروش تایید کاربر اخذ نمی‌شود و با
    زدن دکمهٔ ارجاع سریعاً به قسمت فاکتورها می‌رود و در صورت اشتباه امکان بازگرداندن
    از قسمت فاکتورها هم وجود ندارد.»
@@ -24,6 +24,7 @@ var sfSrc = read('crm/salesfiles.js');
 var sdClient = read('crm/sales-domain-v2.js');
 var sdServer = read('api/sales-domain.php');
 var rbacSrc = read('crm/rbac.js');
+var invPanel = read('crm/official-invoice-v2.js'); /* پنلِ زندهٔ فاکتورها */
 
 /* ── برش زنجیرهٔ ارجاع: plan → confirm → do → commit → finish ── */
 var i0 = sfSrc.indexOf('window.sfInvoiceRefPlan');
@@ -182,10 +183,18 @@ T('۷.۴ خلاصهٔ ارجاعِ در حال لغو به کاربر نشان �
   /ptfRevokeInvoiceRef=function[\s\S]{0,1200}ref\.rialBasis/.test(sdClient));
 T('۷.۵ خطای invoice_exists با نام فاکتورها به کاربر توضیح داده می‌شود',
   /ptfRevokeInvoiceRef=function[\s\S]{0,2600}dependencies[\s\S]{0,400}ابتدا فاکتور را ابطال کنید/.test(sdClient));
-T('۷.۶ دکمهٔ «لغو ارجاع» در پنل فاکتورها هست (خواستهٔ صریح کارفرما)',
-  rbacSrc.indexOf('ptfRevokeInvoiceRef(') > -1 && rbacSrc.indexOf('↩️ لغو ارجاع') > -1);
-T('۷.۷ دکمهٔ پنل فاکتورها فقط تا پیش از ثبت فاکتور دیده می‌شود',
-  /\(!inv && typeof window\.ptfCanRepairOfferWin === 'function' && window\.ptfCanRepairOfferWin\(\)/.test(rbacSrc));
+/* v34.37.1: پنل زندهٔ فاکتورها official-invoice-v2.js است (rbac.js بازنویسی می‌شود).
+   دکمه در v34.37.1 اشتباهاً در کد مردهٔ rbac.js گذاشته شده بود و دیده نمی‌شد. */
+T('۷.۶ دکمهٔ «لغو ارجاع» در پنلِ زندهٔ فاکتورها هست (خواستهٔ صریح کارفرما)',
+  invPanel.indexOf('ptfRevokeInvoiceRef(') > -1 && invPanel.indexOf('↩️ لغو ارجاع') > -1);
+T('۷.۷ دکمهٔ پنل فاکتورها فقط تا پیش از ثبت فاکتورِ فعال دیده می‌شود',
+  /var undoBtn = \(!activeInv && canUndo\)/.test(invPanel));
+T('۷.۷ب پس از ثبت فاکتور، به‌جای غیب شدن، دلیلِ بسته بودن نوشته می‌شود',
+  /activeInv \?[\s\S]{0,200}لغو ارجاع ممکن نیست/.test(invPanel));
+T('۷.۷ج پنل مردهٔ rbac.js دیگر نسخهٔ دومِ همین دکمه را ندارد (یک منبع واحد)',
+  rbacSrc.indexOf('ptfRevokeInvoiceRef(') === -1);
+T('۷.۷د بازنشستگی پنل rbac.js صریحاً مستند شده است',
+  rbacSrc.indexOf('INV-PANEL-DEAD-CODE') > -1);
 T('۷.۸ دکمهٔ لغو روی کارت پرونده هم هست', sfSrc.indexOf('window.sfInvoiceRefUndoHtml = function') > -1 &&
   sfSrc.indexOf('window.sfInvoiceRefUndoHtml(r)') > -1);
 
@@ -231,6 +240,6 @@ T('۷.۸ دکمهٔ لغو روی کارت پرونده هم هست', sfSrc.inde
     (rbacSrc.match(/\.invRef = \{/g) || []).length === 0 && (sfSrc.match(/o\.invRef = \{/g) || []).length === 1);
 })();
 
-console.log('\n— tester596 (v34.37.0: تایید پیش از ارجاع فاکتور + لغو ارجاع) —');
+console.log('\n— tester596 (v34.37.1: تایید پیش از ارجاع فاکتور + لغو ارجاع) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 if (f) process.exit(1);

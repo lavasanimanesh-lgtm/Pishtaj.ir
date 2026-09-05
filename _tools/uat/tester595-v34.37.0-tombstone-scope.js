@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* ═══ tester595 — v34.37.0 (TOMBSTONE-SCOPE + CODE-RETIRED) ═══
+/* ═══ tester595 — v34.37.1 (TOMBSTONE-SCOPE + CODE-RETIRED) ═══
    گزارش کارفرما: «در CRM مشتریانی که جدیداً اضافه می‌شوند پاک می‌شوند.»
 
    زنجیرهٔ ریشه‌ای که این تستر می‌بندد (هر چهار حلقه):
@@ -26,7 +26,9 @@ var apiSrc = read('api/crm.php');
 var sdSrc = read('api/sales-domain.php');
 
 /* ───────────────────────── ۱) هارنس سنگ‌قبر (کلاینت) ───────────────────────── */
-var t0 = syncSrc.indexOf('/* ═══ v34.37.0 (TOMBSTONE-SCOPE)');
+/* نشانگر برش نسخه‌آگنوستیک است: bump-version-pins شمارهٔ نسخه را در تسترها عوض
+   می‌کند ولی کامنتِ منشأ در سورس عمداً روی نسخهٔ اصلیِ اصلاح می‌ماند. */
+var t0 = syncSrc.indexOf('function ptfTombstoneEpoch(');
 var t1 = syncSrc.indexOf('function ptfValScore(');
 T('۱.۰ برش توابع سنگ‌قبر از crm/sync.js پیدا شد', t0 > -1 && t1 > t0);
 var tombSlice = syncSrc.slice(t0, t1);
@@ -237,6 +239,6 @@ T('۳.۷ tombstone هنوز در هر دو مسیر push و pull اعمال می
     routerSrc.indexOf('window._ptfCodeRetryTried') > -1);
 })();
 
-console.log('\n— tester595 (v34.37.0: سنگ‌قبرِ دامنه‌دار + کد بازنشسته + سپر حذف انبوه) —');
+console.log('\n— tester595 (v34.37.1: سنگ‌قبرِ دامنه‌دار + کد بازنشسته + سپر حذف انبوه) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 if (f) process.exit(1);

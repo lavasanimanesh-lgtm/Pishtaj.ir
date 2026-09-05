@@ -43,12 +43,161 @@
   function filesHtml(inv, compact){var fs=(inv&&inv.files)||[];var activeFs=activeRequiredFiles(fs);var history=fs.filter(function(f){return f&&String(f.status)==='replaced';});var rows=activeFs.map(function(f){return'<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--brd)"><span>📎 <b>'+esc(f.category==='modian_tax_invoice'?'سند سامانه مودیان':'فاکتور رسمی حسابداری')+'</b><br><small>'+esc(f.name||'فایل')+' — نسخه '+(+f.version||1)+'</small></span><span><button type="button" class="bt bt-o" style="font-size:11px" onclick="openStoredFile(\''+arg(f.key)+'\',\''+arg(f.name||'')+'\')">مشاهده</button> '+(can()?'<button type="button" class="bt bt-o" style="font-size:11px" onclick="ptfOfficialAttachmentReplace(\''+arg(iid(inv))+'\',\''+arg(f._id||'')+'\',\''+arg(f.category)+'\')">اصلاح/جایگزینی</button>':'')+'</span></div>';}).join('');if(!compact&&history.length)rows+='<details style="margin-top:7px"><summary>تاریخچه '+history.length+' نسخه جایگزین‌شده</summary>'+history.map(function(f){return'<div style="padding:4px 0;color:#64748b"><button class="bt bt-o" style="font-size:10px" onclick="openStoredFile(\''+arg(f.key)+'\',\''+arg(f.name||'')+'\')">مشاهده نسخه '+(+f.version||1)+'</button> '+esc(f.name||'')+'</div>';}).join('')+'</details>';return rows||'<span style="color:#b91c1c">مدرک اجباری ثبت نشده</span>';}
 
   window.buildInvoices=function(){return'<div class="ph"><h3>🧾 ثبت فاکتور رسمی صادرشده در حسابداری/مودیان</h3><div style="font-size:11.5px;color:#64748b">CRM فاکتور رسمی صادر نمی‌کند؛ فقط سند قطعی خارجی را ثبت و مطالبات آن را مدیریت می‌کند.</div></div><div id="invWrap"></div>';};
-  window.renderInvoices=function(){
-    var el=document.getElementById('invWrap');if(!el)return;var offers=data('ptf_crm_offers').filter(function(o){return o&&o.invRef&&!o.rialOf;});var invs=data('ptf_crm_invoices');var h='';offers.forEach(function(o){var c=findCaseForOffer(o);var comp=(o.invRef&&o.invRef.rialBasis)?findOffer(o.invRef.rialBasis):(typeof window.ptfRialCompanionOf==='function'?window.ptfRialCompanionOf(o.no):null);var rialRate=comp&&comp.fxConvert?(+comp.fxConvert.rate||0):((o.invRef&&+o.invRef.rialRate)||0);var rialTotal=comp?(comp.items||[]).reduce(function(s,it){return s+(+it.qty||0)*(+it.price||0);},0):((o.invRef&&+o.invRef.rialTotal)||0);var list=invs.filter(function(i){return i&&i.offerNo===o.no;}).sort(function(a,b){return String(b.invDate||b.t||'').localeCompare(String(a.invDate||a.t||''));});var cards=list.map(function(i){var isVoid=!active(i),open=i.openAmountIRR!=null?+i.openAmountIRR:Math.max(0,(+i.amount||0)-(+i.allocatedBase||0)-(+i.allocatedVat||0));return'<div style="margin-top:8px;padding:9px;border:1px solid '+(isVoid?'#fecaca':'#bbf7d0')+';border-radius:10px;background:'+(isVoid?'#fef2f2':'#f8fafc')+'"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>'+esc(i.no||i.cd)+'</b> '+(isVoid?'<span style="color:#b91c1c">ابطال‌شده</span>':'<span style="color:#047857">فعال</span>')+'<br><small>تاریخ: '+esc(i.invDate||'')+' | شناسه مودیان: '+esc(i.taxUid||'—')+'</small><br><small>پایه: '+money(i.base||0)+' | VAT '+(+i.vatPercent||0)+'٪: '+money(i.vat||0)+' | کل: '+money(i.amount||0)+' | مطالبه باز: '+money(isVoid?0:open)+'</small></span><span>'+(isVoid?'':(can()?'<button class="bt bt-o" style="font-size:11px" onclick="showInvModal(\''+arg(o.no)+'\',\''+arg(iid(i))+'\')">اصلاح اطلاعات</button> <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfInvoiceVoid(\''+arg(iid(i))+'\')">ابطال</button> ':''))+(role()==='admin'?'<button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfAdminHardDelete(\'invoice\',\''+arg(iid(i))+'\',function(){renderInvoices();if(typeof renderReceivables===\'function\')renderReceivables();})">حذف قطعی</button> ':'')+'<button class="bt bt-o" style="font-size:11px" onclick="ptfOfficialInvoiceFilesUi(\''+arg(iid(i))+'\')">📎 اسناد</button></span></div><div style="margin-top:5px">'+filesHtml(i,true)+'</div></div>';}).join('');h+='<section style="background:#fff;border:1px solid var(--brd);border-radius:13px;padding:12px;margin-bottom:9px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><span><b>'+esc(comp?comp.no:o.no)+'</b> — '+(function(){var p=(typeof ptfCustNamePair==='function')?ptfCustNamePair(o.buyerCd,o.buyerCo):{fa:o.buyerCo||'',en:''};return '<b>'+esc(p.fa||'-')+'</b>'+((p.en&&p.en!==p.fa)?'<div style="font-size:10.5px;color:#64748b" dir="ltr">'+esc(p.en)+'</div>':'');})()+(comp?'<br><small>💱 مبنای ریالی از پیشنهاد ارزی '+esc(o.no)+' ('+esc(o.currency||'')+') — نرخ '+(+rialRate).toLocaleString('fa-IR')+' ریال'+((o.invRef&&o.invRef.rialRateDerived)?' (برگرفته از جمع سند ریالی)':'')+' — جمع: '+money(rialTotal)+'</small>':'')+'<br><small>ارجاع از پرونده: '+esc((o.invRef||{}).t||'')+'</small></span><span>'+(comp?'<button class="bt bt-o" style="font-size:11px;color:#047857;border-color:#a7f3d0" title="نسخه ریالی داده‌شده به کارفرما — مبنای صدور فاکتور رسمی" onclick="offerPrint(\''+arg(comp.no)+'\')">💱 مبنای ریالی (PDF)</button> <button class="bt bt-o" style="font-size:11px;color:#64748b" title="پیش‌نمایش نسخه ریالی" onclick="offerQuickPreview(\''+arg(comp.no)+'\')">👁</button> ':(o.invRef&&o.invRef.fromFile&&typeof sfAwardPrint==='function'?'<button class="bt bt-o" style="font-size:11px;color:#b45309;border-color:#fde68a" title="نسخه تغییرناپذیر لحظه ابلاغ سفارش — مبنای صدور فاکتور رسمی" onclick="sfAwardPrint(\''+arg(o.invRef.fromFile)+'\',\''+arg(o.no)+'\')">🏆 سند برد (PDF)</button> ':''))+(c&&can()?'<button class="bt" onclick="showInvModal(\''+arg(o.no)+'\')">+ ثبت فاکتور رسمی صادرشده</button>':'')+(!c?'<span style="color:#b91c1c">⛔ پرونده فروش یافت نشد</span>':'')+'</span></div>'+cards+'</section>';});el.innerHTML=h||'<div style="text-align:center;color:#94a3b8;padding:24px">ارجاع آماده ثبت فاکتور رسمی وجود ندارد.</div>';
+  /* ═══ v34.37.1 (INV-PANEL-ROWS) ═══
+     خواستهٔ کارفرما: «فاکتورها به صورت ردیف نمایش داده شوند و اطلاعات دیگر به صورت
+     کشویی در صورت زدن روی فلش باز شوند. اگر فاکتوری ثبت شد دکمهٔ ثبت فاکتور به
+     «فاکتور ثبت شده است» تغییر کند و دیگر مودال ثبت را باز نکند.»
+     پیش از این هر ارجاع یک کارتِ بلندِ همیشه‌باز بود و دکمهٔ «+ ثبت فاکتور رسمی
+     صادرشده» حتی پس از ثبتِ فاکتور هم فعال می‌ماند و مودال را دوباره باز می‌کرد. */
+  window._ptfInvOpenRows = window._ptfInvOpenRows || {};
+  window.ptfInvRowToggle = function (key) {
+    var open = !window._ptfInvOpenRows[key];
+    window._ptfInvOpenRows[key] = open;
+    var d = document.getElementById('invD_' + key);
+    var a = document.getElementById('invA_' + key);
+    if (d) d.style.display = open ? '' : 'none';
+    if (a) { a.textContent = open ? '▾' : '◀'; a.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+  };
+  window.ptfInvRowsToggleAll = function (open) {
+    var el = document.getElementById('invWrap'); if (!el) return;
+    (el.querySelectorAll('[data-inv-row]') || []).forEach(function (n) {
+      var key = n.getAttribute('data-inv-row');
+      window._ptfInvOpenRows[key] = !!open;
+      var d = document.getElementById('invD_' + key), a = document.getElementById('invA_' + key);
+      if (d) d.style.display = open ? '' : 'none';
+      if (a) { a.textContent = open ? '▾' : '◀'; a.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+    });
+  };
+  /* کلید پایدار ردیف — با re-render وضعیت باز/بسته از بین نمی‌رود */
+  function rowKey(no) { return String(no || '').replace(/[^A-Za-z0-9]/g, '_'); }
+
+  window.renderInvoices = function () {
+    var el = document.getElementById('invWrap'); if (!el) return;
+    var offers = data('ptf_crm_offers').filter(function (o) { return o && o.invRef && !o.rialOf; });
+    var invs = data('ptf_crm_invoices');
+    var canUndo = (typeof window.ptfCanRepairOfferWin === 'function') && window.ptfCanRepairOfferWin();
+    var rows = offers.map(function (o) {
+      var key = rowKey(o.no);
+      var c = findCaseForOffer(o);
+      var comp = (o.invRef && o.invRef.rialBasis) ? findOffer(o.invRef.rialBasis) : (typeof window.ptfRialCompanionOf === 'function' ? window.ptfRialCompanionOf(o.no) : null);
+      /* v34.37.1: «نسخهٔ ریالیِ همراه» فقط وقتی معنا دارد که سندِ دیگری باشد.
+         برای ارجاع ریالیِ ساده، rialBasis برابر خودِ شمارهٔ پیشنهاد است و findOffer
+         همان سند را برمی‌گرداند؛ نتیجه‌اش این بود که پنل برای یک پیشنهاد IRR هم
+         «💱 مبنای ریالی از پیشنهاد ارزی CO-… (IRR) — نرخ ۰ ریال» چاپ می‌کرد و
+         به‌جای «🏆 سند برد» دکمهٔ نسخهٔ ریالی را نشان می‌داد. */
+      if (comp && String(comp.no) === String(o.no)) comp = null;
+      var rialRate = comp && comp.fxConvert ? (+comp.fxConvert.rate || 0) : ((o.invRef && +o.invRef.rialRate) || 0);
+      var rialTotal = comp ? (comp.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : ((o.invRef && +o.invRef.rialTotal) || 0);
+      var list = invs.filter(function (i) { return i && i.offerNo === o.no; })
+        .sort(function (a, b) { return String(b.invDate || b.t || '').localeCompare(String(a.invDate || a.t || '')); });
+      var live = list.filter(active);
+      var activeInv = live[0] || null;
+      var openSum = live.reduce(function (s, i) {
+        return s + (i.openAmountIRR != null ? +i.openAmountIRR : Math.max(0, (+i.amount || 0) - (+i.allocatedBase || 0) - (+i.allocatedVat || 0)));
+      }, 0);
+      var billed = live.reduce(function (s, i) { return s + (+i.amount || 0); }, 0);
+      var isOpen = !!window._ptfInvOpenRows[key];
+
+      var pair = (typeof ptfCustNamePair === 'function') ? ptfCustNamePair(o.buyerCd, o.buyerCo) : { fa: o.buyerCo || '', en: '' };
+
+      /* ── وضعیت ردیف ── */
+      var status;
+      if (activeInv) status = '<span class="bd" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0" title="شمارهٔ فاکتور رسمی ثبت‌شده">✅ فاکتور ' + esc(activeInv.no || activeInv.cd) + '</span>';
+      else if (list.length) status = '<span class="bd" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca" title="همهٔ فاکتورهای این ارجاع ابطال شده‌اند">🚫 ابطال‌شده</span>';
+      else status = '<span class="bd" style="background:#fffbeb;color:#92400e;border:1px solid #fde68a">⏳ بدون فاکتور</span>';
+
+      /* ── دکمهٔ اصلی ردیف ──
+         v34.37.1: پس از ثبتِ فاکتورِ فعال، دکمهٔ ثبت جای خود را به یک نشانگرِ
+         غیرقابل‌کلیک می‌دهد؛ مسیر باز شدن دوبارهٔ مودالِ ثبت کاملاً بسته است.
+         اصلاح/ابطال همچنان از داخل کشو در دسترس است. */
+      var mainBtn;
+      if (!c) mainBtn = '<span style="color:#b91c1c;font-size:11.5px">⛔ پرونده فروش یافت نشد</span>';
+      else if (activeInv) mainBtn = '<span class="bd" data-inv-registered="1" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;cursor:default" title="برای اصلاح یا ابطال، ردیف را باز کنید">✅ فاکتور ثبت شده است</span>';
+      else if (can()) mainBtn = '<button class="bt" style="padding:5px 11px;font-size:11.5px" onclick="event.stopPropagation();showInvModal(\'' + arg(o.no) + '\')">+ ثبت فاکتور رسمی صادرشده</button>';
+      else mainBtn = '';
+
+      /* ── کارت‌های فاکتور (داخل کشو) ── */
+      var cards = list.map(function (i) {
+        var isVoid = !active(i);
+        var open = i.openAmountIRR != null ? +i.openAmountIRR : Math.max(0, (+i.amount || 0) - (+i.allocatedBase || 0) - (+i.allocatedVat || 0));
+        return '<div style="margin-top:8px;padding:9px;border:1px solid ' + (isVoid ? '#fecaca' : '#bbf7d0') + ';border-radius:10px;background:' + (isVoid ? '#fef2f2' : '#f8fafc') + '">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>' + esc(i.no || i.cd) + '</b> ' +
+          (isVoid ? '<span style="color:#b91c1c">ابطال‌شده</span>' : '<span style="color:#047857">فعال</span>') +
+          '<br><small>تاریخ: ' + esc(i.invDate || '') + ' | شناسه مودیان: ' + esc(i.taxUid || '—') + '</small>' +
+          '<br><small>پایه: ' + money(i.base || 0) + ' | VAT ' + (+i.vatPercent || 0) + '٪: ' + money(i.vat || 0) + ' | کل: ' + money(i.amount || 0) + ' | مطالبه باز: ' + money(isVoid ? 0 : open) + '</small></span><span>' +
+          (isVoid ? '' : (can() ? '<button class="bt bt-o" style="font-size:11px" onclick="showInvModal(\'' + arg(o.no) + '\',\'' + arg(iid(i)) + '\')">اصلاح اطلاعات</button> <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfInvoiceVoid(\'' + arg(iid(i)) + '\')">ابطال</button> ' : '')) +
+          (role() === 'admin' ? '<button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfAdminHardDelete(\'invoice\',\'' + arg(iid(i)) + '\',function(){renderInvoices();if(typeof renderReceivables===\'function\')renderReceivables();})">حذف قطعی</button> ' : '') +
+          '<button class="bt bt-o" style="font-size:11px" onclick="ptfOfficialInvoiceFilesUi(\'' + arg(iid(i)) + '\')">📎 اسناد</button></span></div>' +
+          '<div style="margin-top:5px">' + filesHtml(i, true) + '</div></div>';
+      }).join('');
+
+      /* ── اسناد مبنا + لغو ارجاع (داخل کشو) ── */
+      var docBtns = comp
+        ? '<button class="bt bt-o" style="font-size:11px;color:#047857;border-color:#a7f3d0" title="نسخه ریالی داده‌شده به کارفرما — مبنای صدور فاکتور رسمی" onclick="offerPrint(\'' + arg(comp.no) + '\')">💱 مبنای ریالی (PDF)</button> <button class="bt bt-o" style="font-size:11px;color:#64748b" title="پیش‌نمایش نسخه ریالی" onclick="offerQuickPreview(\'' + arg(comp.no) + '\')">👁</button> '
+        : (o.invRef && o.invRef.fromFile && typeof sfAwardPrint === 'function'
+          ? '<button class="bt bt-o" style="font-size:11px;color:#b45309;border-color:#fde68a" title="نسخه تغییرناپذیر لحظه ابلاغ سفارش — مبنای صدور فاکتور رسمی" onclick="sfAwardPrint(\'' + arg(o.invRef.fromFile) + '\',\'' + arg(o.no) + '\')">🏆 سند برد (PDF)</button> ' : '');
+      /* v34.37.0 (INV-REF-UNDO): «اگر ارجاع اشتباه بود، از قسمت فاکتورها هم بشود برگرداند».
+         تا وقتی هیچ فاکتور فعالی ثبت نشده، ادمین/رئیس می‌تواند ارجاع را همین‌جا لغو کند. */
+      var undoBtn = (!activeInv && canUndo)
+        ? '<button class="bt bt-o" style="font-size:11px;color:#b45309;border-color:#fde68a" title="ارجاع را برمی‌گرداند تا پرونده با مبنای ریالی/نرخ درست دوباره ارجاع شود" onclick="ptfRevokeInvoiceRef(\'' + arg(o.no) + '\')">↩️ لغو ارجاع</button>'
+        : (activeInv ? '<span style="font-size:11px;color:#9a3412">🔒 فاکتور ثبت شده؛ لغو ارجاع ممکن نیست (ابتدا فاکتور را ابطال کنید).</span>' : '');
+
+      var meta = '<div style="font-size:11.5px;color:#475569;line-height:1.9">' +
+        (comp ? '💱 مبنای ریالی از پیشنهاد ارزی <b dir="ltr">' + esc(o.no) + '</b> (' + esc(o.currency || '') + ') — نرخ ' + (+rialRate).toLocaleString('fa-IR') + ' ریال' + ((o.invRef && o.invRef.rialRateDerived) ? ' (برگرفته از جمع سند ریالی)' : '') + ' — جمع: ' + money(rialTotal) + '<br>' : '') +
+        'ارجاع از پرونده: ' + esc((o.invRef || {}).t || '') + (o.invRef && o.invRef.by ? ' — توسط ' + esc(o.invRef.by) : '') +
+        (pair.en && pair.en !== pair.fa ? '<br><span dir="ltr" style="color:#64748b">' + esc(pair.en) + '</span>' : '') +
+        '</div>';
+
+      return '<div data-inv-row="' + key + '" style="border:1px solid var(--brd);border-radius:12px;background:#fff;margin-bottom:7px;overflow:hidden">' +
+        /* ردیف فشرده — کل ردیف کلیک‌پذیر است، فلش هم برای دسترس‌پذیری دکمهٔ مستقل دارد */
+        '<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer;flex-wrap:wrap" onclick="ptfInvRowToggle(\'' + key + '\')">' +
+        '<button type="button" id="invA_' + key + '" class="bt bt-o" aria-expanded="' + (isOpen ? 'true' : 'false') + '" title="نمایش/پنهان‌کردن جزئیات" style="padding:1px 8px;font-size:13px;line-height:1.6;min-width:28px" onclick="event.stopPropagation();ptfInvRowToggle(\'' + key + '\')">' + (isOpen ? '▾' : '◀') + '</button>' +
+        '<span style="min-width:118px"><b dir="ltr">' + esc(comp ? comp.no : o.no) + '</b>' + (comp ? ' <small style="color:#0e7490">💱</small>' : '') + '</span>' +
+        '<span style="flex:1;min-width:150px">' + esc(pair.fa || '-') + '</span>' +
+        '<span style="min-width:120px">' + status + '</span>' +
+        '<span style="min-width:120px;text-align:left" title="جمع فاکتورهای فعال">' + money(billed || rialTotal) + '</span>' +
+        '<span style="min-width:120px;text-align:left;color:' + (openSum > 0.5 ? '#b45309' : '#065f46') + '" title="مطالبه باز">' + money(openSum) + '</span>' +
+        '<span onclick="event.stopPropagation()">' + mainBtn + '</span>' +
+        '</div>' +
+        /* کشوی جزئیات */
+        '<div id="invD_' + key + '" style="display:' + (isOpen ? '' : 'none') + ';padding:0 11px 11px;border-top:1px solid var(--brd);background:#fcfdff">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-start;padding-top:9px">' + meta +
+        '<span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + docBtns + undoBtn + '</span></div>' +
+        (cards || '<div style="margin-top:8px;font-size:12px;color:#94a3b8">هنوز فاکتوری برای این ارجاع ثبت نشده است.</div>') +
+        '</div></div>';
+    }).join('');
+
+    if (!rows) { el.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:24px">ارجاع آماده ثبت فاکتور رسمی وجود ندارد.</div>'; return; }
+    el.innerHTML =
+      '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:7px">' +
+      '<button class="bt bt-o" style="font-size:11px" onclick="ptfInvRowsToggleAll(true)">باز کردن همه</button>' +
+      '<button class="bt bt-o" style="font-size:11px" onclick="ptfInvRowsToggleAll(false)">بستن همه</button></div>' +
+      '<div style="display:flex;align-items:center;gap:9px;padding:4px 11px;font-size:11px;color:#64748b;font-weight:700;flex-wrap:wrap">' +
+      '<span style="min-width:28px"></span><span style="min-width:118px">سند مبنا</span><span style="flex:1;min-width:150px">مشتری</span>' +
+      '<span style="min-width:120px">وضعیت فاکتور</span><span style="min-width:120px;text-align:left">مبلغ</span>' +
+      '<span style="min-width:120px;text-align:left">مطالبه باز</span><span>اقدام</span></div>' + rows;
   };
 
+  /* فاکتور فعالِ ثبت‌شده روی یک پیشنهاد (پایهٔ قفلِ «ثبت دوباره ممنوع») */
+  window.ptfActiveInvoiceOfOffer=function(offerNo){
+    var s=String(offerNo==null?'':offerNo);if(!s)return null;
+    return data('ptf_crm_invoices').filter(function(i){return i&&String(i.offerNo||'')===s&&active(i);})[0]||null;
+  };
   window.showInvModal=function(offerNo,editId){
-    if(!can()){alert('⛔ نقش فعلی مجاز به ثبت/اصلاح فاکتور رسمی نیست');return;}var o=findOffer(offerNo),c=findCaseForOffer(o),inv=editId?findInvoice(editId):null;var comp=(o&&o.invRef&&o.invRef.rialBasis)?findOffer(o.invRef.rialBasis):(o&&typeof window.ptfRialCompanionOf==='function'?window.ptfRialCompanionOf(o.no):null);var rialTotal=comp?(comp.items||[]).reduce(function(s,it){return s+(+it.qty||0)*(+it.price||0);},0):(o&&o.currency==='IRR'?(o.items||[]).reduce(function(s,it){return s+(+it.qty||0)*(+it.price||0);},0):0);/* v34.31.0 (FX-RIAL-REF): نمایش نرخ حتی وقتی نسخهٔ ریالی «ثبت‌شدهٔ مستقل» است (بدون اف‌ایکس‌کانورت) — فال‌بک به نرخ ذخیره‌شدهٔ ارجاع + برچسب برگرفته */var rbRateShown=(comp&&comp.fxConvert&&+comp.fxConvert.rate>0)?+comp.fxConvert.rate:((o&&o.invRef&&+o.invRef.rialRate)||0);var rbDerived=!!(comp&&rbRateShown>0&&!(comp.fxConvert&&+comp.fxConvert.rate>0));/*--RB-RATE--*//* v34.7.26 (S1/F1-4): اگر «اصلاح» با شناسه صدا زده شد ولی سند پیدا نشد، مودال نباید بی‌صدا در حالت «ثبت فاکتور جدید» باز شود (ریسک سند تکراری). */if(editId&&!inv){alert('⛔ فاکتور رسمی با شناسهٔ «'+String(editId)+'» یافت نشد؛ برای جلوگیری از ثبت سند تکراری، فرم اصلاح باز نشد.');return;}/* v34.7.26 (S1/F1-4b): این مودال «ثبت فاکتور رسمی» است؛ اگر شناسهٔ یک صورتحساب غیررسمی به آن داده شود نباید سند غیررسمی را با فرم رسمی بازنویسی کند. */if(inv&&inv.isUnofficial){alert('⛔ این سند «صورتحساب غیررسمی» است و از فرم فاکتور رسمی اصلاح نمی‌شود؛ از مسیر صورتحساب غیررسمی همان پرونده اقدام کنید.');return;}if(!o||!c){alert('پیشنهاد یا پرونده یکتا یافت نشد');return;}if(inv&&!active(inv)){alert('فاکتور ابطال‌شده قابل اصلاح نیست');return;}draftFiles=inv?JSON.parse(JSON.stringify(inv.files||[])):[];window._ptfOfficialInvCtx={offerNo:offerNo,caseId:cid(c),invoiceId:inv?iid(inv):'',existing:inv,caseRecord:c,offerRecord:o,rialBasisNo:comp?comp.no:'',rialBasisRate:(comp&&comp.fxConvert?(+comp.fxConvert.rate||0):(o&&o.invRef?(+o.invRef.rialRate||0):0)),rialBasisTotal:rialTotal,operationId:'OFFICIAL-INVOICE|'+(inv?iid(inv):offerNo)+'|'+Date.now()+'|'+Math.random().toString(36).slice(2,8)};var pct=inv?inv.vatPercent:vatDefault(inv?inv.invDate:(typeof faDate==='function'?faDate():''));document.querySelectorAll('#ptfOfficialInvDlg').forEach(function(x){x.remove();});var current=inv?'<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:9px;padding:8px;margin-bottom:8px"><b>اسناد فعال فعلی</b>'+filesHtml(inv,true)+'</div>':'';var unofficial=data('ptf_crm_invoices').filter(function(i){return i&&active(i)&&i.isUnofficial&&i.offerNo===offerNo;}),unofficialHtml=(!inv&&unofficial.length)?'<div class="fld"><label>صورتحساب غیررسمی مبدأ (در صورت تبدیل)</label><select id="ofiReplaces"><option value="">— بدون جایگزینی —</option>'+unofficial.map(function(i){return'<option value="'+esc(iid(i))+'">'+esc(i.no||i.cd)+' — '+money(i.amount||0)+'</option>';}).join('')+'</select></div>':'';var html='<div class="md-b" id="ptfOfficialInvDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)ptfOfficialInvoiceCancel()"><div class="md" style="max-width:820px;max-height:94vh;overflow:auto"><h3>'+(inv?'اصلاح ثبت CRM':'ثبت')+' فاکتور رسمی صادرشده — '+esc(offerNo)+'</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px;color:#1e40af;font-size:12px">فاکتور ابتدا در نرم‌افزار حسابداری/سامانه مودیان صادر شده است. مبلغ VAT و مبلغ نهایی قابل تایپ نیستند و از فرمول قطعی محاسبه می‌شوند.</div>'+(comp?'<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px;color:#065f46;font-size:12px;margin-top:6px">💱 <b>مبنای ریالی:</b> '+esc(comp.no)+' — جمع ریالی '+money(rialTotal)+' — نرخ تسعیر '+(+rbRateShown).toLocaleString('fa-IR')+' ریال'+(rbDerived?' (برگرفته از جمع سند ریالی)':'')+' — پیشنهاد ارزی مبدأ: '+esc(o.no)+' ('+esc(o.currency||'')+')</div>':'')+current+unofficialHtml+'<div class="fr"><div class="fld"><label>شماره فاکتور حسابداری *</label><input id="ofiNo" value="'+esc(inv?inv.no:'')+'" dir="ltr"></div><div class="fld"><label>شناسه یکتای مالیاتی/مودیان *</label><input id="ofiTax" value="'+esc(inv?inv.taxUid:'')+'" dir="ltr"></div></div><div class="fr"><div class="fld"><label>تاریخ صدور (شمسی) *</label>'+(typeof ptfDatePicker==='function'?ptfDatePicker('ofiDate',inv?inv.invDate:(typeof faDate==='function'?faDate():'')):'<input id="ofiDate" value="'+esc(inv?inv.invDate:(typeof faDate==='function'?faDate():''))+'">')+'</div><div class="fld"><label>مرجع مودیان</label><input id="ofiModian" value="'+esc(inv?inv.modianReference||'':'')+'" dir="ltr"></div></div><div class="fr"><div class="fld"><label>مبلغ پایه (ریال) *</label><input id="ofiBase" type="number" value="'+esc(inv?inv.base:(rialTotal||''))+'" dir="ltr" oninput="ptfOfficialInvoiceCalc()"></div><div class="fld"><label>درصد ارزش افزوده * <small style="color:#0e7490">(از هاب مالی — قابل ویرایش در «ارزش افزوده»</small>)</label><input id="ofiVatPct" type="number" step="0.01" value="'+esc(pct)+'" dir="ltr" oninput="ptfOfficialInvoiceCalc()"></div></div><div id="ofiCalc"></div><div class="fld"><label>نوع پوشش فاکتور</label><select id="ofiCoverage" onchange="ptfOfficialCoverageRender()"><option value="amount">مبلغ/درصد کلی</option><option value="lines">اقلام و مقدار</option></select></div><div id="ofiCoverageBody"></div>'+
+    if(!can()){alert('⛔ نقش فعلی مجاز به ثبت/اصلاح فاکتور رسمی نیست');return;}
+    /* ═══ v34.37.1 (INV-PANEL-ROWS): قفل «ثبت دوباره» ═══
+       خواستهٔ کارفرما: «اگر فاکتوری ثبت شد … نباید با زدن روی ثبت فاکتور پنجرهٔ مودالِ
+       ثبت دوباره باز شود.» دکمهٔ پنل فاکتورها از قبل جای خود را به نشانگر داده است،
+       ولی این گارد در خودِ در ورودی است تا هیچ مسیر دیگری (کشوی پروندهٔ فروش، کارتابل،
+       فراخوانی مستقیم) هم نتواند فاکتور دوم بسازد. مسیر اصلاح (editId) باز می‌ماند. */
+    if(!editId){
+      var already=window.ptfActiveInvoiceOfOffer(offerNo);
+      if(already){
+        alert('✅ برای این ارجاع فاکتور «'+String(already.no||already.cd||'')+'» از قبل ثبت شده است.\n\nبرای تغییر اطلاعات از «اصلاح اطلاعات» و برای ثبت سند جایگزین ابتدا از «ابطال» استفاده کنید (ردیف را در پنل فاکتورها باز کنید).');
+        return;
+      }
+    }
+    var o=findOffer(offerNo),c=findCaseForOffer(o),inv=editId?findInvoice(editId):null;var comp=(o&&o.invRef&&o.invRef.rialBasis)?findOffer(o.invRef.rialBasis):(o&&typeof window.ptfRialCompanionOf==='function'?window.ptfRialCompanionOf(o.no):null);var rialTotal=comp?(comp.items||[]).reduce(function(s,it){return s+(+it.qty||0)*(+it.price||0);},0):(o&&o.currency==='IRR'?(o.items||[]).reduce(function(s,it){return s+(+it.qty||0)*(+it.price||0);},0):0);/* v34.31.0 (FX-RIAL-REF): نمایش نرخ حتی وقتی نسخهٔ ریالی «ثبت‌شدهٔ مستقل» است (بدون اف‌ایکس‌کانورت) — فال‌بک به نرخ ذخیره‌شدهٔ ارجاع + برچسب برگرفته */var rbRateShown=(comp&&comp.fxConvert&&+comp.fxConvert.rate>0)?+comp.fxConvert.rate:((o&&o.invRef&&+o.invRef.rialRate)||0);var rbDerived=!!(comp&&rbRateShown>0&&!(comp.fxConvert&&+comp.fxConvert.rate>0));/*--RB-RATE--*//* v34.7.26 (S1/F1-4): اگر «اصلاح» با شناسه صدا زده شد ولی سند پیدا نشد، مودال نباید بی‌صدا در حالت «ثبت فاکتور جدید» باز شود (ریسک سند تکراری). */if(editId&&!inv){alert('⛔ فاکتور رسمی با شناسهٔ «'+String(editId)+'» یافت نشد؛ برای جلوگیری از ثبت سند تکراری، فرم اصلاح باز نشد.');return;}/* v34.7.26 (S1/F1-4b): این مودال «ثبت فاکتور رسمی» است؛ اگر شناسهٔ یک صورتحساب غیررسمی به آن داده شود نباید سند غیررسمی را با فرم رسمی بازنویسی کند. */if(inv&&inv.isUnofficial){alert('⛔ این سند «صورتحساب غیررسمی» است و از فرم فاکتور رسمی اصلاح نمی‌شود؛ از مسیر صورتحساب غیررسمی همان پرونده اقدام کنید.');return;}if(!o||!c){alert('پیشنهاد یا پرونده یکتا یافت نشد');return;}if(inv&&!active(inv)){alert('فاکتور ابطال‌شده قابل اصلاح نیست');return;}draftFiles=inv?JSON.parse(JSON.stringify(inv.files||[])):[];window._ptfOfficialInvCtx={offerNo:offerNo,caseId:cid(c),invoiceId:inv?iid(inv):'',existing:inv,caseRecord:c,offerRecord:o,rialBasisNo:comp?comp.no:'',rialBasisRate:(comp&&comp.fxConvert?(+comp.fxConvert.rate||0):(o&&o.invRef?(+o.invRef.rialRate||0):0)),rialBasisTotal:rialTotal,operationId:'OFFICIAL-INVOICE|'+(inv?iid(inv):offerNo)+'|'+Date.now()+'|'+Math.random().toString(36).slice(2,8)};var pct=inv?inv.vatPercent:vatDefault(inv?inv.invDate:(typeof faDate==='function'?faDate():''));document.querySelectorAll('#ptfOfficialInvDlg').forEach(function(x){x.remove();});var current=inv?'<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:9px;padding:8px;margin-bottom:8px"><b>اسناد فعال فعلی</b>'+filesHtml(inv,true)+'</div>':'';var unofficial=data('ptf_crm_invoices').filter(function(i){return i&&active(i)&&i.isUnofficial&&i.offerNo===offerNo;}),unofficialHtml=(!inv&&unofficial.length)?'<div class="fld"><label>صورتحساب غیررسمی مبدأ (در صورت تبدیل)</label><select id="ofiReplaces"><option value="">— بدون جایگزینی —</option>'+unofficial.map(function(i){return'<option value="'+esc(iid(i))+'">'+esc(i.no||i.cd)+' — '+money(i.amount||0)+'</option>';}).join('')+'</select></div>':'';var html='<div class="md-b" id="ptfOfficialInvDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)ptfOfficialInvoiceCancel()"><div class="md" style="max-width:820px;max-height:94vh;overflow:auto"><h3>'+(inv?'اصلاح ثبت CRM':'ثبت')+' فاکتور رسمی صادرشده — '+esc(offerNo)+'</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px;color:#1e40af;font-size:12px">فاکتور ابتدا در نرم‌افزار حسابداری/سامانه مودیان صادر شده است. مبلغ VAT و مبلغ نهایی قابل تایپ نیستند و از فرمول قطعی محاسبه می‌شوند.</div>'+(comp?'<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px;color:#065f46;font-size:12px;margin-top:6px">💱 <b>مبنای ریالی:</b> '+esc(comp.no)+' — جمع ریالی '+money(rialTotal)+' — نرخ تسعیر '+(+rbRateShown).toLocaleString('fa-IR')+' ریال'+(rbDerived?' (برگرفته از جمع سند ریالی)':'')+' — پیشنهاد ارزی مبدأ: '+esc(o.no)+' ('+esc(o.currency||'')+')</div>':'')+current+unofficialHtml+'<div class="fr"><div class="fld"><label>شماره فاکتور حسابداری *</label><input id="ofiNo" value="'+esc(inv?inv.no:'')+'" dir="ltr"></div><div class="fld"><label>شناسه یکتای مالیاتی/مودیان *</label><input id="ofiTax" value="'+esc(inv?inv.taxUid:'')+'" dir="ltr"></div></div><div class="fr"><div class="fld"><label>تاریخ صدور (شمسی) *</label>'+(typeof ptfDatePicker==='function'?ptfDatePicker('ofiDate',inv?inv.invDate:(typeof faDate==='function'?faDate():'')):'<input id="ofiDate" value="'+esc(inv?inv.invDate:(typeof faDate==='function'?faDate():''))+'">')+'</div><div class="fld"><label>مرجع مودیان</label><input id="ofiModian" value="'+esc(inv?inv.modianReference||'':'')+'" dir="ltr"></div></div><div class="fr"><div class="fld"><label>مبلغ پایه (ریال) *</label><input id="ofiBase" type="number" value="'+esc(inv?inv.base:(rialTotal||''))+'" dir="ltr" oninput="ptfOfficialInvoiceCalc()"></div><div class="fld"><label>درصد ارزش افزوده * <small style="color:#0e7490">(از هاب مالی — قابل ویرایش در «ارزش افزوده»</small>)</label><input id="ofiVatPct" type="number" step="0.01" value="'+esc(pct)+'" dir="ltr" oninput="ptfOfficialInvoiceCalc()"></div></div><div id="ofiCalc"></div><div class="fld"><label>نوع پوشش فاکتور</label><select id="ofiCoverage" onchange="ptfOfficialCoverageRender()"><option value="amount">مبلغ/درصد کلی</option><option value="lines">اقلام و مقدار</option></select></div><div id="ofiCoverageBody"></div>'+
       '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;margin-top:8px"><b>حداقل یکی از دو مدرک زیر اجباری است</b><div class="fr" style="margin-top:7px"><div><label>فاکتور رسمی سیستم حسابداری</label><div id="ofiAccUp" style="border:1px dashed #fdba74;border-radius:9px;padding:7px"></div></div><div><label>سند/تصویر سامانه مودیان</label><div id="ofiModUp" style="border:1px dashed #fdba74;border-radius:9px;padding:7px"></div></div></div><div id="ofiFileState" style="font-size:11.5px;margin-top:6px"></div></div>'+(inv?'<div class="fld"><label>دلیل اصلاح اطلاعات CRM *</label><textarea id="ofiReason" rows="2"></textarea></div>':'')+'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="ptfOfficialInvoiceCancel()">انصراف</button><button class="bt" id="ofiSave" onclick="saveInv(\''+arg(offerNo)+'\')">'+(inv?'ثبت اصلاحیه':'ثبت فاکتور رسمی')+'</button></div></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);if(document.getElementById('ofiCoverage')&&inv)document.getElementById('ofiCoverage').value=inv.coverageMode||'amount';
     function uploaded(cat,f){f.category=cat;f.status='active';f.version=1;f._justUploaded=true;draftFiles.push(f);window.ptfOfficialInvoiceFileState();window.ptfOfficialInvoiceOcr(f);}
     if(typeof attachUploadWidget==='function'){var removed=function(key){draftFiles=draftFiles.filter(function(f){return f.key!==key;});window.ptfOfficialInvoiceFileState();};attachUploadWidget('ofiAccUp','official-invoices/accounting',function(f){uploaded('accounting_official_invoice',f);},removed);attachUploadWidget('ofiModUp','official-invoices/modian',function(f){uploaded('modian_tax_invoice',f);},removed);}
