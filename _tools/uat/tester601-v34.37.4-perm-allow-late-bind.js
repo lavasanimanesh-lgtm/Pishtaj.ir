@@ -148,7 +148,7 @@ head('۳. آزمون جهش (ثبوتِ بارِ تشخیص تست ۱)');
   else {
     const MUT = PERMS.slice(0, i0) +
       'function reg(id, title, buildName, renderName) {\n' +
-      '    var _capB = window[buildName], _capR = window[renderName]; /* رفتار پیش از v34.37.4 */\n' +
+      '    var _capB = window[buildName], _capR = window[renderName]; /* رفتار پیش از v34.37.5 */\n' +
       '    window._ptfPanelBuilders[id] = function (btn) {\n' +
       '      document.getElementById("pgTitle").textContent = title;\n' +
       '      document.getElementById("panels").innerHTML = (typeof _capB === "function") ? _capB() : "";\n' +
@@ -230,6 +230,6 @@ head('۵. قراردادها');
     /INV-LEGACY-NULLGUARD/.test(RBAC));
 }
 
-console.log('\n— tester601 (v34.37.4: دیرهنگامِ بازدر مسیر allow-override + گارد تهی در رندر بازنشسته) —');
+console.log('\n— tester601 (v34.37.5: دیرهنگامِ بازدر مسیر allow-override + گارد تهی در رندر بازنشسته) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

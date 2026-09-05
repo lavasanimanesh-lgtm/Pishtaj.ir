@@ -406,6 +406,6 @@ head('۱۱. درز اطلاعات');
   T('۱۱.۳ شناسهٔ داخلی در onclick به‌درستی quote شده (arg/esc)', html.indexOf('ptfInvoiceVoid(&#39;X1&#39;)') === -1 && /ptfInvoiceVoid\('X1'\)/.test(html));
 }
 
-console.log('\n— tester599 (v34.37.4: دیده‌شدن فاکتورهای ثبت‌شده/ارجاع‌شده) —');
+console.log('\n— tester599 (v34.37.5: دیده‌شدن فاکتورهای ثبت‌شده/ارجاع‌شده) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

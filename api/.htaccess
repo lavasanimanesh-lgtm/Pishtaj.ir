@@ -10,7 +10,12 @@
 </IfModule>
 
 <FilesMatch "\.(?:php|json|log|txt)$">
-  <If "%{REQUEST_URI} =~ m#/(crm|contact|codegen|fx-rates|storage|cms|auth|llm|attachment-thumb|attachment-read|chat-llm|notify-bot|fix-arvan-cors|careers|zip-attachments)\.php$#">
+  /* v34.37.5 (GSC-HTACCESS): gsc.php به allowlist اضافه شد — «ثبت نقشهٔ سایت» روی
+     میزبان‌های Apache با همین deny-by-default در لایۀ وب‌سرور 403 می‌شد و هیچ پیامِ
+     PHP‌ای دیده نمی‌شد (پیام پنل فقط «پاسخ سرور خطا بود» بود). gsc.php خودش گارد
+     احراز نشست + نقش مدیر ارشد را دارد (api/gsc.php سطر ۲۷ تا ۴۰). بقیۀ فایل‌ها
+     مثل قبل غیرفعال‌اند تا احراز سطح‌رکورد کامل شود. */
+  <If "%{REQUEST_URI} =~ m#/(crm|contact|codegen|fx-rates|storage|cms|auth|llm|attachment-thumb|attachment-read|chat-llm|notify-bot|fix-arvan-cors|careers|zip-attachments|gsc)\.php$#">
     Require all granted
   </If>
   <Else>
