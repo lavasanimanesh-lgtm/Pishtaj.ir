@@ -254,6 +254,9 @@
           
           <div class="badge-code" id="venCode">PTF-VEN-H8Q4N-Z6T3K</div>
           <p id="venWarning" role="status" style="display:none;margin:12px 0;padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px;font-weight:700"></p>
+          <!-- v34.36.2 (SUP-UPLOAD-RCA): رسید پیوست — سبز یعنی فایل واقعاً در فضای ابری ذخیره شده،
+               قرمز یعنی فایل به سرور نرسیده + علت دقیق + دکمهٔ ارسال دوباره. «ثبت سبز بدون فایل» پایان. -->
+          <div id="venAttach" role="status" aria-live="polite" style="display:none;margin:12px 0;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:700;line-height:2;text-align:right"></div>
           <p style="font-size:13px;color:#888;">کد رهگیری یکتای فوق را ذخیره نمایید — با همین کد می‌توانید وضعیت ثبت‌نام خود را در <a href="../tracking/" style="color:var(--red);font-weight:800;">صفحه رهگیری</a> (بخش «رهگیری ثبت‌نام تامین‌کننده») پیگیری کنید.</p>
 
           <a class="btn btn-ghost" style="margin-top:20px;background:#f1f2f4;color:#333;display:inline-flex;" href="../tracking/">رهگیری وضعیت ثبت‌نام ←</a>
@@ -349,6 +352,52 @@
       }
     });
 
+    /* ═══ v34.36.2 (SUP-UPLOAD-RCA): رسید پیوست ثبت‌نام ═══
+       مشکل گزارش‌شده: فایل در صفحهٔ ثبت‌نام آپلود «نمی‌شد» — ثبت‌نام سبز موفق نشان
+       داده می‌شد، هیچ هشداری نبود و در CRM «بدون ضمیمه» می‌ماند. اکنون:
+       ۱) پیش از ارسال، نام/حجم فایل به سرور اعلام می‌شود (attachment_name/size) تا سرور
+          بتواند «فایل اعلام‌شده ولی نرسیده» را از «فایلی انتخاب نشده» جدا کند؛
+       ۲) بررسی محلی حجم/فرمت، پیش از آنکه ۱۵ مگابایت بیهوده آپلود شود؛
+       ۳) پس از ثبت، رسید واقعی (نام+حجم+کلید فضای ابری) سبز نمایش داده می‌شود؛
+       ۴) اگر فایل نرسید، علت دقیق + دکمهٔ «ارسال دوبارهٔ فایل» — بدون ساخت رکورد
+          تکراری، فایل به همان کد رهگیری می‌چسبد (مسیر سروری SUP-ATTACH-RECOVERY). */
+    const ATTACH_MAX = 15 * 1024 * 1024;
+    const ATTACH_EXT = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'webp', 'zip', 'rar'];
+    function attachInput() { return form.querySelector('input[type="file"][name="attachment"]'); }
+    function attachChosen() { const i = attachInput(); return (i && i.files && i.files[0]) ? i.files[0] : null; }
+    function fmtSize(n) {
+      n = Number(n) || 0;
+      return n >= 1048576 ? (Math.round(n / 104857.6) / 10) + ' مگابایت' : Math.max(1, Math.round(n / 1024)) + ' کیلوبایت';
+    }
+    function escHtml(v) {
+      return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function attachBox(html, kind) {
+      const b = document.getElementById('venAttach');
+      if (!b) return;
+      b.innerHTML = html;
+      b.style.display = 'block';
+      b.style.background = kind === 'ok' ? '#ecfdf5' : (kind === 'bad' ? '#fef2f2' : '#fff7ed');
+      b.style.color = kind === 'ok' ? '#065f46' : (kind === 'bad' ? '#991b1b' : '#9a3412');
+      b.style.border = '1.5px solid ' + (kind === 'ok' ? '#a7f3d0' : (kind === 'bad' ? '#fecaca' : '#fdba74'));
+    }
+    /* ارسال دوبارهٔ فایل به همان کد رهگیری (فرم با همهٔ مقدارها برمی‌گردد) */
+    window.ptfSupplierRetryAttach = function () {
+      const cd = ((document.getElementById('venCode') || {}).textContent || '').trim();
+      const sc = document.getElementById('sCode');
+      if (sc && cd) sc.value = cd;
+      form.style.display = '';
+      const rb = document.getElementById('resBox');
+      if (rb) rb.style.display = 'none';
+      statusBox.textContent = '🔁 فایل را دوباره انتخاب کنید و دکمهٔ ثبت را بزنید — ثبت‌نام تکراری ساخته نمی‌شود؛ فایل به کد ' + (cd || 'شما') + ' اضافه می‌شود. (اگر کپچا منقضی شده، دوباره تیک «من ربات نیستم» را بزنید.)';
+      statusBox.className = 'form-status full';
+      try { form.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+      const i = attachInput();
+      if (i) { try { i.focus(); } catch (e2) {} }
+    };
+
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const comp = document.getElementById('sComp').value;
@@ -374,6 +423,26 @@
         statusBox.className = 'form-status full err';
         return;
       }
+      /* v34.36.2: بررسی محلی پیوست — پیش از آپلودِ بیهوده یا ثبت بدون فایل */
+      const chosenFile = attachChosen();
+      if (chosenFile) {
+        const ext = (chosenFile.name.split('.').pop() || '').toLowerCase();
+        if (chosenFile.size < 1) {
+          statusBox.textContent = 'فایل انتخاب‌شده خالی است (۰ بایت) — فایل سالم را دوباره انتخاب کنید.';
+          statusBox.className = 'form-status full err';
+          return;
+        }
+        if (chosenFile.size > ATTACH_MAX) {
+          statusBox.textContent = 'حجم فایل پیوست (' + fmtSize(chosenFile.size) + ') از سقف مجاز ۱۵ مگابایت بیشتر است — نسخهٔ سبک‌تر یا فشرده (zip) بفرستید.';
+          statusBox.className = 'form-status full err';
+          return;
+        }
+        if (ATTACH_EXT.indexOf(ext) === -1) {
+          statusBox.textContent = 'فرمت «.' + ext + '» برای پیوست مجاز نیست — فقط: ' + ATTACH_EXT.join('، ');
+          statusBox.className = 'form-status full err';
+          return;
+        }
+      }
       // US-149 AC1: کپچا اجباری
       if (typeof ptfCaptchaValid === 'function' && !ptfCaptchaValid()) {
         statusBox.textContent = window.ptfCaptchaMsg || 'کپچا را تکمیل کنید';
@@ -395,8 +464,26 @@
       let code = '';
       let warning = '';
       let submitError = '';
+      let attReceipt = null;   /* v34.36.2: رسید واقعی پیوست از سرور */
+      let attErr = '';
+      let attDiag = null;
+      let attAttached = false;
       try {
         const fd = new FormData(form);
+        /* v34.36.2: اعلام فایل انتخاب‌شده به سرور — اگر $_FILES خالی برسد، سرور می‌فهمد
+           فایل «گم شده» و علت را دقیق گزارش می‌کند (به‌جای موفقیت بی‌صدا). */
+        if (chosenFile) {
+          fd.append('attachment_name', chosenFile.name);
+          fd.append('attachment_size', String(chosenFile.size));
+          const inBody = fd.get('attachment');
+          if (!inBody || typeof inBody === 'string') {
+            btn.disabled = false;
+            btn.textContent = 'ثبت در بانک تامین‌کنندگان CRM';
+            statusBox.textContent = 'مرورگر فایل پیوست را در بدنهٔ درخواست قرار نداد — صفحه را تازه (F5) کنید و دوباره بفرستید.';
+            statusBox.className = 'form-status full err';
+            return;
+          }
+        }
         if (typeof ptfCaptchaAppend === 'function') ptfCaptchaAppend(fd);
         if (typeof ptfOtpToken === 'function' && ptfOtpToken()) fd.append('otp_token', ptfOtpToken());
         const res = await fetch('../api/crm.php?action=add_supplier', { method: 'POST', body: fd });
@@ -407,6 +494,10 @@
         if (data && data.ok && data.code) {
           code = data.code;
           warning = data.warning || '';
+          attReceipt = (data.attachment && data.attachment.key) ? data.attachment : null;
+          attErr = data.attachmentError || '';
+          attDiag = data.attachmentDiag || null;
+          attAttached = !!data.attached;
         } else if (data && !submitError) {
           submitError = data.message || data.error || 'سرور کد رهگیری صادر نکرد';
         }
@@ -428,6 +519,18 @@
       if (warning) {
         const warningBox = document.getElementById('venWarning');
         if (warningBox) { warningBox.textContent = '⚠️ ' + warning; warningBox.style.display = 'block'; }
+      }
+      /* v34.36.2: رسید پیوست — یا علت دقیق نرسیدن فایل + راهِ جبران */
+      if (attReceipt) {
+        attachBox('📎 پیوست شما دریافت و در فضای ابری شرکت ذخیره شد: <b>' + escHtml(attReceipt.name) + '</b> (' + fmtSize(attReceipt.size) + ')' +
+          (attAttached ? '<br>✅ این فایل به ثبت‌نام قبلی همین شرکت (کد ' + escHtml(code) + ') اضافه شد — رکورد تکراری ساخته نشد.' : ''), 'ok');
+      } else if (chosenFile) {
+        const reason = attErr || warning || 'علت از سمت سرور گزارش نشد';
+        try { if (window.console && console.error) console.error('[PTF supplier upload] فایل به سرور نرسید:', reason, attDiag || {}); } catch (eLog) {}
+        attachBox('⚠️ <b>ثبت‌نام انجام شد، ولی فایل شما به سرور نرسید!</b><br>' +
+          'علت: ' + escHtml(reason) + '<br>' +
+          '<button type="button" class="btn btn-primary" style="margin-top:8px;padding:8px 16px;font-size:13px" onclick="ptfSupplierRetryAttach()">🔁 ارسال دوبارهٔ فایل</button>' +
+          '<span style="display:block;font-weight:600;font-size:12px;color:#7c2d12">بدون ساخت ثبت‌نام تکراری — فایل به همین کد رهگیری اضافه می‌شود. اگر باز هم نرسید، فایل را با ایمیل/واتساپ برای واحد سورسینگ بفرستید و کد رهگیری را ذکر کنید.</span>', 'bad');
       }
       document.getElementById('resBox').style.display = 'block';
       window.scrollTo({top: 80, behavior: 'smooth'});

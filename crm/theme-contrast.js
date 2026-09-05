@@ -181,6 +181,11 @@
     'body.ptf-dark #payablesBox{background:#451a03!important;border-color:#92400e!important}' +
     'body.ptf-dark #payablesBox .payables-summary h4,body.ptf-dark #payablesBox .payables-total{color:#fde68a!important}' +
     'body.ptf-dark #payablesBox .payable-action{background:#162235!important;color:#e2e8f0!important;border-color:#40526b!important}' +
+    /* v34.36.3 (PAYABLES-BOX-COLLAPSED): جعبهٔ بدهی غیرنقدی <details> شد — عنوانِ
+       تاشو و کادر جست‌وجویش هم در نمای شب خوانا باشند. */
+    'body.ptf-dark #payablesBox>summary.payables-toggle{color:#fde68a!important}' +
+    'body.ptf-dark #payablesBox>summary.payables-toggle small{color:#fbbf24!important}' +
+    'body.ptf-dark #payablesBox #payablesQ{background:#162235!important;color:#e2e8f0!important;border-color:#92400e!important}' +
     /* کنترل پنجره مودال در شب: قبلاً قهوه‌ای/سبز خیلی تیره روی سطح تیره محو می‌شد. */ +
     'body.ptf-dark .mx-dots{padding:5px 8px!important;border-radius:999px!important;background:rgba(2,6,23,.72)!important;border:1px solid rgba(226,232,240,.28)!important;box-shadow:0 4px 16px rgba(0,0,0,.4)!important;gap:8px!important}' +
     'body.ptf-dark .mx-dot,body.ptf-dark .md .mx-dots .mx-dot,body.ptf-dark .ptfdlg .mx-dots .mx-dot{box-shadow:0 0 0 2px rgba(15,23,42,.85)!important}' +

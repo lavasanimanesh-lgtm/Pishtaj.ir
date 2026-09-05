@@ -1182,22 +1182,132 @@ function ptf_dedup_phone($s) {
     return $d;
 }
 
+/* ═══ v34.36.2 (SUP-UPLOAD-RCA): تشخیص و گزارش دقیق «فایل به سرور نرسید» ═══
+   RCA: در صفحهٔ ثبت‌نام تامین‌کنندگان، فایل انتخاب‌شده گاهی هرگز در $_FILES سرور
+   ظاهر نمی‌شد و save_attachment «بی‌صدا» null برمی‌گرداند: ثبت‌نام سبز موفق می‌شد،
+   هیچ هشداری نشان داده نمی‌شد و در CRM «بدون ضمیمه» بود. سه علت ممکن روی میزبان:
+   ۱) file_uploads=Off ۲) بزرگ‌تر بودن بدنه از post_max_size (PHP کل $_POST/$_FILES
+   را دور می‌ریزد) ۳) پروکسی/CDN/فیلتر امنیتی که بخش فایلِ multipart را می‌برد.
+   اکنون کلاینت نام و حجم فایل انتخاب‌شده را هم می‌فرستد (attachment_name/size) تا
+   «فایل اعلام‌شده ولی نرسیده» از «اصلاً فایلی انتخاب نشده» جدا شود و علت واقعی
+   (با عدد و نام محدودیت میزبان) به کاربر و CRM برگردد. */
+function ptf_ini_bytes($v) {
+    $v = trim((string)$v);
+    if ($v === '' || $v === '-1') return ($v === '-1') ? -1 : 0;
+    $n = (int)$v;
+    $u = strtoupper(substr($v, -1));
+    if ($u === 'G') $n *= 1024 * 1024 * 1024;
+    elseif ($u === 'M') $n *= 1024 * 1024;
+    elseif ($u === 'K') $n *= 1024;
+    return (int)$n;
+}
+
+function ptf_uploads_enabled() {
+    $v = strtolower(trim((string)ini_get('file_uploads')));
+    return !($v === '' || $v === '0' || $v === 'off' || $v === 'false' || $v === 'no');
+}
+
+/* نقشهٔ کدهای خطای آپلود PHP → پیام فارسی عملیاتی (هم‌ادبیات با api/storage.php) */
+function ptf_upload_error_fa($code) {
+    $code = (int)$code;
+    $map = [
+        UPLOAD_ERR_INI_SIZE   => 'حجم فایل از upload_max_filesize میزبان بیشتر است (اکنون: ' . (string)ini_get('upload_max_filesize') . ') — فایل کوچک‌تر بفرستید یا از پشتیبانی هاست بخواهید این مقدار را بالا ببرد',
+        UPLOAD_ERR_FORM_SIZE  => 'حجم فایل از سقف مجاز فرم بیشتر است',
+        UPLOAD_ERR_PARTIAL    => 'فایل ناقص به سرور رسید (قطع ارتباط) — دوباره تلاش کنید',
+        UPLOAD_ERR_NO_FILE    => 'هیچ فایلی همراه درخواست به سرور نرسید',
+        UPLOAD_ERR_NO_TMP_DIR => 'پوشهٔ موقت آپلود روی میزبان وجود ندارد (upload_tmp_dir) — با پشتیبانی هاست تماس بگیرید',
+        UPLOAD_ERR_CANT_WRITE => 'میزبان نتوانست فایل موقت را روی دیسک بنویسد — با پشتیبانی هاست تماس بگیرید',
+        UPLOAD_ERR_EXTENSION  => 'یک افزونهٔ PHP آپلود را متوقف کرد — با پشتیبانی هاست تماس بگیرید',
+    ];
+    return $map[$code] ?? ('خطای آپلود PHP (کد ' . $code . ')');
+}
+
+/* تصویر محدودیت‌های آپلود میزبان برای تشخیص (بدون هیچ دادهٔ حساس) */
+function ptf_upload_limits_diag() {
+    return [
+        'file_uploads' => (string)ini_get('file_uploads'),
+        'upload_max_filesize' => (string)ini_get('upload_max_filesize'),
+        'post_max_size' => (string)ini_get('post_max_size'),
+        'max_file_uploads' => (string)ini_get('max_file_uploads'),
+        'content_type' => (string)($_SERVER['CONTENT_TYPE'] ?? ''),
+        'content_length' => (int)($_SERVER['CONTENT_LENGTH'] ?? 0),
+        'post_count' => count($_POST),
+        'files_count' => count($_FILES),
+    ];
+}
+
+/* v34.36.2 (SUP-INBOX-ORDER): رکوردهای ثبت‌نام سایت در suppliers.json به ترتیبِ ثبت
+   (قدیمی‌ترین اول) ذخیره می‌شوند. با صفحه‌بندی ۵۰تاییِ get_inbox، ثبت‌نامِ تازه — و
+   پیوست تازهٔ آن — در صفحهٔ آخر می‌افتاد و مدیر تا کلیک‌های مکرر «نمایش بیشتر» آن را
+   نمی‌دید (یک علت رایجِ «فایل آپلود نشد!»). اکنون فهرست پیش از صفحه‌بندی بر اساس
+   تاریخ، جدیدترین اول، مرتب می‌شود؛ ترتیب در «نمایش بیشتر» هم پایدار می‌ماند. */
+function ptf_rows_newest_first($rows) {
+    if (!is_array($rows)) return [];
+    $rows = array_values($rows);
+    usort($rows, function ($a, $b) {
+        $da = is_array($a) ? (string)($a['date'] ?? '') : '';
+        $db = is_array($b) ? (string)($b['date'] ?? '') : '';
+        if ($da === $db) return 0;
+        return strcmp($db, $da); /* نزولی: جدیدترین اول */
+    });
+    return $rows;
+}
+
 /* پیوست فرم‌های عمومی: فقط فضای ابری.
    PHP فقط از فایل موقت upload request به S3 stream می‌کند؛ هیچ فایل پیوستی در
-   crm/data/uploads یا مسیر دائمیِ هاست نوشته نمی‌شود. */
-function save_attachment($field, $prefix, &$error = null) {
+   crm/data/uploads یا مسیر دائمیِ هاست نوشته نمی‌شود.
+   v34.36.2: پارامتر چهارم $diag تصویر محدودیت‌های میزبان را برمی‌گرداند و در حالت
+   «فایل اعلام‌شده ولی نرسیده» به‌جای nullِ بی‌صدا، $error با علت دقیق پر می‌شود. */
+function save_attachment($field, $prefix, &$error = null, &$diag = null) {
     $error = '';
-    if (empty($_FILES[$field]['name'])) return null;
-    if (!is_uploaded_file($_FILES[$field]['tmp_name'] ?? '')) { $error = 'فایل پیوست به‌درستی دریافت نشد'; return null; }
+    $diag = null;
+    $declName = trim((string)($_POST[$field . '_name'] ?? ''));
+    $declSize = (int)($_POST[$field . '_size'] ?? 0);
+    $got = isset($_FILES[$field]) && is_array($_FILES[$field])
+        && ((string)($_FILES[$field]['name'] ?? '') !== '' || (int)($_FILES[$field]['error'] ?? 0) !== 0);
+    if (!$got) {
+        if ($declName === '' && $declSize <= 0) return null; /* کاربر اصلاً فایلی انتخاب نکرده */
+        $diag = ptf_upload_limits_diag();
+        $errCode = (int)($_FILES[$field]['error'] ?? 0);
+        if ($errCode !== 0 && $errCode !== UPLOAD_ERR_NO_FILE) { $error = ptf_upload_error_fa($errCode); return null; }
+        if (!ptf_uploads_enabled()) { $error = 'آپلود فایل در PHP میزبان غیرفعال است (file_uploads=Off) — از پشتیبانی هاست بخواهید فعال کند'; return null; }
+        $ct = (string)($_SERVER['CONTENT_TYPE'] ?? '');
+        if (strpos($ct, 'multipart/form-data') === false) {
+            $error = 'بدنهٔ درخواست به‌صورت multipart به سرور نرسید' . ($ct !== '' ? ' (Content-Type: ' . $ct . ')' : '') . ' — احتمالاً پروکسی/CDN یا فیلتر امنیتی فایل را برده است';
+            return null;
+        }
+        $pm = ptf_ini_bytes((string)ini_get('post_max_size'));
+        $cl = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+        $sent = max($cl, $declSize);
+        if ($pm > 0 && $sent > $pm) {
+            $error = 'حجم درخواست (' . round($sent / 1048576, 2) . 'MB) از سقف post_max_size میزبان (' . (string)ini_get('post_max_size') . ') بیشتر است — PHP کل بدنهٔ درخواست را دور ریخت؛ فایل کوچک‌تر بفرستید یا سقف را در هاست بالا ببرید';
+            return null;
+        }
+        if (count($_POST) === 0) { $error = 'بدنهٔ POST به PHP نرسید (post_max_size یا فیلتر امنیتی میزبان)'; return null; }
+        $error = 'فایل «' . $declName . '» در مرورگر انتخاب شده بود ولی در $_FILES سرور خالی است — علت معمولاً محدودیت آپلود میزبان یا فیلتر امنیتی/CDN است';
+        return null;
+    }
+    $errCode = (int)($_FILES[$field]['error'] ?? 0);
+    if ($errCode !== UPLOAD_ERR_OK) { $error = ptf_upload_error_fa($errCode); $diag = ptf_upload_limits_diag(); return null; }
+    if (!is_uploaded_file($_FILES[$field]['tmp_name'] ?? '')) { $error = 'فایل پیوست به‌درستی دریافت نشد'; $diag = ptf_upload_limits_diag(); return null; }
     $size = (int)($_FILES[$field]['size'] ?? 0);
-    if ($size < 1 || $size > 15 * 1048576) { $error = 'حجم فایل پیوست باید حداکثر ۱۵MB باشد'; return null; }
+    if ($size < 1 || $size > 15 * 1048576) { $error = 'حجم فایل پیوست باید بین ۱ کیلوبایت و ۱۵ مگابایت باشد (فایل شما: ' . round($size / 1048576, 2) . 'MB)'; return null; }
     $allowed = ['pdf','doc','docx','xls','xlsx','jpg','jpeg','png','webp','zip','rar'];
     $original = (string)$_FILES[$field]['name'];
     $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
-    if (!in_array($ext, $allowed, true)) { $error = 'فرمت فایل پیوست مجاز نیست'; return null; }
+    if (!in_array($ext, $allowed, true)) { $error = 'فرمت فایل پیوست مجاز نیست (فقط: ' . implode(', ', $allowed) . ')'; return null; }
     $key = ptf_storage_object_key('site-' . $prefix, $original);
     $put = ptf_storage_put_uploaded_file($_FILES[$field]['tmp_name'], $key);
-    if (empty($put['ok'])) { $error = $put['error'] ?? 'آپلود فضای ابری ناموفق بود'; return null; }
+    if (empty($put['ok'])) {
+        $error = $put['error'] ?? 'آپلود فضای ابری ناموفق بود';
+        /* v34.36.2: شکست فضای ابری هم قابل تشخیص باشد — بدون لو دادن کلید/رمز */
+        $cfgReady = false;
+        if (function_exists('ptf_storage_load_cfg') && function_exists('ptf_storage_normalize_cfg')) {
+            $cfgReady = (ptf_storage_normalize_cfg(ptf_storage_load_cfg()) !== null);
+        }
+        $diag = ['storage' => true, 'storageError' => (string)$error, 'storageConfigReady' => $cfgReady, 'curl' => function_exists('curl_init')];
+        return null;
+    }
     return ['key' => $key, 'name' => $original, 'size' => $size, 'mode' => 'arvan', 'uploadedAt' => date('c')];
 }
 
@@ -1505,8 +1615,19 @@ switch($action) {
             }
         }
         $attachmentError = '';
-        $attachment = save_attachment('attachment', 'ven', $attachmentError);
+        $attachmentDiag = null;
+        $attachment = save_attachment('attachment', 'ven', $attachmentError, $attachmentDiag);
+        /* v34.36.2 (SUP-UPLOAD-RCA): اگر کاربر در مرورگر فایل انتخاب کرده (کلاینت نام/حجم
+           را اعلام می‌کند) ولی پیوست ذخیره نشد، «موفقیت بی‌صدا» ممنوع است — علت دقیق
+           در warning و attachmentError به کاربر و CRM برمی‌گردد. */
+        $supDeclFile = (trim((string)($_POST['attachment_name'] ?? '')) !== '' || (int)($_POST['attachment_size'] ?? 0) > 0);
+        if ($attachment === null && $supDeclFile && $attachmentError === '') {
+            $attachmentError = 'فایل انتخاب‌شده به سرور نرسید';
+        }
         $attachmentWarning = $attachmentError ? ('پیوست ذخیره نشد: ' . $attachmentError) : '';
+        $attachmentReceipt = $attachment
+            ? ['key' => (string)$attachment['key'], 'name' => (string)$attachment['name'], 'size' => (int)$attachment['size'], 'uploadedAt' => (string)($attachment['uploadedAt'] ?? '')]
+            : null;
         /* v34.7.71 (SUP-RESUBMIT-001): تکمیل مدارک — رکورد ردشده با دلیل نقصان مدارک
            به‌جای ساخت رکورد تکراری، باز می‌شود و مدارک جدید جایگزین/پیوست می‌شود. */
         if ($dupFound && ($dupFound['row']['status'] ?? '') === 'rejected' && !empty($dupFound['row']['reopen']) && $dupFound['list'] === 'suppliers') {
@@ -1524,6 +1645,8 @@ switch($action) {
                 'email' => clean($_POST['email'] ?? ''),
                 'message' => clean($_POST['message'] ?? '', 2000),
                 'attachment' => ($attachment ?: ($dupFound['row']['attachment'] ?? null)),
+                'attachmentError' => (($attachment ?: ($dupFound['row']['attachment'] ?? null)) ? '' : (string)$attachmentError),
+                'attachmentDiag' => (($attachment ?: ($dupFound['row']['attachment'] ?? null)) ? null : $attachmentDiag),
                 'payTerms' => $supPayTerms,
                 'creditRange' => $supCreditRange,
                 'payScore' => $supPayScore,
@@ -1534,8 +1657,37 @@ switch($action) {
             ];
             save_data('suppliers', $suppliers);
             push_event_rec('supplier_site', 'تکمیل مدارک ثبت‌نام تامین‌کننده: ' . clean($_POST['company'] ?? '') . ' (' . $oldCode . ')', ['code' => $oldCode]);
-            echo json_encode(['ok' => true, 'code' => $oldCode, 'reopened' => true, 'warning' => $attachmentWarning], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['ok' => true, 'code' => $oldCode, 'reopened' => true, 'warning' => $attachmentWarning, 'attachment' => $attachmentReceipt, 'attachmentError' => $attachmentError, 'attachmentDiag' => $attachmentDiag], JSON_UNESCAPED_UNICODE);
             break;
+        }
+        /* v34.36.2 (SUP-ATTACH-RECOVERY): ثبت‌نام «در انتظار بررسی» که پیوست ندارد.
+           پیش‌تر ارسال مجدد همان شرکت/شماره فقط خطای duplicate می‌داد، یعنی اگر فایل
+           بار اول به سرور نمی‌رسید هیچ راهی برای رساندنش نبود. اکنون اگر (۱) فایل جدید
+           سالم ذخیره شده باشد، (۲) رکورد موجود هیچ پیوستی نداشته باشد (جایگزینی/بازنویسی
+           ممنوع) و (۳) شمارهٔ تماس با همان رکورد یکی باشد (اثبات هویت ساده در برابر
+           سواستفاده)، پیوست به همان رکورد اضافه می‌شود — بدون ساخت رکورد تکراری. */
+        if ($dupFound && $dupFound['list'] === 'suppliers' && $attachment !== null
+            && in_array(($dupFound['row']['status'] ?? ''), ['pending', 'rejected'], true)
+            && empty($dupFound['row']['attachment'])
+            && $supPhoneNorm !== '' && ptf_dedup_phone($dupFound['row']['phone'] ?? '') === $supPhoneNorm) {
+            $suppliers = load_data('suppliers');
+            $ai = (int)$dupFound['idx'];
+            if (isset($suppliers[$ai]) && is_array($suppliers[$ai])) {
+                $suppliers[$ai]['attachment'] = $attachment;
+                $suppliers[$ai]['attachmentAddedAt'] = date('c');
+                $suppliers[$ai]['attachmentError'] = '';   /* v34.36.2: علت قبلی پاک می‌شود — فایل رسید */
+                $suppliers[$ai]['attachmentDiag'] = null;
+                save_data('suppliers', $suppliers);
+                $ac = (string)($suppliers[$ai]['code'] ?? '');
+                push_event_rec('supplier_site', 'پیوست ثبت‌نام تامین‌کننده تکمیل شد: ' . (string)($suppliers[$ai]['company'] ?? '') . ' (' . $ac . ')', ['code' => $ac]);
+                echo json_encode([
+                    'ok' => true, 'code' => $ac, 'attached' => true,
+                    'message' => 'فایل شما به ثبت‌نام قبلی همین شرکت اضافه شد',
+                    'attachment' => $attachmentReceipt,
+                    'attachmentError' => '', 'attachmentDiag' => null, 'warning' => ''
+                ], JSON_UNESCAPED_UNICODE);
+                break;
+            }
         }
         if ($dupFound) {
             echo json_encode([
@@ -1559,6 +1711,10 @@ switch($action) {
             'email' => clean($_POST['email'] ?? ''),
             'message' => clean($_POST['message'] ?? '', 2000),
             'attachment' => $attachment,
+            /* v34.36.2 (SUP-UPLOAD-RCA): علت نرسیدن پیوست روی خود رکورد می‌ماند تا مدیر
+               در CRM «⚠️ پیوست نرسید» + علت + محدودیت‌های میزبان را ببیند (نه «بدون ضمیمه»). */
+            'attachmentError' => ($attachment ? '' : (string)$attachmentError),
+            'attachmentDiag' => ($attachment ? null : $attachmentDiag),
             'payTerms' => $supPayTerms,
             'creditRange' => $supCreditRange,
             'payScore' => $supPayScore,
@@ -1569,7 +1725,7 @@ switch($action) {
         ];
         save_data('suppliers', $suppliers);
         push_event_rec('supplier_site', 'یک تامین‌کننده در سایت ثبت‌نام کرد و منتظر بررسی است: ' . clean($_POST['company'] ?? '') . ' (' . $code . ')', ['code' => $code]);
-        echo json_encode(['ok' => true, 'code' => $code, 'warning' => $attachmentWarning], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => true, 'code' => $code, 'warning' => $attachmentWarning, 'attachment' => $attachmentReceipt, 'attachmentError' => $attachmentError, 'attachmentDiag' => $attachmentDiag, 'declaredFile' => $supDeclFile], JSON_UNESCAPED_UNICODE);
         break;
 
 
@@ -1701,8 +1857,9 @@ switch($action) {
             ptf_echo_json(['ok' => true, 'fresh' => true, 'since' => $sig]);
             break;
         }
-        $allSuppliers = load_data('suppliers');
-        $siteRfqs = array_values(array_filter(load_data('rfqs'), function ($r) { return ($r['src'] ?? '') === 'site'; }));
+        /* v34.36.2: جدیدترین اول — ثبت‌نام/استعلام تازه همیشه در صفحهٔ اول دیده می‌شود */
+        $allSuppliers = ptf_rows_newest_first(load_data('suppliers'));
+        $siteRfqs = ptf_rows_newest_first(array_values(array_filter(load_data('rfqs'), function ($r) { return ($r['src'] ?? '') === 'site'; })));
         $supTotal = count($allSuppliers);
         $rfqTotal = count($siteRfqs);
         if ($limit > 0) {

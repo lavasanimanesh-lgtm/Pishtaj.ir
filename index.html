@@ -803,6 +803,13 @@
 
       try {
         const fd = new FormData(formEl);
+        /* v34.36.2 (SUP-UPLOAD-RCA): اعلام فایل انتخاب‌شده به سرور — اگر فایل در $_FILES
+           سرور ظاهر نشود، علت دقیق برمی‌گردد (به‌جای ثبت بی‌صدای بدون پیوست). */
+        try {
+          const fiHome = formEl.querySelector('input[type="file"][name="attachment"]');
+          const fHome = (fiHome && fiHome.files && fiHome.files[0]) ? fiHome.files[0] : null;
+          if (fHome) { fd.append('attachment_name', fHome.name); fd.append('attachment_size', String(fHome.size)); }
+        } catch (eDecl) {}
         // mapping/supplement for the canonical add_rfq_site contract
         if (!fd.get('name') && fd.get('contact')) fd.set('name', fd.get('contact'));
         fd.set('source_page', 'home');

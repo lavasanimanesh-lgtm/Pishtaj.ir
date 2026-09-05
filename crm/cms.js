@@ -10,7 +10,7 @@
   'use strict';
   var API = '../api/cms.php';
   var CMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح */
-  window.PTF_CMS_JS_VER = 'v34.36.0'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
+  window.PTF_CMS_JS_VER = 'v34.36.4'; /* v34.29.6: همسان‌سازی نشانگر با VER پوسته (سپر بنر کهنگی) — بدون تغییر رفتاری cms در این نسخه */ /* v34.29.5: ریشه‌کنی برخورد شناسهٔ pgTitle + شمارنده‌های زنده + v34.29.4: پارسر مقاوم خروجی هوش خارجی + v34.29.3: رفع نامرئی‌بودن تب‌های صفحهٔ جدید/کیفیت (کلاس pn/tb) + راهنمای سئو برای همه + آزمون اتصال GSC + جستجوی محصولات + عکس هوشمند — ریشه‌کنی تب خالی — با VER پوسته مقایسه می‌شود */
   function canCms() { return CMS_ROLES.indexOf(curRole()) > -1; }
   function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function api(action, data, cb) {
@@ -2281,12 +2281,36 @@
   };
 
   /* ---------- لایهٔ هوش مصنوعیِ سئو (api/llm.php) ---------- */
+  /* v34.36.2 (AI-JSON-REPAIR): پیش‌تر خطای «خروجی AI ساختار JSON معتبر ندارد» بن‌بست
+     مطلق بود — نه علت می‌گفت، نه نمونهٔ خام را نشان می‌داد، نه راهِ بعدی. اکنون هر
+     پاسخ ناموفق: ۱) در window.__ptfAiLast نگه داشته می‌شود (برای پشتیبانی/تشخیص)
+     ۲) با console.error و نمونهٔ خام ثبت می‌شود ۳) پیام عملیاتی (علت + کار بعدی)
+     می‌گیرد که همهٔ فراخوان‌ها (cmsAiFix/cmsAiMeta/ویزارد گروهی/…) همان را نشان می‌دهند. */
+  window.__ptfAiLast = null;
+  function cmsAiDiag(d, action) {
+    d = d && typeof d === 'object' ? d : { ok: false, error: 'پاسخ نامعتبر از سرویس AI' };
+    if (d.ok) return d;
+    try {
+      window.__ptfAiLast = {
+        action: action, at: new Date().toISOString(), error: d.error || '',
+        truncated: !!d.truncated, finish: d.finish || '', model: d.model || '',
+        http: (d.http == null ? '' : d.http), raw: d.raw || ''
+      };
+      if (window.console && console.error) console.error('[PTF AI] ' + action + ':', d.error || '', d.raw ? ('\nنمونهٔ خام خروجی مدل:\n' + d.raw) : '');
+    } catch (eDiag) {}
+    var hint = '';
+    if (d.truncated) hint = ' 🔁 دوباره بزنید؛ اگر تکرار شد متن ورودی را کوتاه‌تر کنید.';
+    else if (/JSON/i.test(String(d.error || ''))) hint = ' 🔁 یک بار دیگر بزنید (خروجی مدل تصادفی است)؛ نمونهٔ خام در کنسول مرورگر (F12) و window.__ptfAiLast است.';
+    if (hint && String(d.error || '').indexOf(hint) === -1) d.error = String(d.error || 'خطای نامشخص در سرویس AI') + hint;
+    return d;
+  }
   function cmsLLM(action, body, cb) {
     var h = cmsAuthHeaders();
     h['Content-Type'] = 'application/json';
     fetch('../api/llm.php?action=' + action, { method: 'POST', headers: h, body: JSON.stringify(body) })
-      .then(function (r) { return r.json(); }).then(cb)
-      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به هوش مصنوعی' }); });
+      .then(function (r) { return r.json(); })
+      .then(function (d) { cb(cmsAiDiag(d, action)); })
+      .catch(function (eNet) { cb(cmsAiDiag({ ok: false, error: 'عدم دسترسی به هوش مصنوعی' }, action)); });
   }
 
   /* متنِ قابلِ‌خواندنِ یک صفحهٔ سایت (همان‌اصل = منشأ یکسان) */

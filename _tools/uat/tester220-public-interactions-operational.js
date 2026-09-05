@@ -34,7 +34,10 @@ T('Supplier form به add_supplier وصل است', supplier.indexOf('action="../
 T('Supplier دیگر کد موقت fake-success نمی‌سازد', supplier.indexOf('PTF-VEN-TMP') === -1 && supplier.indexOf('هیچ کد رهگیری تامین‌کننده صادر نشده است') > -1);
 T('Supplier شماره موبایل 09 و OTP/degraded flow دارد', supplier.indexOf('شماره موبایل واتساپ برای تایید پیامکی') > -1 && guard.indexOf('d.ok && d.degraded && d.otp_token') > -1);
 T('API supplier SMS degraded fallback دارد', api.indexOf('BUG-SUP-OTP-001') > -1 && api.indexOf("'degraded' => true") > -1);
-T('خطای پیوست اختیاری ثبت‌نام تامین‌کننده را متوقف نمی‌کند', /case 'add_supplier':[\s\S]{0,2500}\$attachmentWarning[\s\S]{0,1800}'warning' => \$attachmentWarning/.test(api));
+/* v34.36.4: کرانه‌های این پین کهنه شده بود (بلوک add_supplier با SUP-DEDUP/SUP-PAY-TERMS و
+   SUP-UPLOAD-RCA بزرگ‌تر شده است) ⇒ تستر حتی پیش از این تغییر هم FAIL بود. کرانه‌ها بر اساس
+   فاصلهٔ واقعیِ دوباره اندازه‌گیری‌شدند؛ معنا حفظ شده: «هشدار پیوست ساخته می‌شود و در پاسخ موفق هست». */
+T('خطای پیوست اختیاری ثبت‌نام تامین‌کننده را متوقف نمی‌کند', /case 'add_supplier':[\s\S]{0,9000}\$attachmentWarning[\s\S]{0,9000}'warning' => \$attachmentWarning/.test(api));
 T('فرم تامین‌کننده علت واقعی خطای سرور را نمایش می‌دهد', supplier.indexOf('const raw = await res.text()') > -1 && supplier.indexOf('submitError') > -1 && supplier.indexOf('venWarning') > -1);
 
 SECTION('Tracking');

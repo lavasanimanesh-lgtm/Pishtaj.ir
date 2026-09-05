@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.36.0 — ادامه بهینه‌سازی تامین‌کنندگان:
+/* v34.36.4 — ادامه بهینه‌سازی تامین‌کنندگان:
    - SUP-PERF-003: lazy-load باکس مالی (صفحه‌بندی/محتوا تا بعد از رندر پنل).
    - SUP-PERF-004: get_inbox صفحه‌بندی اختیاری (پیش‌فرض بدون تغییر). */
 var fs = require('fs'), path = require('path');
@@ -15,15 +15,21 @@ var slf = read('crm/supplier-finance.js');
 var api = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.36.0', ver.crm_version === 'v34.36.0', ver.crm_version);
-T('supplier-finance.js cache-bust 34.36.0', /supplier-finance\.js\?v=34\.36\.0/.test(idx));
+T('VERSION.json = v34.36.4', ver.crm_version === 'v34.36.4', ver.crm_version);
+T('supplier-finance.js cache-bust 34.36.4', /supplier-finance\.js\?v=34\.36\.4/.test(idx));
 
 /* ---------- SUP-PERF-003: lazy box ---------- */
-T('slBoxRows هست', /function slBoxRows\(\)/.test(slf));
+/* v34.36.4: slBoxRows پارامتر query گرفت (جست‌وجو) — همان تابع، قراردادِ گسترده‌تر */
+T('slBoxRows هست (با پارامتر جست‌وجو)', /function slBoxRows\(query\)/.test(slf) && slf.indexOf("window._slBoxSearch") > -1);
 T('ptfSlBoxLazy هست', /window\.ptfSlBoxLazy = function/.test(slf));
 T('slBoxBody placeholder دارد', slf.indexOf('id="slBoxBody"') > -1);
-T('box() محاسبه را به setTimeout می‌سپارد', slf.indexOf('setTimeout(function () { if (typeof window.ptfSlBoxLazy') > -1);
-T('slBox همچنان open/summary دارد', /<details id="slBox" open/.test(slf) && /<summary/.test(slf));
+/* v34.36.4 (SUP-BOX-COLLAPSED — تصمیم کارفرما): پنل پیش‌فرض بسته است، پس محاسبه
+   به‌جای setTimeoutِ بی‌قید (که حتی وقتی کسی کاری با جعبه نداشت اجرا می‌شد) به
+   نخستین open گره خورد؛ مکانیزمِ تلاشِ مجددِ پیدا کردنِ body دست‌نخورده ماند. */
+T('box() محاسبه را به نخستین بازکردن می‌سپارد (نه setTimeoutِ بی‌قید)', slf.indexOf('setTimeout(function () { if (typeof window.ptfSlBoxLazy') > -1 && slf.indexOf("if (det && !det.open && force !== true) { window._slBoxLazyPending = true; return; }") > -1 && slf.indexOf('window.ptfSlBoxToggle = function (el) { if (el && el.open) window.ptfSlBoxLazy(true); };') > -1);
+/* v34.36.4: «باز بودن پیش‌فرض» خودش خواستهٔ اصلاح‌شدهٔ کارفرما بود ⇒ pin وارونه شد:
+   details/summary سرِ جایش است ولی بدونِ open، و کادر جست‌وجو اضافه شده است. */
+T('slBox تاشو و پیش‌فرض بسته + جستجو دارد', /<details id="slBox"(?! open)/.test(slf) && slf.indexOf('<details id="slBox" open') === -1 && /<summary/.test(slf) && slf.indexOf('id="slBoxQ"') > -1 && slf.indexOf('window.slBoxSearch = function (v)') > -1);
 T('slBoxRows از balanceHtmlFrom بدون تکرار استفاده می‌کند', slf.indexOf('balanceHtmlFrom(b, s.cd)') > -1);
 
 /* ---------- SUP-PERF-004: get_inbox pagination ---------- */
@@ -35,6 +41,6 @@ T('fresh/gzip قبلی حفظ شده', api.indexOf("'fresh' => true") > -1 && ap
 
 T('tester487 در گیت CI', gate.indexOf('tester487-v34.7.91-supplier-perf-followups.js') > -1);
 
-console.log('\n— tester487 (v34.36.0: ادامه بهینه‌سازی تامین‌کنندگان — SUP-PERF-003/004) —');
+console.log('\n— tester487 (v34.36.4: ادامه بهینه‌سازی تامین‌کنندگان — SUP-PERF-003/004) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

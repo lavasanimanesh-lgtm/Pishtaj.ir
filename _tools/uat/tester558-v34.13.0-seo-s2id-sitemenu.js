@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester558 — v34.36.0: S2-id مولد صفحهٔ عمومی + فیکس‌های توسعه‌ای سئو + زیرمنوی مدیریت سایت
+/* tester558 — v34.36.4: S2-id مولد صفحهٔ عمومی + فیکس‌های توسعه‌ای سئو + زیرمنوی مدیریت سایت
    ۱) page_create عمومی (services/industries/comparisons + اسکیمای Service/Article)
    ۲) باگ‌فیکس: event صریح در cmsSeoLinkSuggest (نه global ضمنی)
    ۳) زیرمنو: ماندگاری وضعیت (ptfDevKv/A10) + هایلایت والد + بازشدن خودکار + CSS
@@ -14,7 +14,7 @@ var cmsPhp = read('api/cms.php');
 var cmsJs = read('crm/cms.js');
 var ih = read('crm/index.html');
 function blk(src, a, b) { var i = src.indexOf(a); var j = src.indexOf(b, i); return i > -1 && j > i ? src.slice(i, j) : ''; }
-/* v34.36.0: رندر به cms_render_public_page منتقل شد (مشترک با زمان‌بند S4) — پنجرهٔ انکر هم‌مسیر شد */
+/* v34.36.4: رندر به cms_render_public_page منتقل شد (مشترک با زمان‌بند S4) — پنجرهٔ انکر هم‌مسیر شد */
 var PG = blk(cmsPhp, 'function cms_page_folders', 'function cms_sched_file');
 
 /* ═══ ۱) مولد صفحهٔ عمومی — سرور ═══ */
@@ -25,7 +25,7 @@ T('GEN: Breadcrumb با والدِ بخش (folderUrl)', PG.indexOf('$folderUrl')
 T('GEN: sanitize همان لیست سفید + حداقل ۲۰۰ حرف', PG.indexOf("strip_tags($body, '<h2><h3><h4><p><ul><ol><li>") > -1 && PG.indexOf('حداقل ۲۰۰ کاراکتر لازم دارد') > -1);
 T('GEN: بک‌آپ پیش از بازنویسی + sitemap_add (نگاشت خودکار زیرنقشه)', blk(cmsPhp, "case 'page_create'", 'break;').indexOf("cms_backup($DATA, $ROOT, $r['rel'])") > -1 && blk(cmsPhp, "case 'page_create'", 'break;').indexOf("sitemap_add($r['url'])") > -1);
 T('GEN: پوشهٔ نامعتبر رد می‌شود', PG.indexOf('پوشهٔ مقصد نامعتبر است') > -1);
-T('GEN: قالب از اسکلت مرکز دانش', PG.indexOf('cms_kc_skeleton($ROOT)') > -1); /* v34.36.0: هِلپر مشترک */
+T('GEN: قالب از اسکلت مرکز دانش', PG.indexOf('cms_kc_skeleton($ROOT)') > -1); /* v34.36.4: هِلپر مشترک */
 
 /* ═══ ۲) باگ‌فیکس event ═══ */
 T('FIX: cmsSeoLinkSuggest امضایش event صریح دارد', cmsJs.indexOf('window.cmsSeoLinkSuggest = function (i, ev)') > -1);
