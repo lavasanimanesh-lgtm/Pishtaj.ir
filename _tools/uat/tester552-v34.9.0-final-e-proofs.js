@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
-/* tester552 — v34.37.1 (FINAL): بنر مهاجرت + بستهٔ اثبات اصول E1..E7
+/* tester552 — v34.37.3 (FINAL): بنر مهاجرت + بستهٔ اثبات اصول E1..E7
    E1 سرور منبع حقیقت نوشتن · E2 صفر بایپس جدید لایهٔ داده · E3 LS سبک (هارنس + سنجه)
    · E4 پاک‌کردن حافظه = صفر گم‌شدن · E5 کلیدهای سنگین فقط IDB · E6 آفلاین = outbox
-   محدود · E7 یک موتور (فعلاً پرچم‌دار؛ اثبات نهایی = v34.37.1 با تله‌متری ≥۷ روز).
+   محدود · E7 یک موتور (فعلاً پرچم‌دار؛ اثبات نهایی = v34.37.3 با تله‌متری ≥۷ روز).
    به‌علاوه MIGRATION-BANNER: یادآور خودکار «انتقال یک‌باره» برای دستگاه کهربایی. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
 var ROOT = path.resolve(__dirname, '../..');
@@ -18,7 +18,7 @@ var php = read('api/crm.php');
 
 /* ═══ ۰) MIGRATION-BANNER ═══ */
 T('بنر: تابع ptfMigBannerTick + تیک ۱۵ث تعریف شد', ih.indexOf('function ptfMigBannerTick()') > -1 && ih.indexOf('setInterval(ptfMigBannerTick, 15000)') > -1);
-T('بنر: فقط دستگاه کهربایی یا سبزِ ناتمام — سبزِ کامل/تازه هرگز نمی‌بیند (v34.37.1: synced هم لازم شد)', ih.indexOf('if ((st.enabled && st.synced) || !st.localPayload) { if (bar) bar.remove(); return; }') > -1);
+T('بنر: فقط دستگاه کهربایی یا سبزِ ناتمام — سبزِ کامل/تازه هرگز نمی‌بیند (v34.37.3: synced هم لازم شد)', ih.indexOf('if ((st.enabled && st.synced) || !st.localPayload) { if (bar) bar.remove(); return; }') > -1);
 T('بنر: دکمهٔ «رفتن به تنظیمات» و «بعداً» (ساکت فقط تا رفرش)', ih.indexOf("goPanelByName(\\'set\\')") > -1 && ih.indexOf('بعداً') > -1 && ih.indexOf('window._ptfMigDismissed=true') > -1);
 T('بنر: وضعیت صف آفلاین شفاف است', ih.indexOf('تغییر در صف آفلاین هم هست') > -1);
 T('بنر: خارج از CRM حذف می‌شود (صفحهٔ ورود تمیز)', /if \(!crmVisible \|\| window\._ptfMigDismissed\) \{ if \(bar\) bar\.remove\(\); return; \}/.test(ih));
@@ -83,7 +83,7 @@ T('E5: صف آفلاین (write-ahead) در IDB نه LS', cs.indexOf('OFFLINE-OU
 T('E6: سقف ۵۰۰ رکورد صف + هرس', cs.indexOf('keys.length > 500') > -1 && cs.indexOf('qCapCheck') > -1);
 T('E6: ارسال دسته‌ای (۲۰ کلید) + شکست دسته محلی', cs.indexOf('var BATCH_SIZE = 20;') > -1);
 T('E6: اتصال به سرور هر ۲۰ ثانیه چک + نشان offline', read('crm/sync.js').indexOf('setInterval(pullCheck, 20000)') > -1 && read('crm/sync.js').indexOf("setSyncBadge('offline')") > -1);
-/* ═══ E7 — یک موتور (پرچم‌دار؛ نهایی در v34.37.1) ═══ */
+/* ═══ E7 — یک موتور (پرچم‌دار؛ نهایی در v34.37.3) ═══ */
 T('E7: پوش توده‌ای legacy پیش‌فرض خاموش (گام ۱ R4)', (function () { var sd = read('api/sales-domain.php'); return sd.indexOf('legacyPushOff') > -1; })() && read('crm/sync.js').indexOf('PTF_LEGACY_PUSH_OFF') > -1 || read('crm/index.html').indexOf('engineGateBox') > -1);
 T('E7: داشبورد تصمیم بازنشستگی (win7/۷روزه) در تنظیمات', ih.indexOf('ptfRenderEngineGateDashboard') > -1 && ih.indexOf('بازنشستگی legacy') > -1);
 T('E7: شرط حذف نهایی موتور (≥۷ روز + صفر بایپس) در سند رودمپ ثبت است', read('ROADMAP-THIN-CLIENT-REMAINING-2026-08-29.md').indexOf('win7 ≈ 0') > -1);

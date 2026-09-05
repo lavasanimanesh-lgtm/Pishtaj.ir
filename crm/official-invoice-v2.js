@@ -42,7 +42,7 @@
   function activeRequiredFiles(files){return(files||[]).filter(function(f){return f&&['replaced','deleted','rejected'].indexOf(String(f.status||'active'))<0&&['accounting_official_invoice','modian_tax_invoice'].indexOf(f.category)>-1&&f.key&&(!f._justUploaded||f.readVerified===true);});}
   function filesHtml(inv, compact){var fs=(inv&&inv.files)||[];var activeFs=activeRequiredFiles(fs);var history=fs.filter(function(f){return f&&String(f.status)==='replaced';});var rows=activeFs.map(function(f){return'<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--brd)"><span>📎 <b>'+esc(f.category==='modian_tax_invoice'?'سند سامانه مودیان':'فاکتور رسمی حسابداری')+'</b><br><small>'+esc(f.name||'فایل')+' — نسخه '+(+f.version||1)+'</small></span><span><button type="button" class="bt bt-o" style="font-size:11px" onclick="openStoredFile(\''+arg(f.key)+'\',\''+arg(f.name||'')+'\')">مشاهده</button> '+(can()?'<button type="button" class="bt bt-o" style="font-size:11px" onclick="ptfOfficialAttachmentReplace(\''+arg(iid(inv))+'\',\''+arg(f._id||'')+'\',\''+arg(f.category)+'\')">اصلاح/جایگزینی</button>':'')+'</span></div>';}).join('');if(!compact&&history.length)rows+='<details style="margin-top:7px"><summary>تاریخچه '+history.length+' نسخه جایگزین‌شده</summary>'+history.map(function(f){return'<div style="padding:4px 0;color:#64748b"><button class="bt bt-o" style="font-size:10px" onclick="openStoredFile(\''+arg(f.key)+'\',\''+arg(f.name||'')+'\')">مشاهده نسخه '+(+f.version||1)+'</button> '+esc(f.name||'')+'</div>';}).join('')+'</details>';return rows||'<span style="color:#b91c1c">مدرک اجباری ثبت نشده</span>';}
 
-  window.buildInvoices=function(){return'<div class="ph"><h3>🧾 ثبت فاکتور رسمی صادرشده در حسابداری/مودیان</h3><div style="font-size:11.5px;color:#64748b">CRM فاکتور رسمی صادر نمی‌کند؛ فقط سند قطعی خارجی را ثبت و مطالبات آن را مدیریت می‌کند.</div></div><div id="invWrap"></div>';};
+  window.buildInvoices=function(){return'<div class="ph"><h3>🧾 ثبت فاکتور رسمی صادرشده در حسابداری/مودیان</h3><div style="font-size:11.5px;color:#64748b">CRM فاکتور رسمی صادر نمی‌کند؛ فقط سند قطعی خارجی را ثبت و مطالبات آن را مدیریت می‌کند.</div><div class="sb2"><input type="text" id="invSrch" placeholder="جستجو: شماره CO، شماره فاکتور، شناسه مودیان، نام مشتری (فارسی/انگلیسی)…" oninput="renderInvoices()" style="flex:1;max-width:420px;padding:8px 10px;border:1px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px"></div></div><div id="invWrap"></div>';};
   /* ═══ v34.37.1 (INV-PANEL-ROWS) ═══
      خواستهٔ کارفرما: «فاکتورها به صورت ردیف نمایش داده شوند و اطلاعات دیگر به صورت
      کشویی در صورت زدن روی فلش باز شوند. اگر فاکتوری ثبت شد دکمهٔ ثبت فاکتور به
@@ -71,34 +71,174 @@
   /* کلید پایدار ردیف — با re-render وضعیت باز/بسته از بین نمی‌رود */
   function rowKey(no) { return String(no || '').replace(/[^A-Za-z0-9]/g, '_'); }
 
+  /* ═══ v34.37.3 (INV-PANEL-COLS — گزارش کارفرما: «بهم‌ریختگی چینش ستون‌ها») ═══
+     پیش از این عرض ستون‌ها دو بار دستی نوشته می‌شد (یک‌بار در سربرگ، یک‌بار در
+     ردیف) و flex-wrap روی ردیف باعث می‌شد هر ردیف با نام مشتریِ بلند ستون‌هایش را
+     جابه‌جا کند؛ یعنی ترازِ ستون‌ها بین ردیف‌ها هیچ‌گاه تضمین‌شده نبود.
+     قرارداد جدید: یک قالب مشترک برای سربرگ و ردیف + ستون انعطاف‌پذیر (مشتری) که
+     به‌جای راندنِ بقیه، خودش کوتاه (ellipsis) می‌شود. */
+  var INV_COLS = [
+    { id: 'arrow',  style: 'width:30px;flex:0 0 30px' },
+    { id: 'doc',    style: 'min-width:112px;flex:0 0 112px' },
+    { id: 'cust',   style: 'min-width:140px;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' },
+    { id: 'status', style: 'min-width:126px;flex:0 0 126px' },
+    { id: 'amt',    style: 'min-width:116px;flex:0 0 116px;text-align:left' },
+    { id: 'open',   style: 'min-width:116px;flex:0 0 116px;text-align:left' },
+    { id: 'act',    style: 'min-width:138px;flex:0 0 138px' }
+  ];
+  function invCol(id, extra) {
+    for (var i = 0; i < INV_COLS.length; i++) if (INV_COLS[i].id === id) return INV_COLS[i].style + (extra ? ';' + extra : '');
+    return extra || '';
+  }
+  function invHeaderHtml() {
+    return '<span style="' + invCol('arrow') + '"></span>' +
+      '<span style="' + invCol('doc') + '">سند مبنا</span>' +
+      '<span style="' + invCol('cust') + '">مشتری</span>' +
+      '<span style="' + invCol('status') + '">وضعیت فاکتور</span>' +
+      '<span style="' + invCol('amt') + '">مبلغ</span>' +
+      '<span style="' + invCol('open') + '">مطالبه باز</span>' +
+      '<span style="' + invCol('act') + '">اقدام</span>';
+  }
+  window.ptfInvPanelColStyles = function () { return INV_COLS.map(function (c) { return c.id + '|' + c.style; }); };
+
+  /* ═══ v34.37.2 (INV-PANEL-ORPHANS) — سه نقصِ یک‌ریشه در لایهٔ نمایش فاکتورها ═══
+     گزارش کارفرما: «در قسمت فاکتورها، فاکتورهای ثبت‌شده و ارجاع‌شده نمایش داده
+     نمی‌شوند.» (تحلیل کامل: ARENA-CRM-INVOICE-PANEL-ASSESSMENT-2026-09-05.md)
+     ریشهٔ مشترک: پنل «ارجاع‌محور» است — تنها مبدأ ردیف‌ها سوابق ptf_crm_offers با
+     offer.invRef هستند و فاکتورها فقط «زیرِ» همان ردیف و با تطبیقِ سخت offerNo
+     رندر می‌شوند. پس اگر invRef روی این دستگاه نرسیده یا پاک شده باشد (رویژن
+     ابلاغ، لغو ارجاع، آینهٔ کهنهٔ فاز B، فاکتور مهاجرت‌شدهٔ بی‌offerNo) هر دو
+     دسته یک‌جا ناپدید می‌شوند و فقط پیام «ارجاع آماده …» می‌ماند.
+     دامنهٔ اصلاح — فقط نمایش؛ هیچ تغییری در مدل داده، سرور، مجوزها، یا جریان
+     ثبت/اصلاح/ابطال فاکتور انجام نشده است:
+       ① بخش «فاکتورهای ثبت‌شده بدون ردیف ارجاع»: سند یتیم دیگر نامرئی نیست و
+         حداقل «📎 اسناد» و «ابطال» از همان‌جا در دسترس می‌ماند.
+       ② تطبیق نرمال‌شده (trim + ارقام فارسی/عربی + نام‌های مستعار همان سند:
+         نسخهٔ ریالی/مبنای ریالی/rialOf) و نجات فاکتورهای بی‌offerNo با caseId —
+         فقط وقتی آن فاکتور هیچ مالکی ندارد و دقیقاً یک ردیف با همان پرونده هست.
+       ③ سربرگ تشخیصی (ارجاع / ثبت‌شده / یتیم / مانده باز) + جستجو + «↻ بازخوانی
+         از سرور» و یک بازتلاش خودکارِ یک‌باره (سقف ۶۰ ثانیه) وقتی پنل روی دادهٔ
+         سرد رندر شده — رفع «خالی بودنِ صفحهٔ فرود حسابدار» پس از ورود.
+     قفل «فاکتور ثبت شده است» هم از همان تطبیق نرمال‌شده استفاده می‌کند، پس حصارِ
+     ثبتِ دوم با دادهٔ کج دیگر از کار نمی‌افتد (ریسک سند مالیاتی تکراری). */
+  function normRef(v) {
+    return String(v == null ? '' : v)
+      .replace(/[۰-۹]/g, function (d) { return String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); })
+      .replace(/[٠-٩]/g, function (d) { return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)); })
+      .trim().toUpperCase();
+  }
+  /* نام‌های مستعارِ یک ردیف — همه به یک سند تجاری اشاره می‌کنند */
+  function offerAliasKeys(o, comp) {
+    var out = [];
+    [o && o.no, o && o.rialOf, o && o.invRef && o.invRef.rialBasis, comp && comp.no].forEach(function (v) {
+      var k = normRef(v); if (k && out.indexOf(k) < 0) out.push(k);
+    });
+    return out;
+  }
+  function openIrr(i) {
+    return i.openAmountIRR != null ? +i.openAmountIRR : Math.max(0, (+i.amount || 0) - (+i.allocatedBase || 0) - (+i.allocatedVat || 0));
+  }
+  function invDateDesc(a, b) { return String(b.invDate || b.t || '').localeCompare(String(a.invDate || a.t || '')); }
+  function hay(parts) {
+    var out = [];
+    (parts || []).forEach(function (x) { if (x !== null && x !== undefined && x !== '') out.push(x); });
+    return normRef(out.join(' '));
+  }
+  function invHay(i) { return i ? hay([i.no, i.taxUid, i.modianReference, i.offerNo, i.invDate, i.buyerCo]) : ''; }
+  /* نسخهٔ ریالی/مبنای ریالیِ همان ردیف — یک‌جا و با همان ترتیبِ همیشگی */
+  function rowComp(o) {
+    var comp = (o.invRef && o.invRef.rialBasis) ? findOffer(o.invRef.rialBasis) : (typeof window.ptfRialCompanionOf === 'function' ? window.ptfRialCompanionOf(o.no) : null);
+    /* v34.37.1: «نسخهٔ ریالیِ همراه» فقط وقتی معنا دارد که سندِ دیگری باشد. برای ارجاع
+       ریالیِ ساده rialBasis برابر خودِ شمارهٔ پیشنهاد است و findOffer همان سند را
+       برمی‌گرداند؛ نتیجه‌اش این بود که پنل برای یک پیشنهاد IRR هم «💱 مبنای ریالی از
+       پیشنهاد ارزی CO-… (IRR) — نرخ ۰ ریال» چاپ می‌کرد. */
+    if (comp && String(comp.no) === String(o.no)) comp = null;
+    return comp;
+  }
+  window._ptfInvHydrateAt = 0;
+  /* «↻ بازخوانی از سرور» — یک catch-up pull و سپس رندر دوباره. بی‌خطر: اگر پنل
+     بسته شده باشد (نبودِ #invWrap) هیچ کاری نمی‌کند و هیچ نوشتنی ندارد. */
+  window.ptfInvoicesRefresh = function (cb) {
+    var done = function () {
+      try { if (document.getElementById('invWrap') && typeof window.renderInvoices === 'function') window.renderInvoices(); } catch (eR) {}
+      if (typeof cb === 'function') { try { cb(); } catch (eCb) {} }
+    };
+    if (typeof window.ptfSyncPullNow === 'function' && typeof setTimeout === 'function') {
+      window._ptfInvHydrateAt = Date.now();
+      setTimeout(function () { try { window.ptfSyncPullNow(done); } catch (eP) { done(); } }, 120);
+      return;
+    }
+    done();
+  };
+  function autoCatchupOnce() {
+    try {
+      if (typeof window.ptfSyncPullNow !== 'function' || typeof setTimeout !== 'function') return;
+      if (Date.now() - (+window._ptfInvHydrateAt || 0) < 60000) return;
+      window.ptfInvoicesRefresh();
+    } catch (eA) {}
+  }
+
   window.renderInvoices = function () {
     var el = document.getElementById('invWrap'); if (!el) return;
-    var offers = data('ptf_crm_offers').filter(function (o) { return o && o.invRef && !o.rialOf; });
+    /* v34.37.3 (INV-REF-UNDO-IMMEDIATE — دستور کارفرما): «لغو ارجاع باید ردیف را
+       بلافاصله از ردیف‌های ثبت‌شده/ارجاع‌شده پاک کند». تا وقتی فرمان در راه است یا
+       projection پاسخ به‌دلیل گاردِ watermarkِ krevs پذیرفته نشده (crm/sync.js:887)،
+       invRef در آینهٔ محلی زنده می‌ماند و ردیف برمی‌گشت. این مجموعهٔ نشست، ردیفِ
+       لغو‌شده را تا تأیید/ردِ سرور پنهان می‌کند (sales-domain-v2.js آن را پر و خالی
+       می‌کند؛ در حالت رد، همان‌جا بازگردانی می‌شود). */
+    var pendingRevoke = window._ptfInvRefPendingRevoke || {};
+    var offers = data('ptf_crm_offers').filter(function (o) {
+      return o && o.invRef && !o.rialOf && !pendingRevoke[String(o.no || '')];
+    });
     var invs = data('ptf_crm_invoices');
     var canUndo = (typeof window.ptfCanRepairOfferWin === 'function') && window.ptfCanRepairOfferWin();
+    var q = normRef(((document.getElementById('invSrch') || {}).value || ''));
+
+    /* ── ① تقسیم فاکتورها: به هر ردیف، یا بخش یتیم‌ها ── */
+    var aliasRow = {}, caseRow = {};
+    offers.forEach(function (o) {
+      var key = rowKey(o.no);
+      offerAliasKeys(o, rowComp(o)).forEach(function (k) { if (aliasRow[k] === undefined) aliasRow[k] = key; });
+      var c0 = findCaseForOffer(o);
+      if (c0) [c0._id, c0.cd].forEach(function (idv) {
+        var k = normRef(idv); if (!k) return;
+        if (!caseRow[k]) caseRow[k] = [];
+        if (caseRow[k].indexOf(key) < 0) caseRow[k].push(key);
+      });
+    });
+    var byRow = {}, orphan = [], rescuedIds = {};
+    invs.forEach(function (i) {
+      if (!i) return;
+      var k = normRef(i.offerNo);
+      if (k && aliasRow[k] !== undefined) { (byRow[aliasRow[k]] = byRow[aliasRow[k]] || []).push(i); return; }
+      if (!k) {
+        var ck = normRef(i.caseId);
+        if (ck && caseRow[ck] && caseRow[ck].length === 1) {
+          var rk = caseRow[ck][0];
+          (byRow[rk] = byRow[rk] || []).push(i);
+          rescuedIds[iid(i)] = 1;
+          return;
+        }
+      }
+      orphan.push(i);
+    });
+
     var rows = offers.map(function (o) {
       var key = rowKey(o.no);
       var c = findCaseForOffer(o);
-      var comp = (o.invRef && o.invRef.rialBasis) ? findOffer(o.invRef.rialBasis) : (typeof window.ptfRialCompanionOf === 'function' ? window.ptfRialCompanionOf(o.no) : null);
-      /* v34.37.1: «نسخهٔ ریالیِ همراه» فقط وقتی معنا دارد که سندِ دیگری باشد.
-         برای ارجاع ریالیِ ساده، rialBasis برابر خودِ شمارهٔ پیشنهاد است و findOffer
-         همان سند را برمی‌گرداند؛ نتیجه‌اش این بود که پنل برای یک پیشنهاد IRR هم
-         «💱 مبنای ریالی از پیشنهاد ارزی CO-… (IRR) — نرخ ۰ ریال» چاپ می‌کرد و
-         به‌جای «🏆 سند برد» دکمهٔ نسخهٔ ریالی را نشان می‌داد. */
-      if (comp && String(comp.no) === String(o.no)) comp = null;
+      var comp = rowComp(o);
       var rialRate = comp && comp.fxConvert ? (+comp.fxConvert.rate || 0) : ((o.invRef && +o.invRef.rialRate) || 0);
       var rialTotal = comp ? (comp.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : ((o.invRef && +o.invRef.rialTotal) || 0);
-      var list = invs.filter(function (i) { return i && i.offerNo === o.no; })
-        .sort(function (a, b) { return String(b.invDate || b.t || '').localeCompare(String(a.invDate || a.t || '')); });
+      var list = (byRow[key] || []).slice().sort(invDateDesc);
       var live = list.filter(active);
       var activeInv = live[0] || null;
-      var openSum = live.reduce(function (s, i) {
-        return s + (i.openAmountIRR != null ? +i.openAmountIRR : Math.max(0, (+i.amount || 0) - (+i.allocatedBase || 0) - (+i.allocatedVat || 0)));
-      }, 0);
+      var openSum = live.reduce(function (s, i) { return s + openIrr(i); }, 0);
       var billed = live.reduce(function (s, i) { return s + (+i.amount || 0); }, 0);
       var isOpen = !!window._ptfInvOpenRows[key];
 
       var pair = (typeof ptfCustNamePair === 'function') ? ptfCustNamePair(o.buyerCd, o.buyerCo) : { fa: o.buyerCo || '', en: '' };
+      /* جستجو (v34.9.2 — در پنل زنده گم شده بود): شماره سند/پرونده/مشتری/فاکتور/مودیان */
+      if (q && hay([o.no, o.buyerCo, o.inqNo, comp && comp.no, c && (c.cd || c.inqNo), pair.fa, pair.en].concat(list.map(invHay))).indexOf(q) < 0) return '';
 
       /* ── وضعیت ردیف ── */
       var status;
@@ -119,10 +259,11 @@
       /* ── کارت‌های فاکتور (داخل کشو) ── */
       var cards = list.map(function (i) {
         var isVoid = !active(i);
-        var open = i.openAmountIRR != null ? +i.openAmountIRR : Math.max(0, (+i.amount || 0) - (+i.allocatedBase || 0) - (+i.allocatedVat || 0));
+        var open = openIrr(i);
         return '<div style="margin-top:8px;padding:9px;border:1px solid ' + (isVoid ? '#fecaca' : '#bbf7d0') + ';border-radius:10px;background:' + (isVoid ? '#fef2f2' : '#f8fafc') + '">' +
           '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>' + esc(i.no || i.cd) + '</b> ' +
           (isVoid ? '<span style="color:#b91c1c">ابطال‌شده</span>' : '<span style="color:#047857">فعال</span>') +
+          (rescuedIds[iid(i)] ? ' <span style="color:#0e7490" title="این فاکتور offerNo نداشت و از روی پروندهٔ فروش به همین ردیف وصل شد">🧭 وصل‌شده از پرونده</span>' : '') +
           '<br><small>تاریخ: ' + esc(i.invDate || '') + ' | شناسه مودیان: ' + esc(i.taxUid || '—') + '</small>' +
           '<br><small>پایه: ' + money(i.base || 0) + ' | VAT ' + (+i.vatPercent || 0) + '٪: ' + money(i.vat || 0) + ' | کل: ' + money(i.amount || 0) + ' | مطالبه باز: ' + money(isVoid ? 0 : open) + '</small></span><span>' +
           (isVoid ? '' : (can() ? '<button class="bt bt-o" style="font-size:11px" onclick="showInvModal(\'' + arg(o.no) + '\',\'' + arg(iid(i)) + '\')">اصلاح اطلاعات</button> <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfInvoiceVoid(\'' + arg(iid(i)) + '\')">ابطال</button> ' : '')) +
@@ -150,14 +291,14 @@
 
       return '<div data-inv-row="' + key + '" style="border:1px solid var(--brd);border-radius:12px;background:#fff;margin-bottom:7px;overflow:hidden">' +
         /* ردیف فشرده — کل ردیف کلیک‌پذیر است، فلش هم برای دسترس‌پذیری دکمهٔ مستقل دارد */
-        '<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer;flex-wrap:wrap" onclick="ptfInvRowToggle(\'' + key + '\')">' +
-        '<button type="button" id="invA_' + key + '" class="bt bt-o" aria-expanded="' + (isOpen ? 'true' : 'false') + '" title="نمایش/پنهان‌کردن جزئیات" style="padding:1px 8px;font-size:13px;line-height:1.6;min-width:28px" onclick="event.stopPropagation();ptfInvRowToggle(\'' + key + '\')">' + (isOpen ? '▾' : '◀') + '</button>' +
-        '<span style="min-width:118px"><b dir="ltr">' + esc(comp ? comp.no : o.no) + '</b>' + (comp ? ' <small style="color:#0e7490">💱</small>' : '') + '</span>' +
-        '<span style="flex:1;min-width:150px">' + esc(pair.fa || '-') + '</span>' +
-        '<span style="min-width:120px">' + status + '</span>' +
-        '<span style="min-width:120px;text-align:left" title="جمع فاکتورهای فعال">' + money(billed || rialTotal) + '</span>' +
-        '<span style="min-width:120px;text-align:left;color:' + (openSum > 0.5 ? '#b45309' : '#065f46') + '" title="مطالبه باز">' + money(openSum) + '</span>' +
-        '<span onclick="event.stopPropagation()">' + mainBtn + '</span>' +
+        '<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer" onclick="ptfInvRowToggle(\'' + key + '\')">' +
+        '<span style="' + invCol('arrow') + ';display:flex;align-items:center"><button type="button" id="invA_' + key + '" class="bt bt-o" aria-expanded="' + (isOpen ? 'true' : 'false') + '" title="نمایش/پنهان‌کردن جزئیات" style="padding:1px 8px;font-size:13px;line-height:1.6;width:30px" onclick="event.stopPropagation();ptfInvRowToggle(\'' + key + '\')">' + (isOpen ? '▾' : '◀') + '</button></span>' +
+        '<span style="' + invCol('doc') + ';white-space:nowrap"><b dir="ltr">' + esc(comp ? comp.no : o.no) + '</b>' + (comp ? ' <small style="color:#0e7490">💱</small>' : '') + '</span>' +
+        '<span style="' + invCol('cust') + '" title="' + esc(pair.fa || '-') + '">' + esc(pair.fa || '-') + '</span>' +
+        '<span style="' + invCol('status') + '">' + status + '</span>' +
+        '<span style="' + invCol('amt') + ';white-space:nowrap" title="جمع فاکتورهای فعال">' + money(billed || rialTotal) + '</span>' +
+        '<span style="' + invCol('open') + ';white-space:nowrap;color:' + (openSum > 0.5 ? '#b45309' : '#065f46') + '" title="مطالبه باز">' + money(openSum) + '</span>' +
+        '<span style="' + invCol('act') + ';display:flex;align-items:center;justify-content:flex-start;gap:6px;white-space:nowrap" onclick="event.stopPropagation()">' + mainBtn + '</span>' +
         '</div>' +
         /* کشوی جزئیات */
         '<div id="invD_' + key + '" style="display:' + (isOpen ? '' : 'none') + ';padding:0 11px 11px;border-top:1px solid var(--brd);background:#fcfdff">' +
@@ -165,23 +306,104 @@
         '<span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + docBtns + undoBtn + '</span></div>' +
         (cards || '<div style="margin-top:8px;font-size:12px;color:#94a3b8">هنوز فاکتوری برای این ارجاع ثبت نشده است.</div>') +
         '</div></div>';
-    }).join('');
+    }).filter(function (x) { return !!x; }).join('');
 
-    if (!rows) { el.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:24px">ارجاع آماده ثبت فاکتور رسمی وجود ندارد.</div>'; return; }
-    el.innerHTML =
+    /* ── ② بخش یتیم‌ها: فاکتور رسمیِ فعالی که هیچ ردیف ارجاعی آن را نمی‌شناسد ──
+       فقط فاکتورهای رسمی (isUnofficial نه‌اند) — صورتحساب غیررسمی ماژول خودش را
+       دارد و اینجا نباید فیلترِ دفتر غیررسمی (ptfCanSeeLedger) دور زده شود. */
+    var orphans = orphan.filter(function (i) { return i && active(i) && !i.isUnofficial; });
+    if (q) orphans = orphans.filter(function (i) { return invHay(i).indexOf(q) > -1; });
+    orphans.sort(invDateDesc);
+    var orphanVoidLeft = orphan.filter(function (i) { return i && !active(i) && !i.isUnofficial && (!q || invHay(i).indexOf(q) > -1); }).length;
+    var ORPHAN_CAP = 40;
+    var orphanHtml = orphans.slice(0, ORPHAN_CAP).map(function (i) {
+      var knownOffer = !!(normRef(i.offerNo) && findOffer(i.offerNo));
+      var c = null, cand = data('ptf_crm_deals').filter(function (x) { return x && active(x) && (normRef(x._id) === normRef(i.caseId) || normRef(x.cd) === normRef(i.caseId)); })[0];
+      c = cand || null;
+      return '<div style="margin-top:7px;padding:9px;border:1px solid #fed7aa;border-radius:10px;background:#fff7ed">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>' + esc(i.no || i.cd) + '</b> <span style="color:#9a3412">⚠️ بدون ردیف ارجاع</span>' +
+        '<br><small>تاریخ: ' + esc(i.invDate || '') + ' | شناسه مودیان: ' + esc(i.taxUid || '—') + ' | سند مبدأ: ' + esc(i.offerNo || '—') + ' | پرونده: ' + esc((c && (c.inqNo || c.cd)) || i.caseId || '—') + '</small>' +
+        '<br><small>پایه: ' + money(i.base || 0) + ' | کل: ' + money(i.amount || 0) + ' | مطالبه باز: ' + money(openIrr(i)) + '</small></span><span>' +
+        (can() && knownOffer ? '<button class="bt bt-o" style="font-size:11px" onclick="showInvModal(\'' + arg(i.offerNo) + '\',\'' + arg(iid(i)) + '\')">اصلاح اطلاعات</button> ' : '') +
+        (can() ? '<button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfInvoiceVoid(\'' + arg(iid(i)) + '\')">ابطال</button> ' : '') +
+        /* پرش به پروندهٔ مبدأ — «دوباره ارجاع بده» بدون این‌که کاربر مسیر را گم کند */
+        (typeof ptfGoSalesFile === 'function' ? '<button class="bt bt-o" style="font-size:11px" title="پروندهٔ فروش مبدأ باز می‌شود؛ در صورت لزوم همان‌جا دوباره ارجاع دهید" onclick="ptfGoSalesFile(\'' + arg((c && c.cd) || '') /* A2/arch-guard: فقط cd — و همین کلیدی است که salesfiles با آن ردیف را باز می‌کند (window._sfOpen === r.cd)؛ بدون فال‌بک _id */ + '\')">🔗 پرونده</button> ' : '') +
+        '<button class="bt bt-o" style="font-size:11px" onclick="ptfOfficialInvoiceFilesUi(\'' + arg(iid(i)) + '\')">📎 اسناد</button></span></div>' +
+        '<div style="margin-top:5px;font-size:11px;color:#9a3412;line-height:1.8">این سند روی پروندهٔ فروش ثبت شده ولی «ارجاع فعال» (invRef) روی پیشنهاد یافت نشد — ' +
+        'معمولاً پس از «رویژن ابلاغ»، «لغو ارجاع» یا همگام‌سازی نشدنِ این دستگاه. برای بازگشتنِ ردیف: «🔗 پرونده» را بزنید و از پروندهٔ فروش دوباره ارجاع دهید ' +
+        'یا «↻ بازخوانی از سرور» را بزنید. مبلغ در «💰 مطالبات» درست محاسبه می‌شود و هیچ سندِ تکراری لازم نیست.</div>' +
+        '<div style="margin-top:5px">' + filesHtml(i, true) + '</div></div>';
+    }).join('');
+    if (orphans.length > ORPHAN_CAP) orphanHtml += '<div style="font-size:11.5px;color:#64748b;margin-top:6px">… و ' + (orphans.length - ORPHAN_CAP) + ' مورد دیگر (با فیلتر یا «💰 مطالبات» ببینید).</div>';
+
+    /* ── ③ سربرگ تشخیصی ── */
+    var statReg = 0, statOpen = 0, statRows = 0;
+    offers.forEach(function (o) {
+      var l = (byRow[rowKey(o.no)] || []).filter(active);
+      if (!l.length) return;
+      statRows++;
+      statReg++;
+      l.forEach(function (i) { statOpen += openIrr(i); });
+    });
+    orphans.forEach(function (i) { statOpen += openIrr(i); });
+    var summary = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;color:#475569;background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:6px 10px;margin-bottom:7px">' +
+      '<span title="پیشنهادهایی که برای صدور فاکتور رسمی به حسابدار ارجاع شده‌اند">📤 ارجاع‌شده: <b>' + offers.length + '</b></span>' +
+      '<span style="color:#065f46" title="ارجاع‌هایی که حداقل یک فاکتور فعال دارند">✅ ثبت‌شده: <b>' + statReg + '</b></span>' +
+      (orphans.length ? '<span style="color:#9a3412" title="فاکتور رسمی فعالی که ردیف ارجاع ندارد — از همین‌جا قابل دسترسی است">⚠️ بدون ردیف ارجاع: <b>' + orphans.length + '</b></span>' : '') +
+      '<span title="جمع ماندهٔ فاکتورهای فعال">💰 مطالبه باز: <b>' + money(statOpen) + '</b></span>' +
+      '<span style="color:#64748b" title="تعداد رکوردی که این دستگاه از دو مجموعهٔ لازم برای این پنل دارد">دادهٔ این دستگاه: ' + invs.length + ' فاکتور · ' + data('ptf_crm_offers').length + ' پیشنهاد</span>' +
+      '<button class="bt bt-o" style="font-size:11px;margin-inline-start:auto" title="یک همگام‌سازی فوری با سرور و سپس بازسازی فهرست" onclick="ptfInvoicesRefresh()">↻ بازخوانی از سرور</button>' +
+      '</div>';
+
+    if (!rows && !orphanHtml) {
+      el.innerHTML = summary +
+        '<div style="text-align:center;color:#94a3b8;padding:24px">' +
+        (q ? 'هیچ ردیفی با جستجوی «' + esc(((document.getElementById('invSrch') || {}).value || '')) + '» پیدا نشد. ' : '') +
+        (invs.length || data('ptf_crm_offers').length
+          ? 'ارجاع آماده ثبت فاکتور رسمی وجود ندارد.<br><small style="color:#9a3412">در حافظهٔ این دستگاه ' + invs.length + ' فاکتور و ' + data('ptf_crm_offers').length + ' پیشنهاد هست، ولی هیچ پیشنهادی «ارجاع فعال» (invRef) ندارد — اگر فاکتوری ثبت شده، دادهٔ این دستگاه کهنه است: «↻ بازخوانی از سرور» را بزنید یا یک‌بار از بخش دیگری به این‌جا برگردید.</small>'
+          : 'ارجاع آماده ثبت فاکتور رسمی وجود ندارد.<br><small style="color:#9a3412">هیچ رکوردی از پیشنهادها/فاکتورها در این دستگاه خوانده نشد — احتمالاً همگام‌سازی کامل نشده: «↻ بازخوانی از سرور» و سپس «تنظیمات ← وضعیت دستگاه» را ببینید.</small>') +
+        '</div>';
+      if (!q) autoCatchupOnce();
+      return;
+    }
+    el.innerHTML = summary +
       '<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:7px">' +
       '<button class="bt bt-o" style="font-size:11px" onclick="ptfInvRowsToggleAll(true)">باز کردن همه</button>' +
       '<button class="bt bt-o" style="font-size:11px" onclick="ptfInvRowsToggleAll(false)">بستن همه</button></div>' +
-      '<div style="display:flex;align-items:center;gap:9px;padding:4px 11px;font-size:11px;color:#64748b;font-weight:700;flex-wrap:wrap">' +
-      '<span style="min-width:28px"></span><span style="min-width:118px">سند مبنا</span><span style="flex:1;min-width:150px">مشتری</span>' +
-      '<span style="min-width:120px">وضعیت فاکتور</span><span style="min-width:120px;text-align:left">مبلغ</span>' +
-      '<span style="min-width:120px;text-align:left">مطالبه باز</span><span>اقدام</span></div>' + rows;
+      '<div style="display:flex;align-items:center;gap:9px;padding:4px 11px;font-size:11px;color:#64748b;font-weight:700">' +
+      invHeaderHtml() + '</div>' + rows +
+      (orphanHtml
+        ? '<div style="margin-top:10px;border-top:2px dashed #fdba74;padding-top:8px">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#9a3412;font-weight:700">' +
+          '<span>🧾 فاکتورهای ثبت‌شده بدون ردیف ارجاع (' + orphans.length + ')</span>' +
+          (orphanVoidLeft ? '<small style="color:#64748b;font-weight:400">' + orphanVoidLeft + ' سند ابطال‌شدهٔ مرتبط هم در بایگانی همین بخش است</small>' : '') +
+          '</div>' + orphanHtml + '</div>'
+        : '');
+    if (q && !rows && !orphans.length) autoCatchupOnce();
   };
 
-  /* فاکتور فعالِ ثبت‌شده روی یک پیشنهاد (پایهٔ قفلِ «ثبت دوباره ممنوع») */
+  /* فاکتور فعالِ ثبت‌شده روی یک پیشنهاد (پایهٔ قفلِ «ثبت دوباره ممنوع»)
+     v34.37.2: تطبیق نرمال‌شده + نام‌های مستعارِ همان سند (نسخهٔ ریالی/مبنای ریالی).
+     پیش از این با یک فاصله یا یک شمارهٔ ریالیِ جابه‌جا، هم ردیف «بدون فاکتور»
+     می‌شد و هم این قفل از کار می‌افتاد ⇒ امکان ثبت سند مالیاتی دوم روی همان پرونده.
+     ⚠️ خودکفا: tester598 همین تابع را تنها (برشِ ایزوله در vm) اجرا می‌کند و در آن
+     هارنس نه findOffer قابل صدا زدن است («گارد باید پیش از لمس findOffer برگردد») و
+     نه توابع کمکیِ بیرونِ برش در دست‌اند؛ پس نرمال‌سازی و تطبیق داخل بدنه تکرار شده
+     و هیچ وابستگی بیرونی جز data()/active() ندارد. تغییرش دادنی؟ هر دو جا (اینجا و
+     offerAliasKeys در renderInvoices) باید هم‌قاعده بمانند. */
   window.ptfActiveInvoiceOfOffer=function(offerNo){
-    var s=String(offerNo==null?'':offerNo);if(!s)return null;
-    return data('ptf_crm_invoices').filter(function(i){return i&&String(i.offerNo||'')===s&&active(i);})[0]||null;
+    var nrm=function(v){return String(v==null?'':v).replace(/[۰-۹]/g,function(d){return String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d));}).replace(/[٠-٩]/g,function(d){return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d));}).trim().toUpperCase();};
+    var s=nrm(offerNo);if(!s)return null;
+    var alias={};alias[s]=1;
+    var offers=data('ptf_crm_offers'),o=offers.filter(function(x){return x&&nrm(x.no)===s;})[0]||null;
+    if(o){
+      /* نسخهٔ ریالی/مبنای ریالیِ همین ارجاع، همان سند تجاری است — نه سند دوم */
+      [o.rialOf,o.invRef&&o.invRef.rialBasis].forEach(function(v){var k=nrm(v);if(k)alias[k]=1;});
+      offers.forEach(function(x){if(x&&nrm(x.rialOf)===s){var k=nrm(x.no);if(k)alias[k]=1;}});
+    }
+    return data('ptf_crm_invoices').filter(function(i){
+      return i&&active(i)&&!i.isUnofficial&&alias[nrm(i.offerNo)]===1;
+    })[0]||null;
   };
   window.showInvModal=function(offerNo,editId){
     if(!can()){alert('⛔ نقش فعلی مجاز به ثبت/اصلاح فاکتور رسمی نیست');return;}

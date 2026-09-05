@@ -1379,17 +1379,68 @@
     var reason=prompt('↩️ لغو ارجاع فاکتور\n\n'+summary+'\nپس از لغو، مرحلهٔ پرونده به «تحویل‌شده» برمی‌گردد و می‌توانید با مبنای ریالی/نرخ درست دوباره ارجاع دهید.\n\nدلیل لغو:','ارجاع اشتباه / اصلاح مبنای ریالی');
     if(reason===null||!reason.trim())return;
     if(!confirm('⚠️ سرور ابتدا بررسی می‌کند که هیچ فاکتور فعالی روی این پیشنهاد ثبت نشده باشد. ادامه می‌دهید؟'))return;
+    /* ═══ v34.37.3 (INV-REF-UNDO-IMMEDIATE — دستور کارفرما) ═══
+       «با لغو ارجاع باید ردیف بلافاصله از ردیف‌های فاکتورهای ثبت‌شده/ارجاع‌شده پاک
+       شود». ردیف نمی‌رفت چون: ① نمایش تا پایان round-trip صبر می‌کرد و ② projectionِ
+       پاسخ فرمان می‌توانست از گاردِ watermark رد شود — applyProjection همان rev سراسری
+       را برای همهٔ کلیدها می‌فرستد و crm/sync.js:887 هر projection با rev کوچک‌تر از
+       krev محلی را رد می‌کند؛ پس invRef در آینه زنده می‌ماند و renderInvoices همان
+       ردیف را دوباره می‌ساخت (و پولِ دلتا هم چون rev همان کلید عوض نشده بود، چیزی
+       برنمی‌گرداند).
+       درمان: اعمال محلیِ صریح از همان کانال projection (applyLocalProjection بدون rev
+       ⇒ بدون گارد) پیش از ارسال + سازگاری با آرایۀ سرور در ACK + بازگشت کامل در
+       رد/نامشخص. هیچ نوشتنی به سرور از این مسیر نمی‌رود: سرور خودش commit کرده و
+       snapshot قبلی را در ptf_crm_corrections نگه داشته است. */
+    var pending = (window._ptfInvRefPendingRevoke = window._ptfInvRefPendingRevoke || {});
+    var prevArr = null;
+    function paintNow(){
+      if(typeof renderInvoices==='function')renderInvoices();
+      if(typeof renderDeals==='function')renderDeals();
+      if(typeof renderOffers==='function')renderOffers();
+    }
+    function releasePending(){ try{ delete pending[String(no)]; }catch(ePend){} }
+    try{
+      prevArr = (getData('ptf_crm_offers')||[]).slice();
+      var nowIso = new Date().toISOString();
+      var nextArr = prevArr.map(function(x){
+        if(!x||String(x.no||'')!==String(no)) return x;
+        var c; try{ c = JSON.parse(JSON.stringify(x)); }catch(eCl){ c = Object.assign({}, x); }
+        c.invRefRevokedAt = nowIso; c.invRefRevokedReason = reason.trim();
+        try{ c.invRefRevokedBy = (curSession()||{}).user || ''; }catch(eS){}
+        delete c.invRef;
+        return c;
+      });
+      pending[String(no)] = 1;            /* ردیف را حتی اگر نوشتن محلی نخورد، پنهان کن */
+      applyLocalProjection('ptf_crm_offers', nextArr);
+      paintNow();                          /* ← «بلافاصله» */
+    }catch(eOpt){ try{ console.warn('[PTF] لغو ارجاع — اعمال محلی انجام نشد', eOpt); }catch(eW){} }
     command('revoke_invoice_ref',{offerNo:no,reason:reason.trim(),idempotencyKey:'REVOKE-INVREF|'+no+'|'+Date.now()},{
-      onAck:function(){
+      onAck:function(d){
+        releasePending();
+        /* مرجعِ نمایش: آرایۀ سرور (در d.data)؛ بدون rev اعمال می‌شود تا گاردِ بدون rev اعمال می‌شود تا گاردِ
+           krevs دوباره projectionِ قطعیِ همین فرمان را نیندازد. */
+        try{
+          var srv = d && d.data && d.data.ptf_crm_offers;
+          if(typeof srv === 'string') srv = JSON.parse(srv);
+          if(Array.isArray(srv) && srv.length) applyLocalProjection('ptf_crm_offers', srv);
+        }catch(eAd){ try{ console.warn('[PTF] لغو ارجاع — سازگاری projection انجام نشد', eAd); }catch(eW2){} }
         toast('↩️ ارجاع فاکتور لغو شد — پرونده به مرحلهٔ قبل بازگشت','ok');
-        if(typeof renderDeals==='function')renderDeals();
-        if(typeof renderInvoices==='function')renderInvoices();
-        if(typeof renderOffers==='function')renderOffers();
+        paintNow();
       },
       onReject:function(e){
+        releasePending();
+        if(prevArr){ try{ applyLocalProjection('ptf_crm_offers', prevArr); }catch(eRoll){} paintNow(); }
         if(e.payload&&e.payload.dependencies)
           alert('⛔ برای این پیشنهاد فاکتور ثبت شده و لغو ارجاع متوقف شد:\n'+e.payload.dependencies.map(function(x){return (x.type==='unofficial_invoice'?'صورتحساب غیررسمی ':'فاکتور رسمی ')+x.id;}).join('\n')+'\n\nابتدا فاکتور را ابطال کنید، سپس ارجاع را لغو کنید.');
         else alert('⛔ '+e.message);
+      },
+      onUncertain:function(e){
+        /* سرور ممکن است commit کرده باشد یا نه — نمایش محلی به حالت قبل برمی‌گردد و
+           همگام‌سازی بعدی حقیقت را می‌آورد (receipt در ptf_crm_sales_commands). */
+        releasePending();
+        if(prevArr){ try{ applyLocalProjection('ptf_crm_offers', prevArr); }catch(eRoll2){} }
+        paintNow();
+        toast('⚠️ نتیجهٔ لغو ارجاع نامشخص است؛ فهرست بازگردانده شد و در همگام‌سازی بعدی قطعی می‌شود','warn');
       }
     });
   };

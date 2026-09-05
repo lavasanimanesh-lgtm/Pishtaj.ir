@@ -37,7 +37,13 @@ var rules = [
   /* بقیهٔ الگوهای کش SW */
   { id: 'R-B swrest',  re: /\/ptf-crm-v[^/]*\//g, rep: "/var RELEASE\\s*=\\s*'v\\d+(?:\\.\\d+)+'/" },
   /* رشتهٔ لفظی داخل indexOf (مثل tester15) */
-  { id: 'R-H string',  re: /var VER = 'v/g, rep: 'var VER = window.PTF_CRM_RELEASE' },
+  /* ⚠️ v34.37.2: این قاعده در اجرای bumpِ آن نسخه، خطِ `var VER = 'v34.37.1';` را در tester591
+     به `var VER = window.PTF_CRM_RELEASE34.37.3';` تبدیل کرد و فایل را از نظر نحوی می‌شکست (گیت قرمز).
+     دلیل: R-H «var VER = 'v» را در هر بافتی جایگزین می‌کرد، ولی _pin_ لفظیِ `var VER = 'vX.Y.Z';` در تسترها
+     عامد و درست است (تستر نسخهٔ جاری را لفظی pin می‌کند تا «نسخهٔ مخلوط» را بگیرد) و `window` هم در Node
+     تعریف نیست. پس قاعده فقط در بافتِ رشته/regex (پیش از آن علامت نقل‌قول یا اسلش) اجرا می‌شود.
+     با این گارد، ابزار همچنان idempotent است و دیگر هرگز اعلانِ واقعی را خراب نمی‌کند. */
+  { id: 'R-H string',  re: /(?<=["'/])var VER = 'v/g, rep: 'var VER = window.PTF_CRM_RELEASE' },
   /* ترمیم: نسخهٔ اول ابزار در R-D/R-F اسلش انتهایی regex را جا انداخت */
   { id: 'RFIX alpha',  re: /\/window\.PTF_CRM_RELEASE = 'v\(\[0-9\.\]\+\)\(\?:-\[a-z0-9\.\]\+\)\?'\)/g, rep: "/window.PTF_CRM_RELEASE = 'v([0-9.]+)(?:-[a-z0-9.]+)?'/)" },
   { id: 'RFIX match',  re: /\/window\.PTF_CRM_RELEASE = 'v\(\[0-9\.\]\+\)'\)/g, rep: "/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/)" },
