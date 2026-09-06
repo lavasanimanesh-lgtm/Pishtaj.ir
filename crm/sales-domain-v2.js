@@ -636,6 +636,23 @@
       try { if (JSON.stringify(pv) !== JSON.stringify(nx)) ups.push(nx); } catch (eJ) { ups.push(nx); }
     });
     Object.keys(prevByCd).forEach(function (cd) { if (!nextByCd[cd]) dels.push(cd); });
+    /* v34.37.7 (AUTO-REASON-DELETE-GUARD): هوک‌ها و ذخیره‌های خودکار (مانند نرمال‌سازی تلفن،
+       ترمیم خودکار، برچسب‌گذاری AI، و اسکریپت‌های مهاجرت) هرگز قصد حذف رکورد ندارند.
+       اگر آرایهٔ ورودی به دلیل کش کهنه رکوردی را جا انداخته باشد، هیچ فرمان entity_delete
+       صادر نمی‌شود. */
+    var AUTO_REASONS = {
+      'phonefmt': 1, 'phonefmt-mig': 1, 'rfq-cust-heal': 1, 'ai-bizcard': 1,
+      'ai-buyer': 1, 'ai-letterhead': 1, 'ai-items': 1, 'ai-catalog': 1,
+      'site-approve': 1, 'coen-fill': 1, 'supspec': 1, 'supspec-migrate': 1,
+      'supspec-learn': 1, 'excel-import': 1, 'migrate': 1, 'w1': 1, 'w2': 1, 'w3': 1, 'w4': 1
+    };
+    var isAutoReason = !!(opts.reason && (AUTO_REASONS[opts.reason] || /^ai-/.test(opts.reason) || /-heal$/.test(opts.reason) || /-mig$/.test(opts.reason)));
+    if ((opts.allowDelete === false || isAutoReason) && dels.length) {
+      try {
+        console.warn('[PTF] حذف ناشی از ذخیره خودکار/هوک مسدود شد — reason=' + (opts.reason || '-') + ', collection=' + collection + ', dels=', dels);
+      } catch (eWarn) {}
+      dels = [];
+    }
     /* v34.37.0 (①): سپر حذفِ انبوه/تهی برای مجموعه‌های هویتیِ کسب‌وکار.
        حذف واقعیِ کاربر همیشه یک‌به‌یک است؛ «۴ حذف در یک ذخیره» یا «فهرست تهی شد»
        امضای یک خواندنِ کهنه است، نه نیت کاربر. در این حالت هیچ فرمان مخربی صادر

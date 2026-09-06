@@ -67,7 +67,7 @@
   }
 
   // تولید سند HTML فاکتور غیر رسمی
-  function generateUnofficialInvoiceHtml(o, total, bankAccount, discountVal, discountLabel, currentRate) {
+  function generateUnofficialInvoiceHtml(o, total, bankAccount, discountVal, discountLabel, currentRate, advDeductedIrr) {
     /* صورتحساب غیررسمی نیز یک سند ریالی است. اطلاعات ارزی پیشنهاد فقط برای
        تبدیل اقلام در لحظهٔ صدور استفاده می‌شود و در مطالبات/چاپ وصول وارد نمی‌شود. */
     var invoiceRate = (o.currency && o.currency !== 'IRR') ? Math.max(0, +currentRate || 0) : 1;
@@ -103,11 +103,16 @@
     var currencyFa = 'ریال';
     var totalIrr = Math.round(total * invoiceRate);
     var discountIrr = Math.round((+discountVal || 0) * invoiceRate);
-    var netPayableIrr = Math.max(0, totalIrr - discountIrr);
+    var invoiceAmtIrr = Math.max(0, totalIrr - discountIrr);
+    var advDeductIrr = Math.min(invoiceAmtIrr, Math.max(0, +advDeductedIrr || 0));
+    var netPayableIrr = Math.max(0, invoiceAmtIrr - advDeductIrr);
+
     var formattedTotal = formatNumber(totalIrr, 'IRR');
     var totalInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(totalIrr) : totalIrr;
     var formattedDisc = formatNumber(discountIrr, 'IRR');
     var discInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(discountIrr) : discountIrr;
+    var formattedAdv = formatNumber(advDeductIrr, 'IRR');
+    var advInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(advDeductIrr) : advDeductIrr;
     var formattedNet = formatNumber(netPayableIrr, 'IRR');
     var netInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(netPayableIrr) : netPayableIrr;
 
@@ -410,7 +415,7 @@
       itemsHtml +
       '        <tr class="totals-row">' +
       '          <td colspan="4" class="totals-label-words">' +
-      '            جمع کل صورتحساب (به حروف): ' +
+      '            جمع کل اقلام صورتحساب (به حروف): ' +
       '            <span class="totals-value-words">' + totalInWords + ' ' + currencyFa + '</span>' +
       '          </td>' +
       '          <td colspan="2" class="totals-label-num">' +
@@ -429,14 +434,25 @@
       '            <span>' + formattedDisc + '</span> ' + currencyFa +
       '          </td>' +
       '        </tr>' : '') +
-      (discountVal > 0 ?
+      (advDeductIrr > 0 ?
+      '        <tr class="totals-row" style="background-color: #fefce8 !important; color: #854d0e;">' +
+      '          <td colspan="4" class="totals-label-words" style="color: #854d0e;">' +
+      '            کسر پیش‌پرداخت و دریافتی‌های قبلی پرونده (به حروف): ' +
+      '            <span class="totals-value-words" style="color: #854d0e;">' + advInWords + ' ' + currencyFa + '</span>' +
+      '          </td>' +
+      '          <td colspan="2" class="totals-label-num" style="color: #854d0e; border-top: 1px solid #fde047 !important;">' +
+      '            کسر دریافتی قبلی: ' +
+      '            <span>-' + formattedAdv + '</span> ' + currencyFa +
+      '          </td>' +
+      '        </tr>' : '') +
+      ((discountVal > 0 || advDeductIrr > 0) ?
       '        <tr class="totals-row" style="background-color: #f0fdf4 !important; font-size: 15px;">' +
       '          <td colspan="4" class="totals-label-words" style="color: #15803d; padding: 18px 12px !important;">' +
-      '            <strong>مبلغ نهایی صورتحساب پس از تخفیف (به حروف):</strong> ' +
+      '            <strong>مبلغ نهایی خالص قابل پرداخت (به حروف):</strong> ' +
       '            <span class="totals-value-words" style="color: #15803d; font-size: 15px;">' + netInWords + ' ' + currencyFa + '</span>' +
       '          </td>' +
       '          <td colspan="2" class="totals-label-num" style="color: #15803d; font-size: 16px; border-top: 2px solid #16a34a !important; padding: 18px 12px !important;">' +
-      '            <strong>مبلغ نهایی صورتحساب:</strong> ' +
+      '            <strong>مبلغ خالص قابل واریز:</strong> ' +
       '            <span>' + formattedNet + '</span> ' + currencyFa +
       '          </td>' +
       '        </tr>' : '') +
@@ -662,7 +678,12 @@
       }
     }
 
-    var html = generateUnofficialInvoiceHtml(o, total, bankAccount, discountVal, discountLabel, currentRate);
+    var _renderOffer = (newInv && newInv.linesSnapshot && newInv.linesSnapshot.length)
+      ? Object.assign({}, o, { items: newInv.linesSnapshot })
+      : ((existing && existing.linesSnapshot && existing.linesSnapshot.length) ? Object.assign({}, o, { items: existing.linesSnapshot }) : o);
+    var _renderAdvDeduct = (newInv && newInv.advanceDeductedIRR != null) ? (+newInv.advanceDeductedIRR) : ((existing && existing.advanceDeductedIRR != null) ? (+existing.advanceDeductedIRR) : 0);
+
+    var html = generateUnofficialInvoiceHtml(_renderOffer, total, bankAccount, discountVal, discountLabel, currentRate, _renderAdvDeduct);
 
     if (typeof window.ptfPreviewPrintableDoc === 'function') {
       window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceNo);
@@ -973,6 +994,12 @@ window.unofficialInvoiceCollectOffers = function (deal) {
   var offers = [];
   if (typeof window.ptfSalesFileOffers === 'function') {
     offers = window.ptfSalesFileOffers(deal) || [];
+  } else {
+    var all = (typeof getData === 'function' ? getData('ptf_crm_offers') : []) || [];
+    offers = all.filter(function (o) {
+      if (!o || !o.no) return false;
+      return (deal.wonOffer && o.no === deal.wonOffer) || (deal.inqNo && o.inqNo === deal.inqNo) || (deal.offerNo && o.no === deal.offerNo);
+    });
   }
   offers = (offers || []).filter(function (o) {
     return o && o.no && (o.items || []).length;
@@ -1188,23 +1215,68 @@ window.unofficialInvoiceBuilderOpen = function (dealCd) {
   // حذف دیالوگ قبلی اگر باز باشد
   document.querySelectorAll('#unInvBuilderDlg').forEach(function (el) { el.remove(); });
 
+  // بررسی فاکتور غیررسمی فعال موجود جهت بارگذاری در حالت ویرایش به‌جای صدور تکراری
+  var _dealId = (window.PTF && typeof window.PTF.id === 'function') ? window.PTF.id(_deal) : (_deal._id || _deal.cd || '');
+  var invs = getData('ptf_crm_invoices') || [];
+  var existingInv = invs.filter(function (x) {
+    if (!x || !x.isUnofficial) return false;
+    var s = String(x.status || x.st || '').toLowerCase();
+    if (['void', 'voided', 'deleted', 'superseded', 'replaced'].indexOf(s) > -1 || x.voided) return false;
+    var sameCase = (window.PTF && typeof window.PTF.sameEntity === 'function')
+      ? (window.PTF.sameEntity(x, _dealId) || window.PTF.sameEntity(_deal, x.caseId))
+      : (String(x.caseId || '') === String(_dealId) || String(x.caseId || '') === String(_deal._id || '') || String(x.caseId || '') === String(_deal.cd || ''));
+    return sameCase || (x.offerNo && x.offerNo === _deal.wonOffer);
+  })[0] || null;
+
+  // محاسبه مجموع دریافتی‌ها و پیش‌پرداخت‌های ثبت‌شده در پرونده فروش
+  var _dealAliases = {};
+  if (_deal._id) _dealAliases[String(_deal._id)] = true;
+  if (_deal.cd) _dealAliases[String(_deal.cd)] = true;
+  if (_deal.inqNo) _dealAliases[String(_deal.inqNo)] = true;
+
+  var _caseReceipts = (getData('ptf_crm_case_receipts') || []).filter(function (r) {
+    if (!r || r.status === 'void' || r.st === 'void' || r.voided) return false;
+    return _dealAliases[String(r.caseId || '')] || (r.caseId && _dealAliases[String(r.caseId)]);
+  });
+  var _totalReceiptsIrr = _caseReceipts.reduce(function (s, r) {
+    return s + (+r.amountIRR || +r.amt || 0);
+  }, 0);
+
   var _co = collected.priceSourceOffer;
   /* v34.7.29: دفتر قیمت پرونده یک‌بار از پیشنهادهای مالی ساخته می‌شود و در هر دو حالت
      (تک‌پیشنهاد/تجمیعی) مبنای پیش‌فرض قیمت است. */
   var _priceBook = window.unofficialInvoicePriceBook(collected.offers, _deal.wonOffer || (_co && _co.no) || '');
-  var initialLines = window.unofficialInvoiceSnapshotLines(_co, _priceBook);
+
+  var initialLines = [];
+  if (existingInv && Array.isArray(existingInv.linesSnapshot) && existingInv.linesSnapshot.length > 0) {
+    initialLines = JSON.parse(JSON.stringify(existingInv.linesSnapshot));
+  } else {
+    initialLines = window.unofficialInvoiceSnapshotLines(_co, _priceBook);
+  }
+
+  var _advDeductAmt = (existingInv && existingInv.advanceDeductedIRR != null) ? (+existingInv.advanceDeductedIRR) : _totalReceiptsIrr;
+  var _advDeductEnabled = _advDeductAmt > 0 || _totalReceiptsIrr > 0;
 
   // ذخیره حالت سراسری
   _unInvState = {
     deal: _deal,
     collected: collected,
-    mode: 'single',
-    selectedOfferNos: _co ? [_co.no] : [collected.offers[0].no],
+    mode: (existingInv && existingInv.invoiceKind === 'consolidated') ? 'consolidated' : 'single',
+    selectedOfferNos: (existingInv && existingInv.consolidatedFromOffers && existingInv.consolidatedFromOffers.length)
+      ? existingInv.consolidatedFromOffers.map(function (m) { return m.offerNo; })
+      : (_co ? [_co.no] : [collected.offers[0].no]),
     lines: initialLines,
     priceBook: _priceBook,
     cCurrency: (_co && _co.currency) ? _co.currency : 'IRR',
-    cRate: (_co && +_co.fxRateRef) > 0 ? (+_co.fxRateRef) : 1
+    cRate: (existingInv && +existingInv.offerFxRateRef > 0) ? (+existingInv.offerFxRateRef) : ((_co && +_co.fxRateRef > 0) ? (+_co.fxRateRef) : 1),
+    existingInvoice: existingInv,
+    totalReceiptsIrr: _totalReceiptsIrr,
+    advDeductAmt: _advDeductAmt,
+    advDeductEnabled: _advDeductEnabled,
+    prefillDiscountInput: (existingInv && existingInv.discountInput) || '',
+    prefillBankAccount: (existingInv && existingInv.bankAccount) || ''
   };
+  window._unInvState = _unInvState;
 
   var _dlg = document.createElement('div');
   _dlg.id = 'unInvBuilderDlg';
@@ -1212,9 +1284,9 @@ window.unofficialInvoiceBuilderOpen = function (dealCd) {
   _dlg.style.cssText = 'display:grid;z-index:2800;';
   _dlg.setAttribute('data-deal-cd', (window.PTF && typeof window.PTF.id === 'function') ? window.PTF.id(_deal) : (_deal._id || _deal.cd || '')); /* v34.7.28: شناسهٔ متعارف */
   _dlg.onclick = function (e) { if (e.target === _dlg) _dlg.remove(); };
-  _dlg.innerHTML = buildUnInvBuilderHtml(_unInvState);
+  _dlg.innerHTML = window.buildUnInvBuilderHtml(_unInvState);
   document.body.appendChild(_dlg);
-  bindUnInvBuilderHandlers(_dlg);
+  window.bindUnInvBuilderHandlers(_dlg);
   window.unofficialInvoiceBuilderRecalc();
 };
 
@@ -1246,44 +1318,50 @@ window.buildUnInvBuilderHtml = function (st) {
     return String(u || 'عدد');
   }
 
-  var _rows = buildUnInvBuilderRows(st.lines);
+  var _rows = window.buildUnInvBuilderRows(st.lines);
+
+  var isEditing = !!st.existingInvoice;
+  var titleText = isEditing
+    ? '✏️ ویرایش صورتحساب پرداخت غیررسمی — ' + escP(st.existingInvoice.no || st.existingInvoice.cd) + ' (' + escP(st.deal.inqNo || st.deal.cd) + ')'
+    : '🧾 صدور صورتحساب پرداخت غیررسمی — ' + escP(st.deal.inqNo || st.deal.cd);
 
   var _html = '' +
-    '<div class="md" style="max-width:940px;max-height:94vh;overflow:auto;">' +
-    '<h3 style="margin:0 0 10px;color:#1e293b;font-size:15.5px;">🧾 صدور صورتحساب پرداخت غیررسمی — ' + escP(st.deal.inqNo || st.deal.cd) + '</h3>' +
+    '<div class="md" style="max-width:960px;max-height:94vh;overflow:auto;">' +
+    '<h3 style="margin:0 0 10px;color:#1e293b;font-size:15.5px;">' + titleText + '</h3>' +
+    (isEditing ? '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:7px 11px;margin-bottom:9px;font-size:11.5px;color:#1e40af;">ℹ️ مشخصات و اقلام صورتحساب قبلی بارگذاری شدند. تغییرات ذخیره و جایگزین خواهند شد.</div>' : '') +
     '<div style="font-size:11.5px;color:#475569;margin-bottom:8px;">پیشنهاد مبدأ قیمت: <b>' + escP(_co ? _co.no : '—') + '</b> ' +
       '<span class="bd" style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:6px;font-size:10px;">⭐ CO مرجع</span>' +
       ' <span style="color:#94a3b8;">(' + escP(_coKindLabel) + ')</span></div>' +
     _coWarn +
     '<div class="fr" style="margin-bottom:10px;gap:14px;align-items:center;background:#f8fafc;padding:8px 12px;border-radius:10px;">' +
-      '<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;font-weight:800;cursor:pointer;"><input type="radio" name="unMode" value="single" checked> ◯ تک\u200cپیشنهاد</label>' +
-      '<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;font-weight:800;cursor:pointer;"><input type="radio" name="unMode" value="consolidated"> ◯ تجمیعی چند پیشنهاد</label>' +
+      '<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;font-weight:800;cursor:pointer;"><input type="radio" name="unMode" value="single"' + (st.mode !== 'consolidated' ? ' checked' : '') + '> ◯ تک\u200cپیشنهاد</label>' +
+      '<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;font-weight:800;cursor:pointer;"><input type="radio" name="unMode" value="consolidated"' + (st.mode === 'consolidated' ? ' checked' : '') + '> ◯ تجمیعی چند پیشنهاد</label>' +
       '<span style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:2px 8px;color:#475569;font-size:11px;">📑 ' + st.collected.offers.length + ' پیشنهاد متصل</span>' +
     '</div>' +
-    '<div id="unSingleBox">' +
+    '<div id="unSingleBox"' + (st.mode === 'consolidated' ? ' style="display:none;"' : '') + '>' +
       '<div class="fld"><label>پیشنهاد مبدأ (پیش\u200cفرض = اولین CO)</label><select id="unSingleOffer" style="width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:8px;">' +
       st.collected.offers.map(function (o) {
-        var sel = (o.no === _co.no) ? ' selected' : '';
+        var sel = (st.selectedOfferNos[0] === o.no || (!st.selectedOfferNos[0] && o.no === _co.no)) ? ' selected' : '';
         return '<option value="' + escP(o.no) + '"' + sel + '>' + escP(o.no) + ' — ' + escP(kindLabels[o.kind] || o.kind) + ' (' + ((o.items || []).length) + ' قلم)</option>';
       }).join('') +
       '</select></div>' +
     '</div>' +
-    '<div id="unConsolidatedBox" style="display:none;">' +
+    '<div id="unConsolidatedBox"' + (st.mode === 'consolidated' ? '' : ' style="display:none;"') + '>' +
       '<div class="fld"><label>پیشنهادهای انتخاب\u200cشده (✓ برای تجمیع علامت بزنید)</label>' +
       '<div class="tb2" style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:4px 8px;max-height:130px;overflow:auto;">' + _offersCheckHtml + '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="fld" style="margin-top:10px;"><label>🛒 اقلام فاکتور (پیش\u200cفرض از <b>' + escP(_co ? _co.no : '—') + '</b> · قیمت هر قلم قابل ویرایش)</label>' +
+    '<div class="fld" style="margin-top:10px;"><label>🛒 اقلام فاکتور (عنوان، شرح، تعداد و قیمت هر قلم قابل ویرایش است)</label>' +
       '<div style="max-height:380px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">' +
       '<table style="width:100%;font-size:12.5px;border-collapse:collapse;">' +
       '<thead><tr style="background:#334155;color:#fff;">' +
-      '<th style="padding:7px;font-size:11.5px;width:6%;">عملیات</th>' +
-      '<th style="padding:7px;font-size:11.5px;width:14%;">منبع</th>' +
-      '<th style="padding:7px;font-size:11.5px;">شرح</th>' +
-      '<th style="padding:7px;font-size:11.5px;width:9%;">واحد</th>' +
-      '<th style="padding:7px;font-size:11.5px;width:10%;">تعداد</th>' +
-      '<th style="padding:7px;font-size:11.5px;width:18%;">قیمت واحد</th>' +
-      '<th style="padding:7px;font-size:11.5px;width:15%;">قیمت کل</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:5%;">عملیات</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:12%;">منبع</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:37%;">عنوان و شرح کالا / خدمات</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:7%;">واحد</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:9%;">تعداد</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:16%;">قیمت واحد</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:14%;">قیمت کل</th>' +
       '</tr></thead>' +
       '<tbody id="unRowsTbody">' + _rows + '</tbody>' +
       '</table>' +
@@ -1294,17 +1372,31 @@ window.buildUnInvBuilderHtml = function (st) {
       '</div>' +
     '</div>' +
     '<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' +
-      '<div class="fld"><label>تخفیف اختیاری (مبلغ یا درصد)</label><input id="unDiscInput" type="text" placeholder="مثال: 5% یا 500000" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' +
-      '<div class="fld"><label>شماره حساب / شبا (اختیاری)</label><input id="unBankInput" type="text" placeholder="مثال: IR..."></div>' +
+      '<div class="fld"><label>تخفیف اختیاری (مبلغ یا درصد)</label><input id="unDiscInput" type="text" value="' + escP(st.prefillDiscountInput || '') + '" placeholder="مثال: 5% یا 500000" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' +
+      '<div class="fld"><label>شماره حساب / شبا (اختیاری)</label><input id="unBankInput" type="text" value="' + escP(st.prefillBankAccount || '') + '" placeholder="مثال: IR..."></div>' +
       (st.cCurrency !== 'IRR' ?
         '<div class="fld"><label>نرخ تبدیل پیشنهاد به صورتحساب ریالی (ریال/' + escP(st.cCurrency) + ')</label><input id="unRateInput" type="number" dir="ltr" value="' + st.cRate + '" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' :
         '<div></div>'
       ) +
     '</div>' +
-    '<div id="unResultBox" style="margin-top:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px;font-size:13px;color:#166534;line-height:1.7;"></div>' +
+    '<div style="margin-top:10px;background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:9px 12px;font-size:12px;color:#854d0e;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">' +
+        '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-weight:700;">' +
+          '<input type="checkbox" id="unDeductAdvChk"' + (st.advDeductEnabled ? ' checked' : '') + ' onchange="unofficialInvoiceBuilderAdvToggle()"> ' +
+          '💰 کسر پیش‌پرداخت / دریافتی‌های قبلی پرونده از مبلغ صورتحساب' +
+        '</label>' +
+        '<span style="font-size:11.5px;color:#92400e;">مجموع دریافتی‌های قطعی پرونده: <b dir="ltr">' + (+st.totalReceiptsIrr || 0).toLocaleString('fa-IR') + ' ریال</b></span>' +
+      '</div>' +
+      '<div id="unDeductAdvBox" style="margin-top:7px;display:' + (st.advDeductEnabled ? 'flex' : 'none') + ';align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;">' +
+        '<span>مبلغ کسر پیش‌پرداخت (ریال):</span>' +
+        '<input type="number" min="0" step="any" id="unDeductAdvAmt" dir="ltr" value="' + (+st.advDeductAmt || 0) + '" style="width:160px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()">' +
+        '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;" onclick="document.getElementById(\'unDeductAdvAmt\').value=\'' + (+st.totalReceiptsIrr || 0) + '\';unofficialInvoiceBuilderRecalc();">بازنشانی به کل دریافتی پرونده</button>' +
+      '</div>' +
+    '</div>' +
+    '<div id="unResultBox" style="margin-top:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px;font-size:13px;color:#166534;line-height:1.8;"></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
     '<button class="bt bt-o" onclick="document.getElementById(\'unInvBuilderDlg\').remove()">❌ انصراف</button>' +
-    '<button class="bt" style="background:#0e7490;color:#fff;font-weight:800;" onclick="unofficialInvoiceBuilderSubmit()">✅ تأیید و صدور</button>' +
+    '<button class="bt" style="background:#0e7490;color:#fff;font-weight:800;" onclick="unofficialInvoiceBuilderSubmit()">' + (isEditing ? '💾 ذخیره تغییرات و صدور مجدد' : '✅ تأیید و صدور') + '</button>' +
     '</div>' +
     '</div>';
   return _html;
@@ -1322,7 +1414,10 @@ window.buildUnInvBuilderRows = function (lines) {
         (ln.priceDefaulted && ln.priceFromOffer ? '<br><small style="color:#0e7490;">قیمت از ' + escP(ln.priceFromOffer) + '</small>' : '') +
         (ln.priceNeedsAttention ? '<br><small style="color:#b45309;">ارز پیشنهاد مالی متفاوت است — قیمت را دستی وارد کنید</small>' : '') +
       '</td>' +
-      '<td style="padding:4px;font-size:12px;"><b>' + escP(ln.name || '—') + '</b>' + (ln.desc && ln.desc !== ln.name ? '<br><small style="color:#94a3b8;">' + escP(ln.desc) + '</small>' : '') + '</td>' +
+      '<td style="padding:4px;font-size:12px;">' +
+        '<input type="text" data-fld="name" data-pid="' + pid + '" value="' + escP(ln.name || '') + '" placeholder="عنوان کالا / خدمت" style="width:100%;font-size:12px;font-weight:700;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;" oninput="unofficialInvoiceBuilderRecalc()">' +
+        '<input type="text" data-fld="desc" data-pid="' + pid + '" value="' + escP(ln.desc || '') + '" placeholder="شرح و مشخصات فنی (اختیاری)" style="width:100%;font-size:11px;color:#475569;margin-top:3px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:6px;box-sizing:border-box;" oninput="unofficialInvoiceBuilderRecalc()">' +
+      '</td>' +
       '<td style="padding:4px;text-align:center;font-size:11px;">' + escP(unitFaFn(ln.unit)) + '</td>' +
       '<td style="padding:4px;text-align:center;"><input type="number" min="0" step="any" data-fld="qty" data-pid="' + pid + '" value="' + (+ln.qty || 0) + '" style="direction:ltr;padding:4px;width:70px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()"></td>' +
       '<td style="padding:4px;text-align:center;"><input type="number" min="0" step="any" data-fld="price" data-pid="' + pid + '" value="' + (+ln.price || 0) + '" style="direction:ltr;padding:4px;width:150px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()"></td>' +
@@ -1331,38 +1426,50 @@ window.buildUnInvBuilderRows = function (lines) {
   }).join('');
 };
 
+window.unofficialInvoiceBuilderAdvToggle = function () {
+  var _dlg = document.getElementById('unInvBuilderDlg');
+  if (!_dlg) return;
+  var chk = _dlg.querySelector('#unDeductAdvChk');
+  var box = _dlg.querySelector('#unDeductAdvBox');
+  if (box) box.style.display = (chk && chk.checked) ? 'flex' : 'none';
+  window.unofficialInvoiceBuilderRecalc();
+};
+
 // ===== اتصال event handlers =====
 window.bindUnInvBuilderHandlers = function (_dlg) {
   // mode change
   _dlg.querySelectorAll('input[name="unMode"]').forEach(function (inp) {
     inp.onchange = function () {
-      applyUnInvBuilderMode(_dlg);
+      window.applyUnInvBuilderMode(_dlg);
       window.unofficialInvoiceBuilderRecalc();
     };
   });
   // single-offer change -> reload
   var _singleSel = _dlg.querySelector('#unSingleOffer');
-  if (_singleSel) _singleSel.onchange = function () { reloadUnInvBuilderFromSelection(_dlg); };
+  if (_singleSel) _singleSel.onchange = function () { window.reloadUnInvBuilderFromSelection(_dlg); };
   // checkbox change -> reload
   _dlg.querySelectorAll('.un-offer-row-chk').forEach(function (chk) {
-    chk.onchange = function () { reloadUnInvBuilderFromSelection(_dlg); };
+    chk.onchange = function () { window.reloadUnInvBuilderFromSelection(_dlg); };
   });
   // initial mode apply
-  applyUnInvBuilderMode(_dlg);
+  window.applyUnInvBuilderMode(_dlg);
 };
 
 window.applyUnInvBuilderMode = function (_dlg) {
+  if (!_dlg) return;
   var _mode = 'single';
   _dlg.querySelectorAll('input[name="unMode"]').forEach(function (inp) {
     if (inp.checked) _mode = inp.value;
   });
   _unInvState.mode = _mode;
+  var sBox = _dlg.querySelector('#unSingleBox');
+  var cBox = _dlg.querySelector('#unConsolidatedBox');
   if (_mode === 'consolidated') {
-    _dlg.querySelector('#unSingleBox').style.display = 'none';
-    _dlg.querySelector('#unConsolidatedBox').style.display = '';
+    if (sBox) sBox.style.display = 'none';
+    if (cBox) cBox.style.display = '';
   } else {
-    _dlg.querySelector('#unSingleBox').style.display = '';
-    _dlg.querySelector('#unConsolidatedBox').style.display = 'none';
+    if (sBox) sBox.style.display = '';
+    if (cBox) cBox.style.display = 'none';
   }
 };
 
@@ -1392,7 +1499,7 @@ window.reloadUnInvBuilderFromSelection = function (_dlg) {
   window.unofficialInvoiceBuilderRecalc();
 };
 
-// ===== محاسبهٔ زندهٔ جمع کل + تخفیف + نمایش در result box =====
+// ===== محاسبهٔ زندهٔ جمع کل + تخفیف + کسر پیش‌پرداخت + نمایش در result box =====
 window.unofficialInvoiceBuilderRecalc = function () {
   if (!_unInvState) return;
   var _dlg = document.getElementById('unInvBuilderDlg');
@@ -1400,17 +1507,27 @@ window.unofficialInvoiceBuilderRecalc = function () {
   var total = 0;
   _dlg.querySelectorAll('#unRowsTbody tr').forEach(function (tr) {
     var pid = tr.getAttribute('data-row-id');
+    var nameEl = _dlg.querySelector('input[data-fld="name"][data-pid="' + pid + '"]');
+    var descEl = _dlg.querySelector('input[data-fld="desc"][data-pid="' + pid + '"]');
     var qtyEl = _dlg.querySelector('input[data-fld="qty"][data-pid="' + pid + '"]');
     var prEl = _dlg.querySelector('input[data-fld="price"][data-pid="' + pid + '"]');
     var q = qtyEl ? (+qtyEl.value || 0) : 0;
     var p = prEl ? (+prEl.value || 0) : 0;
+    var nm = nameEl ? nameEl.value : '';
+    var ds = descEl ? descEl.value : '';
     var rowTotal = q * p;
     var trTotalEl = _dlg.querySelector('.row-total[data-pid="' + pid + '"]');
     if (trTotalEl) trTotalEl.textContent = rowTotal.toLocaleString('en-US');
     total += rowTotal;
     // update state
     var ln = _unInvState.lines.filter(function (l) { return l._pid === pid; })[0];
-    if (ln) { ln.qty = q; ln.price = p; ln.lineTotal = rowTotal; }
+    if (ln) {
+      ln.qty = q;
+      ln.price = p;
+      ln.lineTotal = rowTotal;
+      if (nameEl) ln.name = nm;
+      if (descEl) ln.desc = ds;
+    }
   });
 
   var _discInput = (_dlg.querySelector('#unDiscInput') || {}).value || '';
@@ -1433,10 +1550,20 @@ window.unofficialInvoiceBuilderRecalc = function () {
   var _discIrr = _cur === 'IRR' ? _discVal : Math.round(_discVal * _rate);
   var _netIrr = _cur === 'IRR' ? _net : Math.round(_net * _rate);
 
+  var advChk = _dlg.querySelector('#unDeductAdvChk');
+  var advAmtEl = _dlg.querySelector('#unDeductAdvAmt');
+  var advDeductIrr = 0;
+  if (advChk && advChk.checked && advAmtEl) {
+    advDeductIrr = Math.min(_netIrr, Math.max(0, +advAmtEl.value || 0));
+  }
+  var _finalPayableIrr = Math.max(0, _netIrr - advDeductIrr);
+
   _dlg.querySelector('#unResultBox').innerHTML =
-    '<b>📊 جمع کل ریالی صورتحساب:</b> ' + _totalIrr.toLocaleString('fa-IR') + ' ریال' +
+    '<b>📊 جمع کل ریالی اقلام:</b> ' + _totalIrr.toLocaleString('fa-IR') + ' ریال' +
     '<br><b>🏷️ تخفیف ریالی:</b> ' + (_discIrr ? _discIrr.toLocaleString('fa-IR') + ' ریال' + (_discPct !== null ? ' (' + _discPct.toLocaleString('fa-IR') + '٪)' : '') : '—') +
-    '<br><b>✅ مبلغ نهایی ریالی صورتحساب:</b> ' + _netIrr.toLocaleString('fa-IR') + ' ریال';
+    '<br><b>🧾 مبلغ کل فاکتور:</b> ' + _netIrr.toLocaleString('fa-IR') + ' ریال' +
+    (advDeductIrr > 0 ? '<br><b style="color:#92400e;">💰 کسر پیش‌پرداخت / دریافتی‌های قبلی پرونده:</b> <span style="color:#92400e;">-' + advDeductIrr.toLocaleString('fa-IR') + ' ریال</span>' : '') +
+    '<br><b style="font-size:14px;color:#15803d;">✅ مبلغ نهایی خالص قابل پرداخت توسط خریدار:</b> <span style="font-size:14.5px;font-weight:900;color:#15803d;">' + _finalPayableIrr.toLocaleString('fa-IR') + ' ریال</span>';
 };
 
 // ===== حذف یک قلم =====
@@ -1477,7 +1604,7 @@ window.unofficialInvoiceBuilderResetFromOffer = function () {
   var _dlg = document.getElementById('unInvBuilderDlg');
   if (!_dlg) return;
   if (!confirm('اقلام به مقادیر پیش\u200cفرض پیشنهاد(های) انتخاب\u200cشده بازنشانی شوند؟')) return;
-  reloadUnInvBuilderFromSelection(_dlg);
+  window.reloadUnInvBuilderFromSelection(_dlg);
 };
 
 // ===== تأیید و صدور =====
@@ -1513,6 +1640,13 @@ window.unofficialInvoiceBuilderSubmit = function () {
   var _bankInput = (_dlg.querySelector('#unBankInput') || {}).value || '';
   var _rateEl = _dlg.querySelector('#unRateInput');
   var _rate = _rateEl ? (+_rateEl.value || _unInvState.cRate) : _unInvState.cRate;
+
+  var advChk = _dlg.querySelector('#unDeductAdvChk');
+  var advAmtEl = _dlg.querySelector('#unDeductAdvAmt');
+  var advDeductIrr = 0;
+  if (advChk && advChk.checked && advAmtEl) {
+    advDeductIrr = Math.max(0, +advAmtEl.value || 0);
+  }
 
   // ساخت consolidated meta اگر تجمیعی
   var consolidatedMeta = null;
@@ -1556,6 +1690,7 @@ window.unofficialInvoiceBuilderSubmit = function () {
     discountInput: _discInput,
     bankAccount: _bankInput,
     currentRate: _rate,
+    advanceDeductedIRR: advDeductIrr,
     /* v34.7.28: شناسهٔ متعارف (قرارداد PTF.id) — پیش‌تر cd اول بود و با مصرف‌کننده‌های _id-اول نمی‌خواند. */
     dealCd: (window.PTF && typeof window.PTF.id === 'function') ? window.PTF.id(_unInvState.deal) : (_unInvState.deal._id || _unInvState.deal.cd || '')
   });
@@ -1670,6 +1805,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
     existing.discount = discountIrr;
     existing.discountLabel = discountLabel;
     existing.discountInput = ctx.discountInput || '';
+    existing.advanceDeductedIRR = ctx.advanceDeductedIRR || 0;
     existing.offerCurrency = _co.currency || 'IRR';
     existing.offerFxBasis = _co.fxBasis || '';
     existing.offerFxRateRef = currentRate;
@@ -1716,6 +1852,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
       discount: discountIrr,
       discountLabel: discountLabel,
       discountInput: ctx.discountInput || '',
+      advanceDeductedIRR: ctx.advanceDeductedIRR || 0,
       invDate: faDate(),
       t: faDate(),
       buyerCo: _co.buyerCo || '',
@@ -1775,7 +1912,8 @@ window.unofficialInvoicePrintCases = function (ctx) {
         tx: '🧾 صورتحساب پرداخت غیررسمی ' + invoiceNo +
            ' صادر شد — مبلغ ' + amountIrr.toLocaleString('fa-IR') + ' ریال' +
            (ctx.isConsolidated ? ' (تجمیعی از ' + ctx.offerNos.length + ' پیشنهاد)' : '') +
-           (discountIrr > 0 ? ' | تخفیف: ' + discountIrr.toLocaleString('fa-IR') + ' ریال' : '')
+           (discountIrr > 0 ? ' | تخفیف: ' + discountIrr.toLocaleString('fa-IR') + ' ریال' : '') +
+           (ctx.advanceDeductedIRR > 0 ? ' | کسر پیش‌پرداخت: ' + ctx.advanceDeductedIRR.toLocaleString('fa-IR') + ' ریال' : '')
       });
       if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
     }
@@ -1786,7 +1924,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
   }
 
   // رندر HTML و نمایش
-  var html = generateUnofficialInvoiceHtml(_syntheticOffer, total, ctx.bankAccount || '', discountVal, discountLabel, currentRate);
+  var html = generateUnofficialInvoiceHtml(_syntheticOffer, total, ctx.bankAccount || '', discountVal, discountLabel, currentRate, ctx.advanceDeductedIRR || 0);
   if (typeof window.ptfPreviewPrintableDoc === 'function') {
     window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceCd);
   } else {

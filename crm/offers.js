@@ -3848,7 +3848,7 @@ window.ptfHealMissingCustomersFromRfqs = function () {
     added++;
   });
   if (!added) return 0;
-  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'rfq-cust-heal' });
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'rfq-cust-heal', allowDelete: false });
   else setData('ptf_crm_customers', custs);
   try { if (typeof audit === 'function') audit('مشتریان', 'بازسازی ' + added + ' مشتری گم‌شده از روی درخواست', 'heal'); } catch (eAu) {}
   return added;

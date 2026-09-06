@@ -93,9 +93,20 @@
     window.saveCust2 = function (cd) {
       _s(cd);
       try {
-        var items = getData('ptf_crm_customers');
-        var rec = cd ? items.filter(function (x) { return x.cd === cd; })[0] : items[0];
-        if (rec) { ptfNormalizeEntityPhones(rec, 'fa'); /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'phonefmt' }); else setData('ptf_crm_customers', items); }
+        if (!cd) return;
+        var items = getData('ptf_crm_customers') || [];
+        var rec = items.filter(function (x) { return x && x.cd === cd; })[0];
+        if (rec) {
+          ptfNormalizeEntityPhones(rec, 'fa');
+          if (typeof window.ptfEntityUpsert === 'function') {
+            window.ptfEntityUpsert('ptf_crm_customers', rec);
+            try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite('ptf_crm_customers', JSON.stringify(items)); } catch (eW) {}
+          } else if (window.ptfEntitySaveCollection) {
+            window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'phonefmt', allowDelete: false });
+          } else {
+            setData('ptf_crm_customers', items);
+          }
+        }
       } catch (e) {}
     };
     return true;
@@ -109,8 +120,9 @@
     window.saveSup2 = function (cd) {
       _s(cd);
       try {
-        var items = getData('ptf_crm_suppliers');
-        var rec = cd ? items.filter(function (x) { return x.cd === cd; })[0] : items[0];
+        if (!cd) return;
+        var items = getData('ptf_crm_suppliers') || [];
+        var rec = items.filter(function (x) { return x && x.cd === cd; })[0];
         if (!rec) return;
         var mode = (rec.origin === 'خارجی') ? 'en' : 'fa';
         ptfNormalizeEntityPhones(rec, mode);
@@ -119,7 +131,14 @@
           ['co', 'nm', 'ca', 'coWeb', 'coAddr'].forEach(function (k) { if (rec[k]) rec[k] = ptfLatinize(rec[k]); });
           (rec.people || []).forEach(function (p) { if (p.nm) p.nm = ptfLatinize(p.nm); if (p.dept) p.dept = ptfLatinize(p.dept); });
         }
-        /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'phonefmt' }); else setData('ptf_crm_suppliers', items);
+        if (typeof window.ptfEntityUpsert === 'function') {
+          window.ptfEntityUpsert('ptf_crm_suppliers', rec);
+          try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite('ptf_crm_suppliers', JSON.stringify(items)); } catch (eW) {}
+        } else if (window.ptfEntitySaveCollection) {
+          window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'phonefmt', allowDelete: false });
+        } else {
+          setData('ptf_crm_suppliers', items);
+        }
         if (typeof renderSuppliers === 'function') try { renderSuppliers(); } catch (e2) {}
       } catch (e) {}
     };
