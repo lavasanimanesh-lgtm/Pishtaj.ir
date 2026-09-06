@@ -103,7 +103,7 @@
         if (!rec) return;
         ptfNormalizeEntityPhones(rec, 'fa');
         if (window.ptfEntityUpsert) window.ptfEntityUpsert('ptf_crm_customers', rec);
-        else if (typeof setData === 'function') setData('ptf_crm_customers', items);
+        else setData('ptf_crm_customers', items);
       } catch (e) {}
     };
     return true;
@@ -130,7 +130,7 @@
           (rec.people || []).forEach(function (p) { if (p.nm) p.nm = ptfLatinize(p.nm); if (p.dept) p.dept = ptfLatinize(p.dept); });
         }
         if (window.ptfEntityUpsert) window.ptfEntityUpsert('ptf_crm_suppliers', rec);
-        else if (typeof setData === 'function') setData('ptf_crm_suppliers', items);
+        else setData('ptf_crm_suppliers', items);
         if (typeof renderSuppliers === 'function') try { renderSuppliers(); } catch (e2) {}
       } catch (e) {}
     };

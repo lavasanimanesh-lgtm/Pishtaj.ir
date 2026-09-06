@@ -67,7 +67,7 @@
   }
 
   // تولید سند HTML فاکتور غیر رسمی
-  function generateUnofficialInvoiceHtml(o, total, bankAccount, discountVal, discountLabel, currentRate, advDeductedIrr) {
+  function generateUnofficialInvoiceHtml(o, total, bankAccount, discountVal, discountLabel, currentRate) {
     /* صورتحساب غیررسمی نیز یک سند ریالی است. اطلاعات ارزی پیشنهاد فقط برای
        تبدیل اقلام در لحظهٔ صدور استفاده می‌شود و در مطالبات/چاپ وصول وارد نمی‌شود. */
     var invoiceRate = (o.currency && o.currency !== 'IRR') ? Math.max(0, +currentRate || 0) : 1;
@@ -103,16 +103,12 @@
     var currencyFa = 'ریال';
     var totalIrr = Math.round(total * invoiceRate);
     var discountIrr = Math.round((+discountVal || 0) * invoiceRate);
-    var invoiceAmtIrr = Math.max(0, totalIrr - discountIrr);
-    var advDeductIrr = Math.min(invoiceAmtIrr, Math.max(0, +advDeductedIrr || 0));
-    var netPayableIrr = Math.max(0, invoiceAmtIrr - advDeductIrr);
+    var netPayableIrr = Math.max(0, totalIrr - discountIrr);
 
     var formattedTotal = formatNumber(totalIrr, 'IRR');
     var totalInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(totalIrr) : totalIrr;
     var formattedDisc = formatNumber(discountIrr, 'IRR');
     var discInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(discountIrr) : discountIrr;
-    var formattedAdv = formatNumber(advDeductIrr, 'IRR');
-    var advInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(advDeductIrr) : advDeductIrr;
     var formattedNet = formatNumber(netPayableIrr, 'IRR');
     var netInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(netPayableIrr) : netPayableIrr;
 
@@ -415,7 +411,7 @@
       itemsHtml +
       '        <tr class="totals-row">' +
       '          <td colspan="4" class="totals-label-words">' +
-      '            جمع کل اقلام صورتحساب (به حروف): ' +
+      '            جمع کل صورتحساب (به حروف): ' +
       '            <span class="totals-value-words">' + totalInWords + ' ' + currencyFa + '</span>' +
       '          </td>' +
       '          <td colspan="2" class="totals-label-num">' +
@@ -434,25 +430,14 @@
       '            <span>' + formattedDisc + '</span> ' + currencyFa +
       '          </td>' +
       '        </tr>' : '') +
-      (advDeductIrr > 0 ?
-      '        <tr class="totals-row" style="background-color: #fefce8 !important; color: #854d0e;">' +
-      '          <td colspan="4" class="totals-label-words" style="color: #854d0e;">' +
-      '            کسر پیش‌پرداخت و دریافتی‌های قبلی پرونده (به حروف): ' +
-      '            <span class="totals-value-words" style="color: #854d0e;">' + advInWords + ' ' + currencyFa + '</span>' +
-      '          </td>' +
-      '          <td colspan="2" class="totals-label-num" style="color: #854d0e; border-top: 1px solid #fde047 !important;">' +
-      '            کسر دریافتی قبلی: ' +
-      '            <span>-' + formattedAdv + '</span> ' + currencyFa +
-      '          </td>' +
-      '        </tr>' : '') +
-      ((discountVal > 0 || advDeductIrr > 0) ?
+      (discountVal > 0 ?
       '        <tr class="totals-row" style="background-color: #f0fdf4 !important; font-size: 15px;">' +
       '          <td colspan="4" class="totals-label-words" style="color: #15803d; padding: 18px 12px !important;">' +
-      '            <strong>مبلغ نهایی خالص قابل پرداخت (به حروف):</strong> ' +
+      '            <strong>مبلغ نهایی صورتحساب پس از تخفیف (به حروف):</strong> ' +
       '            <span class="totals-value-words" style="color: #15803d; font-size: 15px;">' + netInWords + ' ' + currencyFa + '</span>' +
       '          </td>' +
       '          <td colspan="2" class="totals-label-num" style="color: #15803d; font-size: 16px; border-top: 2px solid #16a34a !important; padding: 18px 12px !important;">' +
-      '            <strong>مبلغ خالص قابل واریز:</strong> ' +
+      '            <strong>مبلغ نهایی صورتحساب:</strong> ' +
       '            <span>' + formattedNet + '</span> ' + currencyFa +
       '          </td>' +
       '        </tr>' : '') +
@@ -683,7 +668,7 @@
       : ((existing && existing.linesSnapshot && existing.linesSnapshot.length) ? Object.assign({}, o, { items: existing.linesSnapshot }) : o);
     var _renderAdvDeduct = (newInv && newInv.advanceDeductedIRR != null) ? (+newInv.advanceDeductedIRR) : ((existing && existing.advanceDeductedIRR != null) ? (+existing.advanceDeductedIRR) : 0);
 
-    var html = generateUnofficialInvoiceHtml(_renderOffer, total, bankAccount, discountVal, discountLabel, currentRate, _renderAdvDeduct);
+    var html = generateUnofficialInvoiceHtml(_renderOffer, total, bankAccount, discountVal, discountLabel, currentRate);
 
     if (typeof window.ptfPreviewPrintableDoc === 'function') {
       window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceNo);
@@ -1550,20 +1535,10 @@ window.unofficialInvoiceBuilderRecalc = function () {
   var _discIrr = _cur === 'IRR' ? _discVal : Math.round(_discVal * _rate);
   var _netIrr = _cur === 'IRR' ? _net : Math.round(_net * _rate);
 
-  var advChk = _dlg.querySelector('#unDeductAdvChk');
-  var advAmtEl = _dlg.querySelector('#unDeductAdvAmt');
-  var advDeductIrr = 0;
-  if (advChk && advChk.checked && advAmtEl) {
-    advDeductIrr = Math.min(_netIrr, Math.max(0, +advAmtEl.value || 0));
-  }
-  var _finalPayableIrr = Math.max(0, _netIrr - advDeductIrr);
-
   _dlg.querySelector('#unResultBox').innerHTML =
-    '<b>📊 جمع کل ریالی اقلام:</b> ' + _totalIrr.toLocaleString('fa-IR') + ' ریال' +
+    '<b>📊 جمع کل ریالی صورتحساب:</b> ' + _totalIrr.toLocaleString('fa-IR') + ' ریال' +
     '<br><b>🏷️ تخفیف ریالی:</b> ' + (_discIrr ? _discIrr.toLocaleString('fa-IR') + ' ریال' + (_discPct !== null ? ' (' + _discPct.toLocaleString('fa-IR') + '٪)' : '') : '—') +
-    '<br><b>🧾 مبلغ کل فاکتور:</b> ' + _netIrr.toLocaleString('fa-IR') + ' ریال' +
-    (advDeductIrr > 0 ? '<br><b style="color:#92400e;">💰 کسر پیش‌پرداخت / دریافتی‌های قبلی پرونده:</b> <span style="color:#92400e;">-' + advDeductIrr.toLocaleString('fa-IR') + ' ریال</span>' : '') +
-    '<br><b style="font-size:14px;color:#15803d;">✅ مبلغ نهایی خالص قابل پرداخت توسط خریدار:</b> <span style="font-size:14.5px;font-weight:900;color:#15803d;">' + _finalPayableIrr.toLocaleString('fa-IR') + ' ریال</span>';
+    '<br><b>✅ مبلغ نهایی ریالی صورتحساب:</b> ' + _netIrr.toLocaleString('fa-IR') + ' ریال';
 };
 
 // ===== حذف یک قلم =====
@@ -1924,7 +1899,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
   }
 
   // رندر HTML و نمایش
-  var html = generateUnofficialInvoiceHtml(_syntheticOffer, total, ctx.bankAccount || '', discountVal, discountLabel, currentRate, ctx.advanceDeductedIRR || 0);
+  var html = generateUnofficialInvoiceHtml(_syntheticOffer, total, ctx.bankAccount || '', discountVal, discountLabel, currentRate);
   if (typeof window.ptfPreviewPrintableDoc === 'function') {
     window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceCd);
   } else {
