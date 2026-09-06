@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* ═══ tester597 — v34.37.6 (SUP-UPLOAD-ORDER + SUP-ATTACH-PHONE + SUP-DEDUP-BEST) ═══
+/* ═══ tester597 — v34.37.7 (SUP-UPLOAD-ORDER + SUP-ATTACH-PHONE + SUP-DEDUP-BEST) ═══
    گزارش کارفرما: «در صفحهٔ تامین‌کنندگان وبسایت، در فرم ثبت‌نام، فایل اضافه نمی‌شود.»
 
    v34.36.2 «موفقیتِ سبزِ بی‌صدا» را بسته بود، ولی سه نقصِ باقی‌مانده هنوز همان تجربه
@@ -100,6 +100,6 @@ T('۶.۶ دکمهٔ «ارسال دوبارهٔ فایل» در صفحه هست'
 T('۶.۷ مسیر پیوست همچنان فقط فضای ابری است (بدون نوشتن روی دیسک میزبان)',
   api.indexOf('ptf_storage_put_uploaded_file($_FILES[$field]') > -1 && AS.indexOf('move_uploaded_file') === -1);
 
-console.log('\n— tester597 (v34.37.6: ترتیب آپلود/تکراری + بازیابی پیوست + هم‌ترازی فرمت‌ها) —');
+console.log('\n— tester597 (v34.37.7: ترتیب آپلود/تکراری + بازیابی پیوست + هم‌ترازی فرمت‌ها) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 if (f) process.exit(1);
