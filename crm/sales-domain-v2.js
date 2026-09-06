@@ -636,24 +636,18 @@
       try { if (JSON.stringify(pv) !== JSON.stringify(nx)) ups.push(nx); } catch (eJ) { ups.push(nx); }
     });
     Object.keys(prevByCd).forEach(function (cd) { if (!nextByCd[cd]) dels.push(cd); });
-    /* ═══ v34.37.7 (CONTACT-WIPE & AUTO-REASON-DELETE-GUARD) ═══
-       ذخیرهٔ یک‌رکوردی / قالب‌بندی شماره / heal از درخواست / هوک‌های خودکار کل مجموعه
-       را دوباره می‌نویسند. اگر getData کهنه باشد، هر cd غایب entity_delete می‌شد.
-       این مسیرها هرگز حذف نیستند: رکوردهای غایب از base برمی‌گردند و هیچ entity_delete
-       صادر نمی‌شود. */
+    /* ═══ v34.37.7 (CONTACT-WIPE) ═══
+       ذخیرهٔ یک‌رکوردی / قالب‌بندی شماره / heal از درخواست، کل مجموعه را دوباره
+       می‌نویسند. اگر getData کهنه باشد، هر cd غایب entity_delete می‌شد (و حتی با
+       سپر انبوهِ سقف ۳، ۱–۳ مشتری واقعاً پاک می‌شد) و silent-write همان آرایهٔ
+       ناقص را روی کش می‌نشاند — شماره‌ها و اشخاص رابط از UI و سرور می‌پریدند.
+       این مسیرها هرگز حذف نیستند: رکوردهای غایب از base برمی‌گردند، فقط upsert. */
     var AUTO_NO_DELETE_REASONS = {
       'phonefmt': 1, 'phonefmt-mig': 1, 'rfq-cust-heal': 1,
       'offer-cust': 1, 'offer-sup': 1, 'excel-import': 1, 'excel-std': 1,
-      'vendorlist': 1, 'site-rfq': 1, 'saveCust': 1, 'saveSup': 1,
-      'ai-bizcard': 1, 'ai-buyer': 1, 'ai-letterhead': 1, 'ai-items': 1,
-      'ai-catalog': 1, 'site-approve': 1, 'coen-fill': 1, 'supspec': 1,
-      'supspec-migrate': 1, 'supspec-learn': 1, 'migrate': 1, 'w1': 1, 'w2': 1, 'w3': 1, 'w4': 1
+      'vendorlist': 1, 'site-rfq': 1, 'saveCust': 1, 'saveSup': 1
     };
-    var isAutoReason = !!(opts.reason && (AUTO_NO_DELETE_REASONS[opts.reason] || /^ai-/.test(opts.reason) || /-heal$/.test(opts.reason) || /-mig$/.test(opts.reason)));
-    if (dels.length && (isAutoReason || opts.allowDelete === false) && !opts.allowDeletes && !opts.allowBulkDelete) {
-      try {
-        console.warn('[PTF] حذف ناشی از ذخیره خودکار/هوک مسدود شد — reason=' + (opts.reason || '-') + ', collection=' + collection + ', dels=', dels);
-      } catch (eWarn) {}
+    if (dels.length && AUTO_NO_DELETE_REASONS[opts.reason] && !opts.allowDeletes) {
       var mergedKeep = [], seenKeep = {};
       base.forEach(function (r) {
         var k = r && r.cd;
