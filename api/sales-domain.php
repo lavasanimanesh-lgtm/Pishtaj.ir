@@ -659,9 +659,17 @@ function sd_rebuild_allocations(string $caseId, array &$receipts, array &$invoic
     if ($history) {
         foreach ($history as $h) $allocations[] = $h;
     }
+    $hasActiveOfficial = false;
+    foreach ($invoices as $iv) {
+        if (is_array($iv) && (string)($iv['caseId'] ?? '') === $caseId && sd_active($iv) && empty($iv['isUnofficial'])) {
+            $hasActiveOfficial = true;
+            break;
+        }
+    }
     $invoiceIdx = [];
     foreach ($invoices as $i => &$inv) {
         if (!is_array($inv) || (string)($inv['caseId'] ?? '') !== $caseId || !sd_active($inv)) continue;
+        if (!empty($inv['isUnofficial']) && $hasActiveOfficial) continue;
         $inv['allocatedBase'] = 0; $inv['allocatedVat'] = 0;
         $invoiceIdx[] = $i;
     }
@@ -2386,6 +2394,18 @@ try {
             /* array_unshift moved the old index by one for a newly registered official invoice. */
             $actualIdx=$ii>=0?$replaceUnofficialIdx:$replaceUnofficialIdx+1;
             if(isset($invoices[$actualIdx])){$invoices[$actualIdx]['status']='superseded';$invoices[$actualIdx]['supersededAt']=sd_now();$invoices[$actualIdx]['supersededByInvoiceId']=$record['_id'];$result['supersededUnofficialInvoiceId']=$invoices[$actualIdx]['_id']??$invoices[$actualIdx]['cd']??'';}
+        } else {
+            foreach($invoices as $uIdx => &$uInv) {
+                if(!is_array($uInv) || !sd_active($uInv) || empty($uInv['isUnofficial'])) continue;
+                $uCase = (string)($uInv['caseId'] ?? '');
+                $uOffer = (string)($uInv['offerNo'] ?? '');
+                if(($uCase !== '' && $uCase === $caseId) || ($uOffer !== '' && $offerNo !== '' && $uOffer === $offerNo)) {
+                    $uInv['status'] = 'superseded';
+                    $uInv['supersededAt'] = sd_now();
+                    $uInv['supersededByInvoiceId'] = $record['_id'];
+                }
+            }
+            unset($uInv);
         }
         foreach($files as $f){$exists=false;foreach($attachments as $a)if(is_array($a)&&(string)($a['_id']??'')===(string)$f['_id']){$exists=true;break;}if(!$exists)$attachments[]=['_id'=>$f['_id'],'ownerType'=>'official_invoice','ownerId'=>$record['_id'],'category'=>$f['category'],'version'=>$f['version'],'objectKey'=>$f['key'],'name'=>$f['name']??'','mimeType'=>$f['contentType']??'','size'=>$f['size']??0,'status'=>$f['status'],'uploadedBy'=>$user,'uploadedAt'=>sd_now()];}
         sd_rebuild_allocations($caseId,$receipts,$invoices,$allocations,$cases);$changes=['ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];$result['invoiceId']=$record['_id'];$result['vat']=$vat;$result['total']=$total;
