@@ -93,19 +93,22 @@
     window.saveCust2 = function (cd) {
       _s(cd);
       try {
-        if (!cd) return;
+        /* v34.37.7 (CONTACT-WIPE): هرگز کل مجموعه را از getData کهنه بازنویس نکن
+           و هرگز به items[0] برنگرد — مشتری تازه‌ثبت‌شده بدون cd، رکورد دیگری را
+           قالب‌بندی/حذف می‌کرد. فقط همان رکورد با ptfEntityUpsert. */
+        var savedCd = cd || window._ptfLastSavedCustCd;
+        if (!savedCd) return;
         var items = getData('ptf_crm_customers') || [];
-        var rec = items.filter(function (x) { return x && x.cd === cd; })[0];
-        if (rec) {
-          ptfNormalizeEntityPhones(rec, 'fa');
-          if (typeof window.ptfEntityUpsert === 'function') {
-            window.ptfEntityUpsert('ptf_crm_customers', rec);
-            try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite('ptf_crm_customers', JSON.stringify(items)); } catch (eW) {}
-          } else if (window.ptfEntitySaveCollection) {
-            window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'phonefmt', allowDelete: false });
-          } else {
-            setData('ptf_crm_customers', items);
-          }
+        var rec = items.filter(function (x) { return x && x.cd === savedCd; })[0];
+        if (!rec) return;
+        ptfNormalizeEntityPhones(rec, 'fa');
+        if (typeof window.ptfEntityUpsert === 'function') {
+          window.ptfEntityUpsert('ptf_crm_customers', rec);
+          try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite('ptf_crm_customers', JSON.stringify(items)); } catch (eW) {}
+        } else if (window.ptfEntitySaveCollection) {
+          window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'phonefmt', allowDelete: false });
+        } else if (typeof setData === 'function') {
+          setData('ptf_crm_customers', items);
         }
       } catch (e) {}
     };
@@ -120,9 +123,10 @@
     window.saveSup2 = function (cd) {
       _s(cd);
       try {
-        if (!cd) return;
+        var savedCd = cd || window._ptfLastSavedSupCd || window._supLastSaved;
+        if (!savedCd) return;
         var items = getData('ptf_crm_suppliers') || [];
-        var rec = items.filter(function (x) { return x && x.cd === cd; })[0];
+        var rec = items.filter(function (x) { return x && x.cd === savedCd; })[0];
         if (!rec) return;
         var mode = (rec.origin === 'خارجی') ? 'en' : 'fa';
         ptfNormalizeEntityPhones(rec, mode);
@@ -136,7 +140,7 @@
           try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite('ptf_crm_suppliers', JSON.stringify(items)); } catch (eW) {}
         } else if (window.ptfEntitySaveCollection) {
           window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'phonefmt', allowDelete: false });
-        } else {
+        } else if (typeof setData === 'function') {
           setData('ptf_crm_suppliers', items);
         }
         if (typeof renderSuppliers === 'function') try { renderSuppliers(); } catch (e2) {}
