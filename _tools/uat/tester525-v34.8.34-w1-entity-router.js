@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester525 — v34.37.6 (W1): مهاجرت فرمانی مشتریان/تامین‌کنندگان/کالاها.
+/* tester525 — v34.37.7 (W1): مهاجرت فرمانی مشتریان/تامین‌کنندگان/کالاها.
    هسته: روتر diff-محور ptfEntitySaveCollection — استخراج واقعی از سورس و آزمون
    رفتاری: افزوده/ویرایش/حذف → تعداد و نوع فرمان درست؛ گاردهای fallback؛ استقلال
    snapshot از دستگاه‌های دیگر (هرگز حذف اشتباه). */
@@ -49,7 +49,7 @@ function cust(cd, co) { return { cd: cd, co: co, ph: '' }; }
   vm.createContext(w);
   vm.runInContext(mFn[0], w);
   var next = [cust('C1', 'الف‌۲'), cust('C2', 'ب'), cust('C4', 'د')]; /* C1 ویرایش، C3 حذف، C4 جدید */
-  var res = vm.runInContext('window.ptfEntitySaveCollection("ptf_crm_customers", ' + JSON.stringify(next) + ', {prevArr:' + JSON.stringify(base) + '})', w);
+  var res = vm.runInContext('window.ptfEntitySaveCollection("ptf_crm_customers", ' + JSON.stringify(next) + ', {prevArr:' + JSON.stringify(base) + ',allowDelete:true,userInitiated:true})', w);
   T('سناریو ۱: حالت commands', res.mode === 'commands', JSON.stringify(res));
   T('سناریو ۱: ۲ upsert (C1 ویرایش + C4 جدید)', res.upserts === 2 && w._stats().ups.map(function (u) { return u.rec.cd; }).sort().join(',') === 'C1,C4', JSON.stringify(w._stats().ups.map(function (u) { return u.rec.cd; })));
   T('سناریو ۱: ۱ delete (C3)', res.deletes === 1 && w._stats().dels[0].id === 'C3', JSON.stringify(w._stats().dels));
@@ -130,9 +130,9 @@ T('A11: تطابق کامل رجیستری کلاینت/سرور', JSON.stringif
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.37.6', ver.crm_version === 'v34.37.6', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.37.6', /window\.PTF_CRM_RELEASE = 'v34\.37\.6'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.6'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.37.7', ver.crm_version === 'v34.37.7', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.37.7', /window\.PTF_CRM_RELEASE = 'v34\.37\.7'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.7'/.test(read('crm/sw.js')));
 
-console.log('\n— tester525 (v34.37.6: W1 entity commands for customers/suppliers/products) —');
+console.log('\n— tester525 (v34.37.7: W1 entity commands for customers/suppliers/products) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

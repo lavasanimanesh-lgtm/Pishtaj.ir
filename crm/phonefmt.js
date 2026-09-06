@@ -85,18 +85,54 @@
     return rec;
   };
 
+  /* v34.37.7: مسیر نرمال‌سازی فقط همان رکوردِ ذخیره‌شده را upsert می‌کند.
+     هرگز برای رکورد تازه `items[0]` یا snapshotِ دوباره‌خوانده‌شده را به‌عنوان
+     کل مجموعه ذخیره نمی‌کنیم؛ همان الگو علت صدور entity_delete برای مشتری تازه
+     در یک کلیک بود. */
+  function saveNormalizedRecord(collection, rec, reason) {
+    if (!rec || rec.cd === undefined || rec.cd === null || String(rec.cd) === '') return false;
+    if (typeof window.ptfEntityUpsert === 'function' && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED[collection]) {
+      try {
+        window.ptfEntityUpsert(collection, rec, { operationId: reason + '|' + String(rec.cd) + '|' + Date.now() });
+        return true;
+      } catch (eCmd) {}
+    }
+    /* fallback legacy فقط وقتی فرمان موجود نیست؛ حتی این مسیر هم با cd دقیق
+       کار می‌کند و هرگز اولین سطر فهرست را حدس نمی‌زند. */
+    try {
+      var items = getData(collection), at = -1;
+      items.forEach(function (x, i) { if (x && String(x.cd) === String(rec.cd)) at = i; });
+      if (at < 0) return false;
+      items[at] = rec;
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection(collection, items, { reason: reason });
+      else setData(collection, items);
+      return true;
+    } catch (eLegacy) { return false; }
+  }
+
   /* ---------- هوک ذخیره مشتری: همیشه فارسی ---------- */
   function hookCust() {
     if (window._pfCustHooked || typeof window.saveCust2 !== 'function') return false;
     window._pfCustHooked = true;
     var _s = window.saveCust2;
     window.saveCust2 = function (cd) {
-      _s(cd);
+      var saved = _s(cd);
       try {
-        var items = getData('ptf_crm_customers');
-        var rec = cd ? items.filter(function (x) { return x.cd === cd; })[0] : items[0];
-        if (rec) { ptfNormalizeEntityPhones(rec, 'fa'); /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'phonefmt' }); else setData('ptf_crm_customers', items); }
+        /* saveCust2 از v34.37.7 همان rec را برمی‌گرداند. برای نسخه‌های قدیمی
+           فقط cd صریح را می‌پذیریم؛ حدس‌زدن items[0] ممنوع است. */
+        var rec = saved && saved.cd ? saved : null;
+        if (!rec && cd) {
+          var items = getData('ptf_crm_customers');
+          rec = items.filter(function (x) { return x && String(x.cd) === String(cd); })[0];
+        }
+        if (!rec) return saved;
+        ptfNormalizeEntityPhones(rec, 'fa');
+        /* فرم جاری از v34.37.7 پیش از فرمان اصلی نرمال شده است. اگر wrapper
+           روی یک نسخهٔ قدیمی نشست، فقط همان cd را تکمیل کن؛ برای رکورد تازه
+           هرگز فرمان رقابتیِ دوم نساز. */
+        if (!saved) saveNormalizedRecord('ptf_crm_customers', rec, 'phonefmt');
       } catch (e) {}
+      return saved;
     };
     return true;
   }
@@ -107,11 +143,14 @@
     window._pfSupHooked = true;
     var _s = window.saveSup2;
     window.saveSup2 = function (cd) {
-      _s(cd);
+      var saved = _s(cd);
       try {
-        var items = getData('ptf_crm_suppliers');
-        var rec = cd ? items.filter(function (x) { return x.cd === cd; })[0] : items[0];
-        if (!rec) return;
+        var rec = saved && saved.cd ? saved : null;
+        if (!rec && cd) {
+          var items = getData('ptf_crm_suppliers');
+          rec = items.filter(function (x) { return x && String(x.cd) === String(cd); })[0];
+        }
+        if (!rec) return saved;
         var mode = (rec.origin === 'خارجی') ? 'en' : 'fa';
         ptfNormalizeEntityPhones(rec, mode);
         if (mode === 'en') {
@@ -119,9 +158,10 @@
           ['co', 'nm', 'ca', 'coWeb', 'coAddr'].forEach(function (k) { if (rec[k]) rec[k] = ptfLatinize(rec[k]); });
           (rec.people || []).forEach(function (p) { if (p.nm) p.nm = ptfLatinize(p.nm); if (p.dept) p.dept = ptfLatinize(p.dept); });
         }
-        /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'phonefmt' }); else setData('ptf_crm_suppliers', items);
+        if (!saved) saveNormalizedRecord('ptf_crm_suppliers', rec, 'phonefmt');
         if (typeof renderSuppliers === 'function') try { renderSuppliers(); } catch (e2) {}
       } catch (e) {}
+      return saved;
     };
     return true;
   }
@@ -154,15 +194,60 @@
   }
 
   /* ---------- مهاجرت یک‌باره داده‌های موجود (نسخه‌دار — فقط یک بار اجرا) ---------- */
+  function migrationProjection(key, items) {
+    if (key !== 'ptf_crm_customers' && key !== 'ptf_crm_suppliers') return items;
+    var known = null;
+    try { known = window._ptfEntityLastKnown && window._ptfEntityLastKnown[key]; } catch (eKnown) {}
+    if (!Array.isArray(known) || !known.length) return items;
+    var out = items.slice(), at = {};
+    out.forEach(function (r, i) { if (r && r.cd) at[String(r.cd)] = i; });
+    known.forEach(function (r) {
+      if (!r || !r.cd) return;
+      var k = String(r.cd), i = at[k];
+      if (i === undefined) { at[k] = out.length; out.push(r); return; }
+      /* فیلدهای تازهٔ فرم برنده‌اند؛ فقط فیلدهای غایب از snapshot معتبر پر می‌شوند. */
+      var merged = out[i];
+      Object.keys(r).forEach(function (field) { if (!(field in merged)) merged[field] = r[field]; });
+    });
+    return out;
+  }
+  function migrateCollection(key, modeOf, tag) {
+    var items = getData(key), changed = [];
+    items.forEach(function (c) {
+      if (!c) return;
+      var before = '';
+      try { before = JSON.stringify(c); } catch (eBefore) {}
+      ptfNormalizeEntityPhones(c, modeOf(c));
+      var after = '';
+      try { after = JSON.stringify(c); } catch (eAfter) {}
+      if (before !== after) changed.push(c);
+    });
+    if (!changed.length) return 0;
+
+    /* v34.37.7: مهاجرت هم مثل هوک ذخیره نباید آرایهٔ کاملِ یک snapshot را
+       به‌عنوان ویرایش/حذف تفسیر کند. هر رکوردِ واقعاً تغییرکرده یک upsert مستقل
+       می‌گیرد؛ projection محلیِ کامل فقط برای رندر همان نشست نوشته می‌شود و
+       missing rowهای آخرین snapshot معتبر را دوباره وارد نمی‌کند. */
+    var projection = migrationProjection(key, items);
+    try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite(key, JSON.stringify(projection)); } catch (eLocal) {}
+    if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED[key] && typeof window.ptfEntityUpsert === 'function') {
+      changed.forEach(function (rec) {
+        try {
+          window.ptfEntityUpsert(key, rec, { operationId: tag + '|' + String(rec.cd || '') + '|' + Date.now() });
+        } catch (eUp) {}
+      });
+    } else if (window.ptfEntitySaveCollection) {
+      /* نسخه/محیط قدیمی: روتر جدید برای customers/suppliers حذف استنتاجی را
+         مسدود می‌کند و fallback فقط همان رکوردهای موجود را می‌نویسد. */
+      window.ptfEntitySaveCollection(key, projection, { reason: tag });
+    } else setData(key, projection);
+    return changed.length;
+  }
   function migrateOnce() {
     try {
       if (localStorage.getItem('ptf_phonefmt_mig') === '1') return;
-      var custs = getData('ptf_crm_customers');
-      custs.forEach(function (c) { ptfNormalizeEntityPhones(c, 'fa'); });
-      /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'phonefmt-mig' }); else setData('ptf_crm_customers', custs);
-      var sups = getData('ptf_crm_suppliers');
-      sups.forEach(function (c) { ptfNormalizeEntityPhones(c, (c.origin === 'خارجی') ? 'en' : 'fa'); });
-      /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', sups, { reason: 'phonefmt-mig' }); else setData('ptf_crm_suppliers', sups);
+      migrateCollection('ptf_crm_customers', function () { return 'fa'; }, 'phonefmt-mig');
+      migrateCollection('ptf_crm_suppliers', function (c) { return c.origin === 'خارجی' ? 'en' : 'fa'; }, 'phonefmt-mig');
       localStorage.setItem('ptf_phonefmt_mig', '1');
       try { audit('سیستم', 'یکسان‌سازی یک‌باره قالب شماره تماس‌ها (US-338)', ''); } catch (e) {}
     } catch (e) {}

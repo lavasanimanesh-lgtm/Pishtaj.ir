@@ -28,7 +28,13 @@ function migrateContacts() {
         changed = true;
       }
     }
-    if (changed) setData(key, items);
+    if (changed) {
+      /* v34.37.7: مهاجرت تماس‌ها یک نگاشت خودکار است، نه حذف مجموعه.
+         روترِ موجودیت برای مشتری/تامین‌کننده ردیف‌های غایبِ snapshot را حفظ
+         می‌کند و از ساختن tombstone از روی خواندن ناقص جلوگیری می‌کند. */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection(key, items, { reason: 'contacts-migrate' });
+      else setData(key, items);
+    }
   });
 }
 
@@ -3658,6 +3664,9 @@ function saveCust2(cd) {
     rec.con = pp ? pp.nm : '';
     rec.ph = pp && pp.tels && pp.tels.length ? pp.tels[0].n : (pp && pp.mobs && pp.mobs.length ? pp.mobs[0].n : tel);
   }
+  /* v34.37.7: نرمال‌سازی قبل از فرمان اصلی؛ هوک phonefmt بعد از برگشت
+     saveCust2 فقط برای سازگاری legacy است و نباید فرمان دومِ رقابتی بسازد. */
+  try { if (typeof window.ptfNormalizeEntityPhones === 'function') window.ptfNormalizeEntityPhones(rec, 'fa'); } catch (ePhonePre) {}
   // US-174: جلوگیری از ثبت تکراری (نام/شناسه ملی/کد ملی/هر شماره تماس)
   if (typeof ptfDupBlock === 'function' && ptfDupBlock('customer', rec, cd)) return;
   if (cd) {
@@ -3688,6 +3697,9 @@ function saveCust2(cd) {
   else setData('ptf_crm_customers', items);
   hideModal(); renderCustomers();
   addLog('کارفرما ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
+  /* v34.37.7: هوک‌های پس از ذخیره باید همان رکوردی را بگیرند که فرم
+     ساخته/ویرایش کرده است؛ خواندن دوبارهٔ getData ممکن است snapshot کهنه باشد. */
+  return rec;
 }
 
 function showSupModal2(cd) {
@@ -3739,17 +3751,21 @@ function saveSup2(cd) {
   var compEn = (document.getElementById('nS2CoEn')||{value:''}).value.trim();
   /* v17.5 (US-415 — گزارش کارفرما): تامین‌کننده خارجی نام فارسی ندارد —
      خارجی: نام انگلیسی اجباری، فارسی اختیاری؛ co = EN تا نمایش/جستجو/dedup سالم بماند. داخلی مثل قبل. */
-  var isForeign = ((document.getElementById('nS2Origin') || {}).value || 'داخلی') === 'خارجی';
+  var items = getData('ptf_crm_suppliers');
+  var priorSupplier = cd ? items.filter(function (x) { return x && String(x.cd) === String(cd); })[0] : null;
+  var originEl = document.getElementById('nS2Origin');
+  var origin = (originEl && originEl.value) || (priorSupplier && priorSupplier.origin) || 'داخلی';
+  var isForeign = origin === 'خارجی';
   if (isForeign) {
     if (!compEn) { (window.ptfDlgAlert || alert)('برای تامین‌کننده خارجی، نام انگلیسی (English Name) الزامی است', { icon: '🌍', title: 'اعتبارسنجی فرم' }); return; }
     if (!comp) comp = compEn; /* co = نام EN — فارسی اختیاری */
   } else if (!comp) { (window.ptfDlgAlert || alert)('نام شرکت را وارد کنید', { icon: '⚠️', title: 'اعتبارسنجی فرم' }); return; } /* v16.4 US-372 */
   var people = cbCollect();
-  var items = getData('ptf_crm_suppliers');
   var tel = document.getElementById('nS2Tel').value.trim();
   var rec = {
     cd: cd || genCode('SUP'), co: comp,
     coEn: compEn,
+    origin: origin,
     kind: (document.getElementById('nS2Kind')||{value:'حقوقی'}).value,
     natId: (document.getElementById('nS2NatId')||{value:''}).value.trim(),
     melli: (document.getElementById('nS2Melli')||{value:''}).value.trim(),
@@ -3772,6 +3788,13 @@ function saveSup2(cd) {
     rec.nm = pp ? pp.nm : '';
     rec.ph = pp && pp.tels && pp.tels.length ? pp.tels[0].n : (pp && pp.mobs && pp.mobs.length ? pp.mobs[0].n : tel);
   }
+  /* v34.37.7: شماره‌ها پیش از فرمان اصلی نرمال می‌شوند تا wrapper پس از
+     ذخیره مجبور به ارسال upsert موازی و مسابقه با expectCreate نشود. */
+  try {
+    if (typeof window.ptfNormalizeEntityPhones === 'function') {
+      window.ptfNormalizeEntityPhones(rec, rec.origin === 'خارجی' ? 'en' : 'fa');
+    }
+  } catch (ePhonePreSup) {}
   // US-174: جلوگیری از ثبت تکراری (نام/شناسه ملی/کد ملی/هر شماره تماس)
   if (typeof ptfDupBlock === 'function' && ptfDupBlock('supplier', rec, cd)) return;
   if (cd) {
@@ -3795,6 +3818,7 @@ function saveSup2(cd) {
   window._supLastSaved = rec.cd; /* v19.0 (پورت BUG-022 از v17.8): فلگ موفقیت — wrapper ها فقط روی همین رکورد */
   hideModal(); renderSuppliers();
   addLog('تامین‌کننده ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
+  return rec;
 }
 
 /* v34.36.5 (CUST-RFQ-ORPHAN): اگر درخواستی custCd دارد ولی رکورد مشتری نیست
@@ -3819,7 +3843,7 @@ window.ptfHealMissingCustomersFromRfqs = function () {
   } catch (eA) {}
   var rfqs = [];
   try { rfqs = (typeof getData === 'function' ? getData('ptf_crm_rfqs') : []) || []; } catch (eR) { return 0; }
-  var added = 0;
+  var added = 0, addedRecords = [];
   rfqs.forEach(function (r) {
     if (!r) return;
     var cd = String(r.custCd || '').trim();
@@ -3844,12 +3868,38 @@ window.ptfHealMissingCustomersFromRfqs = function () {
     if (r.crBy) stub.crBy = r.crBy;
     if (!stub.owner) stub.owner = stub.crBy || '';
     custs.unshift(stub);
+    addedRecords.push(stub);
     byCd[cd] = stub;
     added++;
   });
   if (!added) return 0;
-  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'rfq-cust-heal' });
-  else setData('ptf_crm_customers', custs);
+  /* v34.37.7: heal فقط رکوردهای بازسازی‌شده را تک‌به‌تک upsert می‌کند.
+     ذخیرهٔ دوبارهٔ کل آرایه در مسیر render می‌توانست یک مشتری تازه یا تمام
+     شماره‌هایش را با خواندن کهنه غایب اعلام کند. expectCreate عمداً فعال است:
+     اگر کد روی سرور از قبل وجود داشته باشد، آن رکورد را با stub ناقص بازنویسی
+     نمی‌کنیم و pull بعدی نسخهٔ کامل را می‌آورد. */
+  var cmdOn = !!(window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED.ptf_crm_customers && typeof window.ptfEntityUpsert === 'function');
+  if (cmdOn) {
+    addedRecords.forEach(function (stub) {
+      try { window.ptfEntityUpsert('ptf_crm_customers', stub, { expectCreate: true, operationId: 'rfq-cust-heal|' + stub.cd + '|' + Date.now() }); } catch (eUp) {}
+    });
+    /* projection محلی برای UI فوری است؛ missing rowهای snapshot معتبر هم حفظ
+       می‌شوند تا حتی نمایش همان تب بین دو pull خالی نشود. */
+    var localRows = custs.slice(), known = [];
+    try { known = (window._ptfEntityLastKnown && window._ptfEntityLastKnown.ptf_crm_customers) || []; } catch (eKnown) {}
+    var localIds = {};
+    localRows.forEach(function (x) { if (x && x.cd) localIds[String(x.cd)] = 1; });
+    known.forEach(function (x) { if (x && x.cd && !localIds[String(x.cd)]) { localRows.push(x); localIds[String(x.cd)] = 1; } });
+    try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite('ptf_crm_customers', JSON.stringify(localRows)); } catch (eSw) {}
+    try {
+      window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
+      window._ptfEntityLastKnown.ptf_crm_customers = JSON.parse(JSON.stringify(localRows));
+    } catch (eSnap) {}
+  } else if (window.ptfEntitySaveCollection) {
+    /* fallbackِ محیط/نسخهٔ قدیمی؛ روتر جدید برای مشتریان حذف استنتاجی را
+       مسدود می‌کند. */
+    window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'rfq-cust-heal' });
+  } else setData('ptf_crm_customers', custs);
   try { if (typeof audit === 'function') audit('مشتریان', 'بازسازی ' + added + ' مشتری گم‌شده از روی درخواست', 'heal'); } catch (eAu) {}
   return added;
 };

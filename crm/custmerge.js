@@ -212,7 +212,9 @@
     } catch (eA) {}
     custs = custs.filter(function (c) { return c.cd !== drop.cd; });
     /* v34.8.23 (W1-iterate): حذفِ ادغام با فرمان tombstone (بازیافت‌پذیر) */
-    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'custmerge' });
+    /* v34.37.7: این تنها مسیر فعلیِ حذف عمدی مشتری است؛ حذف از روی diff
+       بدون این پرچم برای خواندن‌های کهنه مسدود می‌ماند. */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'custmerge', allowDelete: true, userInitiated: true });
     else setData('ptf_crm_customers', custs);
 
     /* AC6: audit کامل */

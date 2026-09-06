@@ -567,8 +567,9 @@
   /* ============ v34.8.22 (W1): روتر diff-محور مجموعه‌ای ============
      به‌جای ویرایش ۴۹ نقطهٔ نوشتن پراکنده، یک نقطهٔ عبور: کلاینت آرایهٔ بعدی را
      می‌دهد؛ روتر نسبت به آخرین snapshot نوشته‌شدهٔ همین کلاینت diff می‌گیرد و
-     هر رکورد افزوده/ویرایش‌شده = entity_upsert، هر cd غایب = entity_delete
-     (با tombstone آرشیو — بازیافت‌پذیر). گاردهای امنیتی:
+     هر رکورد افزوده/ویرایش‌شده = entity_upsert. حذف فقط با قصد صریحِ مسیر حذف
+     به entity_delete (با tombstone آرشیو — بازیافت‌پذیر) تبدیل می‌شود؛ غیبتِ یک
+     رکورد هویتی در خواندنِ خودکار، به‌تنهایی هرگز قصد حذف نیست. گاردهای امنیتی:
        • فرمان خاموش/کلید غیرفعال → setData (رفتار legacy)
        • رکورد بدون cd در ورودی → setData (فرمانی بی‌هویت ممنوع)
        • تعداد عملیات > maxOps (پیش‌فرض ۴۰، مثل ایمپورت اکسل بزرگ) → setData
@@ -593,6 +594,79 @@
       'ptf_crm_case_receipts': 1, 'ptf_crm_personal_cheques': 1, 'ptf_crm_cheques': 1
     };
     var DELETE_BURST_MAX = 3;
+    /* v34.37.7 (CUSTOMER-DATA-SAFETY): حذف از روی یک آرایهٔ کامل فقط وقتی معتبر
+       است که خودِ عملیات صریحاً قصد حذف را اعلام کرده باشد. مسیرهای نرمال‌سازی،
+       رندر، heal و فرم‌های ثبت/ویرایش، آرایهٔ کامل را از یک خواندن می‌گیرند و
+       نباید غیبتِ ناشی از کش/IDB/هم‌زمانی را به entity_delete تبدیل کنند. این
+       قرارداد مخصوص موجودیت‌های هویتی است تا حذف واقعیِ محصولات/پیشنهادها که
+       قرارداد قدیمی خودشان را دارند، تغییر نکند. */
+    var COLLECTION_DELETE_REQUIRES_INTENT = {
+      'ptf_crm_customers': 1,
+      'ptf_crm_suppliers': 1
+    };
+    function collectionDeleteIsExplicit(opts) {
+      return !!(opts && (opts.allowDelete === true || opts.userInitiated === true));
+    }
+    function safetyBaseRows(collection, baseRows, opts) {
+      if (!COLLECTION_DELETE_REQUIRES_INTENT[collection] || collectionDeleteIsExplicit(opts)) return baseRows;
+      var known = null;
+      try { known = window._ptfEntityLastKnown && window._ptfEntityLastKnown[collection]; } catch (eKnown) {}
+      if (!Array.isArray(known) || !known.length) return baseRows;
+      var merged = baseRows.slice(), seen = {};
+      merged.forEach(function (r) {
+        if (r && r.cd !== undefined && r.cd !== null && String(r.cd) !== '') seen[String(r.cd)] = 1;
+      });
+      known.forEach(function (r) {
+        if (!r || r.cd === undefined || r.cd === null || String(r.cd) === '') return;
+        var cd = String(r.cd);
+        if (!seen[cd]) { seen[cd] = 1; merged.push(r); }
+      });
+      return merged;
+    }
+    function mergeExistingIdentityRows(collection, baseRows, candidateRows) {
+      if (!COLLECTION_DELETE_REQUIRES_INTENT[collection]) return candidateRows;
+      var oldByCd = {};
+      baseRows.forEach(function (r) {
+        if (r && r.cd !== undefined && r.cd !== null && String(r.cd) !== '') oldByCd[String(r.cd)] = r;
+      });
+      return candidateRows.map(function (r) {
+        if (!r || r.cd === undefined || r.cd === null || String(r.cd) === '') return r;
+        var old = oldByCd[String(r.cd)];
+        if (!old) return r;
+        var merged = {};
+        Object.keys(old).forEach(function (field) { merged[field] = old[field]; });
+        Object.keys(r).forEach(function (field) { merged[field] = r[field]; });
+        return merged;
+      });
+    }
+    function preserveMissingIdentityRows(collection, baseRows, candidateRows, opts) {
+      if (!COLLECTION_DELETE_REQUIRES_INTENT[collection] || collectionDeleteIsExplicit(opts)) return candidateRows;
+      var seen = {};
+      candidateRows.forEach(function (r) {
+        if (r && r.cd !== undefined && r.cd !== null && String(r.cd) !== '') seen[String(r.cd)] = 1;
+      });
+      var merged = candidateRows.slice();
+      var restored = 0;
+      baseRows.forEach(function (r) {
+        if (!r || r.cd === undefined || r.cd === null || String(r.cd) === '') return;
+        var cd = String(r.cd);
+        if (seen[cd]) return;
+        seen[cd] = 1;
+        merged.push(r);
+        restored++;
+      });
+      if (restored) {
+        try {
+          console.warn('[PTF] حذف استنتاجی از ' + collection + ' مسدود شد — ' + restored +
+            ' رکورد غایب از snapshot معتبر حفظ شد (دلیل ذخیره: ' + (opts.reason || '-') + ').');
+        } catch (eW) {}
+        try {
+          if (typeof audit === 'function') audit('یکپارچگی داده', 'حذف استنتاجی مسدود شد: ' + restored +
+            ' رکورد از ' + collection + ' به‌دلیل نبودِ قصد صریح حذف حفظ شد (دلیل: ' + (opts.reason || '-') + ')', collection);
+        } catch (eAu) {}
+      }
+      return merged;
+    }
     var CLIENT_CODE_PREFIX = {
       'ptf_crm_customers': 'CUST', 'ptf_crm_suppliers': 'SUP',
       'ptf_crm_leads': 'LEAD', 'ptf_crm_products': 'PROD'
@@ -614,20 +688,38 @@
       if (taken(cd)) cd = String(oldCd || pfx) + '-' + Date.now().toString(36);
       return cd;
     }
+    var safeCandidateArr = null;
     function legacyFallback(reason) {
-      try { if (typeof setData === 'function') setData(collection, nextArr); } catch (eL) {}
+      try { if (typeof setData === 'function') setData(collection, safeCandidateArr || nextArr); } catch (eL) {}
       return { mode: 'legacy', reason: reason };
     }
-    if (!window.PTF_ENTITY_CMD_ENABLED || !window.PTF_ENTITY_CMD_ENABLED[collection] || typeof window.ptfEntityUpsert !== 'function' || typeof window.ptfEntityDelete !== 'function') return legacyFallback('cmd-off');
     if (!Array.isArray(nextArr)) return legacyFallback('not-array');
     var base = Array.isArray(opts.prevArr) ? opts.prevArr : null;
     if (!base && window._ptfEntityLastKnown && Array.isArray(window._ptfEntityLastKnown[collection])) base = window._ptfEntityLastKnown[collection];
     if (!base) { try { var cur = getData(collection); if (Array.isArray(cur)) base = cur; } catch (eB) {} }
     if (!base) base = [];
+    /* اگر caller یک prevArr کهنه فرستاده باشد، آخرین projection معتبر همین
+       کلاینت برای موجودیت‌های هویتی هم به base ایمنی اضافه می‌شود؛ در غیر این
+       صورت همان prevArr ناقص می‌توانست ردیف تازه‌تری را از candidate بیندازد. */
+    base = safetyBaseRows(collection, base, opts);
+    /* مهم: nextArr ممکن است از getDataِ کهنه یا خواندن ناقص آمده باشد. برای
+       مشتری/تامین‌کننده، ردیفِ موجود در snapshot قبلی را محلی هم حفظ می‌کنیم؛
+       فقط «حذف صریح» اجازه دارد آن ردیف را از candidate خارج کند. */
+    var rawNextIds = {}, rawMissingCount = 0;
+    nextArr.forEach(function (r) {
+      if (r && r.cd !== undefined && r.cd !== null && String(r.cd) !== '') rawNextIds[String(r.cd)] = 1;
+    });
+    base.forEach(function (r) {
+      if (r && r.cd !== undefined && r.cd !== null && String(r.cd) !== '' && !rawNextIds[String(r.cd)]) rawMissingCount++;
+    });
+    var candidateArr = mergeExistingIdentityRows(collection, base, nextArr);
+    candidateArr = preserveMissingIdentityRows(collection, base, candidateArr, opts);
+    safeCandidateArr = candidateArr;
+    if (!window.PTF_ENTITY_CMD_ENABLED || !window.PTF_ENTITY_CMD_ENABLED[collection] || typeof window.ptfEntityUpsert !== 'function' || typeof window.ptfEntityDelete !== 'function') return legacyFallback('cmd-off');
     var MAX_OPS = opts.maxOps || 40;
     var prevByCd = {}, nextByCd = {}, okPrev = true, okNext = true;
     base.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okPrev = false; return; } prevByCd[r.cd] = r; });
-    nextArr.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okNext = false; return; } nextByCd[r.cd] = r; });
+    candidateArr.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okNext = false; return; } nextByCd[r.cd] = r; });
     if (!okPrev || !okNext) return legacyFallback('records-without-cd');
     var ups = [], dels = [], newCds = {}; /* v34.9.2: رکوردهای تازه = درج موردانتظار */
     Object.keys(nextByCd).forEach(function (cd) {
@@ -640,22 +732,23 @@
        حذف واقعیِ کاربر همیشه یک‌به‌یک است؛ «۴ حذف در یک ذخیره» یا «فهرست تهی شد»
        امضای یک خواندنِ کهنه است، نه نیت کاربر. در این حالت هیچ فرمان مخربی صادر
        نمی‌شود و مسیر legacy (که سپر دادهٔ صفر سرور را هم دارد) کار را می‌برد. */
-    if (DELETE_BURST_GUARDED[collection] && dels.length && !opts.allowBulkDelete) {
+    if (DELETE_BURST_GUARDED[collection] && (dels.length || rawMissingCount) && !opts.allowBulkDelete) {
       var cap = (typeof opts.maxDeletes === 'number') ? opts.maxDeletes : DELETE_BURST_MAX;
       var emptied = (nextArr.length === 0 && base.length > 0);
-      if (emptied || dels.length > cap) {
+      var suspectedDeletes = Math.max(dels.length, rawMissingCount);
+      if (emptied || suspectedDeletes > cap) {
         try {
-          console.warn('[PTF] حذف انبوه مسدود شد — ' + collection + ': ' + dels.length +
+          console.warn('[PTF] حذف انبوه مسدود شد — ' + collection + ': ' + suspectedDeletes +
             ' رکورد قرار بود حذف شود (سقف ' + cap + '). به مسیر امن legacy تنزل داده شد.', dels.slice(0, 12));
         } catch (eW) {}
         try {
           if (typeof ptfToast === 'function') {
-            ptfToast('⛔ حذف ' + dels.length + ' رکورد از «' + collection.replace('ptf_crm_', '') +
+            ptfToast('⛔ حذف ' + suspectedDeletes + ' رکورد از «' + collection.replace('ptf_crm_', '') +
               '» مسدود شد (سپر حذف انبوه). اگر واقعاً قصد حذف داشتید، یک‌به‌یک انجام دهید.', 'warn');
           }
         } catch (eT) {}
-        try { if (typeof audit === 'function') audit('یکپارچگی داده', 'سپر حذف انبوه: ' + dels.length + ' حذف در ' + collection + ' مسدود شد (دلیل ذخیره: ' + (opts.reason || '-') + ')', collection); } catch (eAu) {}
-        return legacyFallback('delete-burst-blocked:' + dels.length);
+        try { if (typeof audit === 'function') audit('یکپارچگی داده', 'سپر حذف انبوه: ' + suspectedDeletes + ' حذف در ' + collection + ' مسدود شد (دلیل ذخیره: ' + (opts.reason || '-') + ')', collection); } catch (eAu) {}
+        return legacyFallback('delete-burst-blocked:' + suspectedDeletes);
       }
     }
     if (ups.length + dels.length > MAX_OPS) return legacyFallback('too-many-ops:' + (ups.length + dels.length));
@@ -663,7 +756,7 @@
        tester442/445: جریان‌هایی که بلافاصله getData می‌خوانند (حذف پیشنهاد → مرحلهٔ
        RFQ) دادهٔ کهنه می‌دیدند چون تا ACK هیچ‌چیز محلی نوشته نمی‌شد. نوشتن بی‌صدا
        (بدون dirty) سازگاری فوری می‌دهد؛ ACK بعدی همان محتوا را projection می‌کند. */
-    try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite(collection, JSON.stringify(nextArr)); } catch (eW) {}
+    try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite(collection, JSON.stringify(candidateArr)); } catch (eW) {}
     var errors = [];
     /* v34.8.24 (SAFETY-NET): هر فرمان شکست‌خورده → کلید dirty تا پوش انبوهِlegacy
        همان بازیابیِ امروز را تضمین کند (آفلاین/خطای سخت هیچ داده‌ای معلق نمی‌ماند). */
@@ -691,7 +784,7 @@
           try {
             if (typeof window.ptfSyncAcknowledgeKeys === 'function') {
               var submitted = {};
-              submitted[collection] = JSON.stringify(nextArr);
+              submitted[collection] = JSON.stringify(candidateArr);
               window.ptfSyncAcknowledgeKeys([collection], submitted);
             }
           } catch (eAckDirty) {}
@@ -706,7 +799,7 @@
       try {
         if (typeof window.ptfSyncAcknowledgeKeys === 'function') {
           var submittedEmpty = {};
-          submittedEmpty[collection] = JSON.stringify(nextArr);
+          submittedEmpty[collection] = JSON.stringify(candidateArr);
           window.ptfSyncAcknowledgeKeys([collection], submittedEmpty);
         }
       } catch (eAckEmpty) {}
@@ -760,7 +853,7 @@
     dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff', cb: function (st) { if (st && st.state !== 'acked') failDirty(); settleCb(st); } }); } catch (eD) { errors.push(eD); failDirty(); settleCb({ state: 'rejected', error: String(eD) }); } });
     try {
       window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
-      window._ptfEntityLastKnown[collection] = JSON.parse(JSON.stringify(nextArr));
+      window._ptfEntityLastKnown[collection] = JSON.parse(JSON.stringify(candidateArr));
     } catch (eS) {}
     return { mode: 'commands', upserts: ups.length, deletes: dels.length, errors: errors.length };
   };

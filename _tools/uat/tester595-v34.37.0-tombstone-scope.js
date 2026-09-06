@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* ═══ tester595 — v34.37.6 (TOMBSTONE-SCOPE + CODE-RETIRED) ═══
+/* ═══ tester595 — v34.37.7 (TOMBSTONE-SCOPE + CODE-RETIRED) ═══
    گزارش کارفرما: «در CRM مشتریانی که جدیداً اضافه می‌شوند پاک می‌شوند.»
 
    زنجیرهٔ ریشه‌ای که این تستر می‌بندد (هر چهار حلقه):
@@ -201,7 +201,7 @@ T('۳.۷ tombstone هنوز در هر دو مسیر push و pull اعمال می
     };
     vm.createContext(ctx);
     vm.runInContext(routerSrc, ctx, { filename: 'router-slice.js' });
-    return { save: ctx.window.ptfEntitySaveCollection, calls: calls };
+    return { save: ctx.window.ptfEntitySaveCollection, calls: calls, window: ctx.window };
   }
 
   var mk = function (n) { var a = []; for (var i = 0; i < n; i++) a.push({ cd: 'CUST-' + (1000 + i) }); return a; };
@@ -220,10 +220,17 @@ T('۳.۷ tombstone هنوز در هر دو مسیر push و pull اعمال می
 
   var h3 = bootRouter();
   var base3 = mk(3);
-  var r3 = h3.save('ptf_crm_customers', base3.slice(0, 2), { prevArr: base3 });
-  T('۵.۴ حذف تک‌رکوردیِ واقعیِ کاربر همچنان کار می‌کند (بدون رگرسیون)',
+  var r3 = h3.save('ptf_crm_customers', base3.slice(0, 2), { prevArr: base3, allowDelete: true, userInitiated: true });
+  T('۵.۴ حذف تک‌رکوردیِ واقعیِ کاربر با قصد صریح همچنان کار می‌کند (بدون رگرسیون)',
     r3 && r3.mode === 'commands' && h3.calls.dels.length === 1 && h3.calls.dels[0] === 'CUST-1002',
     JSON.stringify(r3) + ' ' + JSON.stringify(h3.calls.dels));
+
+  var h5 = bootRouter();
+  var base5 = mk(3);
+  var r5 = h5.save('ptf_crm_customers', base5.slice(0, 2), { prevArr: base5, reason: 'phonefmt' });
+  T('۵.۵ حذفِ ناشی از snapshotِ ناقصِ خودکار مسدود می‌شود (بدون allowDelete)',
+    r5 && r5.mode === 'commands' && r5.deletes === 0 && h5.calls.dels.length === 0 && h5.window._ptfEntityLastKnown.ptf_crm_customers.length === 3,
+    JSON.stringify(r5) + ' snapshot=' + JSON.stringify(h5.window._ptfEntityLastKnown));
 
   var h4 = bootRouter();
   var r4 = h4.save('ptf_crm_audit', [], { prevArr: mk(10) });
@@ -239,6 +246,6 @@ T('۳.۷ tombstone هنوز در هر دو مسیر push و pull اعمال می
     routerSrc.indexOf('window._ptfCodeRetryTried') > -1);
 })();
 
-console.log('\n— tester595 (v34.37.6: سنگ‌قبرِ دامنه‌دار + کد بازنشسته + سپر حذف انبوه) —');
+console.log('\n— tester595 (v34.37.7: سنگ‌قبرِ دامنه‌دار + کد بازنشسته + سپر حذف انبوه) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 if (f) process.exit(1);

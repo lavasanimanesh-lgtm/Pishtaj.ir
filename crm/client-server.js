@@ -128,7 +128,23 @@
         localDel(k);
         stored = true;
       } else stored = localSet(k, str) !== false;
-      if (!stored) { delete cache[k]; return false; }
+      if (!stored) {
+        /* v34.37.7 (STORAGE-FAIL-SAFETY): شکست نوشتن محلی نباید خوانشِ همین
+           نشست را به snapshot کهنه/تهی برگرداند؛ آن وضعیت دقیقاً منبع diffِ
+           مخربِ مشتری بود. مقدار تازه را volatile در cache نگه می‌داریم، خطا را
+           قابل مشاهده می‌کنیم و false برمی‌گردانیم تا caller آن را «ذخیرهٔ پایدار»
+           حساب نکند. با refresh، مسیر sync/صف باید دوباره آن را reconcile کند. */
+        cache[k] = { t: Date.now(), v: str, rev: incomingRev || knownRev, volatile: true };
+        try {
+          if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'ذخیرهٔ محلی انجام نشد؛ داده فقط تا پایان این نشست در حافظه است');
+        } catch (eNotify) {}
+        try {
+          if (typeof window.dispatchEvent === 'function' && typeof window.CustomEvent === 'function') {
+            window.dispatchEvent(new window.CustomEvent('ptf-storage-quota', { detail: { key: k, volatile: true } }));
+          }
+        } catch (eEvent) {}
+        return false;
+      }
 
       cache[k] = { t: Date.now(), v: str, rev: incomingRev || knownRev };
       if (incomingRev > knownRev) {
@@ -140,7 +156,18 @@
          بعدی را پشت پاسخ fresh پنهان کند. */
       return true;
     } catch (e) {
-      try { delete cache[k]; } catch (e2) {}
+      /* حتی خطای دیرهنگامِ projection (مثلاً شکست ثبت rev بعد از به‌روزرسانی
+         cache) نباید مقدار تازه را حذف کند و خوانش بعدی را به snapshot کهنه/تهی
+         برگرداند. */
+      try {
+        if (typeof str === 'string') {
+          cache[k] = { t: Date.now(), v: str, rev: incomingRev || knownRev, volatile: true };
+          if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'ذخیرهٔ پایدار projection انجام نشد؛ داده فقط تا پایان این نشست در حافظه است');
+          if (typeof window.dispatchEvent === 'function' && typeof window.CustomEvent === 'function') {
+            window.dispatchEvent(new window.CustomEvent('ptf-storage-quota', { detail: { key: k, volatile: true } }));
+          }
+        }
+      } catch (eVolatile) {}
       return false;
     }
   };
@@ -1161,8 +1188,15 @@
           localOk = localSet(k, s) !== false;
         }
         if (!localOk || !queueAdd(k)) {
-          delete cache[k];
-          if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'صف آفلاین یا حافظهٔ مرورگر پایدار نشد');
+          /* v34.37.7: cache را به []/نسخهٔ قبل برنگردان — خواندنِ کهنه پس از
+             شکست quota می‌توانست در ذخیرهٔ بعدی به حذف استنتاجی تبدیل شود. */
+          cache[k] = { t: Date.now(), v: s, volatile: true };
+          if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'صف آفلاین یا حافظهٔ مرورگر پایدار نشد؛ داده فقط تا پایان این نشست در حافظه است');
+          try {
+            if (typeof window.dispatchEvent === 'function' && typeof window.CustomEvent === 'function') {
+              window.dispatchEvent(new window.CustomEvent('ptf-storage-quota', { detail: { key: k, volatile: true } }));
+            }
+          } catch (eQuotaEvent) {}
           return false;
         }
         if (pushTimer) clearTimeout(pushTimer);
