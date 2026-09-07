@@ -2463,7 +2463,13 @@ window.addEventListener('hashchange', function () {
 // ===== DATA HELPERS =====
 function getData(k) {
   try {
-    var raw = localStorage.getItem(k);
+    /* فاز B کلیدهای سنگین را از localStorage به حافظه/IndexedDB منتقل می‌کند.
+       خواندن مستقیم localStorage بعد از refresh در این حالت [] برمی‌گرداند و
+       پنل‌ها ظاهراً همهٔ استعلام‌ها/پرونده‌ها را ناپدید می‌کنند. ابتدا همان
+       projection همگام‌شده‌ای را بخوان که sync.js می‌نویسد، سپس fallback قدیمی. */
+    var raw = null;
+    try { if (typeof window.ptfBRead === 'function') raw = window.ptfBRead(k); } catch (eMirror) {}
+    if (raw === null || raw === undefined) raw = localStorage.getItem(k);
     if (!raw || raw === 'undefined') return [];
     return JSON.parse(raw);
   } catch (e) {
@@ -4507,7 +4513,7 @@ setInterval(function(){
 <script defer src="theme-contrast.js?v=34.37.8"></script>
 <script defer src="key-registry.js?v=34.37.8"></script>
 <script defer src="sync.js?v=34.37.8"></script>
-<script defer src="client-server.js?v=34.37.8"></script>
+<script defer src="client-server.js?v=34.37.9"></script>
 <script defer src="unofficial-invoice.js?v=34.37.8"></script>
 <script defer src="user-guide.js?v=34.37.8"></script>
 <script defer src="settings-accordion.js?v=34.37.8"></script>
