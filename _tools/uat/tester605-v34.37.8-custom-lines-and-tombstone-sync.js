@@ -65,7 +65,7 @@ T('۲.۲ وجود ادغام و هرس _shipTomb در ptfMergeBusinessRecord ب�
 T('۲.۳ وجود ادغام و هرس _docTomb و _deletedFileKeys در ptfMergeBusinessRecord برای ptf_crm_deals',
   syncSrc.indexOf('var docTomb = {};') > -1 &&
   syncSrc.indexOf('out._docTomb = docTomb;') > -1 &&
-  syncSrc.indexOf('out._deletedFileKeys = Object.keys(delFileKeys).slice(-200);') > -1);
+  syncSrc.indexOf('out._deletedFileKeys = Object.keys(delFileKeys);') > -1);
 
 /* تست رفتاری ادغام sync.js برای پرونده */
 (function testSyncDealMerge() {
