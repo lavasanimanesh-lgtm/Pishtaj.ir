@@ -38,6 +38,11 @@
 
 <section class="article-hero"><div class="container"><div class="breadcrumb"><a href="../" style="color:#bfdbfe">خانه</a> / <a href="../knowledge-center/" style="color:#bfdbfe">مرکز دانش</a> / محاسبه Cv کنترل ولو</div><h1>محاسبه Cv کنترل ولو چیست؟ راهنمای مهندسی برای سایزینگ Control Valve</h1><p>اگر کنترل ولو فقط با یک عدد Cv انتخاب شود، احتمال خطا در کاویتاسیون، نویز، rangeability، اکچویتور و حتی سایز خط وجود دارد. این راهنما توضیح می‌دهد Cv و Kv چه هستند، چطور در سایزینگ استفاده می‌شوند و چرا برای گزارش نهایی باید validation مهندسی و داده vendor بررسی شود.</p></div></section>
 <main id="main-content" class="article-wrap"><article class="article">
+<div class="kc-byline" style="display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:10px 16px;margin:0 0 18px"><span>نویسنده: <b style="color:#334155">تیم مهندسی و تامین پیشرو تجهیز فرتاک</b></span><span>منتشرشده: <time datetime="2026-07-01">۱۰ تیر ۱۴۰۵</time></span><span>به‌روزرسانی: <time datetime="2026-07-22">۳۱ تیر ۱۴۰۵</time></span><span>زمان مطالعه: ۶ دقیقه</span></div>
+
+<nav class="kc-toc" aria-label="فهرست مطالب" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px 18px;margin:0 0 20px;font-size:14px"><b style="display:block;margin-bottom:6px;color:#0f172a">فهرست مطالب</b><ul style="margin:0;padding-right:18px;display:grid;gap:4px;color:#334155"><li><a href="#cv-kv" style="color:#0e7490;text-decoration:none">Cv و Kv کنترل ولو چیست؟</a></li><li><a href="#liquid" style="color:#0e7490;text-decoration:none">محاسبه Cv/Kv برای مایع</a></li><li><a href="#gas-steam" style="color:#0e7490;text-decoration:none">سایزینگ کنترل ولو برای گاز و بخار</a></li><li><a href="#kc-sec-1" style="color:#0e7490;text-decoration:none">چه داده‌هایی برای سایزینگ لازم است؟</a></li><li><a href="#mistakes" style="color:#0e7490;text-decoration:none">خطاهای رایج در محاسبه Cv کنترل ولو</a></li><li><a href="#kc-sec-2" style="color:#0e7490;text-decoration:none">ابزار آنلاین سایزینگ کنترل ولو PTF</a></li><li><a href="#workflow" style="color:#0e7490;text-decoration:none">Workflow پیشنهادی برای انتخاب کنترل ولو</a></li><li><a href="#faq" style="color:#0e7490;text-decoration:none">سوالات رایج</a></li><li><a href="#kc-sec-3" style="color:#0e7490;text-decoration:none">تامین این تجهیزات را به پیشرو تجهیز فرتاک بسپارید</a></li></ul>
+</nav>
+
 <div class="toc"><b>فهرست سریع</b><a href="#cv-kv">۱. Cv و Kv چیست؟</a><a href="#liquid">۲. محاسبه Cv برای مایع</a><a href="#gas-steam">۳. گاز و بخار</a><a href="#mistakes">۴. خطاهای رایج</a><a href="#workflow">۵. workflow پیشنهادی</a><a href="#faq">۶. سوالات رایج</a></div>
 <h2 id="cv-kv">Cv و Kv کنترل ولو چیست؟</h2>
 <p><span style="display:none">control valve sizing</span><b>Cv</b> و <b>Kv</b> ضرایب ظرفیت جریان کنترل ولو هستند. این ضرایب نشان می‌دهند یک ولو با یک opening مشخص، تحت اختلاف فشار مشخص، چه میزان جریان را عبور می‌دهد. در دیتاشیت‌های آمریکایی معمولاً Cv و در دیتاشیت‌های اروپایی/متریک معمولاً Kv دیده می‌شود.</p>
@@ -56,7 +61,7 @@
 <div class="formula">x = ΔP / P1<br>x_choked ≈ Fγ × Xt</div>
 <p>اگر <span class="cv-ltr">x</span> به حد choked نزدیک شود یا از آن عبور کند، باید low-noise trim، outlet velocity، acoustic calculation و vendor sizing sheet بررسی شود. به همین دلیل در گزارش‌های مهندسی حرفه‌ای، Gas/Steam معمولاً بدون validation vendor قطعی نمی‌شود.</p>
 
-<h2>چه داده‌هایی برای سایزینگ لازم است؟</h2>
+<h2 id="kc-sec-1">چه داده‌هایی برای سایزینگ لازم است؟</h2>
 <table><thead><tr><th>گروه داده</th><th>نمونه فیلدها</th><th>چرا مهم است؟</th></tr></thead><tbody>
 <tr><td>شرایط کاری</td><td>Min / Normal / Max Flow, P1, P2, Temperature</td><td>برای تعیین governing case و بررسی rangeability.</td></tr>
 <tr><td>سیال</td><td>SG, viscosity, Pv, Pc, MW, Z, k</td><td>برای تشخیص choked flow، کاویتاسیون و رفتار گاز/بخار.</td></tr>
@@ -75,7 +80,7 @@
 <h3>۴. بی‌توجهی به سرعت خط و reducer</h3>
 <p>حتی اگر Cv درست باشد، سرعت بالا در خروجی یا وجود reducer شدید می‌تواند نویز، erosion و correction factor مهم ایجاد کند. برای همین در گزارش نهایی باید velocity و reducer ratio دیده شود.</p>
 
-<div class="cta"><h2>ابزار آنلاین سایزینگ کنترل ولو PTF</h2><p>برای بررسی چندحالته Liquid/Gas/Steam، محاسبه Cv/Kv، ریسک noise/cavitation، actuator shell و مشاهده نمونه گزارش نهایی، صفحه ابزار کنترل ولو را ببینید.</p><div class="cta-row"><a class="primary" href="../tools/control-valve-sizing/">ورود به صفحه ابزار کنترل ولو</a><button class="light" type="button" onclick="if(window.ptfAdvCvOpenSampleFinalReport)ptfAdvCvOpenSampleFinalReport()">مشاهده نمونه گزارش نهایی</button><button class="light" type="button" onclick="if(window.ptfAdvCvOpenFeedbackForm)ptfAdvCvOpenFeedbackForm('article_cv_calculation')">ثبت feedback کوتاه</button></div></div>
+<div class="cta"><h2 id="kc-sec-2">ابزار آنلاین سایزینگ کنترل ولو PTF</h2><p>برای بررسی چندحالته Liquid/Gas/Steam، محاسبه Cv/Kv، ریسک noise/cavitation، actuator shell و مشاهده نمونه گزارش نهایی، صفحه ابزار کنترل ولو را ببینید.</p><div class="cta-row"><a class="primary" href="../tools/control-valve-sizing/">ورود به صفحه ابزار کنترل ولو</a><button class="light" type="button" onclick="if(window.ptfAdvCvOpenSampleFinalReport)ptfAdvCvOpenSampleFinalReport()">مشاهده نمونه گزارش نهایی</button><button class="light" type="button" onclick="if(window.ptfAdvCvOpenFeedbackForm)ptfAdvCvOpenFeedbackForm('article_cv_calculation')">ثبت feedback کوتاه</button></div></div>
 
 <h2 id="workflow">Workflow پیشنهادی برای انتخاب کنترل ولو</h2>
 <ol>
@@ -97,7 +102,7 @@
 <details><summary>آیا می‌توانم دیتاشیت را آپلود کنم؟</summary><p>در فاز فعلی متن دیتاشیت، TXT، CSV و JSON برای auto-fill اولیه پشتیبانی می‌شود. PDF/OCR در roadmap بعدی قرار دارد.</p></details>
 </div>
 
-<h2>مطالب مرتبط</h2><ul><li><a href="control-valve-complete-guide.html">راهنمای کامل کنترل ولو</a></li><li><a href="control-valve-iec-60534.html">استاندارد IEC 60534 در کنترل ولو</a></li><li><a href="control-valve-cavitation-guide.html">کاویتاسیون در کنترل ولو چیست؟</a></li><li><a href="valve-actuator-types-guide.html">راهنمای انتخاب اکچویتور شیرآلات</a></li><li><a href="control-valve-cv-kv-difference.html">تفاوت Cv و Kv در کنترل ولو چیست؟</a></li><li><a href="../tools/control-valve-sizing/">صفحه اختصاصی ابزار سایزینگ کنترل ولو</a></li></ul>
+<h2 id="kc-related">مطالب مرتبط</h2><ul><li><a href="control-valve-complete-guide.html">راهنمای کامل کنترل ولو</a></li><li><a href="control-valve-iec-60534.html">استاندارد IEC 60534 در کنترل ولو</a></li><li><a href="control-valve-cavitation-guide.html">کاویتاسیون در کنترل ولو چیست؟</a></li><li><a href="valve-actuator-types-guide.html">راهنمای انتخاب اکچویتور شیرآلات</a></li><li><a href="control-valve-cv-kv-difference.html">تفاوت Cv و Kv در کنترل ولو چیست؟</a></li><li><a href="../tools/control-valve-sizing/">صفحه اختصاصی ابزار سایزینگ کنترل ولو</a></li></ul>
 
 <div class="ptf-product-linkbox" data-ptf-product-link="control-valve">
   <b>مسیر خرید و استعلام: کنترل ولو صنعتی (Control Valve)</b>
@@ -108,7 +113,7 @@
 
 
 <section class="kc-supply-cta" style="margin:38px 0 6px;padding:26px 28px;border:1px solid #e2e8f0;border-left:4px solid #ef4b1a;border-radius:18px;background:linear-gradient(135deg,#f8fafc,#fff)">
-<h2 style="margin:0 0 8px;font-size:19px;color:#0f2744">تامین این تجهیزات را به پیشرو تجهیز فرتاک بسپارید</h2>
+<h2 id="kc-sec-3" style="margin:0 0 8px;font-size:19px;color:#0f2744">تامین این تجهیزات را به پیشرو تجهیز فرتاک بسپارید</h2>
 <p style="margin:0 0 16px;font-size:14.5px;color:#475569;line-height:1.9">شرکت پیشرو تجهیز فرتاک <strong>تامین‌کننده تخصصی تجهیزات صنعتی</strong> برای پروژه‌های نفت، گاز، پتروشیمی، فولاد و نیروگاهی است. برای دریافت پیشنهاد فنی و قیمت، استعلام (RFQ) خود را ثبت کنید تا کارشناسان مهندسی فروش در کوتاه‌ترین زمان پاسخ دهند.</p>
 <ul style="list-style:none;padding:0;margin:0 0 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
 <li style="margin:0"><a href="../services/valves-guide/" style="color:#0f2744;font-weight:800;text-decoration:none">تامین شیرآلات صنعتی</a><span style="display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:2px">تامین‌کننده بال‌ولو، گیت‌ولو، گلوب‌ولو و کنترل‌ولو</span></li>

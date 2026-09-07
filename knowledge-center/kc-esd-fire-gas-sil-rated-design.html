@@ -72,16 +72,21 @@
 <p style="color:rgba(255,255,255,.75);font-size:14px">مرکز دانش فنی پیشرو تجهیز فرتاک — راهنمای مهندسی خرید</p>
 </div>
 </section>
-<div class="article-wrap">
-<div class="article-content">
+<main id="main-content" class="article-wrap">
+<article class="article-content">
+<div class="kc-byline" style="display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:10px 16px;margin:0 0 18px"><span>نویسنده: <b style="color:#334155">تیم مهندسی و تامین پیشرو تجهیز فرتاک</b></span><span>منتشرشده: <time datetime="2026-07-01">۱۰ تیر ۱۴۰۵</time></span><span>به‌روزرسانی: <time datetime="2026-07-28">۶ مرداد ۱۴۰۵</time></span><span>زمان مطالعه: ۸ دقیقه</span></div>
+
+<nav class="kc-toc" aria-label="فهرست مطالب" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px 18px;margin:0 0 20px;font-size:14px"><b style="display:block;margin-bottom:6px;color:#0f172a">فهرست مطالب</b><ul style="margin:0;padding-right:18px;display:grid;gap:4px;color:#334155"><li><a href="#kc-sec-1" style="color:#0e7490;text-decoration:none">SIL چیست و چرا فقط «سیستم ESD دارم» کافی نیست؟</a></li><li><a href="#kc-sec-2" style="color:#0e7490;text-decoration:none">مراحل تعیین SIL — از تحلیل ریسک تا انتخاب تجهیز</a></li><li><a href="#kc-sec-3" style="color:#0e7490;text-decoration:none">معماری رأی‌گیری — 1oo1، 1oo2، 2oo2 و 2oo3 چه فرقی دارند؟</a></li><li><a href="#kc-sec-4" style="color:#0e7490;text-decoration:none">الزامات تست دوره‌ای (Proof Test) — چرا نصب تجهیز کافی نیست؟</a></li><li><a href="#kc-sec-5" style="color:#0e7490;text-decoration:none">چک‌لیست خرید تجهیزات SIS برای خریدار پروژه</a></li><li><a href="#kc-sec-6" style="color:#0e7490;text-decoration:none">محاسبهٔ PFDavg — مثال ساده‌شده برای درک مفهوم</a></li><li><a href="#kc-sec-7" style="color:#0e7490;text-decoration:none">تفاوت الزامات SIS برای پروژه‌های Brownfield و Greenfield</a></li><li><a href="#kc-sec-8" style="color:#0e7490;text-decoration:none">جمع‌بندی</a></li><li><a href="#kc-sec-9" style="color:#0e7490;text-decoration:none">سوالات پرتکرار</a></li></ul>
+</nav>
+
 
 <p style="font-size:17px"><b>طراحی سیستم ESD و Fire &amp; Gas بر اساس سطح یکپارچگی ایمنی (SIL)</b> — این مقاله بر خلاف معرفی کلی سیستم ESD و F&amp;G، مستقیماً به فرآیند مهندسی تعیین SIL، معماری رأی‌گیری (Voting Architecture) و الزامات تست دوره‌ای طبق IEC 61511 می‌پردازد؛ موضوعی که برای مهندسان ایمنی فرآیند و تیم خرید تجهیزات SIS (Safety Instrumented System) در پروژه‌های پالایشگاهی و پتروشیمی حیاتی است.</p>
 
-<h2>SIL چیست و چرا فقط «سیستم ESD دارم» کافی نیست؟</h2>
+<h2 id="kc-sec-1">SIL چیست و چرا فقط «سیستم ESD دارم» کافی نیست؟</h2>
 <p>سطح یکپارچگی ایمنی (Safety Integrity Level یا SIL) یک معیار کمّی برای احتمال شکست یک تابع ایمنی در زمان نیاز (Probability of Failure on Demand یا PFD) است. استاندارد IEC 61511 چهار سطح SIL 1 تا SIL 4 را تعریف می‌کند که SIL 1 کمترین و SIL 4 بیشترین سطح قابلیت اطمینان را نشان می‌دهد. در پروژه‌های نفت، گاز و پتروشیمی، اکثر توابع ایمنی مرتبط با ESD و Fire &amp; Gas در محدودهٔ SIL 1 تا SIL 3 طبقه‌بندی می‌شوند؛ SIL 4 معمولاً به دلیل هزینه و پیچیدگی بالا، فقط در موارد استثنایی به‌کار می‌رود.</p>
 <p>اشتباه رایج در پروژه‌های داخلی این است که خرید تجهیزات ESD صرفاً بر اساس «برند معتبر» یا «تجربهٔ قبلی» انجام می‌شود، بدون آنکه مطالعهٔ رسمی تعیین SIL (SIL Determination Study) و اثبات دستیابی به آن سطح (SIL Verification) انجام شده باشد. این کار باعث می‌شود در بازرسی نهایی کارفرما یا حسابرسی HSE، مستندات کافی برای اثبات ایمنی سیستم وجود نداشته باشد.</p>
 
-<h2>مراحل تعیین SIL — از تحلیل ریسک تا انتخاب تجهیز</h2>
+<h2 id="kc-sec-2">مراحل تعیین SIL — از تحلیل ریسک تا انتخاب تجهیز</h2>
 <ol>
 <li><b>شناسایی سناریوهای خطر:</b> از طریق مطالعات HAZOP (Hazard and Operability Study) سناریوهایی که نیاز به تابع ایمنی دارند شناسایی می‌شوند.</li>
 <li><b>تعیین SIL هدف:</b> با روش‌هایی مانند Risk Graph، LOPA (Layer of Protection Analysis) یا ماتریس ریسک، سطح SIL موردنیاز هر تابع ایمنی (مثلاً «قطع خودکار پمپ تغذیه در صورت افزایش فشار») مشخص می‌شود.</li>
@@ -90,7 +95,7 @@
 <li><b>تست پذیرش عملکرد ایمنی (SAT):</b> پیش از راه‌اندازی، عملکرد واقعی سیستم در برابر سناریوهای طراحی تست می‌شود.</li>
 </ol>
 
-<h2>معماری رأی‌گیری — 1oo1، 1oo2، 2oo2 و 2oo3 چه فرقی دارند؟</h2>
+<h2 id="kc-sec-3">معماری رأی‌گیری — 1oo1، 1oo2، 2oo2 و 2oo3 چه فرقی دارند؟</h2>
 <p>معماری رأی‌گیری (Voting Architecture) نحوهٔ ترکیب چند سنسور یا عملگر برای تصمیم‌گیری نهایی را مشخص می‌کند. انتخاب معماری صحیح، تعادل بین ایمنی (کاهش خطر عدم عملکرد در زمان نیاز) و دسترس‌پذیری (کاهش خاموشی کاذب) را برقرار می‌کند.</p>
 <table>
 <thead><tr><th>معماری</th><th>توضیح</th><th>اثر روی ایمنی</th><th>اثر روی دسترس‌پذیری</th></tr></thead>
@@ -103,11 +108,11 @@
 </table>
 <div class="note-box"><b>نکتهٔ مهم:</b> معماری 2oo3 معمولاً برای توابع ایمنی حیاتی SIL 2 و SIL 3 در واحدهای فرایندی بزرگ (مثل حفاظت راکتور یا برج تقطیر اصلی) انتخاب می‌شود، چون هم‌زمان جلوی خاموشی‌های کاذب مکرر را می‌گیرد و هم سطح ایمنی لازم را تامین می‌کند. هزینهٔ بالاتر این معماری (سه‌برابر شدن تعداد سنسور) باید در بودجهٔ اولیهٔ پروژه لحاظ شود.</div>
 
-<h2>الزامات تست دوره‌ای (Proof Test) — چرا نصب تجهیز کافی نیست؟</h2>
+<h2 id="kc-sec-4">الزامات تست دوره‌ای (Proof Test) — چرا نصب تجهیز کافی نیست؟</h2>
 <p>یکی از اصول کلیدی IEC 61511 این است که PFDavg محاسبه‌شده برای یک تابع ایمنی، فرض می‌کند تست دوره‌ای (Proof Test) در بازه‌های زمانی مشخص انجام می‌شود. اگر این تست‌ها انجام نشوند یا با تاخیر زیاد انجام شوند، سطح ایمنی واقعی سیستم به‌مرور از SIL هدف پایین‌تر می‌آید، حتی اگر تجهیزات در ابتدا با مشخصات صحیح خریداری شده باشند.</p>
 <p>بازهٔ معمول تست دوره‌ای برای اکثر تجهیزات SIS در پروژه‌های نفت و گاز بین ۶ ماه تا ۳ سال است، بسته به نوع تجهیز و SIL هدف. برای مثال، شیرهای ESD معمولاً به تست Partial Stroke Test (PST) هر ۳ تا ۶ ماه و Full Stroke Test سالانه نیاز دارند تا اطمینان حاصل شود که شیر در زمان نیاز واقعی به‌درستی بسته می‌شود، بدون آنکه فرآیند را متوقف کند.</p>
 
-<h2>چک‌لیست خرید تجهیزات SIS برای خریدار پروژه</h2>
+<h2 id="kc-sec-5">چک‌لیست خرید تجهیزات SIS برای خریدار پروژه</h2>
 <p>وقتی برای تجهیزات ESD یا Fire &amp; Gas استعلام می‌دهید، این موارد را حتماً از سازنده بخواهید:</p>
 <ul>
 <li>گواهی SIL (SIL Certificate) صادرشده توسط نهاد معتبر (مانند TÜV یا exida) که SIL Capability تجهیز را تایید می‌کند، نه فقط ادعای بازاریابی.</li>
@@ -118,24 +123,24 @@
 </ul>
 
 
-<h2>محاسبهٔ PFDavg — مثال ساده‌شده برای درک مفهوم</h2>
+<h2 id="kc-sec-6">محاسبهٔ PFDavg — مثال ساده‌شده برای درک مفهوم</h2>
 <p>برای درک بهتر رابطهٔ بین معماری و سطح ایمنی، یک مثال ساده را در نظر بگیرید: فرض کنید یک سنسور فشار با نرخ خرابی خطرناک پنهان (λDU) معادل ۵×۱۰⁻⁷ در ساعت داریم و بازهٔ تست دوره‌ای (Proof Test Interval) آن یک سال (۸۷۶۰ ساعت) است. برای معماری ۱oo۱ (یک سنسور)، تقریب سادهٔ PFDavg برابر است با نصف حاصل‌ضرب نرخ خرابی در بازهٔ تست: تقریباً ۲.۲×۱۰⁻³ که در محدودهٔ SIL 2 قرار می‌گیرد. اگر همین سنسور در معماری ۱oo۲ (دو سنسور موازی) استفاده شود، PFDavg به‌طور قابل‌توجهی کاهش می‌یابد (رابطهٔ تقریبی توان دوم برای بخش مشترک خرابی‌ها)، که می‌تواند سیستم را به سطح SIL 3 ارتقا دهد. این محاسبات دقیق باید توسط مهندس ایمنی مجرب و با نرم‌افزارهای تخصصی (مانند exSILentia یا PDS) انجام شود؛ عدد بالا فقط برای نشان‌دادن مفهوم کلی رابطهٔ معماری و PFDavg است، نه یک فرمول قابل استفادهٔ مستقیم در پروژه واقعی.</p>
 <p>نکتهٔ مهمی که اغلب نادیده گرفته می‌شود، «خرابی با علت مشترک» (Common Cause Failure یا CCF) است. اگر دو سنسور معماری ۱oo۲ از یک برند و یک باچ تولید باشند و در یک نقطهٔ نصب مشابه (مثلاً هر دو در معرض همان ارتعاش یا دمای بالا) قرار گیرند، ممکن است هر دو هم‌زمان به یک علت خراب شوند و مزیت افزونگی عملاً از بین برود. استاندارد IEC 61508 برای این منظور ضریب بتا (β Factor) را تعریف می‌کند که در محاسبات PFDavg باید لحاظ شود. توصیهٔ عملی برای کاهش CCF: استفاده از سنسورهای با تکنولوژی اندازه‌گیری متفاوت (Diverse Technology) در صورت امکان، یا حداقل تنوع در باچ تولید و مسیر کابل‌کشی دو سنسور.</p>
 
-<h2>تفاوت الزامات SIS برای پروژه‌های Brownfield و Greenfield</h2>
+<h2 id="kc-sec-7">تفاوت الزامات SIS برای پروژه‌های Brownfield و Greenfield</h2>
 <p>در پروژه‌های Greenfield (احداث از صفر)، تعیین SIL و طراحی معماری از ابتدا و هم‌زمان با طراحی فرآیند انجام می‌شود که انعطاف بیشتری در انتخاب تجهیزات و چیدمان می‌دهد. اما در پروژه‌های Brownfield (ارتقا یا بازسازی واحد موجود)، چالش اصلی این است که SIS جدید باید با زیرساخت کنترل موجود (DCS/PLC قدیمی) سازگار باشد و اغلب امکان تغییر کامل معماری رأی‌گیری به دلیل محدودیت فضای نصب یا بودجه وجود ندارد. در این حالت، مطالعهٔ Gap Analysis بین وضعیت موجود و الزامات IEC 61511 باید قبل از هرگونه خرید انجام شود تا مشخص شود کدام بخش‌های سیستم فعلی قابل ارتقا و کدام باید کاملاً جایگزین شوند.</p>
-<h2>جمع‌بندی</h2>
+<h2 id="kc-sec-8">جمع‌بندی</h2>
 <p>طراحی صحیح سیستم ESD و Fire &amp; Gas فراتر از خرید تجهیزات با برند معتبر است؛ نیازمند مطالعهٔ رسمی تعیین SIL، انتخاب معماری رأی‌گیری متناسب با ریسک واقعی فرآیند، و برنامهٔ مشخص تست دوره‌ای است. تیم مهندسی فروش پیشرو تجهیز فرتاک با درک این الزامات فنی، در انتخاب تجهیزات دارای گواهی SIL معتبر و مستندات کامل FMEDA برای پروژه‌های حیاتی نفت، گاز و پتروشیمی همراه شماست.</p>
 
-<h2>سوالات پرتکرار</h2>
+<h2 id="kc-sec-9">سوالات پرتکرار</h2>
 <div class="faq-list">
 <details><summary>SIL Capability و SIL Achieved چه تفاوتی دارند؟</summary><p>SIL Capability حداکثر سطحی است که یک تجهیز به‌تنهایی می‌تواند پشتیبانی کند (بر اساس گواهی سازنده). SIL Achieved سطح واقعی کل حلقهٔ ایمنی (سنسور+منطق+عملگر) پس از محاسبهٔ PFDavg است که می‌تواند به دلیل معماری یا بازهٔ تست، کمتر از SIL Capability تجهیزات باشد.</p></details><details><summary>آیا همهٔ تجهیزات ESD باید گواهی SIL داشته باشند؟</summary><p>فقط تجهیزاتی که در یک تابع ایمنی طبقه‌بندی‌شده (Safety Instrumented Function) به‌کار می‌روند نیاز به گواهی SIL دارند. تجهیزات کنترل عادی فرآیند (غیر ایمنی) این الزام را ندارند.</p></details><details><summary>Partial Stroke Test چیست و چرا جایگزین Full Stroke Test نمی‌شود؟</summary><p>PST حرکت جزئی شیر (مثلاً ۱۰-۲۰ درصد) را بدون توقف فرآیند تست می‌کند و برخی خرابی‌های مکانیکی را آشکار می‌کند، اما نمی‌تواند عملکرد کامل بستن شیر را در شرایط واقعی تایید کند؛ به همین دلیل Full Stroke Test دوره‌ای همچنان الزامی است.</p></details><details><summary>چرا معماری 2oo3 نسبت به 1oo2 برای واحدهای حیاتی ترجیح داده می‌شود؟</summary><p>چون هم‌زمان ریسک عدم‌تشخیص خطر (با وجود سه سنسور) و ریسک خاموشی کاذب (با نیاز به توافق دو از سه) را کاهش می‌دهد، درحالی‌که 1oo2 فقط ایمنی را افزایش می‌دهد اما احتمال خاموشی کاذب را هم بیشتر می‌کند.</p></details>
 </div>
-<h2>مطالب مرتبط</h2>
+<h2 id="kc-related">مطالب مرتبط</h2>
 <div class="related-articles">
 <a class="rel-item" href="kc-esd-fire-gas.html"><b>راهنمای کامل سیستم ESD و Fire & Gas (F&G)</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="esd-emergency-shutdown.html"><b>راهنمای سیستم ESD (Emergency Shutdown)</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="kc-dcs.html"><b>راهنمای کامل سیستم DCS در صنایع فرایندی</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="sil-certification-instrument-guide.html"><b>گواهی SIL و استانداردهای ابزار دقیق</b><span>مرکز دانش فنی</span></a>
 </div>
-</div>
+</article>
 <div class="article-cro-cta" style="background:linear-gradient(135deg, #fffcf9, #fff5eb);border:2px dashed #ff7a30;border-radius:20px;padding:24px;margin-top:35px;box-shadow:0 8px 30px rgba(255,122,48,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px">
   <div style="display:flex;align-items:center;gap:12px">
     <span style="font-size:32px">📋</span>
@@ -149,7 +154,7 @@
     <span style="font-size:13.5px;color:#475569">یا تماس: <b dir="ltr" style="color:#0f172a">021-46087679</b></span>
   </div>
 </div>
-</div>
+</main>
 <div class="kc-supply-cta" style="max-width:900px;margin:0 auto;padding:0 20px 28px"><div style="background:linear-gradient(135deg,#fffcf9,#fff5eb);border:1px solid rgba(239,75,26,.22);border-radius:16px;padding:16px 22px;font-size:14px;color:#475569;line-height:1.9"><b style="color:#1e293b">نیاز به تامین تجهیزات صنعتی پروژه خود دارید؟</b> پیشرو تجهیز فرتاک به‌عنوان <a href="../suppliers/" style="color:#ef4b1a;font-weight:900">تامین‌کننده تجهیزات صنعتی</a> با مستندات کامل و انطباق Vendor List آماده همکاری است. <a href="../rfq/" style="color:#0e7490;font-weight:900">ثبت استعلام ←</a></div></div>
 <footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
     <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">

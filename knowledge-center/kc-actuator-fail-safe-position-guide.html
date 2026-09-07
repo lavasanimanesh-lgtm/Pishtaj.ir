@@ -77,15 +77,20 @@
 <p style="color:rgba(255,255,255,.75);font-size:14px">مرکز دانش فنی پیشرو تجهیز فرتاک — راهنمای مهندسی خرید</p>
 </div>
 </section>
-<div class="article-wrap">
-<div class="article-content">
+<main id="main-content" class="article-wrap">
+<article class="article-content">
+<div class="kc-byline" style="display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:10px 16px;margin:0 0 18px"><span>نویسنده: <b style="color:#334155">تیم مهندسی و تامین پیشرو تجهیز فرتاک</b></span><span>منتشرشده: <time datetime="2026-07-01">۱۰ تیر ۱۴۰۵</time></span><span>به‌روزرسانی: <time datetime="2026-07-28">۶ مرداد ۱۴۰۵</time></span><span>زمان مطالعه: ۸ دقیقه</span></div>
+
+<nav class="kc-toc" aria-label="فهرست مطالب" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px 18px;margin:0 0 20px;font-size:14px"><b style="display:block;margin-bottom:6px;color:#0f172a">فهرست مطالب</b><ul style="margin:0;padding-right:18px;display:grid;gap:4px;color:#334155"><li><a href="#kc-sec-1" style="color:#0e7490;text-decoration:none">چرا انتخاب Fail-Safe جدای از انتخاب نوع محرک است؟</a></li><li><a href="#kc-sec-2" style="color:#0e7490;text-decoration:none">Fail-Close در برابر Fail-Open — چگونه تصمیم می‌گیریم؟</a></li><li><a href="#kc-sec-3" style="color:#0e7490;text-decoration:none">Fail-Last (Fail-in-Place) — گزینهٔ سوم که اغلب فراموش می‌شود</a></li><li><a href="#kc-sec-4" style="color:#0e7490;text-decoration:none">منبع انرژی ذخیره برای رسیدن به وضعیت Fail-Safe</a></li><li><a href="#kc-sec-5" style="color:#0e7490;text-decoration:none">تست دوره‌ای Fail-Safe (Partial Stroke Testing)</a></li><li><a href="#kc-sec-6" style="color:#0e7490;text-decoration:none">محاسبهٔ زمان بسته/بازشدن (Stroke Time) در وضعیت اضطراری</a></li><li><a href="#kc-sec-7" style="color:#0e7490;text-decoration:none">چک‌لیست تعیین Fail-Safe محرک</a></li><li><a href="#kc-sec-8" style="color:#0e7490;text-decoration:none">محاسبهٔ اندازهٔ فنر بازگشت برای فشار خط لولهٔ واقعی</a></li><li><a href="#kc-sec-9" style="color:#0e7490;text-decoration:none">هماهنگی Fail-Safe با منطق ESD کلی واحد</a></li><li><a href="#kc-sec-10" style="color:#0e7490;text-decoration:none">تفاوت الزامات Fail-Safe در محرک الکتریکی مدرن (Smart Actuator)</a></li><li><a href="#kc-sec-11" style="color:#0e7490;text-decoration:none">چالش نگهداری فنرهای بازگشت در محیط خورنده</a></li><li><a href="#kc-sec-12" style="color:#0e7490;text-decoration:none">چک‌لیست تکمیلی مستندسازی Fail-Safe</a></li><li><a href="#kc-sec-13" style="color:#0e7490;text-decoration:none">مستندسازی Fail-Safe در دیتاشیت خرید محرک</a></li><li><a href="#kc-sec-14" style="color:#0e7490;text-decoration:none">تست پذیرش کارخانه‌ای (FAT) برای عملکرد Fail-Safe</a></li><li><a href="#kc-sec-15" style="color:#0e7490;text-decoration:none">اثر دمای محیط بر عملکرد فنر و روان‌کنندهٔ داخلی محرک</a></li><li><a href="#kc-sec-16" style="color:#0e7490;text-decoration:none">نقش شیر برقی سولنوئید (Solenoid Valve) در مسیر Fail-Safe</a></li><li><a href="#kc-sec-17" style="color:#0e7490;text-decoration:none">جمع‌بندی</a></li><li><a href="#kc-sec-18" style="color:#0e7490;text-decoration:none">سوالات پرتکرار</a></li></ul>
+</nav>
+
 
 <p style="font-size:17px"><b>انتخاب وضعیت ایمن (Fail-Safe Position) محرک شیرآلات</b> — برخلاف راهنمای کلی انواع محرک، این مقاله مستقیماً به یک تصمیم ایمنی حیاتی می‌پردازد: در صورت قطع برق، هوای ابزار دقیق یا سیگنال کنترل، شیر باید به کدام وضعیت برود؟ انتخاب اشتباه Fail-Open یا Fail-Close می‌تواند در شرایط اضطراری منجر به فاجعه شود.</p>
 
-<h2>چرا انتخاب Fail-Safe جدای از انتخاب نوع محرک است؟</h2>
+<h2 id="kc-sec-1">چرا انتخاب Fail-Safe جدای از انتخاب نوع محرک است؟</h2>
 <p>در بسیاری از مشخصات فنی خرید، فقط نوع محرک (پنوماتیک، الکتریکی، هیدرولیک) مشخص می‌شود، اما وضعیت Fail-Safe مورد نیاز از دیدگاه ایمنی فرایند (Process Safety) باید جداگانه توسط تیم HAZOP/SIL پروژه تعیین و به مشخصات فنی محرک منتقل شود. یک اشتباه رایج، فرض «شیر همیشه باید در قطع برق بسته شود» است که برای بسیاری از سرویس‌ها (مثلاً خطوط تخلیهٔ اضطراری یا ونت) کاملاً نادرست است.</p>
 
-<h2>Fail-Close در برابر Fail-Open — چگونه تصمیم می‌گیریم؟</h2>
+<h2 id="kc-sec-2">Fail-Close در برابر Fail-Open — چگونه تصمیم می‌گیریم؟</h2>
 <table>
 <thead><tr><th>سرویس</th><th>وضعیت Fail-Safe توصیه‌شده</th><th>دلیل</th></tr></thead>
 <tbody>
@@ -97,19 +102,19 @@
 </table>
 <div class="note-box"><b>هشدار مهم:</b> تعیین Fail-Safe صرفاً بر اساس «حس مهندسی» بدون مطالعهٔ رسمی HAZOP/LOPA برای سرویس‌های بحرانی قابل قبول نیست؛ این تصمیم باید مستند و توسط تیم ایمنی فرایند تایید شود.</div>
 
-<h2>Fail-Last (Fail-in-Place) — گزینهٔ سوم که اغلب فراموش می‌شود</h2>
+<h2 id="kc-sec-3">Fail-Last (Fail-in-Place) — گزینهٔ سوم که اغلب فراموش می‌شود</h2>
 <p>در برخی سرویس‌ها، نه بسته‌شدن کامل و نه باز‌شدن کامل شیر ایمن نیست؛ در این حالت شیر باید در همان وضعیتی که هنگام قطع سیگنال داشته باقی بماند (Fail-Last/Fail-in-Place). این نیازمند محرکی با سیستم قفل هیدرولیکی یا مکانیزم خاص نگه‌دارندهٔ موقعیت است و معمولاً گران‌تر از محرک‌های ساده Fail-Open/Close است. نمونهٔ کاربرد: شیرهای کنترل سطح مخازن بزرگ که هم باز و هم بسته شدن ناگهانی می‌تواند مشکل‌ساز باشد.</p>
 
-<h2>منبع انرژی ذخیره برای رسیدن به وضعیت Fail-Safe</h2>
+<h2 id="kc-sec-4">منبع انرژی ذخیره برای رسیدن به وضعیت Fail-Safe</h2>
 <p>محرک پنوماتیک با فنر بازگشت (Spring Return) رایج‌ترین روش تامین وضعیت Fail-Safe است: فشار هوا شیر را در وضعیت کاری نگه می‌دارد و در صورت قطع هوا، نیروی فنر شیر را به وضعیت ایمن برمی‌گرداند. برای محرک‌های الکتریکی، تامین وضعیت Fail-Safe پیچیده‌تر است و معمولاً نیازمند باتری پشتیبان یا کاپاسیتور ذخیرهٔ انرژی برای حرکت موتور در قطع برق است؛ این هزینه و پیچیدگی اضافه، یکی از دلایل ترجیح محرک پنوماتیک برای شیرهای ایمنی (Safety Instrumented Function) است.</p>
 
-<h2>تست دوره‌ای Fail-Safe (Partial Stroke Testing)</h2>
+<h2 id="kc-sec-5">تست دوره‌ای Fail-Safe (Partial Stroke Testing)</h2>
 <div class="ok-box"><b>پیشنهاد اجرایی:</b> برای شیرهای ایمنی SIL-rated که به‌ندرت فعال می‌شوند (مثلاً شیرهای ESD)، تست دوره‌ای حرکت جزئی (Partial Stroke Test) بدون توقف کامل فرایند، امکان تایید عملکرد صحیح محرک و مکانیزم فنر بازگشت را بدون ریسک قطع تولید فراهم می‌کند. این تست باید در برنامهٔ نگهداری پیشگیرانهٔ شیرهای ایمنی گنجانده شود.</div>
 
-<h2>محاسبهٔ زمان بسته/بازشدن (Stroke Time) در وضعیت اضطراری</h2>
+<h2 id="kc-sec-6">محاسبهٔ زمان بسته/بازشدن (Stroke Time) در وضعیت اضطراری</h2>
 <p>علاوه بر تعیین جهت صحیح Fail-Safe، سرعت رسیدن به وضعیت ایمن نیز اهمیت دارد. برای شیرهای ESD، معمولاً حداکثر زمان مجاز Stroke Time (مثلاً کمتر از ۲ تا ۵ ثانیه برای شیرهای بحرانی) در مشخصات فنی SIL قید می‌شود. انتخاب اندازهٔ فنر و حجم مخزن هوای پشتیبان (Air Reservoir) محرک باید طوری محاسبه شود که این زمان تضمین شود، حتی در شرایط افت فشار هوای ابزار دقیق.</p>
 
-<h2>چک‌لیست تعیین Fail-Safe محرک</h2>
+<h2 id="kc-sec-7">چک‌لیست تعیین Fail-Safe محرک</h2>
 <ul>
 <li>بررسی نتیجهٔ مطالعهٔ HAZOP/LOPA برای تعیین جهت ایمن هر شیر بحرانی.</li>
 <li>تعیین نیاز به Fail-Last در سرویس‌هایی که هر دو وضعیت انتهایی خطرناک است.</li>
@@ -119,20 +124,20 @@
 </ul>
 
 
-<h2>محاسبهٔ اندازهٔ فنر بازگشت برای فشار خط لولهٔ واقعی</h2>
+<h2 id="kc-sec-8">محاسبهٔ اندازهٔ فنر بازگشت برای فشار خط لولهٔ واقعی</h2>
 <p>یکی از اشتباهات رایج در انتخاب محرک پنوماتیک با فنر بازگشت، انتخاب اندازهٔ فنر صرفاً بر اساس گشتاور بازشدن (Breakaway Torque) شیر در شرایط فشار صفر است. در عمل، فنر باید بتواند شیر را حتی در بدترین حالت فشار افتراقی (Differential Pressure) خط لوله در لحظهٔ قطع سیگنال، به وضعیت ایمن برساند. این محاسبه باید با دیتای واقعی فشار حداکثر خط (نه فشار متوسط عملیاتی) انجام شود؛ در غیر این صورت ممکن است در شرایط اضطراری واقعی، فنر توان کافی برای غلبه بر فشار خط را نداشته باشد.</p>
 
-<h2>هماهنگی Fail-Safe با منطق ESD کلی واحد</h2>
+<h2 id="kc-sec-9">هماهنگی Fail-Safe با منطق ESD کلی واحد</h2>
 <p>تعیین وضعیت Fail-Safe هر شیر نباید مجزا از منطق کلی سیستم ESD (Emergency Shutdown) واحد انجام شود. ترتیب زمانی بسته/بازشدن شیرهای مختلف حین یک توالی ESD (مثلاً کدام شیر باید اول بسته شود و کدام بعد) می‌تواند به همان اندازهٔ جهت Fail-Safe اهمیت داشته باشد؛ توالی نادرست می‌تواند باعث افزایش ناگهانی فشار در بخشی از سیستم شود که ظرفیت تخلیهٔ کافی ندارد.</p>
 <div class="note-box"><b>هشدار مهم:</b> تغییر بعدی در منطق ESD (مثلاً افزودن یک شیر جدید به سیستم) باید همیشه با بازبینی کامل توالی Fail-Safe همراه باشد، نه صرفاً افزودن یک شیر مجزا؛ تعامل بین شیرهای مختلف حین توالی اضطراری می‌تواند نتایج غیرمنتظره ایجاد کند.</div>
 
-<h2>تفاوت الزامات Fail-Safe در محرک الکتریکی مدرن (Smart Actuator)</h2>
+<h2 id="kc-sec-10">تفاوت الزامات Fail-Safe در محرک الکتریکی مدرن (Smart Actuator)</h2>
 <p>محرک‌های الکتریکی هوشمند مدرن با کنترلر داخلی و باتری پشتیبان، امکان برنامه‌ریزی رفتار پیچیده‌تری نسبت به محرک‌های ساده را فراهم می‌کنند؛ مثلاً حرکت به وضعیت میانی مشخص (نه صرفاً کاملاً باز یا بسته) در صورت قطع برق، یا اجرای توالی آهسته برای جلوگیری از ضربهٔ قوچ آبی (Water Hammer) حین بسته‌شدن اضطراری. این قابلیت‌ها باید در فاز مشخصات فنی خرید صراحتاً درخواست شوند، چون همهٔ محرک‌های الکتریکی به‌طور پیش‌فرض این قابلیت را ندارند.</p>
 
-<h2>چالش نگهداری فنرهای بازگشت در محیط خورنده</h2>
+<h2 id="kc-sec-11">چالش نگهداری فنرهای بازگشت در محیط خورنده</h2>
 <p>فنرهای فولادی محرک پنوماتیک در محیط‌های ساحلی یا با رطوبت بالا مستعد خوردگی هستند که در طول زمان می‌تواند نیروی موثر فنر را کاهش دهد. بازرسی دورهٔ بصری فنر (از طریق پنجرهٔ بازرسی محرک، در صورت وجود) و تست عملکردی Fail-Safe واقعی (نه فقط بررسی ظاهری) باید در برنامهٔ نگهداری پیشگیرانهٔ شیرهای بحرانی گنجانده شود.</p>
 
-<h2>چک‌لیست تکمیلی مستندسازی Fail-Safe</h2>
+<h2 id="kc-sec-12">چک‌لیست تکمیلی مستندسازی Fail-Safe</h2>
 <ul>
 <li>ثبت دقیق فشار افتراقی طراحی خط لوله مبنای محاسبهٔ اندازهٔ فنر.</li>
 <li>تایید هماهنگی توالی Fail-Safe این شیر با کل منطق ESD واحد.</li>
@@ -140,28 +145,28 @@
 <li>برنامهٔ بازرسی دورهٔ فنر بازگشت در محیط خورنده.</li>
 </ul>
 
-<h2>مستندسازی Fail-Safe در دیتاشیت خرید محرک</h2>
+<h2 id="kc-sec-13">مستندسازی Fail-Safe در دیتاشیت خرید محرک</h2>
 <p>دیتاشیت خرید محرک باید علاوه بر گشتاور و زمان استروک، وضعیت دقیق Fail-Safe، فشار حداقل هوای موردنیاز برای عملکرد صحیح فنر، و شرایط دمای محیط طراحی را به‌وضوح ذکر کند. ابهام در این مشخصات یکی از رایج‌ترین علل ارسال محرک نامناسب توسط سازنده و تاخیر در پروژه است.</p>
 
-<h2>تست پذیرش کارخانه‌ای (FAT) برای عملکرد Fail-Safe</h2>
+<h2 id="kc-sec-14">تست پذیرش کارخانه‌ای (FAT) برای عملکرد Fail-Safe</h2>
 <p>پیش از ارسال محرک از کارخانه، تست عملکردی Fail-Safe واقعی (قطع عمدی هوای ورودی و اندازه‌گیری زمان و کامل‌بودن حرکت به وضعیت ایمن) باید بخشی از تست پذیرش کارخانه‌ای (Factory Acceptance Test) برای شیرهای بحرانی SIL-rated باشد؛ اتکای صرف به گواهی محاسباتی سازنده بدون تست عملی، ریسک غیرقابل قبولی برای تجهیزات ایمنی است.</p>
 
-<h2>اثر دمای محیط بر عملکرد فنر و روان‌کنندهٔ داخلی محرک</h2>
+<h2 id="kc-sec-15">اثر دمای محیط بر عملکرد فنر و روان‌کنندهٔ داخلی محرک</h2>
 <p>در مناطق سردسیر ایران، دمای محیط بسیار پایین می‌تواند گریس داخلی مکانیزم محرک را غلیظ‌تر کند و مقاومت اضافی در برابر حرکت فنر ایجاد کند؛ این پدیده می‌تواند زمان استروک واقعی را نسبت به مقدار تست‌شده در دمای آزمایشگاه افزایش دهد. برای پروژه‌های با دمای طراحی زمستانی بسیار پایین، درخواست تست عملکرد Fail-Safe در دمای پایین شبیه‌سازی‌شده (Cold Chamber Test) از سازنده توصیه می‌شود.</p>
-<h2>نقش شیر برقی سولنوئید (Solenoid Valve) در مسیر Fail-Safe</h2>
+<h2 id="kc-sec-16">نقش شیر برقی سولنوئید (Solenoid Valve) در مسیر Fail-Safe</h2>
 <p>شیر سولنوئید که هوای ابزار دقیق را به محرک هدایت یا قطع می‌کند، خود یک عضو حیاتی در زنجیرهٔ Fail-Safe است. انتخاب نوع سولنوئید (Energize-to-Trip در برابر De-Energize-to-Trip) باید با فلسفهٔ ایمنی کلی پروژه هماهنگ باشد؛ نوع De-Energize-to-Trip (که با قطع برق، هوا قطع و شیر به وضعیت ایمن می‌رود) برای اکثر کاربردهای ایمنی صنعتی ترجیح داده می‌شود چون خرابی برق به‌خودی‌خود منجر به وضعیت ایمن می‌شود.</p>
-<h2>جمع‌بندی</h2>
+<h2 id="kc-sec-17">جمع‌بندی</h2>
 <p>تعیین وضعیت Fail-Safe محرک، یک تصمیم ایمنی فرایندی است که باید بر اساس مطالعهٔ رسمی HAZOP/LOPA و نه فرض عمومی انجام شود. تیم فنی پیشرو تجهیز فرتاک در تامین محرک‌های پنوماتیک و الکتریکی با پیکربندی Fail-Safe متناسب با نیاز واقعی پروژه، همراه تیم مهندسی ایمنی شما خواهد بود.</p>
 
-<h2>سوالات پرتکرار</h2>
+<h2 id="kc-sec-18">سوالات پرتکرار</h2>
 <div class="faq-list">
 <details><summary>تفاوت Fail-Open و Fail-Close چیست؟</summary><p>در Fail-Close، شیر با قطع سیگنال کنترل یا هوا به‌طور کامل بسته می‌شود؛ در Fail-Open، شیر به‌طور کامل باز می‌شود. انتخاب هرکدام بر اساس ایمن‌ترین وضعیت برای آن سرویس خاص تعیین می‌شود.</p></details><details><summary>Fail-Last چه زمانی استفاده می‌شود؟</summary><p>زمانی که نه بسته‌شدن کامل و نه بازشدن کامل شیر ایمن نباشد؛ شیر در همان وضعیتی که هنگام قطع سیگنال داشته باقی می‌ماند، معمولاً با استفاده از قفل هیدرولیکی موقعیت.</p></details><details><summary>چرا محرک پنوماتیک برای شیرهای ایمنی ترجیح داده می‌شود؟</summary><p>چون تامین وضعیت Fail-Safe با فنر بازگشت پنوماتیک ساده و مطمئن است؛ محرک الکتریکی نیازمند باتری پشتیبان یا مکانیزم ذخیرهٔ انرژی پیچیده‌تری برای همین منظور است.</p></details><details><summary>Partial Stroke Testing چیست و چرا اهمیت دارد؟</summary><p>تست حرکت جزئی شیر بدون توقف کامل فرایند است که امکان تایید عملکرد صحیح محرک و فنر بازگشت شیرهای کم‌فعالیت (مثل شیرهای ESD) را بدون ریسک قطع تولید فراهم می‌کند.</p></details>
 </div>
-<h2>مطالب مرتبط</h2>
+<h2 id="kc-related">مطالب مرتبط</h2>
 <div class="related-articles">
 <a class="rel-item" href="kc-actuator.html"><b>راهنمای کامل انتخاب محرک (Actuator) برای شیرآلات</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="kc-esd-fire-gas-sil-rated-design.html"><b>راهنمای طراحی سیستم ESD و Fire & Gas با SIL</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="sil-iec-61508-iec-61511.html"><b>راهنمای گواهی SIL و IEC 61508/61511</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="../services/valves-supply.html"><b>خدمات شیرآلات صنعتی</b><span>مرکز دانش فنی</span></a>
 </div>
-</div>
+</article>
 <div class="article-cro-cta" style="background:linear-gradient(135deg, #fffcf9, #fff5eb);border:2px dashed #ff7a30;border-radius:20px;padding:24px;margin-top:35px;box-shadow:0 8px 30px rgba(255,122,48,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px">
   <div style="display:flex;align-items:center;gap:12px">
     <span style="font-size:32px">📋</span>
@@ -175,7 +180,7 @@
     <span style="font-size:13.5px;color:#475569">یا تماس: <b dir="ltr" style="color:#0f172a">021-46087679</b></span>
   </div>
 </div>
-</div>
+</main>
 <div class="ptf-product-linkbox" data-ptf-product-link="valve-actuator"><b>مسیر خرید و استعلام: اکچویتور ولو (Valve Actuator)</b><p>برای اکچویتور، Torque/Thrust، Fail Action، زمان عملکرد، منبع هوا/برق، Mounting Kit و Ex را از ابتدا روشن کنید. این صفحه محصول، مشخصات فنی، مدارک RFQ، خطاهای رایج و مسیر ثبت استعلام را جمع‌بندی می‌کند.</p><a href="../services/products/valve-actuator.html">مشاهده صفحه محصول اکچویتور ولو ←</a><a class="secondary" href="../rfq/?product=valve-actuator">ثبت RFQ همین محصول</a></div>
 <div class="kc-supply-cta" style="max-width:900px;margin:0 auto;padding:0 20px 28px"><div style="background:linear-gradient(135deg,#fffcf9,#fff5eb);border:1px solid rgba(239,75,26,.22);border-radius:16px;padding:16px 22px;font-size:14px;color:#475569;line-height:1.9"><b style="color:#1e293b">نیاز به تامین شیرآلات صنعتی دارید؟</b> پیشرو تجهیز فرتاک به‌عنوان <a href="../services/valves-supply.html" style="color:#ef4b1a;font-weight:900">تامین شیرآلات صنعتی</a> با مستندات کامل و انطباق Vendor List آماده همکاری است. <a href="../rfq/" style="color:#0e7490;font-weight:900">ثبت استعلام ←</a></div></div>
 <footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
