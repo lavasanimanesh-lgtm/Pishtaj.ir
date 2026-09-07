@@ -2187,6 +2187,26 @@
     return map[st] || 0;
   }
   function ptfRecTimestamp(r) { return String((r && (r.wfUpdatedAtISO || r.updatedAtISO || r.updatedAt || r.iso || r.ts || r.t || r.dateEn || r.dueISO || r.dt || r.dateFa)) || ''); }
+  /* v34.38.0 (EVENT-DEDUP-TS): مقایسهٔ امن برای ددوب رویدادهای هم‌کد
+     (costEvents/qcEvents/shipEvents). در v34.37.8 (منتشرشده) قاعده «نسخهٔ
+     ویرایش‌شده برنده است» بود؛ در اصلاح میانیِ پس از آن (منتشرنشده) مقایسه به
+     ptfRecTimestamp خامِ رشته‌ای تغییر کرد که ① updatedT را اصلاً نمی‌خواند و
+     ② مقدارهای نامعتبر/کهنهٔ t|ts (مثل 'x' یا رشتهٔ خالی) را lexicographically
+     از ISOهای واقعی «جدیدتر» نشان می‌داد → نسخهٔ ویرایش‌شدهٔ (updatedT) در
+     ددوب به نسخهٔ کهنه می‌باخت (رگرسیون قاعدهٔ v34.29.8/v34.37.8).
+     اکنون: فقط timestamp واقعیِ قابل‌parse سنجیده می‌شود (ناخوانا = قدیمی‌ترین)
+     و در تساوی، نسخهٔ ویرایش‌شده برنده است؛ وگرنه رویداد نخست (ثبات) می‌ماند. */
+  function ptfEventTs(r) {
+    var s = String((r && (r.updatedT || r.updatedAtISO || r.updatedAt || r.iso || r.ts || r.t || r.dateEn || r.dueISO || r.dt || r.dateFa)) || '');
+    var n = Date.parse(s);
+    return isNaN(n) ? -1 : n;
+  }
+  function ptfEventDedupNewer(e, cur) {
+    var te = ptfEventTs(e), tc = ptfEventTs(cur);
+    if (te !== tc) return te > tc;
+    var ee = !!(e && (e.updatedT || e.updatedBy)), ec = !!(cur && (cur.updatedT || cur.updatedBy));
+    return ee && !ec;
+  }
   function ptfRecCompleteness(r) {
     var n = 0;
     if (!r || typeof r !== 'object') return 0;
@@ -2345,11 +2365,6 @@
           if (v && (!costTomb[cd] || v > costTomb[cd])) costTomb[cd] = v;
         });
       });
-      var tombKeys = Object.keys(costTomb);
-      if (tombKeys.length > 200) {
-        tombKeys.sort(function (x, y) { return String(costTomb[x]) < String(costTomb[y]) ? -1 : 1; });
-        while (tombKeys.length > 200) delete costTomb[tombKeys.shift()];
-      }
       if (Object.keys(costTomb).length) out._costTomb = costTomb;
       var ceSrc = Array.isArray(out.costEvents) ? out.costEvents : [];
       var ceSeen = {}, ceOut = [];
@@ -2359,8 +2374,9 @@
         if (!cd) { ceOut.push(e); return; } /* رویداد بدون cd (قدیمی) → دست‌نخورده */
         if (costTomb[cd]) return; /* حذف‌شده → حذف ماندگار */
         if (ceSeen[cd]) {
-          /* تکرار هم‌کد: نسخهٔ ویرایش‌شده (updatedT دارد) برنده؛ وگرنه نسخهٔ برندهٔ رکورد */
-          if (!(ceSeen[cd].updatedT || ceSeen[cd].updatedBy) && (e.updatedT || e.updatedBy)) {
+          /* تکرار هم‌کد: نسخهٔ با timestamp واقعیِ جدیدتر برنده است؛ در تساوی،
+             نسخهٔ ویرایش‌شده (updatedT/updatedBy) برنده است (EVENT-DEDUP-TS). */
+          if (ptfEventDedupNewer(e, ceSeen[cd])) {
             var idx = ceOut.indexOf(ceSeen[cd]);
             if (idx > -1) ceOut[idx] = e;
             ceSeen[cd] = e;
@@ -2381,11 +2397,6 @@
           if (v && (!qcTomb[cd] || v > qcTomb[cd])) qcTomb[cd] = v;
         });
       });
-      var qctKeys = Object.keys(qcTomb);
-      if (qctKeys.length > 200) {
-        qctKeys.sort(function (x, y) { return String(qcTomb[x]) < String(qcTomb[y]) ? -1 : 1; });
-        while (qctKeys.length > 200) delete qcTomb[qctKeys.shift()];
-      }
       if (Object.keys(qcTomb).length) out._qcTomb = qcTomb;
       var qcSrc = Array.isArray(out.qcEvents) ? out.qcEvents : [];
       var qcSeen = {}, qcOut = [];
@@ -2395,7 +2406,7 @@
         if (!cd) { qcOut.push(e); return; }
         if (qcTomb[cd]) return;
         if (qcSeen[cd]) {
-          if (!(qcSeen[cd].updatedT || qcSeen[cd].updatedBy) && (e.updatedT || e.updatedBy)) {
+          if (ptfEventDedupNewer(e, qcSeen[cd])) {
             var idx = qcOut.indexOf(qcSeen[cd]);
             if (idx > -1) qcOut[idx] = e;
             qcSeen[cd] = e;
@@ -2414,11 +2425,6 @@
           if (v && (!shipTomb[cd] || v > shipTomb[cd])) shipTomb[cd] = v;
         });
       });
-      var stKeys = Object.keys(shipTomb);
-      if (stKeys.length > 200) {
-        stKeys.sort(function (x, y) { return String(shipTomb[x]) < String(shipTomb[y]) ? -1 : 1; });
-        while (stKeys.length > 200) delete shipTomb[stKeys.shift()];
-      }
       if (Object.keys(shipTomb).length) out._shipTomb = shipTomb;
       var shSrc = Array.isArray(out.shipEvents) ? out.shipEvents : [];
       var shSeen = {}, shOut = [];
@@ -2428,7 +2434,7 @@
         if (!cd) { shOut.push(e); return; }
         if (shipTomb[cd]) return;
         if (shSeen[cd]) {
-          if (!(shSeen[cd].updatedT || shSeen[cd].updatedBy) && (e.updatedT || e.updatedBy)) {
+          if (ptfEventDedupNewer(e, shSeen[cd])) {
             var idx = shOut.indexOf(shSeen[cd]);
             if (idx > -1) shOut[idx] = e;
             shSeen[cd] = e;
@@ -2447,18 +2453,13 @@
           if (v && (!docTomb[k] || v > docTomb[k])) docTomb[k] = v;
         });
       });
-      var dtKeys = Object.keys(docTomb);
-      if (dtKeys.length > 200) {
-        dtKeys.sort(function (x, y) { return String(docTomb[x]) < String(docTomb[y]) ? -1 : 1; });
-        while (dtKeys.length > 200) delete docTomb[dtKeys.shift()];
-      }
       if (Object.keys(docTomb).length) out._docTomb = docTomb;
 
       var delFileKeys = {};
       (a._deletedFileKeys || []).concat(b._deletedFileKeys || []).forEach(function (k) {
         if (k) delFileKeys[String(k)] = 1;
       });
-      if (Object.keys(delFileKeys).length) out._deletedFileKeys = Object.keys(delFileKeys).slice(-200);
+      if (Object.keys(delFileKeys).length) out._deletedFileKeys = Object.keys(delFileKeys);
 
       var docSrc = Array.isArray(out.docs) ? out.docs : [];
       var docSeen = {}, docOut = [];
@@ -2466,7 +2467,7 @@
         if (!d || typeof d !== 'object') return;
         var dk = String(d.key || d._id || d.name || d.cd || '');
         if (!dk) { docOut.push(d); return; }
-        if ((d.key && (docTomb[d.key] || delFileKeys[d.key])) || (d._id && docTomb[d._id]) || (d.name && docTomb[d.name]) || (d.cd && docTomb[d.cd])) return;
+        if ((d.key && (docTomb[d.key] || delFileKeys[d.key])) || (d._id && docTomb[d._id]) || (d.cd && docTomb[d.cd])) return;
         if (docSeen[dk]) return;
         docSeen[dk] = d; docOut.push(d);
       });

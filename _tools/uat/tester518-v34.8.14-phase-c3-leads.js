@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.37.8 — PHASE-C3 گام۱: تکمیل یادآورها (ثبت) + مهاجرت سرنخ‌ها به فرمان سروری.
+/* v34.38.0 — PHASE-C3 گام۱: تکمیل یادآورها (ثبت) + مهاجرت سرنخ‌ها به فرمان سروری.
    - addReminder → entity_upsert (ماژول یادآور کامل شد: ثبت/انجام/تعویق/حذف)
    - ptf_crm_leads در رجیستری + SD_KEYS + پرچم کلاینت
    - saveLead/ptfLeadDelDo → entity_upsert/entity_delete با fallback legacy
@@ -16,19 +16,19 @@ var api = read('api/sales-domain.php');
 var v2 = read('crm/sales-domain-v2.js');
 var leads = read('crm/leads.js');
 
-T('VERSION.json = v34.37.8', ver.crm_version === 'v34.37.8', ver.crm_version);
+T('VERSION.json = v34.38.0', ver.crm_version === 'v34.38.0', ver.crm_version);
 
 /* ---------- سرور ---------- */
 T('ptf_crm_leads در رجیستری موجودیت', /'ptf_crm_leads' => \[/.test(api));
 T('ptf_crm_leads در SD_KEYS', new RegExp("'ptf_crm_reminders'\\s*,\\s*'ptf_crm_le").test(api));
-T('sanitizer لیست اسکالر را نگه می‌دارد', /is_string\(\$item\)\) \{\s*\$stored = sd_text\(\$item, 300\);/.test(api)); /* v34.37.8: بدنه به sd_entity_sanitize_list منتقل شد */
+T('sanitizer لیست اسکالر را نگه می‌دارد', /is_string\(\$item\)\) \{\s*\$stored = sd_text\(\$item, 300\);/.test(api)); /* v34.38.0: بدنه به sd_entity_sanitize_list منتقل شد */
 T('sanitizer لیست نقشهٔ اسکالر (hist) را نگه می‌دارد', /subItem\[\$k3\] = \$storedSub;/.test(api));
-T('SD_SERVICE_VERSION = 34.37.8', /SD_SERVICE_VERSION = '34\.37\.8'/.test(api));
+T('SD_SERVICE_VERSION = 34.38.0', /SD_SERVICE_VERSION = '34\.38\.0'/.test(api));
 
 /* ---------- کلاینت ---------- */
-T('پرچم سرنخ‌ها فعال شد', /'ptf_crm_leads': true/.test(v2)); /* v34.37.8: نقشه از این پس با W1 ادامه دارد — پرچم leads کافی است */
+T('پرچم سرنخ‌ها فعال شد', /'ptf_crm_leads': true/.test(v2)); /* v34.38.0: نقشه از این پس با W1 ادامه دارد — پرچم leads کافی است */
 T('W1: مشتریان/تامین‌کنندگان/کالاها هم پرچم دارند', /'ptf_crm_customers': true/.test(v2) && /'ptf_crm_suppliers': true/.test(v2) && /'ptf_crm_products': true/.test(v2));
-T('addReminder از فرمان سروری می‌گذرد (v34.37.8: router SaveCollection با reason rem-new)', /function addReminder\(r\) \{[\s\S]{0,1400}ptfEntitySaveCollection\('ptf_crm_reminders', rems, \{ reason: 'rem-new' \}\)/.test(leads));
+T('addReminder از فرمان سروری می‌گذرد (v34.38.0: router SaveCollection با reason rem-new)', /function addReminder\(r\) \{[\s\S]{0,1400}ptfEntitySaveCollection\('ptf_crm_reminders', rems, \{ reason: 'rem-new' \}\)/.test(leads));
 T('saveLead از فرمان سروری می‌گذرد', /function saveLead\(cd\) \{[\s\S]{0,3500}ptfEntityUpsert\('ptf_crm_leads'/.test(leads));
 T('ptfLeadDelDo از entity_delete می‌گذرد', /function ptfLeadDelDo\(cd\) \{[\s\S]{0,900}ptfEntityDelete\('ptf_crm_leads'/.test(leads));
 T('مسیرهای fallback legacy حفظ شده‌اند', (leads.match(/else setData\('ptf_crm_(leads|reminders)'/g) || []).length >= 5);
@@ -64,6 +64,6 @@ T('مسیرهای fallback legacy حفظ شده‌اند', (leads.match(/else se
   T('شبیه‌سازی: فیلدهای عددی/رشته‌ای دست‌نخورده', out.val === 5000000 && out.co === 'شرکت نمونه');
 })();
 
-console.log('\n— tester518 (v34.37.8: PHASE-C3 گام۱ — یادآور کامل + سرنخ‌ها) —');
+console.log('\n— tester518 (v34.38.0: PHASE-C3 گام۱ — یادآور کامل + سرنخ‌ها) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

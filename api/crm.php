@@ -33,7 +33,7 @@ function verify_request() {
     // Public actions that don't need verification
     // v31.7.7 HOTFIX: Added 'users_get' — needed during login before token exists.
     // users_get only returns safe fields (no passhash) since BUG-AUDIT-004.
-    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'auth_login_otp', 'sms_status', 'users_get', 'chat_lead']; /* v34.8.46: auth_login_otp = مرحلهٔ دوم ورود دومرحله‌ای */
+    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'auth_login_otp', 'sms_status', 'upload_limits', 'users_get', 'chat_lead']; /* v34.8.46: auth_login_otp = مرحلهٔ دوم ورود دومرحله‌ای */ /* v34.38.0: upload_limits = فقط اعداد پیکربندی آپلود میزبان برای فرم‌های عمومی */
     if (in_array($action, $public_actions)) {
         return true;
     }
@@ -1241,7 +1241,20 @@ function ptf_dedup_norm($s) {
     return mb_strtolower($out);
 }
 function ptf_dedup_phone($s) {
-    $d = preg_replace('/\D/', '', ptf_dedup_norm((string)($s ?? '')));
+    $d = preg_replace('/\D/', '', ptf_digits_en(ptf_dedup_norm((string)($s ?? ''))));
+    if (strpos($d, '0098') === 0) $d = '0' . substr($d, 4);
+    elseif (strpos($d, '98') === 0 && strlen($d) === 12) $d = '0' . substr($d, 2);
+    return $d;
+}
+/* v34.38.0 (SUP-PHONE-001): ارقام فارسی/عربی → لاتین. بدون این، شمارهٔ «۰۹۱۲…» در
+   تشخیص تکراری و تایید پیامکی به '' یا رکورد ناهمگون تبدیل می‌شد. */
+function ptf_digits_en($s) {
+    $fa = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹','٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+    $en = ['0','1','2','3','4','5','6','7','8','9','0','1','2','3','4','5','6','7','8','9'];
+    return str_replace($fa, $en, (string)$s);
+}
+function ptf_normalize_phone($s) {
+    $d = preg_replace('/\D/', '', ptf_digits_en((string)($s ?? '')));
     if (strpos($d, '0098') === 0) $d = '0' . substr($d, 4);
     elseif (strpos($d, '98') === 0 && strlen($d) === 12) $d = '0' . substr($d, 2);
     return $d;
@@ -1298,6 +1311,47 @@ function ptf_upload_limits_diag() {
         'content_length' => (int)($_SERVER['CONTENT_LENGTH'] ?? 0),
         'post_count' => count($_POST),
         'files_count' => count($_FILES),
+    ];
+}
+
+/* v34.38.0 (SUP-ATTACH-011): گارد بدنهٔ فرم‌های عمومی — ریشهٔ مشترک «فایل اتچ نمی‌شود».
+   وقتی حجم multipart از post_max_size میزبان بیشتر شود، PHP بی‌صدا کل $_POST/$_FILES را
+   دور می‌ریزد؛ فرم تامین‌کننده پیش از این فقط «کپچا نامعتبر» نشان می‌داد (چون کپچا هم
+   در همان بدنه بود) و کاربر در حلقهٔ «دوباره تیک بزن» می‌ماند — یا در نسخه‌های قدیمی‌تر
+   بدون هشدار، رکوردِ بدون فایل و بدون فیلد ساخته می‌شد. حالا پیش از هر پردازش، بدنهٔ
+   حذف‌شده با اعداد دقیق (پست‌افزار/فیلتر امنیتی) شناسایی و گزارش می‌شود. */
+function public_body_guard() {
+    $cl = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+    $ct = (string)($_SERVER['CONTENT_TYPE'] ?? '');
+    $pm = ptf_ini_bytes((string)ini_get('post_max_size'));
+    if ($cl > 0 && $pm > 0 && $cl > $pm) {
+        http_response_code(413);
+        echo json_encode(['ok' => false, 'error' => 'request_too_large', 'message' => 'حجم درخواست ارسالی (' . round($cl / 1048576, 2) . ' مگابایت) از سقف post_max_size میزبان (' . (string)ini_get('post_max_size') . ') بیشتر است؛ PHP کل بدنه را دور ریخته است. فایل پیوست را کوچک‌تر یا zip کنید و دوباره بفرستید.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    /* بدنهٔ multipart اعلام شده (بیش از یک بافر خالی) ولی هیچ فیلد/فایلی به PHP نرسید
+       → پروکسی/CDN/فیلتر امنیتی بدنه را برده یا PHP آن را دور ریخته است. این فرم‌ها هرگز
+       با $_POST خالی درخواستِ موجه ندارند. */
+    if ($cl > 256 && strpos($ct, 'multipart/form-data') !== false && count($_POST) === 0 && count($_FILES) === 0) {
+        http_response_code(413);
+        echo json_encode(['ok' => false, 'error' => 'post_body_dropped', 'message' => 'بدنهٔ درخواست به سرور نرسید (Content-Length: ' . $cl . ' بایت با فرض multipart، ولی بدون هیچ فیلدی) — احتمالاً فیلتر امنیتی/CDN یا محدودیت میزبان. فایل را کوچک‌تر/zip کنید یا از مسیر دیگر ارسال کنید.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+
+/* v34.38.0 (SUP-ATTACH-014): اعلام محدودیت‌های آپلود میزبان به فرم‌های عمومی — فقط اعداد
+   پیکربندی (غیرحساس) تا کلاینت پیش از آپلود سقف واقعی را به کاربر نشان دهد. */
+function public_upload_limits() {
+    $u = ptf_ini_bytes((string)ini_get('upload_max_filesize'));
+    $p = ptf_ini_bytes((string)ini_get('post_max_size'));
+    return [
+        'ok' => true,
+        'file_uploads' => ptf_uploads_enabled(),
+        'upload_max_filesize' => (string)ini_get('upload_max_filesize'),
+        'upload_max_filesize_bytes' => $u,
+        'post_max_size' => (string)ini_get('post_max_size'),
+        'post_max_size_bytes' => $p,
+        'max_file_uploads' => (string)ini_get('max_file_uploads'),
     ];
 }
 
@@ -1398,7 +1452,7 @@ switch($action) {
     case 'captcha_new':
         if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) {
             http_response_code(503);
-            echo json_encode(['ok' => false, 'error' => 'captcha_not_configured']);
+            echo json_encode(['ok' => false, 'error' => 'captcha_not_configured', 'message' => 'captcha_key is missing or shorter than 32 characters'], JSON_UNESCAPED_UNICODE);
             break;
         }
         $a = random_int(2, 9); $b = random_int(2, 9);
@@ -1408,6 +1462,11 @@ switch($action) {
 
     case 'sms_status':
         echo json_encode(['ok' => true, 'enabled' => sms_enabled()]);
+        break;
+
+    // ===== v34.38.0 (SUP-ATTACH-014): محدودیت‌های آپلود میزبان برای فرم‌های عمومی =====
+    case 'upload_limits':
+        echo json_encode(public_upload_limits(), JSON_UNESCAPED_UNICODE);
         break;
 
     // ===== US-150: ارسال پیامک (انبوه/تکی) — فقط نقش‌های مجاز =====
@@ -1448,7 +1507,7 @@ switch($action) {
     // ===== US-149 AC2/AC3: ارسال رمز پیامکی =====
     case 'otp_send':
         require_captcha(); // بدون کپچا رمز هم ارسال نمی‌شود
-        $phone = preg_replace('/\D/', '', $_POST['phone'] ?? '');
+        $phone = ptf_normalize_phone($_POST['phone'] ?? ''); // v34.38.0: ارقام فارسی/عربی → لاتین
         if (!preg_match('/^09\d{9}$/', $phone)) {
             echo json_encode(['ok' => false, 'error' => 'شماره موبایل معتبر نیست (09xxxxxxxxx)'], JSON_UNESCAPED_UNICODE); break;
         }
@@ -1494,7 +1553,7 @@ switch($action) {
         break;
 
     case 'otp_verify':
-        $phone = preg_replace('/\D/', '', $_POST['phone'] ?? '');
+        $phone = ptf_normalize_phone($_POST['phone'] ?? ''); // v34.38.0: ارقام فارسی/عربی → لاتین
         $code = trim($_POST['code'] ?? '');
         $ipk = hash('sha256', 'otp|' . ($_SERVER['REMOTE_ADDR'] ?? 'x'));
         $store = otp_store_load();
@@ -1526,6 +1585,7 @@ switch($action) {
     // ===== US-133: ثبت استعلام هوشمند سایت → CRM (جایگزین ایمیل) =====
     case 'add_rfq_site':
         verify_request();
+        public_body_guard(); // v34.38.0: تشخیص بدنهٔ دورریخته‌شده (post_max_size/فیلتر) پیش از کپچا
         require_captcha(); // US-149 AC1
         try { $code = public_tracking_code('RFQ'); }
         catch (Throwable $e) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'tracking_code_unavailable'], JSON_UNESCAPED_UNICODE); break; }
@@ -1592,9 +1652,17 @@ switch($action) {
     // ===== US-133: ثبت‌نام تامین‌کننده سایت → CRM با شماره یکتا =====
     case 'add_supplier':
         verify_request();
+        public_body_guard(); // v34.38.0: تشخیص بدنهٔ دورریخته‌شده (post_max_size/فیلتر) پیش از کپچا
         require_captcha(); // US-149 AC1
+        // v34.38.0 (SUP-PHONE-001): نرمال‌سازی ارقام فارسی/عربی و 0098/98 → 09 + اعتبارسنجی سخت.
+        // پیش از این، سمت سرور اصلاً شماره را اعتبارسنجی نمی‌کرد و «۰۹۱۲…»/«۱۲۳» هم ثبت می‌شد.
+        $sup_phone = ptf_normalize_phone($_POST['phone'] ?? '');
+        if (!preg_match('/^09\d{9}$/', $sup_phone)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'invalid_phone', 'message' => 'شماره موبایل معتبر نیست — باید ۱۱ رقم و با 09 شروع شود (مثلاً 09123456789).'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         // US-149 AC4: اگر پیامک فعال است، توکن OTP تاییدشده الزامی است
-        $sup_phone = preg_replace('/\D/', '', $_POST['phone'] ?? '');
         if (sms_enabled()) {
             $otok = $_POST['otp_token'] ?? '';
             if (!$otok || !otp_token_ok($otok, $sup_phone)) {
@@ -1611,7 +1679,7 @@ switch($action) {
            نقصان مدارک» باشد، به‌جای بلاک، همان رکورد باز و مدارک تکمیل می‌شود. */
         $supCompanyRaw = clean($_POST['company'] ?? '');
         $supNameNorm = ptf_dedup_norm($supCompanyRaw);
-        $supPhoneNorm = ptf_dedup_phone($_POST['phone'] ?? '');
+        $supPhoneNorm = ptf_dedup_phone($sup_phone);
         /* v34.7.79 (SUP-PAY-TERMS): شرایط پرداخت — نقدی/تعهدی + بازهٔ اعتبار + امتیاز.
            allowlist سخت‌گیرانه؛ payScore از دید جریان نقدی خریدار (نرم بازار ایران):
            تعهدی ۱–۳ ماهه مطلوب‌ترین است؛ نقدی میانی؛ بیش از ۳ ماه ریسک نکول/تورم می‌گیرد. */
@@ -1753,7 +1821,7 @@ switch($action) {
                 'src' => 'site',
                 'company' => clean($_POST['company'] ?? ''),
                 'name' => clean($_POST['name'] ?? ''),
-                'phone' => clean($_POST['phone'] ?? ''),
+                'phone' => $sup_phone,
                 'category' => clean($_POST['category'] ?? ''),
                 'type' => clean($_POST['type'] ?? ''),
                 'brands' => clean($_POST['brands'] ?? ''),
@@ -1828,7 +1896,7 @@ switch($action) {
             'src' => 'site',
             'company' => clean($_POST['company'] ?? ''),
             'name' => clean($_POST['name'] ?? ''),
-            'phone' => clean($_POST['phone'] ?? ''),
+            'phone' => $sup_phone,
             'category' => clean($_POST['category'] ?? ''),
             'type' => clean($_POST['type'] ?? ''),
             'brands' => clean($_POST['brands'] ?? ''),

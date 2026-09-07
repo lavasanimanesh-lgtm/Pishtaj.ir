@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester563 — v34.37.8: نام دوگانهٔ مشتری در فهرست‌ها (فارسی + انگلیسی زیر هم)
+/* tester563 — v34.38.0: نام دوگانهٔ مشتری در فهرست‌ها (فارسی + انگلیسی زیر هم)
    زمینه: buyerCo در پیشنهادات/پرونده‌ها تاریخی‌اً نام انگلیسی (coEn) را نگه می‌دارد
    → فهرست پیشنهادات/فاکتورها/پرونده‌های فروش فقط انگلیسی بود.
    ۱) هلپرهای مشترک در index.html (FaByCd/FaByEn/NamePair/CellHtml)
@@ -27,7 +27,7 @@ T('HLP: تکرار نمی‌شود اگر en === fa', ih.indexOf('if (e2 && e2 !
 /* ═══ ۲) اعمال در فهرست‌ها ═══ */
 T('OFF: ستون خریدار از NamePair/CellHtml (فارسی + انگلیسی زیر هم + cd)', offers.indexOf('ptfCustNamePair(o.buyerCd, o.buyerCo)') > -1 && offers.indexOf('ptfCustCellHtml(p.fa, p.en, o.buyerCd)') > -1);
 T('OFF: نمایش انگلیسیِ تنهاِ قدیمی حذف شد', offers.indexOf("escP(o.buyerCo || '-') + (function(){ var en") === -1);
-/* v34.37.8: پنل ردیفی — نام فارسی روی ردیف، نام انگلیسی داخل کشو (هر دو از همان
+/* v34.38.0: پنل ردیفی — نام فارسی روی ردیف، نام انگلیسی داخل کشو (هر دو از همان
    ptfCustNamePair). پین به قرارداد تبدیل شد، نه به فاصله‌گذاری و تگ خاص. */
 T('INV: پنل فاکتور رسمی — نام دوگانه در سرتیتر هر پیشنهاد',
   /ptfCustNamePair\(o\.buyerCd,\s*o\.buyerCo\)/.test(inv) &&

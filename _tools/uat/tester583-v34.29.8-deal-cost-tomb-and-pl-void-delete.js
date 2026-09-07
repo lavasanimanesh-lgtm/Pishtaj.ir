@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester583 — v34.37.8: «هزینه‌های مستقیم پروندهٔ فروش چند‌باره محاسبه شده و با پاک
+/* tester583 — v34.38.0: «هزینه‌های مستقیم پروندهٔ فروش چند‌باره محاسبه شده و با پاک
  * کردن دوباره برمی‌گردند؛ هزینهٔ تنخواهِ پروندهٔ دیگر هم در این پرونده درج شده؛
  * پکینگ‌لیست‌ها را ابطال می‌کنم ولی همچنان هستند و delete کردنشان فایده ندارد.»
  *
@@ -209,7 +209,11 @@ function bootSync(storeExtra) {
   T('SRC: packinglists در مسیر canonical merge', /key === 'ptf_crm_petty' \|\| key === 'ptf_crm_packinglists'\) return ptfMergeByCodeCanonical/.test(sy));
   T('SRC: قاعدهٔ PL void-wins در ptfMergeBusinessRecord', /key === 'ptf_crm_packinglists' && !!\(a && a\.voided\) !== !!\(b && b\.voided\)/.test(sy));
   T('SRC: کانونیکال‌سازی costEvents در merge (COST-EVENT-TOMB)', sy.indexOf('(COST-EVENT-TOMB') > -1 && sy.indexOf('costTomb[cd]') > -1);
-  T('SRC: سقف ۲۰۰ مدخل tomb', sy.indexOf('tombKeys.length > 200') > -1);
+  /* v34.38.0 (TOMB-DURABLE): سقف ۲۰۰ مدخلِ هرسِ tomb عمداً برداشته شد —
+     هرس کهنه‌ترین tombstoneها رکورد حذف‌شده را در sync بعدی زنده می‌کرد
+     (دقیقاً خانوادهٔ «پاک‌شده برمی‌گردد»). اکنون tombها ماندگارند و هیچ
+     حلقهٔ هرس ۲۰۰تایی در merge وجود ندارد. */
+  T('SRC: tomb ماندگار — بدون هرس ۲۰۰ مدخل', sy.indexOf('tombKeys.length > 200') === -1 && sy.indexOf('while (tombKeys.length > 200) delete costTomb') === -1);
   var fh = fs.readFileSync(path.join(ROOT, 'crm/finance-helpers.js'), 'utf8');
   var fc = fs.readFileSync(path.join(ROOT, 'crm/finance-core.js'), 'utf8');
   T('SRC: dealTotalCosts (helpers) ددوب cd بین سه منبع', fh.indexOf('seenCd[k]') > -1);

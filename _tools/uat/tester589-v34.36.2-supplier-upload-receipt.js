@@ -1,5 +1,5 @@
 /* =====================================================================
-   tester589 — v34.37.8 (SUP-UPLOAD-RCA): «در صفحهٔ ثبت‌نام تامین‌کنندگان فایل آپلود نمی‌شود»
+   tester589 — v34.38.0 (SUP-UPLOAD-RCA): «در صفحهٔ ثبت‌نام تامین‌کنندگان فایل آپلود نمی‌شود»
    ---------------------------------------------------------------------
    شکایت مالک: فایل انتخاب می‌شد، ثبت‌نام «سبز و موفق» نشان داده می‌شد، هیچ
    هشداری نبود و در CRM «بدون ضمیمه» می‌ماند.
@@ -264,7 +264,7 @@ function attBox() { return els.venAttach; }
     T('۵.۱ وقتی فایلی انتخاب نشده، جعبهٔ پیوست بی‌صدا می‌ماند (هشدار الکی نمی‌دهد)', attBox().style.display !== 'block', JSON.stringify(attBox().style));
     T('۵.۲ ثبت بدون پیوست همچنان موفق است', els.venCode.textContent === 'PTF-VEN-CCC3');
     T('۵.۳ هیچ فایلی هم اعلام نمی‌شود', fetchCalls.length === 1 && fetchCalls[0].body.get('attachment_name') === null);
-    /* v34.37.8 (D4): accept با allowlist سرور و ATTACH_EXT یکی شد — تصویر هم مجاز است
+    /* v34.38.0 (D4): accept با allowlist سرور و ATTACH_EXT یکی شد — تصویر هم مجاز است
        (سرور و JS از قبل jpg/png/webp را می‌پذیرفتند ولی پنجرهٔ انتخاب فایل فیلترشان می‌کرد). */
     T('۵.۴ accept فیلد فایل با allowlist سرور یکی است',
       supSrc.indexOf('name="attachment" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.zip,.rar"') > -1);
@@ -289,7 +289,7 @@ function attBox() { return els.venAttach; }
 
   console.log('\n── ۶ب) سرور: add_supplier رسید/علت را برمی‌گرداند و رکورد می‌سازد ──');
   var AS = blk(api, "case 'add_supplier':", "case 'chat_lead':");
-  /* v34.37.8: همان گارد، به‌علاوهٔ !$supWillReject — چون در مسیر duplicate اصلاً آپلودی
+  /* v34.38.0: همان گارد، به‌علاوهٔ !$supWillReject — چون در مسیر duplicate اصلاً آپلودی
      انجام نمی‌شود، «فایل به سرور نرسید» آنجا پیام درستی نیست (پیام اختصاصی duplicate دارد). */
   T('۶ب.۱ اگر فایل اعلام شده ولی پیوست null است، خطا پر می‌شود (سکوت ممنوع)', AS.indexOf('$supDeclFile') > -1 && AS.indexOf("if ($attachment === null && $supDeclFile && $attachmentError === '' && !$supWillReject)") > -1);
   T('۶ب.۲ رسید پیوست (key/name/size) ساخته می‌شود', AS.indexOf('$attachmentReceipt') > -1 && AS.indexOf("'key' => (string)$attachment['key']") > -1);
@@ -301,11 +301,11 @@ function attBox() { return els.venAttach; }
   console.log('\n── ۶ج) سرور: مسیر نجات — چسباندن پیوست به ثبت‌نام در انتظار بررسی ──');
   T('۶ج.۱ بلوک SUP-ATTACH-RECOVERY وجود دارد', api.indexOf('SUP-ATTACH-RECOVERY') > -1);
   T('۶ج.۲ فقط وقتی پیوست تازه سالم ذخیره شده باشد', /SUP-ATTACH-RECOVERY[\s\S]{0,900}\$attachment !== null/.test(api));
-  /* v34.37.8 (SUP-UPLOAD-ORDER): شرط‌های بازیابی «پیش از» آپلود محاسبه می‌شوند تا در
+  /* v34.38.0 (SUP-UPLOAD-ORDER): شرط‌های بازیابی «پیش از» آپلود محاسبه می‌شوند تا در
      مسیر duplicate هیچ فایلی بی‌جهت روی فضای ابری نوشته و بعد دور ریخته نشود. */
   T('۶ج.۳ هرگز پیوست موجود را بازنویسی نمی‌کند', /\$supRecoveryEligible = \([\s\S]{0,400}empty\(\$supDupRow\['attachment'\]\)/.test(api));
   T('۶ج.۴ فقط برای رکورد pending/rejected سایت (نه فهرست تاییدشدهٔ CRM)', /\$supRecoveryEligible = \([\s\S]{0,300}'suppliers'[\s\S]{0,200}\['pending', 'rejected'\]/.test(api));
-  /* v34.37.8 (SUP-ATTACH-PHONE): تطابق شماره روی هر سه فیلدی که خودِ dedup می‌سنجد
+  /* v34.38.0 (SUP-ATTACH-PHONE): تطابق شماره روی هر سه فیلدی که خودِ dedup می‌سنجد
      (phone/ph/mob) — پیش از این فقط phone سنجیده می‌شد و اگر تطابق روی ph/mob بود،
      دکمهٔ «ارسال دوبارهٔ فایل» همیشه duplicate می‌گرفت. */
   T('۶ج.۵ هویت با تطابق شمارهٔ تماس (نرمال‌شده) بررسی می‌شود', api.indexOf('$supPhoneMatchesDup') > -1 && /foreach \(\[\$supDupRow\['phone'\] \?\? '', \$supDupRow\['ph'\] \?\? '', \$supDupRow\['mob'\] \?\? ''\]/.test(api));
@@ -365,12 +365,12 @@ function attBox() { return els.venAttach; }
 
   /* ================= ۱۰) بهداشت ================= */
   console.log('\n── ۱۰) بهداشت و ثبت در گیت ──');
-  T('۱۰.۱ VERSION.json = v34.37.8', ver.crm_version === 'v34.37.8', ver.crm_version);
+  T('۱۰.۱ VERSION.json = v34.38.0', ver.crm_version === 'v34.38.0', ver.crm_version);
   T('۱۰.۲ tester589 در گیت CI ثبت شده است', gate.indexOf('tester589-v34.36.2-supplier-upload-receipt.js') > -1);
-  T('۱۰.۳ یادداشت انتشار این نسخه موجود است', fs.existsSync('RELEASE-NOTES-v34.37.8.md'));
+  T('۱۰.۳ یادداشت انتشار این نسخه موجود است', fs.existsSync('RELEASE-NOTES-v34.38.0.md'));
   T('۱۰.۴ هیچ دادهٔ حساس (کلید/رمز) در تشخیص‌ها نشت نمی‌کند', !/attachmentDiag[\s\S]{0,400}(secret_key|access_key|CAPTCHA_SECRET)/.test(api));
 
-  console.log('\n— tester589 (v34.37.8: رسید پیوست ثبت‌نام تامین‌کننده — SUP-UPLOAD-RCA) —');
+  console.log('\n— tester589 (v34.38.0: رسید پیوست ثبت‌نام تامین‌کننده — SUP-UPLOAD-RCA) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   process.exit(f ? 1 : 0);
 })().catch(function (e) {

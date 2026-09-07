@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester571 — v34.37.8: ریشه‌کنی پنج علامت جریان محصول (بازخورد پروداکشن پس از دیپلوی)
+/* tester571 — v34.38.0: ریشه‌کنی پنج علامت جریان محصول (بازخورد پروداکشن پس از دیپلوی)
    ① تصویر آپلودی در پیش‌نمایش بود ولی در صفحهٔ منتشرشده نه → تصویر مرئی در رندر
    ② پیش‌نمایش خوب اما صفحهٔ منتشرشده ظاهر متفاوت → پیش‌نمایش سروری (همان رندر)
    ③ عبارات اضافی بالای صفحه → حذف پاراگراف نخستِ تکراری H1/عنوان + قاعدهٔ پرامپت
@@ -22,7 +22,7 @@ var PRVFN = blk(cms, 'window.cmsPrPreview = function', 'window.cmsPrPreviewLocal
 var EXTP = blk(cms, 'window.cmsProdExtPrompt = function', 'window.cmsProdExtApply = function');
 
 /* ═══ ① تصویر مرئی در صفحه ═══ */
-T('IMG: تصویر در صفحهٔ محصول — کارت هیرو (و بالای متن در حالت بازگشت)', SEG.indexOf('IMG-VIS') > -1 && SEG.indexOf('$imgHero = $imgTag0;') > -1 && SEG.indexOf("'<p style=\"text-align:center;margin:4px 0 18px\">' . $imgTag0") > -1); /* v34.37.8 (CMS-FIX R2) */
+T('IMG: تصویر در صفحهٔ محصول — کارت هیرو (و بالای متن در حالت بازگشت)', SEG.indexOf('IMG-VIS') > -1 && SEG.indexOf('$imgHero = $imgTag0;') > -1 && SEG.indexOf("'<p style=\"text-align:center;margin:4px 0 18px\">' . $imgTag0") > -1); /* v34.38.0 (CMS-FIX R2) */
 T('R2: قالب محصولات از صفحهٔ مرجع بخش (هیروی تیره + سایدبار + بردکرامب)', SEG.indexOf('cms_product_skeleton($ROOT)') > -1 && SEG.indexOf('ptf-product-hero') > -1 && SEG.indexOf('<aside class="ptf-side">') > -1 && SEG.indexOf('ptf-breadcrumb') > -1);
 T('IMG: alt از H1 + max-width واکنش‌گرا', SEG.indexOf('alt="\' . $hEsc') > -1 && SEG.indexOf('max-width:560px;width:100%') > -1);
 
@@ -47,7 +47,7 @@ T('DEDUP: فرم کلاینت سطر استاندارد بلند (>۱۲۰) را 
 /* ═══ ⑤ فهرست محصولات ═══ */
 T('IDX: بازسازی products/index.html با کارت از متای هر صفحهٔ محصول', IDXFN.indexOf('ptf-product') > -1 && IDXFN.indexOf('og:image') > -1 && IDXFN.indexOf('محصولات و راهنمای فنی کالاها') > -1);
 T('IDX: جدیدترین اول (usort بر filemtime) + grid کارت واکنش‌گرا', IDXFN.indexOf("return $b['m'] <=> $a['m'];") > -1 && IDXFN.indexOf('repeat(auto-fill,minmax(230px,1fr))') > -1);
-T('IDX: فراخوانی پس از هر انتشار + لاگ', SEG.indexOf('cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer, $skStyle)') > -1 && IDXFN.indexOf("cms_log('products_index'") > -1); /* v34.37.8: پارامتر ششم = استایل درون‌خطی اسکلت */
+T('IDX: فراخوانی پس از هر انتشار + لاگ', SEG.indexOf('cms_products_index_rebuild($ROOT, $DATA, $header, $cta, $footer, $skStyle)') > -1 && IDXFN.indexOf("cms_log('products_index'") > -1); /* v34.38.0: پارامتر ششم = استایل درون‌خطی اسکلت */
 T('IDX: هدر/CTA/فوتر همان قالب سایت + canonical و robots', IDXFN.indexOf('$header') > -1 && IDXFN.indexOf('$cta') > -1 && IDXFN.indexOf('https://pishtaj.ir/products/') > -1);
 
 /* ═══ ⑥ محتوای راهنمای فنی (نه RFQ) ═══ */
