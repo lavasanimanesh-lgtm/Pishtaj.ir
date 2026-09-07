@@ -38,10 +38,21 @@
       err.style.display = 'none';
       state.solved = false; state.token = ''; state.answer = '';
       if (!chk.checked) { box.style.display = 'none'; return; }
-      fetch(API + '?action=captcha_new')
-        .then(function (r) { return r.json(); })
+      /* خطای کپچا نباید با «دوباره تیک بزنید» پنهان شود؛ در Production همین
+         تفاوت بین secret مفقود، 403 وب‌سرور و قطعی شبکه مسیر RCA را مشخص می‌کند. */
+      var timer = window.setTimeout(function () { chk.checked = false; err.textContent = 'پاسخ سرور برای کپچا دیر رسید — اتصال شبکه و API را بررسی کنید.'; err.style.display = 'inline'; }, 10000);
+      fetch(API + '?action=captcha_new', { cache: 'no-store' })
+        .then(function (r) {
+          return r.text().then(function (body) {
+            var d;
+            try { d = JSON.parse(body); } catch (e) { throw { code: 'invalid_json', status: r.status }; }
+            if (!r.ok || !d.ok) throw { code: d.error || 'captcha_http_' + r.status, message: d.message || '', status: r.status };
+            return d;
+          });
+        })
         .then(function (d) {
-          if (!d.ok) throw 0;
+          window.clearTimeout(timer);
+          if (!d.token || !d.q) throw { code: 'captcha_malformed' };
           state.token = d.token;
           document.getElementById(id + '_q').textContent = d.q + ' = ?';
           box.style.display = 'inline-flex';
@@ -49,7 +60,22 @@
           document.getElementById(id + '_ok').style.display = 'none';
           document.getElementById(id + '_a').focus();
         })
-        .catch(function () { chk.checked = false; err.style.display = 'inline'; });
+        .catch(function (failure) {
+          window.clearTimeout(timer);
+          chk.checked = false;
+          state.solved = false; state.token = ''; state.answer = '';
+          var code = failure && failure.code;
+          var msg = code === 'captcha_not_configured'
+            ? 'کپچا روی سرور پیکربندی نشده است — مدیر سایت باید captcha_key را تنظیم کند.'
+            : code === 'invalid_json'
+              ? 'پاسخ API کپچا معتبر نیست — وضعیت سرویس و خطای ۴۰۳/۵۰۰ را بررسی کنید.'
+              : code === 'captcha_malformed'
+                ? 'پاسخ API کپچا ناقص است — نسخه API و کش سایت را بررسی کنید.'
+                : 'خطا در دریافت کپچا (' + (code || 'network_error') + ') — اتصال API را بررسی کنید.';
+          err.textContent = msg;
+          err.style.display = 'inline';
+          try { if (window.console && console.error) console.error('[PTF captcha]', failure); } catch (ignore) {}
+        });
     });
     c.addEventListener('input', function (e) {
       if (e.target.id !== id + '_a') return;

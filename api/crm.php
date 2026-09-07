@@ -1398,7 +1398,7 @@ switch($action) {
     case 'captcha_new':
         if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) {
             http_response_code(503);
-            echo json_encode(['ok' => false, 'error' => 'captcha_not_configured']);
+            echo json_encode(['ok' => false, 'error' => 'captcha_not_configured', 'message' => 'captcha_key is missing or shorter than 32 characters'], JSON_UNESCAPED_UNICODE);
             break;
         }
         $a = random_int(2, 9); $b = random_int(2, 9);
