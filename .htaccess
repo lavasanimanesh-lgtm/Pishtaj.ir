@@ -65,10 +65,9 @@ RewriteRule ^careers/([a-z0-9]+(?:-[a-z0-9]+)*)/?$ /careers/view.php?slug=$1 [L,
 # و خزش را هدر می‌دهد؛ ریدایرکت ۳۰۱ سیگنال قطعی است و مقصدها واقعاً قوی‌ترند:
 #   یکتای مبدأ در برابر مقصد: ۳۳۶→۱۶۹۸ | ۲۸۹→۶۸۹ | ۲۱۵→۱۱۰۴ | ۲۰۵→۱۵۰۷ | ۹۹→۷۶۶ | ۱۴۶→۶۱۲
 # ------------------------------------------------------------------
-RewriteRule ^services/piping-supply\.html$ /services/piping-equipment/ [R=301,L]
-RewriteRule ^services/valves-supply\.html$ /suppliers/valve-supplier.html [R=301,L]
-RewriteRule ^services/electrical-supply\.html$ /services/electrical-equipment/ [R=301,L]
-RewriteRule ^services/instrumentation-supply\.html$ /services/instrumentation-equipment/ [R=301,L]
+# Canonical targets are the substantive *.html pages. Do not redirect them to
+# the legacy thin stubs below; those stubs point back here and create a redirect
+# loop (or a 200 meta-refresh page) for crawlers and users.
 RewriteRule ^knowledge-center/article-012\.html$ /industries/steel/ [R=301,L]
 RewriteRule ^knowledge-center/nace-mr0175\.html$ /knowledge-center/nace-mr0175-sour-service-guide.html [R=301,L]
 
