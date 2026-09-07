@@ -409,6 +409,8 @@
       return false;
     }
     clearWriteFailure(k);
+    /* v34.38.1 (LIST-RENDER-N1): ابطال کش کوتاه‌مدت نام مشتری پس از نوشتن موفق. */
+    if (k === 'ptf_crm_customers' && typeof window.ptfCustCacheDrop === 'function') { try { window.ptfCustCacheDrop(); } catch (eCC) {} }
     if (!sameSyncJson(before, after)) window.ptfSyncNotifyDirty(k);
     return saveResult;
   };
@@ -622,6 +624,8 @@
   function wr(k, s) {
     /* همهٔ writeهای داخلی sync (pull/merge/projection) باید cache خواندن فاز B را
        نیز عوض کنند؛ این مسیر setData و صف push را عمداً فعال نمی‌کند. */
+    /* v34.38.1 (LIST-RENDER-N1): ابطال کش کوتاه‌مدت نام مشتری (تغییر بین‌دستگاهی هم). */
+    if (k === 'ptf_crm_customers' && typeof window.ptfCustCacheDrop === 'function') { try { window.ptfCustCacheDrop(); } catch (eCCW) {} }
     try {
       if (typeof window.ptfBApplyServerProjection === 'function') return window.ptfBApplyServerProjection(k, s, 0);
       if (typeof window.ptfBMirror === 'function' && window.ptfBMirror(k, s)) return true;
@@ -1271,8 +1275,28 @@
     try { localStorage.setItem('ptf_sync_ping', JSON.stringify({ rev: state.lastRev, t: Date.now() })); } catch (e) {}
   }
 
+  /* v34.38.1 (COLD-BOOT-HYDRATE): اولین pull هر بوت، حداکثر ۲ ثانیه منتظر آب‌رسانی
+     آینه IDB می‌ماند تا krevs کلیدهای offloadشده کامل باشد و به‌جای دانلود کامل
+     چندمگابایتی کل دیتاست در هر رفرش، پاسخ fresh/دلتا بگیرد. fail-open: نبود
+     helper، خطا، یا timeout ⇒ ادامه فوری مثل قبل. فقط یک‌بار در هر بوت. */
+  var _bootHydrateGated = false;
   function pullCheck(done, forceFull, opts) {
     if (!curSession().user) { if (done) done({ ok: false, reason: 'session' }); return; }
+    if (!_bootHydrateGated && typeof window.ptfBWhenHydrated === 'function' && !window.ptfBIdbHydrated) {
+      _bootHydrateGated = true;
+      var _gateFired = false;
+      var _gateTimer = null;
+      try { _gateTimer = setTimeout(function () { if (!_gateFired) { _gateFired = true; pullCheck(done, forceFull, opts); } }, 2000); } catch (eGT) {}
+      var _gateGo = function () {
+        if (_gateFired) return;
+        _gateFired = true;
+        try { if (_gateTimer) clearTimeout(_gateTimer); } catch (eGC) {}
+        pullCheck(done, forceFull, opts);
+      };
+      try { window.ptfBWhenHydrated(_gateGo); } catch (eGate) { _gateGo(); }
+      return;
+    }
+    _bootHydrateGated = true;
     if (state.pushing || state.pullRequesting) { if (done) done({ ok: false, reason: 'busy' }); return; }
     /* v33.21.x (مدیریت تب برای کاهش بار سرور — پیکربندی به تأیید کارفرما):
        متمرکز: هر ۲۰ثانیه | غیرمتمرکزِ دیده‌شده: حداکثر هر ۱۲۰ثانیه | مخفی: حداکثر هر ۱۸۰ثانیه.

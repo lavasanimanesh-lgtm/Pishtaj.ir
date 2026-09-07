@@ -897,6 +897,11 @@ function offerNew(kind) {
       if (!draft || !draft.items || !draft.items.length) return;
       if (confirm('⚡ یک فرم پیش‌نویس ذخیره‌شده از قبل (حاوی ' + draft.items.length + ' قلم کالا) موجود است.\nآیا مایل به بازیابی آن هستید؟')) {
         try {
+          /* v34.38.1 (BUG-OFFER-TOCO-IDENTITY): بازیابی در مسیر «پیشنهاد جدید» است؛
+             هویت ویرایش احتمالاً مسموم پیش‌نویس (دوره قبل از اصلاح) پاک می‌شود تا
+             نگهبان ذخیره آن را stale تلقی نکند. */
+          draft.editMode = 'new';
+          delete draft._baseNo; delete draft._origNo; delete draft.baseNo;
           ptfSetOffState(draft);
           offerForm();
           if (typeof ptfToast === 'function') ptfToast('⚡ فرم پیش‌نویس با موفقیت بازیابی شد', 'ok');
@@ -988,6 +993,13 @@ function offerToCo(no) { // AC12 + US-142 AC5: فقط یک بار | v14.3 US-367
     _isAlt = true;
   }
   ptfSetOffState(JSON.parse(JSON.stringify(o)));
+  /* v34.38.1 (BUG-OFFER-TOCO-IDENTITY): کلون TO نباید هویت ورود فرم سند مبدأ
+     (editMode/_baseNo) را به ارث ببرد — سند CO حاصل یک سند «جدید» است. بدون این،
+     رکورد TO که قبلاً با ویرایش ذخیره شده (editMode ماندگار direct/revision) باعث
+     می‌شد ptfOfferResolveSaveIdentity شماره CO تازه را به‌عنوان «رکورد ویرایش»
+     بجوید و با «رکورد اصلی پیشنهاد پیدا نشد» ثبت را متوقف کند. */
+  _offState.editMode = 'new';
+  delete _offState._baseNo; delete _offState._origNo; delete _offState.baseNo;
   _offState.no = offerSerial('CO');
   _offState.kind = 'CO';
   _offState.st = 'draft';
@@ -3150,11 +3162,17 @@ function offerSave() {
       o.editHistory = Array.isArray(prev.editHistory) ? prev.editHistory.slice(-19) : [];
       o.editHistory.push({ at: new Date().toISOString(), by: (curSession() || {}).name || '', rev: +prev.rev || 0, reason: 'اصلاح پیش از برد' });
     }
+    /* v34.38.1 (BUG-OFFER-TOCO-IDENTITY): هویت ورود فرم (editMode/_baseNo) فقط متعلق
+       به state است و نباید روی رکورد ذخیره‌شده بماند؛ وگرنه مسیرهای کلون‌ساز بعدی
+       (مثل TO→CO) آن را به ارث می‌برند و نگهبان ذخیره، سند جدید را stale می‌بیند.
+       همه مسیرهای ورود به فرم (new/edit/revision/→CO) آن را صریح ست می‌کنند. */
+    delete o.editMode;
     delete o._baseNo; delete o._origNo; delete o.baseNo;
     /* direct edit intentionally keeps the previous status and revision number;
        only the explicit «نگارش جدید» button is allowed to increase Rev. */
     offers[idx] = o;
   } else {
+    delete o.editMode;
     delete o._baseNo; delete o._origNo; delete o.baseNo;
     offers.unshift(o);
   }
