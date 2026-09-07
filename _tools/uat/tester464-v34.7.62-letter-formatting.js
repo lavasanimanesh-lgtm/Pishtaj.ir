@@ -18,10 +18,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.38.0', ver.crm_version === 'v34.38.0', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.38.0', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.0'") > -1);
-T('sw RELEASE = v34.38.0', sw.indexOf("RELEASE = 'v34.38.0'") > -1);
-T('letters.js cache-bust 34.38.0', /letters\.js\?v=34\.38\.0/.test(idx));
+T('VERSION.json = v34.38.1', ver.crm_version === 'v34.38.1', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.38.1', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.1'") > -1);
+T('sw RELEASE = v34.38.1', sw.indexOf("RELEASE = 'v34.38.1'") > -1);
+T('letters.js cache-bust 34.38.1', /letters\.js\?v=34\.38\.1/.test(idx));
 
 /* ---------- sanitizer امن ---------- */
 T('letSafeStyle تعریف شده', lt.indexOf('function letSafeStyle') > -1);

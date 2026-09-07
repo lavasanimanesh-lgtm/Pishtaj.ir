@@ -1464,7 +1464,7 @@ switch($action) {
         echo json_encode(['ok' => true, 'enabled' => sms_enabled()]);
         break;
 
-    // ===== v34.38.0 (SUP-ATTACH-014): محدودیت‌های آپلود میزبان برای فرم‌های عمومی =====
+    // ===== v34.38.1 (SUP-ATTACH-014): محدودیت‌های آپلود میزبان برای فرم‌های عمومی =====
     case 'upload_limits':
         echo json_encode(public_upload_limits(), JSON_UNESCAPED_UNICODE);
         break;

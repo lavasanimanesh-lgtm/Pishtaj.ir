@@ -152,47 +152,122 @@
   };
   /* بوت: مهاجرت نسخه‌های localStorage کلیدهای سنگین → حافظه/IDB (آزادسازی واقعی) + پرکردن حافظه از IDB */
   var _idbPreloadDone = false;
+  /* v34.38.1 (COLD-BOOT-HYDRATE): پرچم/انتظار «آب‌رسانی سرد آینه».
+     ریشه «بعد از هر رفرش، رکوردهای پیشنهاد/درخواست/پرونده/تأمین خیلی دیر می‌آیند»:
+     کلیدهای کسب‌وکاری offloadشده (خارج از فهرست ثابت ۱۰تایی IDB_KEYS) پس از رفرش نه
+     در localStorage بودند (حذف شده) نه در idbMem (حافظه نشست خالی)؛ پس پنل‌ها []
+     می‌دیدند و اولین pull مجبور بود کل دیتاست چندمگابایتی را کامل از سرور دانلود کند.
+     حالا همه کلیدهای bdata: در IDB شمارش و آب‌رسانی می‌شوند و pull اول بوت
+     (sync.js) با حد صبورانه منتظر همین آب‌رسانی می‌ماند تا به‌جای دانلود کامل،
+     پاسخ fresh/دلتا بگیرد. fail-open در همه مسیرها: خرابی IDB هرگز pull/رندر را
+     متوقف نمی‌کند. */
+  window.ptfBIdbHydrated = false;
+  var _idbHydrateWaiters = [];
+  window.ptfBWhenHydrated = function (cb) {
+    if (typeof cb !== 'function') return;
+    if (window.ptfBIdbHydrated || !window.ptfBMirrorActive()) { try { cb(); } catch (eH) {} return; }
+    _idbHydrateWaiters.push(cb);
+  };
+  function _idbHydrateFinish() {
+    if (window.ptfBIdbHydrated) return;
+    window.ptfBIdbHydrated = true;
+    var ws = _idbHydrateWaiters; _idbHydrateWaiters = [];
+    ws.forEach(function (f) { try { f(); } catch (eW) {} });
+  }
   window.ptfBIdbPreload = function (cb) {
-    if (_idbPreloadDone || !window.ptfBMirrorActive()) { cb && cb(); return; }
+    function finish() {
+      _idbHydrateFinish();
+      if (typeof cb === 'function') { try { cb(); } catch (eCb) {} }
+    }
+    if (_idbPreloadDone) { finish(); return; }
+    if (!window.ptfBMirrorActive()) { finish(); return; }
     _idbPreloadDone = true;
     var list = [];
+    var seen = {};
+    function push(k) { k = String(k || '').trim(); if (k && !seen[k]) { seen[k] = 1; list.push(k); } }
     try {
       bKeys().forEach(function (k) {
-        if (heavyList(k, localStorage.getItem(k))) list.push(k);
+        var lv = null;
+        try { lv = localStorage.getItem(k); } catch (e0) {}
+        if (heavyList(k, lv)) push(k);
       });
     } catch (e0) {}
-    if (!list.length) { cb && cb(); return; }
-    var n = 0;
-    function done() { if (++n >= list.length) {
-      try { if (typeof addLog === 'function') addLog('🧊 آینهٔ خالدار فعال شد — ' + list.length + ' کلید سنگین به IndexedDB منتقل شد تا localStorage سبک بماند'); } catch (eL) {}
-      /* v34.8.28 (T3-2 COLD-BOOT-RACE): اگر در همین بوت کلیدی جابه‌جا شده، نماهای
-         رندرشده پیش از آب‌رسانی ممکن است [] دیده باشند — یک رندر قطعی پس از اتمام. */
-      if (movedAny && typeof window.ptfScheduleDataRefresh === 'function') {
-        try { window.ptfScheduleDataRefresh('__cold_boot__'); } catch (eR) {}
+    /* کلیدهای offloadشده‌ای که نسخه localStorage ندارند و در فهرست ثابت نیستند،
+       از خود IDB کشف می‌شوند (اجتماع با فهرست LS-scan — رفتار قبلی حفظ می‌شود). */
+    function afterEnum(ids) {
+      try {
+        var allowed = {};
+        bKeys().forEach(function (k) { allowed[String(k)] = 1; });
+        (ids || []).forEach(function (id) {
+          var k = String(id || '');
+          if (k.indexOf(idbPrefix()) === 0) k = k.slice(idbPrefix().length);
+          if (allowed[k]) push(k);
+        });
+      } catch (eE) {}
+      hydrate();
+    }
+    function hydrate() {
+      if (!list.length) { finish(); return; }
+      var n = 0, finished = false;
+      var movedAny = false;
+      var hydratedAny = false;
+      /* سقف صبورانه: IDB محلی است و باید میلی‌ثانیه‌ای جواب دهد؛ گیر کردنش نباید
+         بوت را قفل کند — pull سرور بقیه را پوشش می‌دهد (fail-open). */
+      var hardTimer = null;
+      try { hardTimer = setTimeout(function () { doneAll(true); }, 4000); } catch (eT0) {}
+      function done() { if (++n >= list.length) doneAll(false); }
+      function doneAll() {
+        if (finished) return;
+        finished = true;
+        try { if (hardTimer) clearTimeout(hardTimer); } catch (eT) {}
+        try { if (typeof addLog === 'function') addLog('🧊 آینه خالدار فعال شد — ' + list.length + ' کلید سنگین از IndexedDB آب‌رسانی شد تا localStorage سبک بماند'); } catch (eL) {}
+        /* v34.8.28 (T3-2 COLD-BOOT-RACE): اگر در همین بوت کلیدی جابه‌جا شده، نماهای
+           رندرشده پیش از آب‌رسانی ممکن است [] دیده باشند — یک رندر قطعی پس از اتمام.
+           v34.38.1: آب‌رسانی خالص از IDB (بدون مهاجرت LS) هم همان رندر قطعی را
+           می‌خواهد؛ وگرنه پنل‌ها تا پایان pull سرور خالی می‌مانند. */
+        if ((movedAny || hydratedAny) && typeof window.ptfScheduleDataRefresh === 'function') {
+          try { window.ptfScheduleDataRefresh('__cold_boot__'); } catch (eR) {}
+        }
+        finish();
       }
-      cb && cb();
-    } }
-    var movedAny = false;
-    list.forEach(function (k) {
-      idbKnown[k] = 1;
-      var local = null;
-      try { local = localStorage.getItem(k); } catch (e) {}
-      if (local !== null) {
-        movedAny = true;
-        idbMem[k] = local;
-        try { localStorage.removeItem(k); } catch (e2) {}
-        try { window.ptfStorageIdbSet(idbPrefix() + k, local, done); } catch (e3) { done(); }
-      } else {
-        try {
-          window.ptfStorageIdbGet(idbPrefix() + k, function (row) {
-            try { if (row && row.value != null && !Object.prototype.hasOwnProperty.call(idbMem, k)) idbMem[k] = String(row.value); } catch (e4) {}
-            done();
-          });
-        } catch (e5) { done(); }
-      }
-    });
+      list.forEach(function (k) {
+        idbKnown[k] = 1;
+        var local = null;
+        try { local = localStorage.getItem(k); } catch (e) {}
+        if (local !== null) {
+          movedAny = true;
+          idbMem[k] = local;
+          try { localStorage.removeItem(k); } catch (e2) {}
+          try { window.ptfStorageIdbSet(idbPrefix() + k, local, done); } catch (e3) { done(); }
+        } else {
+          try {
+            window.ptfStorageIdbGet(idbPrefix() + k, function (row) {
+              try {
+                if (row && row.value != null && !Object.prototype.hasOwnProperty.call(idbMem, k)) {
+                  idbMem[k] = String(row.value);
+                  hydratedAny = true;
+                }
+              } catch (e4) {}
+              done();
+            });
+          } catch (e5) { done(); }
+        }
+      });
+    }
+    /* شمارش پیشوندی bdata: — اگر API نبود/خطا داد، همان فهرست LS-scan امروز (fail-open). */
+    try {
+      if (typeof window.ptfStorageIdbKeysByPrefix === 'function') {
+        var enumDone = false, enumTimer = null;
+        try { enumTimer = setTimeout(function () { if (!enumDone) { enumDone = true; afterEnum(null); } }, 1500); } catch (eT1) {}
+        window.ptfStorageIdbKeysByPrefix(idbPrefix(), function (ids) {
+          if (enumDone) return;
+          enumDone = true;
+          try { if (enumTimer) clearTimeout(enumTimer); } catch (eT2) {}
+          afterEnum(ids);
+        });
+      } else afterEnum(null);
+    } catch (eEnum) { afterEnum(null); }
   };
-
   /* کلیدهایی که از سرور می‌آیند (همه — فاز B کامل) — از sync.SYNC_KEYS واقعی می‌خوانیم */
   function bKeys() {
     try {
@@ -1165,6 +1240,8 @@
           if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'صف آفلاین یا حافظهٔ مرورگر پایدار نشد');
           return false;
         }
+        /* v34.38.1 (LIST-RENDER-N1): ابطال کش کوتاه‌مدت نام مشتری پس از نوشتن موفق. */
+        if (k === 'ptf_crm_customers' && typeof window.ptfCustCacheDrop === 'function') { try { window.ptfCustCacheDrop(); } catch (eCC) {} }
         if (pushTimer) clearTimeout(pushTimer);
         pushTimer = setTimeout(function () {
           /* Route the debounce through sync.js when available so pull and push share

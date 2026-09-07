@@ -77,11 +77,11 @@ T('فیلد null حفظ می‌شود', /\$out\[\$k\] = null; \$n\+\+; \$stats\[
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.38.0', ver.crm_version === 'v34.38.0', ver.crm_version);
+T('VERSION.json = v34.38.1', ver.crm_version === 'v34.38.1', ver.crm_version);
 var idx = read('crm/index.html');
-T('نسخهٔ UI = v34.38.0', /window\.PTF_CRM_RELEASE = 'v34\.38\.0'/.test(idx));
+T('نسخهٔ UI = v34.38.1', /window\.PTF_CRM_RELEASE = 'v34\.38\.1'/.test(idx));
 var swv = read('crm/sw.js');
-T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.38\.0'/.test(swv) && idx.indexOf('?v=34.38.0') > -1);
+T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.38\.1'/.test(swv) && idx.indexOf('?v=34.38.1') > -1);
 
 console.log('\n— tester520 (v34.38.0: T0/T1 thin-client contracts) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

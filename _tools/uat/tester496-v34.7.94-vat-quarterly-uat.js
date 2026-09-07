@@ -28,7 +28,7 @@ var ver = JSON.parse(read('VERSION.json'));
 var shared = read('crm/vat-shared.js');
 var q = read('crm/vat-quarterly.js');
 
-T('VERSION.json = v34.38.0', ver.crm_version === 'v34.38.0', ver.crm_version);
+T('VERSION.json = v34.38.1', ver.crm_version === 'v34.38.1', ver.crm_version);
 
 /* -------- sandbox -------- */
 var store;

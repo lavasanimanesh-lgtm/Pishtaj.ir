@@ -17,8 +17,8 @@ var brg = read('crm/bridge.js');
 var api = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.0', ver.crm_version === 'v34.38.0', ver.crm_version);
-T('bridge.js cache-bust 34.38.0', /bridge\.js\?v=34\.38\.0/.test(idx));
+T('VERSION.json = v34.38.1', ver.crm_version === 'v34.38.1', ver.crm_version);
+T('bridge.js cache-bust 34.38.1', /bridge\.js\?v=34\.38\.1/.test(idx));
 
 /* ---------- کلاینت ---------- */
 T('SITE_SUP_PAGE = 50', /var SITE_SUP_PAGE = 50;/.test(brg));
