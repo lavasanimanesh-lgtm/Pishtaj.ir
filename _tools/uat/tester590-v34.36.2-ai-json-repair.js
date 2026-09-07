@@ -1,5 +1,5 @@
 /* =====================================================================
-   tester590 — v34.37.6 (AI-JSON-REPAIR): «خروجی AI ساختار JSON معتبر ندارد
+   tester590 — v34.37.8 (AI-JSON-REPAIR): «خروجی AI ساختار JSON معتبر ندارد
    (پاسخ قابل تجزیه نبود)» در مدیریت سایت
    ---------------------------------------------------------------------
    شکایت مالک: هر کاری با هوش مصنوعی در «مدیریت سایت» می‌خواست انجام دهد،
@@ -348,7 +348,7 @@ console.log('\n── ۴) قرارداد سرور: همهٔ اکشن‌های س
   T('۴.۶ سازگاری: seo_product همچنان ۱۶۰۰ و seo_article همچنان ۴۰۰۰ (پین tester565)', /seo_product[\s\S]{0,4200}out_json\(llm_call_json\(\$cfg, \$sys, \$user, null, null, 1600\)\)/.test(llm) && llm.indexOf('out_json(llm_call_json($cfg, $sys, $user, null, null, 4000));') > -1);
   T('۴.۷ سازگاری: اکشن‌های OCR/سند CRM دست‌نخورده (پین tester140)', llm.indexOf('out_json(llm_call($cfg, $sys, $text, null, null, 6000))') > -1);
   T('۴.۸ سازگاری: حالت JSON اجباریِ هر دو provider دست‌نخورده', llm.indexOf("'responseMimeType' => 'application/json'") > -1 && llm.indexOf("'response_format' => ['type' => 'json_object']") > -1);
-  /* v34.37.6: مهاجرت فقط برای اکشن‌های JSONِ سئو بود. این شمار قفل می‌کند که مسیرهای
+  /* v34.37.8: مهاجرت فقط برای اکشن‌های JSONِ سئو بود. این شمار قفل می‌کند که مسیرهای
      OCR/سند (چک، کارت ویزیت، صورت‌حساب، RFQ) و ترجمه/شناسایی همچنان روی llm_call
      تک‌ضربه‌اند — اگر روزی بی‌خبر مهاجرت کنند، این سنجه داد می‌زند. */
   T('۴.۹ شمار فراخوانی‌های تک‌ضربهٔ llm_call = ۱۶ (مسیرهای OCR/سند/ترجمه دست‌نخورده)', (llm.match(/out_json\(llm_call\(\$cfg/g) || []).length === 16, String((llm.match(/out_json\(llm_call\(\$cfg/g) || []).length));
@@ -393,13 +393,13 @@ console.log('\n── ۶) قرارداد CMS (فراخوان‌ها دست‌ن�
 
 console.log('\n── ۷) بهداشت ──');
 (function () {
-  T('۷.۱ VERSION.json = v34.37.6', ver.crm_version === 'v34.37.6', ver.crm_version);
+  T('۷.۱ VERSION.json = v34.37.8', ver.crm_version === 'v34.37.8', ver.crm_version);
   T('۷.۲ tester590 در گیت CI ثبت شده است', gate.indexOf('tester590-v34.36.2-ai-json-repair.js') > -1);
-  T('۷.۳ یادداشت انتشار این نسخه موجود است', fs.existsSync('RELEASE-NOTES-v34.37.6.md'));
+  T('۷.۳ یادداشت انتشار این نسخه موجود است', fs.existsSync('RELEASE-NOTES-v34.37.8.md'));
   T('۷.۴ پینِ به‌روزِ tester565 (۹ اکشن) با تغییر هم‌خوان است', fs.readFileSync('_tools/uat/tester565-v34.20.0-cms-complaints.js', 'utf8').indexOf('length === 9') > -1);
   T('۷.۵ هیچ کلید/رمزی در پیام‌های خطا نشت نمی‌کند', !/(apiKey|\$cfg\['key'\]|secret)/.test(blk(llm, 'function out_json', 'switch ($action)')));
 })();
 
-console.log('\n— tester590 (v34.37.6: ریشه‌کنی خطای JSON هوش مصنوعی — AI-JSON-REPAIR) —');
+console.log('\n— tester590 (v34.37.8: ریشه‌کنی خطای JSON هوش مصنوعی — AI-JSON-REPAIR) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
