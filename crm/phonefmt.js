@@ -93,9 +93,17 @@
     window.saveCust2 = function (cd) {
       _s(cd);
       try {
-        var items = getData('ptf_crm_customers');
-        var rec = cd ? items.filter(function (x) { return x.cd === cd; })[0] : items[0];
-        if (rec) { ptfNormalizeEntityPhones(rec, 'fa'); /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'phonefmt' }); else setData('ptf_crm_customers', items); }
+        /* v34.37.7 (CONTACT-WIPE): هرگز کل مجموعه را از getData کهنه بازنویس نکن
+           و هرگز به items[0] برنگرد — مشتری تازه‌ثبت‌شده بدون cd، رکورد دیگری را
+           قالب‌بندی/حذف می‌کرد. فقط همان رکورد با ptfEntityUpsert. */
+        var savedCd = cd || window._ptfLastSavedCustCd;
+        if (!savedCd) return;
+        var items = getData('ptf_crm_customers') || [];
+        var rec = items.filter(function (x) { return x && x.cd === savedCd; })[0];
+        if (!rec) return;
+        ptfNormalizeEntityPhones(rec, 'fa');
+        if (window.ptfEntityUpsert) window.ptfEntityUpsert('ptf_crm_customers', rec);
+        else setData('ptf_crm_customers', items);
       } catch (e) {}
     };
     return true;
@@ -109,8 +117,10 @@
     window.saveSup2 = function (cd) {
       _s(cd);
       try {
-        var items = getData('ptf_crm_suppliers');
-        var rec = cd ? items.filter(function (x) { return x.cd === cd; })[0] : items[0];
+        var savedCd = cd || window._ptfLastSavedSupCd || window._supLastSaved;
+        if (!savedCd) return;
+        var items = getData('ptf_crm_suppliers') || [];
+        var rec = items.filter(function (x) { return x && x.cd === savedCd; })[0];
         if (!rec) return;
         var mode = (rec.origin === 'خارجی') ? 'en' : 'fa';
         ptfNormalizeEntityPhones(rec, mode);
@@ -119,7 +129,8 @@
           ['co', 'nm', 'ca', 'coWeb', 'coAddr'].forEach(function (k) { if (rec[k]) rec[k] = ptfLatinize(rec[k]); });
           (rec.people || []).forEach(function (p) { if (p.nm) p.nm = ptfLatinize(p.nm); if (p.dept) p.dept = ptfLatinize(p.dept); });
         }
-        /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'phonefmt' }); else setData('ptf_crm_suppliers', items);
+        if (window.ptfEntityUpsert) window.ptfEntityUpsert('ptf_crm_suppliers', rec);
+        else setData('ptf_crm_suppliers', items);
         if (typeof renderSuppliers === 'function') try { renderSuppliers(); } catch (e2) {}
       } catch (e) {}
     };
@@ -157,12 +168,27 @@
   function migrateOnce() {
     try {
       if (localStorage.getItem('ptf_phonefmt_mig') === '1') return;
+      /* v34.37.7 (CONTACT-WIPE): آرایهٔ خالی/ناقص را بازنویس نکن — getData کهنه
+         کل دفتر را با مجموعهٔ ناقص جایگزین می‌کرد. reason=phonefmt-mig هم دیگر
+         entity_delete صادر نمی‌کند. */
+      function skipEmptyOrTruncated(coll, arr) {
+        if (!Array.isArray(arr) || !arr.length) return true;
+        try {
+          var known = window._ptfEntityLastKnown && window._ptfEntityLastKnown[coll];
+          if (Array.isArray(known) && known.length > arr.length) return true;
+        } catch (eK) {}
+        return false;
+      }
       var custs = getData('ptf_crm_customers');
-      custs.forEach(function (c) { ptfNormalizeEntityPhones(c, 'fa'); });
-      /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'phonefmt-mig' }); else setData('ptf_crm_customers', custs);
+      if (!skipEmptyOrTruncated('ptf_crm_customers', custs)) {
+        custs.forEach(function (c) { ptfNormalizeEntityPhones(c, 'fa'); });
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'phonefmt-mig' }); else setData('ptf_crm_customers', custs);
+      }
       var sups = getData('ptf_crm_suppliers');
-      sups.forEach(function (c) { ptfNormalizeEntityPhones(c, (c.origin === 'خارجی') ? 'en' : 'fa'); });
-      /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', sups, { reason: 'phonefmt-mig' }); else setData('ptf_crm_suppliers', sups);
+      if (!skipEmptyOrTruncated('ptf_crm_suppliers', sups)) {
+        sups.forEach(function (c) { ptfNormalizeEntityPhones(c, (c.origin === 'خارجی') ? 'en' : 'fa'); });
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', sups, { reason: 'phonefmt-mig' }); else setData('ptf_crm_suppliers', sups);
+      }
       localStorage.setItem('ptf_phonefmt_mig', '1');
       try { audit('سیستم', 'یکسان‌سازی یک‌باره قالب شماره تماس‌ها (US-338)', ''); } catch (e) {}
     } catch (e) {}

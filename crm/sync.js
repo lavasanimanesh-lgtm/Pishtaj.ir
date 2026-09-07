@@ -2370,6 +2370,107 @@
         ceSeen[cd] = e; ceOut.push(e);
       });
       out.costEvents = ceOut;
+
+      /* v34.37.8 (QC-EVENT-TOMB, SHIP-EVENT-TOMB & DOCS-TOMB):
+         جلوگیری قطعی از بازگشت رکوردهای حذف‌شدهٔ کنترل کیفیت، حمل/تحویل و اسناد متفرقه پس از رفرش یا sync */
+      var qcTomb = {};
+      [a, b].forEach(function (side) {
+        var m = (side || {})._qcTomb || {};
+        Object.keys(m).forEach(function (cd) {
+          var v = String(m[cd] || '');
+          if (v && (!qcTomb[cd] || v > qcTomb[cd])) qcTomb[cd] = v;
+        });
+      });
+      var qctKeys = Object.keys(qcTomb);
+      if (qctKeys.length > 200) {
+        qctKeys.sort(function (x, y) { return String(qcTomb[x]) < String(qcTomb[y]) ? -1 : 1; });
+        while (qctKeys.length > 200) delete qcTomb[qctKeys.shift()];
+      }
+      if (Object.keys(qcTomb).length) out._qcTomb = qcTomb;
+      var qcSrc = Array.isArray(out.qcEvents) ? out.qcEvents : [];
+      var qcSeen = {}, qcOut = [];
+      qcSrc.forEach(function (e) {
+        if (!e || typeof e !== 'object') return;
+        var cd = String(e.cd || '');
+        if (!cd) { qcOut.push(e); return; }
+        if (qcTomb[cd]) return;
+        if (qcSeen[cd]) {
+          if (!(qcSeen[cd].updatedT || qcSeen[cd].updatedBy) && (e.updatedT || e.updatedBy)) {
+            var idx = qcOut.indexOf(qcSeen[cd]);
+            if (idx > -1) qcOut[idx] = e;
+            qcSeen[cd] = e;
+          }
+          return;
+        }
+        qcSeen[cd] = e; qcOut.push(e);
+      });
+      out.qcEvents = qcOut;
+
+      var shipTomb = {};
+      [a, b].forEach(function (side) {
+        var m = (side || {})._shipTomb || {};
+        Object.keys(m).forEach(function (cd) {
+          var v = String(m[cd] || '');
+          if (v && (!shipTomb[cd] || v > shipTomb[cd])) shipTomb[cd] = v;
+        });
+      });
+      var stKeys = Object.keys(shipTomb);
+      if (stKeys.length > 200) {
+        stKeys.sort(function (x, y) { return String(shipTomb[x]) < String(shipTomb[y]) ? -1 : 1; });
+        while (stKeys.length > 200) delete shipTomb[stKeys.shift()];
+      }
+      if (Object.keys(shipTomb).length) out._shipTomb = shipTomb;
+      var shSrc = Array.isArray(out.shipEvents) ? out.shipEvents : [];
+      var shSeen = {}, shOut = [];
+      shSrc.forEach(function (e) {
+        if (!e || typeof e !== 'object') return;
+        var cd = String(e.cd || '');
+        if (!cd) { shOut.push(e); return; }
+        if (shipTomb[cd]) return;
+        if (shSeen[cd]) {
+          if (!(shSeen[cd].updatedT || shSeen[cd].updatedBy) && (e.updatedT || e.updatedBy)) {
+            var idx = shOut.indexOf(shSeen[cd]);
+            if (idx > -1) shOut[idx] = e;
+            shSeen[cd] = e;
+          }
+          return;
+        }
+        shSeen[cd] = e; shOut.push(e);
+      });
+      out.shipEvents = shOut;
+
+      var docTomb = {};
+      [a, b].forEach(function (side) {
+        var m = (side || {})._docTomb || {};
+        Object.keys(m).forEach(function (k) {
+          var v = String(m[k] || '');
+          if (v && (!docTomb[k] || v > docTomb[k])) docTomb[k] = v;
+        });
+      });
+      var dtKeys = Object.keys(docTomb);
+      if (dtKeys.length > 200) {
+        dtKeys.sort(function (x, y) { return String(docTomb[x]) < String(docTomb[y]) ? -1 : 1; });
+        while (dtKeys.length > 200) delete docTomb[dtKeys.shift()];
+      }
+      if (Object.keys(docTomb).length) out._docTomb = docTomb;
+
+      var delFileKeys = {};
+      (a._deletedFileKeys || []).concat(b._deletedFileKeys || []).forEach(function (k) {
+        if (k) delFileKeys[String(k)] = 1;
+      });
+      if (Object.keys(delFileKeys).length) out._deletedFileKeys = Object.keys(delFileKeys).slice(-200);
+
+      var docSrc = Array.isArray(out.docs) ? out.docs : [];
+      var docSeen = {}, docOut = [];
+      docSrc.forEach(function (d) {
+        if (!d || typeof d !== 'object') return;
+        var dk = String(d.key || d._id || d.name || d.cd || '');
+        if (!dk) { docOut.push(d); return; }
+        if ((d.key && (docTomb[d.key] || delFileKeys[d.key])) || (d._id && docTomb[d._id]) || (d.name && docTomb[d.name]) || (d.cd && docTomb[d.cd])) return;
+        if (docSeen[dk]) return;
+        docSeen[dk] = d; docOut.push(d);
+      });
+      out.docs = docOut;
     }
     if (key === 'ptf_crm_offers') {
       var clean = ptfNormalizeOfferSnapshot(winner.items || []);

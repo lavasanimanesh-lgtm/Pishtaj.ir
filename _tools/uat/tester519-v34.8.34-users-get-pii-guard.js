@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester519 — v34.37.6 (T1-1 / PII-GUARD): پایان نشت موبایل/ایمیل کاربران بدون احراز هویت.
+/* tester519 — v34.37.8 (T1-1 / PII-GUARD): پایان نشت موبایل/ایمیل کاربران بدون احراز هویت.
    ریشه: $client_role = 'anonymous' باعث می‌شد !empty($client_role) همیشه true باشد و
    گارد «حداقل‌سازی فیلدها پیش از لاگین» (D-02) کد مرج شود — تأیید زنده روی هر دو محیط. */
 var fs = require('fs'), path = require('path');
@@ -38,6 +38,6 @@ T('users_get در public_actions باقی است', /public_actions\s*=\s*\[[^\]]
 /* ۵) تسترهای قدیمی PII نسخهٔ قبل نقض نشوند: response ساختار users/name/roleId دارد */
 T('ساختار پاسخ امن حفظ شده (username/name/roleId)', /'username'\s*=>[\s\S]*'name'\s*=>[\s\S]*'roleId'\s*=>/.test(body));
 
-console.log('\n— tester519 (v34.37.6: PII-GUARD users_get) —');
+console.log('\n— tester519 (v34.37.8: PII-GUARD users_get) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

@@ -45,8 +45,35 @@ function telHref(t) { return 'tel:' + t.n.replace(/[^+\d]/g, '') + (t.ext ? ',' 
 // ---- UI دفترچه اشخاص (داخل مودال کارفرما/تامین‌کننده) ----
 var _cbState = null; // {people:[...]} حالت موقت فرم
 
+/* v34.37.7 (CONTACT-WIPE): دفترچه تماس بدون آرایهٔ tels/mobs/mails نباید رندر را
+   بترکاند و شخص بی‌نام با شماره نباید هنگام جمع‌آوری دور ریخته شود. */
+function cbEnsurePerson(p) {
+  p = p || {};
+  if (!Array.isArray(p.tels)) p.tels = [];
+  if (!Array.isArray(p.mobs)) p.mobs = [];
+  if (!Array.isArray(p.mails)) p.mails = [];
+  return p;
+}
+function cbPersonHasContact(p) {
+  if (!p) return false;
+  if (p.nm && String(p.nm).trim()) return true;
+  function has(arr) {
+    return (arr || []).some(function (x) { return x && String(x.n || '').trim(); });
+  }
+  return has(p.tels) || has(p.mobs) || has(p.mails);
+}
+function ptfMergeExtraCoTels(oldRec, tel) {
+  var extra = ((oldRec && Array.isArray(oldRec.coTels)) ? oldRec.coTels : []).slice(1);
+  var first = oldRec && oldRec.coTels && oldRec.coTels[0] ? oldRec.coTels[0] : null;
+  return (tel ? [{ n: tel, ext: (first && first.ext) || '', lb: (first && first.lb) || 'تلفنخانه' }] : []).concat(extra);
+}
+window.cbEnsurePerson = cbEnsurePerson;
+window.cbPersonHasContact = cbPersonHasContact;
+window.ptfMergeExtraCoTels = ptfMergeExtraCoTels;
+
 function cbInit(people) {
   _cbState = { people: JSON.parse(JSON.stringify(people || [])) };
+  _cbState.people.forEach(cbEnsurePerson);
   if (!_cbState.people.length) cbAddPerson();
 }
 
@@ -68,12 +95,26 @@ function cbSetPrimary(pi) {
 }
 
 function cbAddCh(pi, kind) {
-  _cbState.people[pi][kind].push(kind === 'tels' ? { n: '', ext: '', lb: '' } : { n: '', lb: '' });
+  var p = _cbState && _cbState.people && _cbState.people[pi];
+  if (!p) return;
+  cbEnsurePerson(p);
+  p[kind].push(kind === 'tels' ? { n: '', ext: '', lb: '' } : { n: '', lb: '' });
   cbRender();
 }
-function cbDelCh(pi, kind, ci) { _cbState.people[pi][kind].splice(ci, 1); cbRender(); }
-function cbUpd(pi, field, val) { _cbState.people[pi][field] = val; }
-function cbUpdCh(pi, kind, ci, field, val) { _cbState.people[pi][kind][ci][field] = val; }
+function cbDelCh(pi, kind, ci) {
+  var p = _cbState && _cbState.people && _cbState.people[pi];
+  if (!p) return;
+  cbEnsurePerson(p);
+  (p[kind] || []).splice(ci, 1);
+  cbRender();
+}
+function cbUpd(pi, field, val) { if (_cbState && _cbState.people && _cbState.people[pi]) _cbState.people[pi][field] = val; }
+function cbUpdCh(pi, kind, ci, field, val) {
+  var p = _cbState && _cbState.people && _cbState.people[pi];
+  if (!p) return;
+  cbEnsurePerson(p);
+  if (p[kind] && p[kind][ci]) p[kind][ci][field] = val;
+}
 
 function cbRender() {
   var el = document.getElementById('cbWrap');
@@ -81,6 +122,7 @@ function cbRender() {
   var h = '';
   var ROLES = ['مدیر خرید','کارشناس خرید','مدیر فنی','کارشناس فنی','مدیر بازرگانی','مالی','مدیرعامل','رابط اصلی','سایر'];
   _cbState.people.forEach(function(p, pi) {
+    cbEnsurePerson(p);
     var roleOpts = ROLES.map(function(r){ return '<option'+(p.role===r?' selected':'')+'>'+r+'</option>'; }).join('');
     h += '<div style="border:1px solid var(--brd);border-radius:14px;padding:12px;margin-bottom:10px;background:'+(p.primary?'#fff8f5':'#fafbfc')+'">' +
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">' +
@@ -92,7 +134,7 @@ function cbRender() {
       (_cbState.people.length > 1 ? '<button type="button" onclick="cbDelPerson('+pi+')" style="border:0;background:none;color:#dc2626;cursor:pointer;font-size:15px">🗑️</button>' : '') +
       '</div>';
     // تلفن‌های ثابت با داخلی
-    p.tels.forEach(function(t, ci) {
+    (p.tels || []).forEach(function(t, ci) {
       h += '<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center">' +
         '<span style="font-size:13px">☎️</span>' +
         '<input type="text" placeholder="تلفن ثابت" value="'+escP(t.n)+'" oninput="cbUpdCh('+pi+',\'tels\','+ci+',\'n\',this.value)" style="flex:1;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
@@ -100,13 +142,13 @@ function cbRender() {
         '<input type="text" placeholder="برچسب" value="'+escP(t.lb)+'" oninput="cbUpdCh('+pi+',\'tels\','+ci+',\'lb\',this.value)" style="width:84px;padding:6px;border:1px solid var(--brd);border-radius:8px">' +
         '<button type="button" onclick="cbDelCh('+pi+',\'tels\','+ci+')" style="border:0;background:none;color:#94a3b8;cursor:pointer">✕</button></div>';
     });
-    p.mobs.forEach(function(t, ci) {
+    (p.mobs || []).forEach(function(t, ci) {
       h += '<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center"><span style="font-size:13px">📱</span>' +
         '<input type="text" placeholder="موبایل" value="'+escP(t.n)+'" oninput="cbUpdCh('+pi+',\'mobs\','+ci+',\'n\',this.value)" style="flex:1;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
         '<input type="text" placeholder="برچسب" value="'+escP(t.lb)+'" oninput="cbUpdCh('+pi+',\'mobs\','+ci+',\'lb\',this.value)" style="width:84px;padding:6px;border:1px solid var(--brd);border-radius:8px">' +
         '<button type="button" onclick="cbDelCh('+pi+',\'mobs\','+ci+')" style="border:0;background:none;color:#94a3b8;cursor:pointer">✕</button></div>';
     });
-    p.mails.forEach(function(t, ci) {
+    (p.mails || []).forEach(function(t, ci) {
       h += '<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center"><span style="font-size:13px">📧</span>' +
         '<input type="email" placeholder="ایمیل" value="'+escP(t.n)+'" oninput="cbUpdCh('+pi+',\'mails\','+ci+',\'n\',this.value)" style="flex:1;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
         '<input type="text" placeholder="برچسب" value="'+escP(t.lb)+'" oninput="cbUpdCh('+pi+',\'mails\','+ci+',\'lb\',this.value)" style="width:84px;padding:6px;border:1px solid var(--brd);border-radius:8px">' +
@@ -123,7 +165,7 @@ function cbRender() {
 }
 
 function cbCollect() {
-  return _cbState.people.filter(function(p){ return p.nm && p.nm.trim(); });
+  return (_cbState && _cbState.people ? _cbState.people : []).filter(cbPersonHasContact);
 }
 
 // نمای کارت اشخاص یک شرکت (AC5 — کلیک‌تو‌کال)
@@ -3607,6 +3649,10 @@ function saveCust2(cd) {
   var people = cbCollect();
   var items = getData('ptf_crm_customers');
   var tel = document.getElementById('nC2Tel').value.trim();
+  var oldRecPre = null;
+  if (cd) {
+    for (var oiC = 0; oiC < items.length; oiC++) if (items[oiC] && items[oiC].cd === cd) { oldRecPre = items[oiC]; break; }
+  }
   var rec = {
     cd: cd || (typeof window.ptfAllocCustCode === 'function' ? window.ptfAllocCustCode(items) : genCode('CUST')), co: comp,
     coEn: (document.getElementById('nC2CoEn')||{value:''}).value.trim(),
@@ -3618,7 +3664,7 @@ function saveCust2(cd) {
     melli: (document.getElementById('nC2Melli')||{value:''}).value.trim(),
     ind: document.getElementById('nC2Ind').value,
     people: people,
-    coTels: tel ? [{ n: tel, ext: '', lb: 'تلفنخانه' }] : [],
+    coTels: ptfMergeExtraCoTels(oldRecPre, tel),
     coWeb: document.getElementById('nC2Web').value.trim(),
     coAddr: document.getElementById('nC2Addr').value.trim()
   };
@@ -3653,7 +3699,8 @@ function saveCust2(cd) {
     var mob0 = rec.phones.filter(function (p) { return p.k === 'mob'; })[0];
     rec.ph = mob0 ? mob0.n : (rec.phones[0] ? rec.phones[0].n : '');
   } else {
-    rec.phones = [];
+    /* v34.37.7: phones[] را خالی نفرست — merge سرور کلید حاضر را بازنویسی می‌کند
+       و شماره‌های وارداتی/قدیمی حقوقی پاک می‌شد. */
     var pp = primaryPerson(rec);
     rec.con = pp ? pp.nm : '';
     rec.ph = pp && pp.tels && pp.tels.length ? pp.tels[0].n : (pp && pp.mobs && pp.mobs.length ? pp.mobs[0].n : tel);
@@ -3686,6 +3733,7 @@ function saveCust2(cd) {
   /* v34.8.22 (W1): ثبت/ویرایش مشتری از پیشنهاد با فرمان اتمیک سروری. */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'offer-cust' });
   else setData('ptf_crm_customers', items);
+  window._ptfLastSavedCustCd = rec.cd;
   hideModal(); renderCustomers();
   addLog('کارفرما ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
 }
@@ -3747,6 +3795,10 @@ function saveSup2(cd) {
   var people = cbCollect();
   var items = getData('ptf_crm_suppliers');
   var tel = document.getElementById('nS2Tel').value.trim();
+  var oldSupPre = null;
+  if (cd) {
+    for (var oiS = 0; oiS < items.length; oiS++) if (items[oiS] && items[oiS].cd === cd) { oldSupPre = items[oiS]; break; }
+  }
   var rec = {
     cd: cd || genCode('SUP'), co: comp,
     coEn: compEn,
@@ -3755,7 +3807,7 @@ function saveSup2(cd) {
     melli: (document.getElementById('nS2Melli')||{value:''}).value.trim(),
     ca: document.getElementById('nS2Cat').value,
     people: people,
-    coTels: tel ? [{ n: tel, ext: '', lb: 'تلفنخانه' }] : [],
+    coTels: ptfMergeExtraCoTels(oldSupPre, tel),
     coWeb: document.getElementById('nS2Web').value.trim()
   };
   // v80.2: حقیقی → تلفن‌های خود شخص
@@ -3767,7 +3819,8 @@ function saveSup2(cd) {
     var mob0s = rec.phones.filter(function (p) { return p.k === 'mob'; })[0];
     rec.ph = mob0s ? mob0s.n : (rec.phones[0] ? rec.phones[0].n : '');
   } else {
-    rec.phones = [];
+    /* v34.37.7: phones[] را خالی نفرست — merge سرور کلید حاضر را بازنویسی می‌کند
+       و شماره‌های وارداتی/قدیمی حقوقی پاک می‌شد. */
     var pp = primaryPerson(rec);
     rec.nm = pp ? pp.nm : '';
     rec.ph = pp && pp.tels && pp.tels.length ? pp.tels[0].n : (pp && pp.mobs && pp.mobs.length ? pp.mobs[0].n : tel);
@@ -3793,6 +3846,7 @@ function saveSup2(cd) {
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'offer-sup' });
   else setData('ptf_crm_suppliers', items);
   window._supLastSaved = rec.cd; /* v19.0 (پورت BUG-022 از v17.8): فلگ موفقیت — wrapper ها فقط روی همین رکورد */
+  window._ptfLastSavedSupCd = rec.cd;
   hideModal(); renderSuppliers();
   addLog('تامین‌کننده ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
 }
@@ -3848,7 +3902,7 @@ window.ptfHealMissingCustomersFromRfqs = function () {
     added++;
   });
   if (!added) return 0;
-  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'rfq-cust-heal' });
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'rfq-cust-heal', allowDelete: false });
   else setData('ptf_crm_customers', custs);
   try { if (typeof audit === 'function') audit('مشتریان', 'بازسازی ' + added + ' مشتری گم‌شده از روی درخواست', 'heal'); } catch (eAu) {}
   return added;

@@ -636,6 +636,34 @@
       try { if (JSON.stringify(pv) !== JSON.stringify(nx)) ups.push(nx); } catch (eJ) { ups.push(nx); }
     });
     Object.keys(prevByCd).forEach(function (cd) { if (!nextByCd[cd]) dels.push(cd); });
+    /* ═══ v34.37.7 (CONTACT-WIPE) ═══
+       ذخیرهٔ یک‌رکوردی / قالب‌بندی شماره / heal از درخواست، کل مجموعه را دوباره
+       می‌نویسند. اگر getData کهنه باشد، هر cd غایب entity_delete می‌شد (و حتی با
+       سپر انبوهِ سقف ۳، ۱–۳ مشتری واقعاً پاک می‌شد) و silent-write همان آرایهٔ
+       ناقص را روی کش می‌نشاند — شماره‌ها و اشخاص رابط از UI و سرور می‌پریدند.
+       این مسیرها هرگز حذف نیستند: رکوردهای غایب از base برمی‌گردند، فقط upsert. */
+    var AUTO_NO_DELETE_REASONS = {
+      'phonefmt': 1, 'phonefmt-mig': 1, 'rfq-cust-heal': 1,
+      'offer-cust': 1, 'offer-sup': 1, 'excel-import': 1, 'excel-std': 1,
+      'vendorlist': 1, 'site-rfq': 1, 'saveCust': 1, 'saveSup': 1
+    };
+    if (dels.length && AUTO_NO_DELETE_REASONS[opts.reason] && !opts.allowDeletes) {
+      var mergedKeep = [], seenKeep = {};
+      base.forEach(function (r) {
+        var k = r && r.cd;
+        if (k === undefined || k === null || k === '') return;
+        mergedKeep.push(nextByCd[k] || r);
+        seenKeep[k] = 1;
+      });
+      nextArr.forEach(function (r) {
+        var k = r && r.cd;
+        if (k === undefined || k === null || k === '' || seenKeep[k]) return;
+        mergedKeep.push(r);
+        seenKeep[k] = 1;
+      });
+      nextArr = mergedKeep;
+      dels = [];
+    }
     /* v34.37.0 (①): سپر حذفِ انبوه/تهی برای مجموعه‌های هویتیِ کسب‌وکار.
        حذف واقعیِ کاربر همیشه یک‌به‌یک است؛ «۴ حذف در یک ذخیره» یا «فهرست تهی شد»
        امضای یک خواندنِ کهنه است، نه نیت کاربر. در این حالت هیچ فرمان مخربی صادر

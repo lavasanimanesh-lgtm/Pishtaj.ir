@@ -36,7 +36,29 @@
     if (DEAD.indexOf(statusOf(x)) > -1) return false;
     return !x.voided && !x.deleted;
   }
-  function activeInvoice(i) { return activeRec(i); }
+  function activeInvoice(i, allInvoices) {
+    if (!activeRec(i)) return false;
+    /* گارد حاکمیت فاکتور رسمی: صورتحساب غیررسمی تا زمانی مبنای مطالبه است که فاکتور
+       رسمی برای همان پرونده یا پیشنهاد صادر نشده باشد. با وجود فاکتور رسمی، غیررسمی
+       جایگزین‌شده تلقی شده و از مطالبات باز کنار می‌رود. */
+    if (i && i.isUnofficial) {
+      var invs = Array.isArray(allInvoices) ? allInvoices : list('ptf_crm_invoices');
+      var thisCaseId = String(i.caseId || '').trim();
+      var thisOfferNo = String(i.offerNo || '').trim();
+      if (thisCaseId || thisOfferNo) {
+        var hasActiveOfficial = invs.some(function (other) {
+          if (!other || other === i || other.isUnofficial || !activeRec(other)) return false;
+          var otherCaseId = String(other.caseId || '').trim();
+          var otherOfferNo = String(other.offerNo || '').trim();
+          if (thisCaseId && otherCaseId && thisCaseId === otherCaseId) return true;
+          if (thisOfferNo && otherOfferNo && thisOfferNo === otherOfferNo) return true;
+          return false;
+        });
+        if (hasActiveOfficial) return false;
+      }
+    }
+    return true;
+  }
   function activeReceipt(r) { return !!r && activeRec(r) && String(r.status || '') === 'posted'; }
 
   /* ---------- سقف تخصیص فاکتور (R3) — آینهٔ sd_invoice_caps در api/sales-domain.php ---------- */
