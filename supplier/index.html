@@ -180,7 +180,7 @@
           </div>
 
           <div class="grid-2">
-            <div class="field"><label>شماره موبایل واتساپ برای تایید پیامکی *:</label><input type="tel" name="phone" id="sPhone" required placeholder="09xxxxxxxxx"><small style="display:block;margin-top:5px;color:#64748b;font-size:11.5px">برای دریافت رمز تایید فقط شماره موبایل با 09 وارد کنید؛ تلفن ثابت را در توضیحات بنویسید.</small></div>
+            <div class="field"><label>شماره موبایل واتساپ برای تایید پیامکی *:</label><input type="tel" name="phone" id="sPhone" required placeholder="09xxxxxxxxx" autocomplete="tel" inputmode="tel"><small style="display:block;margin-top:5px;color:#64748b;font-size:11.5px">فقط شماره موبایل ۱۱ رقمی (مثلاً 09123456789)؛ تلفن ثابت را در توضیحات بنویسید. ارقام فارسی/عربی خودکار به لاتین تبدیل می‌شود.</small></div>
             <div class="field"><label>ایمیل سازمانی:</label><input type="email" name="email" id="sEmail" placeholder="info@supplier.com"></div>
           </div>
 
@@ -233,7 +233,7 @@
 
           <div class="field"><label>برندهای قابل تامین و موجود در انبار شما:</label><input type="text" name="brands" id="sBrands" placeholder="مثلاً: Rosemount, WIKA, KITZ, Tenaris, Siemens..."></div>
 
-          <div class="field"><label>آپلود کاتالوگ شرکت یا لیست موجودی استاک (Excel/PDF/تصویر):</label><input type="file" name="attachment" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.zip,.rar"></div>
+          <div class="field"><label for="sAttach">آپلود کاتالوگ شرکت یا لیست موجودی استاک (Excel/PDF/تصویر):</label><input type="file" name="attachment" id="sAttach" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.zip,.rar"><small id="sFileInfo" style="display:block;margin-top:5px;color:#64748b;font-size:11.5px">فرمت‌های مجاز: PDF / Word / Excel / تصویر / ZIP / RAR — حداکثر ۱۵ مگابایت. (پس از انتخاب فایل، نام و حجم آن در همین‌جا نمایش داده می‌شود.)</small></div>
 
           <div class="field"><label>توضیحات تکمیلی (توانمندی‌های مالی، سوابق پروژه‌ای و انبارها):</label><textarea name="message" rows="3" placeholder="سوابق همکاری با پیمانکاران EPC، آدرس انبارها و توان تحویل فوری را ذکر فرمایید..."></textarea></div>
 
@@ -270,7 +270,7 @@
     <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
       <div>
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
-          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px;" style="object-fit:contain">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="object-fit:contain">
           <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
         </div>
         <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
@@ -350,6 +350,18 @@
         ptfCaptchaMount('supCaptcha');
         ptfOtpMount('supOtp', 'sPhone');
       }
+      /* v34.38.0 (SUP-ATTACH-014): سقف واقعی آپلود میزبان + بازخورد انتخاب فایل */
+      loadUploadLimits();
+      const sPhoneEl = document.getElementById('sPhone');
+      if (sPhoneEl) {
+        sPhoneEl.addEventListener('input', function () {
+          const v = sPhoneEl.value;
+          const cv = ptfDigitsEn(v);
+          if (cv !== v) sPhoneEl.value = cv; /* تبدیل بی‌درنگ ارقام فارسی/عربی به لاتین */
+        });
+      }
+      const sAttachEl = attachInput();
+      if (sAttachEl) sAttachEl.addEventListener('change', showFileInfo);
     });
 
     /* ═══ v34.36.2 (SUP-UPLOAD-RCA): رسید پیوست ثبت‌نام ═══
@@ -363,6 +375,74 @@
           تکراری، فایل به همان کد رهگیری می‌چسبد (مسیر سروری SUP-ATTACH-RECOVERY). */
     const ATTACH_MAX = 15 * 1024 * 1024;
     const ATTACH_EXT = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'webp', 'zip', 'rar'];
+    /* v34.38.0 (SUP-ATTACH-014): سقف مؤثر آپلود — از action=upload_limits (فقط اعداد
+       پیکربندی میزبان، بدون دادهٔ حساس) خوانده می‌شود تا کاربر پیش از آپلودِ بیهوده
+       بداند سقف واقعی سرور (upload_max_filesize / post_max_size) چقدر است. */
+    let serverMaxBytes = 0; /* 0 = هنوز خوانده نشده → سقف پیش‌فرض ۱۵MB */
+    function fmtServerMax(n) {
+      n = Number(n) || 0;
+      return n >= 1048576 ? (Math.round(n / 1048576 * 10) / 10) + ' مگابایت' : Math.round(n / 1024) + ' کیلوبایت';
+    }
+    function applyServerMaxHint() {
+      const info = document.getElementById('sFileInfo');
+      if (!info) return;
+      const base = 'فرمت‌های مجاز: PDF / Word / Excel / تصویر / ZIP / RAR — حداکثر ۱۵ مگابایت.';
+      const note = serverMaxBytes > 0 && serverMaxBytes < ATTACH_MAX
+        ? '⚠️ سقف قابل‌قبول روی میزبان: ' + fmtServerMax(serverMaxBytes) + ' — فایل بزرگ‌تر را سرور دور می‌ریزد؛ لطفاً کوچک‌تر یا zip بفرستید.'
+        : 'پس از انتخاب فایل، نام و حجم آن در همین‌جا نمایش داده می‌شود.';
+      info.textContent = base + ' ' + note;
+      info.style.color = serverMaxBytes > 0 && serverMaxBytes < ATTACH_MAX ? '#b45309' : '#64748b';
+    }
+    function showFileInfo() {
+      const info = document.getElementById('sFileInfo');
+      const f = attachChosen();
+      if (!info) return;
+      if (!f) { applyServerMaxHint(); return; }
+      const limit = (serverMaxBytes > 0 && serverMaxBytes < ATTACH_MAX) ? serverMaxBytes : ATTACH_MAX;
+      const over = f.size > limit;
+      info.textContent = (over ? '⛔ ' : '📎 ') + f.name + ' — ' + fmtSize(f.size) + (over ? ' — از سقف مجاز (' + fmtServerMax(limit) + ') بیشتر است؛ فایل کوچک‌تری انتخاب کنید.' : '');
+      info.style.color = over ? '#b91c1c' : '#059669';
+    }
+    function loadUploadLimits() {
+      try {
+        fetch('../api/crm.php?action=upload_limits', { cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d || d.ok !== true || !d.file_uploads) return;
+            const uf = parseInt(d.upload_max_filesize_bytes || 0, 10);
+            const pm = parseInt(d.post_max_size_bytes || 0, 10);
+            let eff = ATTACH_MAX;
+            if (uf > 0) eff = Math.min(eff, uf);
+            if (pm > 0) eff = Math.min(eff, Math.max(1, pm - 65536)); /* سربار multipart */
+            if (eff > 0 && eff < ATTACH_MAX) { serverMaxBytes = Math.max(1024, eff); applyServerMaxHint(); }
+          })
+          .catch(function () { /* بدون پاسخ، سقف پیش‌فرض ۱۵MB می‌ماند */ });
+      } catch (eL) { /* بی‌صدا */ }
+    }
+    /* ارقام فارسی/عربی → لاتین + نرمال‌سازی 98+/0098 → 09 (هم‌ساز با سمت سرور) */
+    const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩';
+    const EN_DIGITS = '01234567890123456789';
+    function ptfDigitsEn(v) {
+      return String(v == null ? '' : v).replace(/[۰-۹٠-٩]/g, function (c) {
+        const i = FA_DIGITS.indexOf(c);
+        return i >= 0 ? EN_DIGITS[i] : c;
+      });
+    }
+    function ptfNormPhone(v) {
+      let d = ptfDigitsEn(v).replace(/\D/g, '');
+      if (d.indexOf('0098') === 0) d = '0' + d.slice(4);
+      else if (d.indexOf('98') === 0 && d.length === 12) d = '0' + d.slice(2);
+      return d;
+    }
+    /* متن اصلی دکمهٔ ثبت (با آیکن) برای بازیابی پس از ارسال‌های ناموفق */
+    const SUBMIT_BTN_HTML = ((document.getElementById('sSubmit') || {}).innerHTML) || '';
+    function resetSubmitBtn() {
+      const b = document.getElementById('sSubmit');
+      if (!b) return;
+      b.disabled = false;
+      if (SUBMIT_BTN_HTML) b.innerHTML = SUBMIT_BTN_HTML;
+      else b.textContent = 'ثبت در بانک تامین‌کنندگان CRM';
+    }
     function attachInput() { return form.querySelector('input[type="file"][name="attachment"]'); }
     function attachChosen() { const i = attachInput(); return (i && i.files && i.files[0]) ? i.files[0] : null; }
     function fmtSize(n) {
@@ -383,15 +463,23 @@
       b.style.color = kind === 'ok' ? '#065f46' : (kind === 'bad' ? '#991b1b' : '#9a3412');
       b.style.border = '1.5px solid ' + (kind === 'ok' ? '#a7f3d0' : (kind === 'bad' ? '#fecaca' : '#fdba74'));
     }
-    /* ارسال دوبارهٔ فایل به همان کد رهگیری (فرم با همهٔ مقدارها برمی‌گردد) */
+    /* ارسال دوبارهٔ فایل به همان کد رهگیری (فرم با همهٔ مقدارها برمی‌گردد)
+       v34.38.0 (SUP-ATTACH-012): دکمهٔ «ثبت در بانک تامین‌کنندگان CRM» پس از ارسالِ
+       اول غیرفعال می‌ماند و دکمهٔ ارسال دوبارهٔ فایل فرم را نشان می‌داد ولی کاربر
+       نمی‌توانست دوباره ثبت کند («نمی‌توانم فایل اتچ کنم»). این‌جا دکمه بازفعال و
+       متن اصلی‌اش (با آیکن) بازیابی می‌شود. */
     window.ptfSupplierRetryAttach = function () {
       const cd = ((document.getElementById('venCode') || {}).textContent || '').trim();
       const sc = document.getElementById('sCode');
       if (sc && cd) sc.value = cd;
+      resetSubmitBtn();
+      const wa = document.getElementById('venAttach');
+      if (wa) wa.style.display = 'none'; /* رسید قبلی پاک شود تا گیج‌کننده نباشد */
       form.style.display = '';
       const rb = document.getElementById('resBox');
       if (rb) rb.style.display = 'none';
-      statusBox.textContent = '🔁 فایل را دوباره انتخاب کنید و دکمهٔ ثبت را بزنید — ثبت‌نام تکراری ساخته نمی‌شود؛ فایل به کد ' + (cd || 'شما') + ' اضافه می‌شود. (اگر کپچا منقضی شده، دوباره تیک «من ربات نیستم» را بزنید.)';
+      const f = attachChosen();
+      statusBox.textContent = '🔁 ' + (f ? ('فایل «' + f.name + '» هنوز انتخاب است — ') : 'فایل را دوباره انتخاب کنید و ') + 'دکمهٔ «ثبت در بانک تامین‌کنندگان CRM» را بزنید — ثبت‌نام تکراری ساخته نمی‌شود؛ فایل به کد ' + (cd || 'شما') + ' اضافه می‌شود. (اگر کپچا منقضی شده، دوباره تیک «من ربات نیستم» را بزنید.)';
       statusBox.className = 'form-status full';
       try { form.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
       const i = attachInput();
@@ -402,7 +490,12 @@
       e.preventDefault();
       const comp = document.getElementById('sComp').value;
       const name = document.getElementById('sName').value;
-      const phone = document.getElementById('sPhone').value;
+      /* v34.38.0 (SUP-PHONE-001): ارقام فارسی/عربی → لاتین، +98/0098 → 09؛
+         بدون این نرمال‌سازی، تایید پیامکی و تشخیص تکراری برای شمارهٔ ۰۹۱۲… کار نمی‌کرد. */
+      const phoneEl = document.getElementById('sPhone');
+      const phoneRaw = (phoneEl.value || '').trim();
+      const phone = ptfNormPhone(phoneRaw);
+      if (phone !== phoneRaw) phoneEl.value = phone;
       const cat = document.getElementById('sCat').value;
       const brands = document.getElementById('sBrands').value;
       const payTerms = document.getElementById('sPayTerms').value;
@@ -411,6 +504,12 @@
       if (!comp || !phone) {
         statusBox.textContent = 'لطفاً نام شرکت و شماره تماس را وارد فرمایید.';
         statusBox.className = 'form-status full err';
+        return;
+      }
+      if (!/^09\d{9}$/.test(phone)) {
+        statusBox.textContent = 'شماره موبایل معتبر نیست — باید ۱۱ رقم و با 09 شروع شود (مثلاً 09123456789). تلفن ثابت را در توضیحات بنویسید.';
+        statusBox.className = 'form-status full err';
+        phoneEl.focus();
         return;
       }
       if (!payTerms) {
@@ -435,6 +534,16 @@
         if (chosenFile.size > ATTACH_MAX) {
           statusBox.textContent = 'حجم فایل پیوست (' + fmtSize(chosenFile.size) + ') از سقف مجاز ۱۵ مگابایت بیشتر است — نسخهٔ سبک‌تر یا فشرده (zip) بفرستید.';
           statusBox.className = 'form-status full err';
+          return;
+        }
+        /* v34.38.0 (SUP-ATTACH-014): سقف واقعی میزبان — اگر از upload_max_filesize یا
+           post_max_size هاست بزرگ‌تر باشد، PHP بی‌صدا بدنه/فایل را دور می‌ریزد و خطای
+           آن «به سرور نرسید» می‌شود؛ جلوی همان آپلودِ محکوم‌به‌شکست را همین‌جا می‌گیریم. */
+        const hostLimit = (serverMaxBytes > 0 && serverMaxBytes < ATTACH_MAX) ? serverMaxBytes : 0;
+        if (hostLimit && chosenFile.size > hostLimit) {
+          statusBox.textContent = 'حجم فایل (' + fmtSize(chosenFile.size) + ') از سقف قابل‌قبول سرور (' + fmtServerMax(hostLimit) + ') بیشتر است — محدودیت upload_max_filesize / post_max_size میزبان. فایل را کوچک‌تر یا zip کنید.';
+          statusBox.className = 'form-status full err';
+          showFileInfo();
           return;
         }
         if (ATTACH_EXT.indexOf(ext) === -1) {
@@ -464,6 +573,7 @@
       let code = '';
       let warning = '';
       let submitError = '';
+      let srvErrCode = '';
       let attReceipt = null;   /* v34.36.2: رسید واقعی پیوست از سرور */
       let attErr = '';
       let attDiag = null;
@@ -477,8 +587,7 @@
           fd.append('attachment_size', String(chosenFile.size));
           const inBody = fd.get('attachment');
           if (!inBody || typeof inBody === 'string') {
-            btn.disabled = false;
-            btn.textContent = 'ثبت در بانک تامین‌کنندگان CRM';
+            resetSubmitBtn();
             statusBox.textContent = 'مرورگر فایل پیوست را در بدنهٔ درخواست قرار نداد — صفحه را تازه (F5) کنید و دوباره بفرستید.';
             statusBox.className = 'form-status full err';
             return;
@@ -490,6 +599,7 @@
         const raw = await res.text();
         let data = null;
         try { data = JSON.parse(raw); } catch (_) { submitError = 'پاسخ نامعتبر از سرور دریافت شد (کد ' + res.status + ')'; }
+        srvErrCode = (data && typeof data.error === 'string') ? data.error : '';
         if (data && !res.ok) submitError = data.message || data.error || ('خطای سرور (کد ' + res.status + ')');
         if (data && data.ok && data.code) {
           code = data.code;
@@ -507,10 +617,18 @@
 
       if (!code) {
         // ثبت‌نام فقط با کد واقعی سرور موفق تلقی می‌شود؛ علت خطا پنهان نمی‌ماند.
-        statusBox.textContent = 'ثبت در سرور انجام نشد: ' + (submitError || 'خطای نامشخص') + ' — هیچ کد رهگیری تامین‌کننده صادر نشده است.';
+        if (srvErrCode === 'captcha') {
+          /* کپچای سمت سرور منقضی/نامعتبر شده — توکن کهنه را پاک کن تا تیک تازه بزند
+             (بدون این، کاربر همان توکن مرده را دوباره می‌فرستد و در حلقه می‌ماند). */
+          statusBox.textContent = 'کپچا منقضی شده یا نامعتبر است — دوباره تیک «من ربات نیستم» را بزنید و پاسخ تازه را وارد کنید.';
+          if (typeof ptfCaptchaReset === 'function') ptfCaptchaReset('supCaptcha');
+        } else if (srvErrCode === 'request_too_large' || srvErrCode === 'post_body_dropped') {
+          statusBox.textContent = (submitError || 'حجم درخواست از سقف میزبان بیشتر است') + ' — لطفاً فایل پیوست را کوچک‌تر/zip کنید و دوباره بفرستید.';
+        } else {
+          statusBox.textContent = 'ثبت در سرور انجام نشد: ' + (submitError || 'خطای نامشخص') + ' — هیچ کد رهگیری تامین‌کننده صادر نشده است.';
+        }
         statusBox.className = 'form-status full err';
-        btn.disabled = false;
-        btn.textContent = 'ثبت در بانک تامین‌کنندگان CRM';
+        resetSubmitBtn();
         return;
       }
 
@@ -525,13 +643,15 @@
         attachBox('📎 پیوست شما دریافت و در فضای ابری شرکت ذخیره شد: <b>' + escHtml(attReceipt.name) + '</b> (' + fmtSize(attReceipt.size) + ')' +
           (attAttached ? '<br>✅ این فایل به ثبت‌نام قبلی همین شرکت (کد ' + escHtml(code) + ') اضافه شد — رکورد تکراری ساخته نشد.' : ''), 'ok');
       } else if (chosenFile) {
-        const reason = attErr || warning || 'علت از سمت سرور گزارش نشد';
+        const reason = attErr || warning || 'علت از سمت سرور اعلام نشد (محتمل: گذشتن از سقف حجم میزبان یا فیلتر امنیتی/CDN)';
         try { if (window.console && console.error) console.error('[PTF supplier upload] فایل به سرور نرسید:', reason, attDiag || {}); } catch (eLog) {}
         attachBox('⚠️ <b>ثبت‌نام انجام شد، ولی فایل شما به سرور نرسید!</b><br>' +
           'علت: ' + escHtml(reason) + '<br>' +
           '<button type="button" class="btn btn-primary" style="margin-top:8px;padding:8px 16px;font-size:13px" onclick="ptfSupplierRetryAttach()">🔁 ارسال دوبارهٔ فایل</button>' +
-          '<span style="display:block;font-weight:600;font-size:12px;color:#7c2d12">بدون ساخت ثبت‌نام تکراری — فایل به همین کد رهگیری اضافه می‌شود. اگر باز هم نرسید، فایل را با ایمیل/واتساپ برای واحد سورسینگ بفرستید و کد رهگیری را ذکر کنید.</span>', 'bad');
+          '<span style="display:block;font-weight:600;font-size:12px;color:#7c2d12">بدون ساخت ثبت‌نام تکراری — فایل به همین کد رهگیری اضافه می‌شود (دکمهٔ «ثبت در بانک تامین‌کنندگان CRM» دوباره فعال می‌شود). اگر باز هم نرسید، فایل را با ایمیل/واتساپ برای واحد سورسینگ بفرستید و کد رهگیری را ذکر کنید.</span>', 'bad');
       }
+      /* v34.38.0 (SUP-ATTACH-012): دکمه در هر مسیر پس از ارسال سالم بماند */
+      resetSubmitBtn();
       document.getElementById('resBox').style.display = 'block';
       window.scrollTo({top: 80, behavior: 'smooth'});
     });

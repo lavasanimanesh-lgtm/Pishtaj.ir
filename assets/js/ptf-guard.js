@@ -70,7 +70,37 @@
   // برای پیام خطای یکسان
   window.ptfCaptchaMsg = 'لطفاً ابتدا گزینه «من ربات نیستم» را تیک بزنید و پاسخ را وارد کنید.';
 
+  /* v34.38.0 (SUP-CAPTCHA-EXP): بازنشانی کپچا پس از خطای «منقضی/نامعتبر» از سمت سرور —
+     توکن کهنه پاک و چک‌باکس خالی می‌شود تا با تیک تازه، چالش نو دریافت شود. */
+  window.ptfCaptchaReset = function (id) {
+    state.solved = false; state.token = ''; state.answer = '';
+    if (!id) return;
+    var chk = document.getElementById(id + '_chk');
+    var box = document.getElementById(id + '_box');
+    var ok = document.getElementById(id + '_ok');
+    if (chk) chk.checked = false;
+    if (box) box.style.display = 'none';
+    if (ok) ok.style.display = 'none';
+  };
+
   /* ============ OTP تایید شماره (فرم تامین‌کننده) ============ */
+  /* v34.38.0 (SUP-PHONE-001): ارقام فارسی/عربی → لاتین + نرمال‌سازی +98/0098 → 09.
+     پیش از این، شمارهٔ تایپ‌شده با ارقام فارسی (۰۹۱۲…) هرگز با الگوی 09 مطابقت پیدا
+     نمی‌کرد و تایید پیامکی/ثبت‌نام در عمل غیرممکن می‌شد. */
+  var PHONE_FA = '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩';
+  var PHONE_EN = '01234567890123456789';
+  function ptfDigitsEn(v) {
+    return String(v == null ? '' : v).replace(/[۰-۹٠-٩]/g, function (c) {
+      var i = PHONE_FA.indexOf(c);
+      return i >= 0 ? PHONE_EN[i] : c;
+    });
+  }
+  function ptfNormPhone(v) {
+    var d = ptfDigitsEn(v).replace(/\D/g, '');
+    if (d.indexOf('0098') === 0) d = '0' + d.slice(4);
+    else if (d.indexOf('98') === 0 && d.length === 12) d = '0' + d.slice(2);
+    return d;
+  }
   var otp = { token: '', verified: false, smsOff: false, timer: null, sends: 0 };
   window.ptfOtpToken = function () { return otp.token; };
   window.ptfOtpVerified = function () { return otp.verified || otp.smsOff; };
@@ -135,8 +165,11 @@
     }
 
     document.getElementById(id + '_send').addEventListener('click', function () {
-      var phone = (document.getElementById(phoneId) || { value: '' }).value.replace(/\D/g, '');
-      if (!/^09\d{9}$/.test(phone)) { setMsg('ابتدا شماره موبایل معتبر (09xxxxxxxxx) را در فرم وارد کنید', true); return; }
+      var phoneInp = document.getElementById(phoneId);
+      var phoneRaw = (phoneInp || { value: '' }).value;
+      var phone = ptfNormPhone(phoneRaw);
+      if (phoneInp && phone !== String(phoneRaw).trim()) phoneInp.value = phone;
+      if (!/^09\d{9}$/.test(phone)) { setMsg('ابتدا شماره موبایل معتبر ۱۱ رقمی (09xxxxxxxxx) را در فرم وارد کنید', true); return; }
       if (!ptfCaptchaValid()) { setMsg(ptfCaptchaMsg, true); return; }
       var fd = new FormData();
       fd.append('phone', phone);
@@ -178,7 +211,10 @@
     });
 
     document.getElementById(id + '_vfy').addEventListener('click', function () {
-      var phone = (document.getElementById(phoneId) || { value: '' }).value.replace(/\D/g, '');
+      var phoneInp = document.getElementById(phoneId);
+      var phoneRaw = (phoneInp || { value: '' }).value;
+      var phone = ptfNormPhone(phoneRaw);
+      if (phoneInp && phone !== String(phoneRaw).trim()) phoneInp.value = phone;
       var code = document.getElementById(id + '_code').value.trim();
       if (code.length < 4) { setMsg('رمز ۵ رقمی پیامک‌شده را وارد کنید', true); return; }
       var fd = new FormData();
