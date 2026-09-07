@@ -3897,10 +3897,15 @@ window.ptfHealMissingCustomersFromRfqs = function () {
     var cd = String(r.custCd || '').trim();
     if (!cd || byCd[cd] || recycled[cd] || tried[cd]) return;
     tried[cd] = 1;
+    /* v34.38.4 (CONTACT-WIPE-EXT): stub بازسازی‌شده حوزهٔ کاری (ind) را هم از حوزهٔ
+       درخواست (ca/category) برمی‌گرداند — همان نگاشت site-parity در rfqSiteEnsureCustomer.
+       پیش‌ازاین مشتریِ heal‌شده بدون ind می‌ماند و «حوزهٔ کاری پاک می‌شد». */
+    var HEAL_IND_MAP = { 'پایپینگ': 'نفت و گاز', 'شیرآلات': 'نفت و گاز', 'برق': 'نفت و گاز', 'ابزار دقیق': 'نفت و گاز' };
     var stub = {
       cd: cd,
       co: String(r.co || '').trim() || cd,
       kind: 'حقوقی',
+      ind: HEAL_IND_MAP[r.ca || r.category] || 'سایر',
       venSt: 'unreg',
       people: [],
       con: r.con || '',

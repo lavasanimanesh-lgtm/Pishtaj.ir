@@ -212,7 +212,9 @@
     } catch (eA) {}
     custs = custs.filter(function (c) { return c.cd !== drop.cd; });
     /* v34.8.23 (W1-iterate): حذفِ ادغام با فرمان tombstone (بازیافت‌پذیر) */
-    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'custmerge' });
+    /* v34.38.4 (CONTACT-WIPE-EXT): نیت حذفِ تک‌رکوردی صریح است — از سپر
+       AUTO_NO_DELETE عبور کند (reason=custmerge عمداً در آن فهرست نیست). */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'custmerge', allowDeletes: true });
     else setData('ptf_crm_customers', custs);
 
     /* AC6: audit کامل */

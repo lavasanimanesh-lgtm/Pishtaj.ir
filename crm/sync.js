@@ -1473,6 +1473,17 @@
             } catch(e) {}
             return;
           }
+          /* v34.38.2 (COST-RESURRECTION): مسیر «جایگزینی مستقیم» pull برای پرونده‌ها
+             نباید tombstone هزینهٔ حذف‌شدهٔ محلی را رونویسی کند — اجتماع _costTomb
+             محلی/سروری روی costEvents نسخهٔ سرور اعمال می‌شود؛ هیچ فیلد دیگری دست نمی‌خورد. */
+          if (curStr) {
+            if (k === 'ptf_crm_deals' && typeof window.ptfDealsApplyCostTombstones === 'function') {
+              newStr = window.ptfDealsApplyCostTombstones(curStr, newStr);
+            } else if (k === 'ptf_crm_projects' && typeof window.ptfProjectsApplyCostTombstones === 'function') {
+              /* v34.38.3 (PRJ-COST-RESURRECTION): هزینهٔ حذف‌شدهٔ بایگانی با رفرش برنگردد. */
+              newStr = window.ptfProjectsApplyCostTombstones(curStr, newStr);
+            }
+          }
           if (state.dirty[k]) return;
           
           wr(k, newStr);
@@ -2503,6 +2514,42 @@
       if (clean.removed || JSON.stringify(winner.items || []) !== JSON.stringify(loser.items || [])) {
         out._itemSyncConflict = { at: new Date().toISOString(), winnerTs: ptfRecTimestamp(winner), loserTs: ptfRecTimestamp(loser), duplicateLinesRemoved: clean.removed, policy: 'atomic-winner-snapshot-v31.8' };
       }
+    }
+    /* v34.38.3 (PRJ-COST-RESURRECTION): حذف هزینهٔ بایگانی (پسابایگانی/پرونده) باید در
+       merge بین‌دستگاهی ماندگار بماند — هم‌سنخ COST-EVENT-TOMB برای پرونده‌های فروش:
+       اجتماع _costTomb محلی/سروری + ددوب cd (نسخهٔ جدیدتر برنده) روی costEvents و
+       postArchiveCosts. پیش از این حذف فقط از آرایهٔ همان دستگاه پاک می‌شد و نسخهٔ
+       کهنهٔ دستگاه دیگر در merge بعدی هزینهٔ حذف‌شده را برمی‌گرداند. */
+    if (key === 'ptf_crm_projects') {
+      var pTomb = {};
+      [a, b].forEach(function (side) {
+        var m = (side || {})._costTomb || {};
+        Object.keys(m).forEach(function (cd) {
+          var v = String(m[cd] || '');
+          if (v && (!pTomb[cd] || v > pTomb[cd])) pTomb[cd] = v;
+        });
+      });
+      if (Object.keys(pTomb).length) out._costTomb = pTomb;
+      ['costEvents', 'postArchiveCosts'].forEach(function (fname) {
+        var src = Array.isArray(out[fname]) ? out[fname] : [];
+        var seen = {}, kept = [];
+        src.forEach(function (e) {
+          if (!e || typeof e !== 'object') { kept.push(e); return; }
+          var cd = String(e.cd || '');
+          if (!cd) { kept.push(e); return; } /* رویداد بدون cd (قدیمی) → دست‌نخورده */
+          if (pTomb[cd]) return; /* حذف‌شده → حذف ماندگار */
+          if (seen[cd]) {
+            if (ptfEventDedupNewer(e, seen[cd])) {
+              var idx = kept.indexOf(seen[cd]);
+              if (idx > -1) kept[idx] = e;
+              seen[cd] = e;
+            }
+            return;
+          }
+          seen[cd] = e; kept.push(e);
+        });
+        out[fname] = kept;
+      });
     }
     var idField = key === 'ptf_crm_offers' ? 'no' : 'cd';
     out[idField] = code;

@@ -1090,13 +1090,21 @@
         function skipAdv(x) {
           return !(x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || ''))));
         }
-        var dealCosts = (d && d.costEvents || []).filter(skipAdv).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+        /* v34.38.2 (COST-SUM): جمع هزینهٔ مستقیم از منبع واحد — ددوب cd + احترام به _costTomb
+           (حذف ماندگار) + حذف advance + مبلغ زندهٔ تنخواه؛ به‌جای reduce خام و
+           Math.max(deal,arch) که هزینهٔ کوچک‌ترِ یکی از دو منبع را نادیده می‌گرفت. */
+        var dealCosts = (typeof window.ptfDealCostSumIRR === 'function')
+          ? window.ptfDealCostSumIRR(d)
+          : (d && d.costEvents || []).filter(skipAdv).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
         var archCosts = 0;
         if (prj && (prj.origin === 'salesfile' || prj.state === 'archived')) {
-          archCosts += ((prj.costEvents || []).filter(skipAdv).reduce(function (s, x) { return s + (+x.amt || 0); }, 0));
-          archCosts += ((prj.postArchiveCosts || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0));
+          if (typeof window.ptfCostListSumIRR === 'function') {
+            archCosts = window.ptfCostListSumIRR(prj.costEvents, prj) + window.ptfCostListSumIRR(prj.postArchiveCosts, prj);
+          } else {
+            archCosts = ((prj.costEvents || []).filter(skipAdv).reduce(function (s, x) { return s + (+x.amt || 0); }, 0)) + ((prj.postArchiveCosts || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0));
+          }
         }
-        var costs = Math.max(dealCosts, archCosts);
+        var costs = dealCosts + archCosts;
         if (costs && r && r.profit != null) {
           r.projectCostIrr = costs;
           r.profit -= costs;

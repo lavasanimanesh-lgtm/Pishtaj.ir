@@ -91,6 +91,166 @@
       deal._costTomb[String(cd)] = new Date().toISOString();
     } catch (eT) {}
   };
+
+  /* ═══ v34.38.2 (COST-VISIBLE + COST-SUM): منبع واحد «خواندن/جمع هزینهٔ قابل‌نمایش پرونده» ═══
+     گزارش کارفرما: «جمع کل هزینه‌ها درست نیست» و «هزینهٔ حذف‌شده با رفرش برمی‌گردد».
+     ریشهٔ مشترک: هر نما هزینه‌ها را جداگانه و مستقیم از costEvents می‌خواند، در حالی که
+     _costTomb (حذف ماندگار v34.29.8) فقط در merge بین‌دستگاهی اعمال می‌شد و render/پروجکشن/
+     overwrite آن را نمی‌دیدند. از این پس هر نمایش/جمع هزینهٔ پرونده باید از این توابع عبور
+     کند تا ① هزینهٔ tombstoneشده هرگز دیده/شمرده نشود و ② همهٔ نماها یک عدد ببینند. */
+  window.ptfDealVisibleCosts = function (deal) {
+    /* costEventsِ زندهٔ پرونده = فیلتر _costTomb + ددوب بر cd (هم‌سنخ merge در sync.js). */
+    var evs = (deal && deal.costEvents) || [];
+    if (!evs.length) return [];
+    var tomb = (deal && deal._costTomb) || {};
+    var seen = {}, out = [];
+    evs.forEach(function (e) {
+      if (!e || typeof e !== 'object') return;
+      var cd = String(e.cd || '');
+      if (!cd) { out.push(e); return; } /* رویداد بدون cd (قدیمی) → دست‌نخورده */
+      if (tomb[cd]) return;              /* حذف ماندگار */
+      if (seen[cd]) return;              /* تکرار هم‌کد */
+      seen[cd] = 1;
+      out.push(e);
+    });
+    return out;
+  };
+  window.ptfDealCostSumIRR = function (deal, opts) {
+    /* جمعِ قطعیِ «هزینه‌های مستقیم» که با ردیف‌های فهرستِ کشوی پرونده یکسان است:
+       costEvents زنده (مبلغ زندهٔ تنخواه برای رویدادهای لینک‌شده) + پروجکشن زندهٔ تنخواه
+       (dealRef) با رعایت _costTomb؛ advance/پیش‌پرداخت شمرده نمی‌شود. */
+    opts = opts || {};
+    var skipAdv = opts.skipAdvance !== false;
+    function isAdv(x) { return !!(x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || '')))); }
+    var dealCd = String((deal && deal.cd) || '');
+    var tomb = (deal && deal._costTomb) || {};
+    var petty = [];
+    try { petty = (typeof getData === 'function' ? (getData('ptf_crm_petty') || []) : []); } catch (e) { petty = []; }
+    var pettyByCd = {};
+    petty.forEach(function (p) { if (p && p.cd) pettyByCd[p.cd] = p; });
+    var linked = {}, s = 0;
+    window.ptfDealVisibleCosts(deal).forEach(function (x) {
+      if (skipAdv && isAdv(x)) return;
+      var pettyCd = String(x.pettyCd || (x.fromPetty ? x.cd : '') || '');
+      var live = pettyCd ? (pettyByCd[pettyCd] || null) : null;
+      if (pettyCd) linked[pettyCd] = 1;
+      s += +(live ? live.amt : x.amt) || 0;
+    });
+    if (dealCd) {
+      petty.forEach(function (p) {
+        if (!p || p.st === 'void' || String(p.dealRef || '') !== dealCd) return;
+        var cd = String(p.cd || '');
+        if (!cd || linked[cd]) return;
+        if (tomb[cd]) return; /* حذف ماندگار — پروجکشن بازسازی‌اش نکند */
+        s += +(p.amt || 0);
+      });
+    }
+    return s;
+  };
+  window.ptfCostListSumIRR = function (list, deal, opts) {
+    /* v34.38.2 (COST-SUM): جمع یک لیست هزینه (costEvents/postArchiveCosts) با
+       ددوب cd + احترام به _costTomb + حذف advance/پیش‌پرداخت. مبنای سود پروژه —
+       همپوشانی اسنپ‌شات deal/project دیگر دوباره‌شماری نمی‌شود. */
+    opts = opts || {};
+    var skipAdv = opts.skipAdvance !== false;
+    function isAdv(x) { return !!(x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || '')))); }
+    var tomb = (deal && deal._costTomb) || {};
+    var seen = {}, s = 0;
+    (list || []).forEach(function (x) {
+      if (!x) return;
+      if (skipAdv && isAdv(x)) return;
+      var cd = String(x.cd || '');
+      if (cd) {
+        if (tomb[cd] || seen[cd]) return;
+        seen[cd] = 1;
+      }
+      s += (+x.amt || 0);
+    });
+    return s;
+  };
+  window.ptfDealsApplyCostTombstones = function (localStr, serverStr) {
+    /* v34.38.2: مسیر «جایگزینی مستقیم» pull برای ptf_crm_deals نباید tombstone هزینهٔ
+       حذف‌شدهٔ محلی را رونویسی کند. نقشهٔ _costTomb محلی/سروری اجتماع شده و روی costEvents
+       نسخهٔ سرور اعمال می‌شود — هیچ فیلد دیگری دست نمی‌خورد؛ خطا = برگرداندن نسخهٔ سرور. */
+    try {
+      var loc = JSON.parse(localStr || '[]');
+      var srv = JSON.parse(serverStr || '[]');
+      if (!Array.isArray(loc) || !Array.isArray(srv) || !srv.length) return serverStr;
+      var localTombByCd = {};
+      loc.forEach(function (r) { if (r && r.cd && r._costTomb) localTombByCd[String(r.cd)] = r._costTomb; });
+      var changed = false;
+      srv = srv.map(function (r) {
+        if (!r || typeof r !== 'object') return r;
+        var cd = String(r.cd || '');
+        var union = {};
+        [localTombByCd[cd], r._costTomb].forEach(function (m) {
+          if (!m) return;
+          Object.keys(m).forEach(function (k) { var v = String(m[k] || ''); if (v && (!union[k] || v > union[k])) union[k] = v; });
+        });
+        if (!Object.keys(union).length) return r;
+        var kept = [], seen = {}, removed = 0;
+        (Array.isArray(r.costEvents) ? r.costEvents : []).forEach(function (e) {
+          if (!e || typeof e !== 'object') { kept.push(e); return; }
+          var c = String(e.cd || '');
+          if (!c) { kept.push(e); return; }
+          if (union[c] || seen[c]) { removed++; return; }
+          seen[c] = 1;
+          kept.push(e);
+        });
+        var unionHasNew = Object.keys(union).some(function (k) { return !(r._costTomb && String(r._costTomb[k] || '') === String(union[k] || '')); });
+        if (removed || unionHasNew) { r.costEvents = kept; r._costTomb = union; changed = true; }
+        return r;
+      });
+      return changed ? JSON.stringify(srv) : serverStr;
+    } catch (e) { return serverStr; }
+  };
+  window.ptfProjectsApplyCostTombstones = function (localStr, serverStr) {
+    /* v34.38.3 (PRJ-COST-RESURRECTION): مسیر «جایگزینی مستقیم» pull برای ptf_crm_projects
+       نباید tombstone هزینهٔ حذف‌شدهٔ بایگانی را رونویسی کند — اجتماع _costTomb محلی/سروری
+       روی costEvents و postArchiveCosts نسخهٔ سرور اعمال می‌شود؛ هیچ فیلد دیگری دست نمی‌خورد. */
+    try {
+      var loc = JSON.parse(localStr || '[]');
+      var srv = JSON.parse(serverStr || '[]');
+      if (!Array.isArray(loc) || !Array.isArray(srv) || !srv.length) return serverStr;
+      var localTombByCd = {};
+      loc.forEach(function (r) { if (r && r.cd && r._costTomb) localTombByCd[String(r.cd)] = r._costTomb; });
+      var changed = false;
+      srv = srv.map(function (r) {
+        if (!r || typeof r !== 'object') return r;
+        var cd = String(r.cd || '');
+        var union = {};
+        [localTombByCd[cd], r._costTomb].forEach(function (m) {
+          if (!m) return;
+          Object.keys(m).forEach(function (k) { var v = String(m[k] || ''); if (v && (!union[k] || v > union[k])) union[k] = v; });
+        });
+        if (!Object.keys(union).length) return r;
+        var removed = 0;
+        function filterList(list) {
+          var kept = [], seen = {};
+          (Array.isArray(list) ? list : []).forEach(function (e) {
+            if (!e || typeof e !== 'object') { kept.push(e); return; }
+            var c = String(e.cd || '');
+            if (!c) { kept.push(e); return; }
+            if (union[c] || seen[c]) { removed++; return; }
+            seen[c] = 1;
+            kept.push(e);
+          });
+          return kept;
+        }
+        var ce = filterList(r.costEvents);
+        var pac = filterList(r.postArchiveCosts);
+        var unionHasNew = Object.keys(union).some(function (k) { return !(r._costTomb && String(r._costTomb[k] || '') === String(union[k] || '')); });
+        if (removed || unionHasNew) {
+          r.costEvents = ce;
+          r.postArchiveCosts = pac;
+          r._costTomb = union;
+          changed = true;
+        }
+        return r;
+      });
+      return changed ? JSON.stringify(srv) : serverStr;
+    } catch (e) { return serverStr; }
+  };
   window.ptfDealCostMatch = function (ev, rec, source) {
     if (!ev || !rec) return false;
     if (source === 'opex') {

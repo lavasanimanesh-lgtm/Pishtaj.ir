@@ -135,10 +135,17 @@
   }
   function fiscalDirectProjectCosts(p, r) {
     var d = findDealForFiscal(p);
+    /* v34.38.3 (COST-RESURRECTION در گزارش مالی): هر منبع هزینه به سنگ‌قبرِ خودش گره
+       می‌خورد — هزینهٔ حذف‌شدهٔ پرونده (deal._costTomb) و هزینهٔ حذف‌شدهٔ بایگانی
+       (project._costTomb) در جمع هزینهٔ مستقیم سال مالی شمرده نمی‌شوند؛ پیش‌پرداخت/
+       advance هم طبق منبع واحد (ptfDealCostSumIRR / dealTotalCosts) هزینه نیست. */
+    var dealTomb = (d && d._costTomb) || {};
+    var prjTomb = (p && p._costTomb) || {};
+    function isAdv(x) { return !!(x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || '')))); }
     var manual = []
-      .concat((d && d.costEvents) || [])
-      .concat((p && p.costEvents) || [])
-      .concat((p && p.postArchiveCosts) || []);
+      .concat(((d && d.costEvents) || []).map(function (c) { return { c: c, tomb: dealTomb }; }))
+      .concat(((p && p.costEvents) || []).map(function (c) { return { c: c, tomb: prjTomb }; }))
+      .concat(((p && p.postArchiveCosts) || []).map(function (c) { return { c: c, tomb: prjTomb }; }));
     /* v34.5.38 (ابلاغ کارفرما — «امکان دوباره‌شماری به هیچ عنوان نباشد»):
        مبنای هزینهٔ خرید واقعی فقط «فاکتور خرید تأمین‌کننده» (buyIrr) است. هر هزینهٔ
        دستی/پسابایگانی که صریحاً به یکی از همان فاکتورها لینک شده باشد (refInvoiceCd /
@@ -150,8 +157,12 @@
     if (r && r.buySourcePurchaseCds) r.buySourcePurchaseCds.forEach(function (c) { if (c != null) srcPc[String(c)] = 1; });
     if (r && r.buyLegacyPayableCds) r.buyLegacyPayableCds.forEach(function (c) { if (c != null) legPc[String(c)] = 1; });
     var seen = {}, total = 0;
-    manual.forEach(function (c) {
+    manual.forEach(function (it) {
+      var c = it && it.c, tomb = (it && it.tomb) || {};
       if (!c) return;
+      if (isAdv(c)) return; /* v34.38.3: پیش‌پرداخت/advance هزینهٔ مستقیم نیست */
+      var cdc = String(c.cd || '');
+      if (cdc && tomb[cdc]) return; /* v34.38.3: حذف ماندگار */
       var refs = [c.refInvoiceCd, c.supplierInvoiceCd, c.coveredByInvoiceCd, c.sourcePurchaseCd].filter(Boolean);
       var linked = refs.some(function (k) { return invCds[k] || srcPc[k] || legPc[k]; });
       if (!linked && Array.isArray(c.legacyPayableCds)) {

@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.38.1';
+const SD_SERVICE_VERSION = '34.38.5';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -2054,6 +2054,9 @@ try {
         $shareholder=null;foreach($shareholders as $candidate)if(is_array($candidate)&&(string)($candidate['cd']??'')===$shCd){$shareholder=$candidate;break;}
         if(!$shareholder||($shareholder['active']??true)===false||($shareholder['duty']??false)!==true||sd_num($shareholder['salary']??0)<=0)sd_out(['ok'=>false,'error'=>'salary_not_eligible'],422);
         $salary=(int)round(sd_num($shareholder['salary']));$key='salary:'.$shCd.':'.$month;
+        /* v34.38.5 (DATA-QUALITY SH-SALARY): نوع سند حقوق از پروفایل سهامدار (salaryOfficial)
+           به هزینهٔ حقوق انتشار می‌یابد — تعیین‌نشده یعنی کلید isOfficial اصلاً نوشته نمی‌شود. */
+        $salaryOfficialVal=null;if(array_key_exists('salaryOfficial',$shareholder)&&$shareholder['salaryOfficial']!==null&&$shareholder['salaryOfficial']!==''){$salaryOfficialVal=!empty($shareholder['salaryOfficial']);}
         $txHits=sd_salary_find_indexes($sharetx,$key,$shCd,$month);$txCds=[];foreach($txHits as $txIndex)if(trim((string)($sharetx[$txIndex]['cd']??''))!=='')$txCds[]=trim((string)$sharetx[$txIndex]['cd']);
         $oxHits=[];foreach($opex as $oxIndex=>$ox){if(!is_array($ox)||(string)($ox['month']??'')!==$month)continue;$sameKey=(string)($ox['recurringKey']??'')===$key;$sameTx=in_array(trim((string)($ox['shareTx']??'')),$txCds,true)&&!empty($ox['shareholderSalary']);if($sameKey||$sameTx)$oxHits[]=(int)$oxIndex;}
         if($txHits||$oxHits){
@@ -2065,7 +2068,9 @@ try {
         }
         $now=sd_now();$txCd=sd_stable_recurring_code('SHT-SAL',$key);$oxCd=sd_stable_recurring_code('OPX-SAL',$key);$rowId=sd_stable_recurring_code('OPXR-SAL',$key);
         $sharetx[]=['cd'=>$txCd,'shCd'=>$shCd,'shName'=>(string)($shareholder['name']??$shCd),'type'=>'salary','amt'=>$salary,'desc'=>'حقوق موظف ماه '.$month,'month'=>$month,'t'=>$month.'/01','recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'createdAt'=>$now,'createdBy'=>$user];
-        $opex[]=['cd'=>$oxCd,'_opexRowId'=>$rowId,'cat'=>'حقوق و دستمزد','amt'=>$salary,'month'=>$month,'desc'=>'حقوق موظف سهامدار: '.(string)($shareholder['name']??$shCd),'shareTx'=>$txCd,'shareholderSalary'=>true,'recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'serverMaterialized'=>true,'t'=>$month.'/01','createdAt'=>$now,'createdBy'=>$user];
+        $opexSalaryRow=['cd'=>$oxCd,'_opexRowId'=>$rowId,'cat'=>'حقوق و دستمزد','amt'=>$salary,'month'=>$month,'desc'=>'حقوق موظف سهامدار: '.(string)($shareholder['name']??$shCd),'shareTx'=>$txCd,'shareholderSalary'=>true,'recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'serverMaterialized'=>true,'t'=>$month.'/01','createdAt'=>$now,'createdBy'=>$user];
+        if($salaryOfficialVal!==null)$opexSalaryRow['isOfficial']=$salaryOfficialVal;
+        $opex[]=$opexSalaryRow;
         $projectionRows=[$opex[count($opex)-1]];$changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];$responseChanges=['ptf_crm_opex'=>[],'ptf_crm_sharetx'=>[]];
         $result=['registered'=>true,'alreadyRegistered'=>false,'month'=>$month,'shareholderCd'=>$shCd,'recurringKey'=>$key,'amount'=>$salary,'transactionCd'=>$txCd,'opexRowId'=>$rowId,'projectionMode'=>'atomic-salary-opex','projectionIdentities'=>$projectionRows];
     }
@@ -2109,6 +2114,9 @@ try {
         if($includeSalaries)foreach($shareholders as $sh){
             if(!is_array($sh)||empty($sh['cd'])||($sh['active']??true)===false||($sh['duty']??false)!==true||sd_num($sh['salary']??0)<=0)continue;
             $shCd=sd_text($sh['cd'],160);$salary=sd_num($sh['salary']);$key='salary:'.$shCd.':'.$month;$eligibleSalaryKeys[$key]=true;
+            /* v34.38.5 (DATA-QUALITY SH-SALARY): نوع سند حقوق (salaryOfficial) از پروفایل
+               سهامدار به ردیف هزینهٔ حقوق انتشار می‌یابد؛ تعیین‌نشده = ننوشتن isOfficial. */
+            $salaryOfficialVal=null;if(array_key_exists('salaryOfficial',$sh)&&$sh['salaryOfficial']!==null&&$sh['salaryOfficial']!==''){$salaryOfficialVal=!empty($sh['salaryOfficial']);}
             $restore=sd_recurring_restore_requested($key,$restoreKeys);$txHits=sd_salary_find_indexes($sharetx,$key,$shCd,$month);
             /* Legacy salary OPEX may predate recurringKey but already has a durable
                shareTx relation. Union every matching transaction identity (not merely
@@ -2136,9 +2144,11 @@ try {
             }
             $oxCd=sd_stable_recurring_code('OPX-SAL',$key);$rowId=sd_stable_recurring_code('OPXR-SAL',$key);$oxIndex=sd_recurring_pick_index($opex,$oxHits,$restore);$restoreOx=$restore&&$oxIndex>=0&&sd_recurring_explicit_tombstone($opex[$oxIndex]);
             if($oxIndex<0){
-                $opex[]=['cd'=>$oxCd,'_opexRowId'=>$rowId,'cat'=>'حقوق و دستمزد','amt'=>$salary,'month'=>$month,'desc'=>'حقوق موظف سهامدار: '.(string)($sh['name']??$shCd),'shareTx'=>$sharetx[$txIndex]['cd'],'shareholderSalary'=>true,'recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'serverMaterialized'=>true,'t'=>$month.'/01','createdAt'=>$now,'createdBy'=>$user];$oxIndex=count($opex)-1;$created++;
+                $opexSalaryRow=['cd'=>$oxCd,'_opexRowId'=>$rowId,'cat'=>'حقوق و دستمزد','amt'=>$salary,'month'=>$month,'desc'=>'حقوق موظف سهامدار: '.(string)($sh['name']??$shCd),'shareTx'=>$sharetx[$txIndex]['cd'],'shareholderSalary'=>true,'recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'serverMaterialized'=>true,'t'=>$month.'/01','createdAt'=>$now,'createdBy'=>$user];
+                if($salaryOfficialVal!==null)$opexSalaryRow['isOfficial']=$salaryOfficialVal;
+                $opex[]=$opexSalaryRow;$oxIndex=count($opex)-1;$created++;
             }else{
-                $beforeSnapshot=$opex[$oxIndex];$before=json_encode($beforeSnapshot);$legacyCd=trim((string)($opex[$oxIndex]['cd']??''));$legacyRow=trim((string)($opex[$oxIndex]['_opexRowId']??''));$opex[$oxIndex]['cd']=$legacyCd!==''?$legacyCd:$oxCd;$opex[$oxIndex]['_opexRowId']=$legacyRow!==''?$legacyRow:$rowId;$opex[$oxIndex]['cat']='حقوق و دستمزد';$opex[$oxIndex]['amt']=$salary;$opex[$oxIndex]['month']=$month;$opex[$oxIndex]['desc']='حقوق موظف سهامدار: '.(string)($sh['name']??$shCd);$opex[$oxIndex]['shareTx']=$sharetx[$txIndex]['cd'];$opex[$oxIndex]['shareholderSalary']=true;$opex[$oxIndex]['recurringKey']=$key;$opex[$oxIndex]['serverReconciled']=true;$opex[$oxIndex]['serverMaterialized']=true;$opex[$oxIndex]['t']=$month.'/01';sd_recurring_activate($opex[$oxIndex]);if($restoreOx){$opex[$oxIndex]['restoreIntent']='explicit';$opex[$oxIndex]['restoredAt']=$now;$opex[$oxIndex]['restoredBy']=$user;}
+                $beforeSnapshot=$opex[$oxIndex];$before=json_encode($beforeSnapshot);$legacyCd=trim((string)($opex[$oxIndex]['cd']??''));$legacyRow=trim((string)($opex[$oxIndex]['_opexRowId']??''));$opex[$oxIndex]['cd']=$legacyCd!==''?$legacyCd:$oxCd;$opex[$oxIndex]['_opexRowId']=$legacyRow!==''?$legacyRow:$rowId;$opex[$oxIndex]['cat']='حقوق و دستمزد';$opex[$oxIndex]['amt']=$salary;$opex[$oxIndex]['month']=$month;$opex[$oxIndex]['desc']='حقوق موظف سهامدار: '.(string)($sh['name']??$shCd);$opex[$oxIndex]['shareTx']=$sharetx[$txIndex]['cd'];$opex[$oxIndex]['shareholderSalary']=true;$opex[$oxIndex]['recurringKey']=$key;$opex[$oxIndex]['serverReconciled']=true;$opex[$oxIndex]['serverMaterialized']=true;$opex[$oxIndex]['t']=$month.'/01';sd_recurring_activate($opex[$oxIndex]);if($salaryOfficialVal!==null)$opex[$oxIndex]['isOfficial']=$salaryOfficialVal;if($restoreOx){$opex[$oxIndex]['restoreIntent']='explicit';$opex[$oxIndex]['restoredAt']=$now;$opex[$oxIndex]['restoredBy']=$user;}
                 if(json_encode($opex[$oxIndex])!==$before){$opex[$oxIndex]['updatedAtISO']=$now;$opex[$oxIndex]['updatedBy']=$user;$updated++;}
                 if($restoreOx)$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$opex[$oxIndex]['_opexRowId']??$opex[$oxIndex]['cd'],'kind'=>'explicit_restore','beforeSnapshot'=>$beforeSnapshot,'afterSnapshot'=>$opex[$oxIndex],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
             }

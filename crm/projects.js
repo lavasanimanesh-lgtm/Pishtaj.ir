@@ -32,7 +32,11 @@ function prjCostLabels() {
   return { warranty: 'گارانتی/خدمات پس از تحویل', service: 'خدمات/اعزام', repair: 'اصلاح/تعویض', logistics: 'حمل برگشتی/لجستیک', other: 'سایر' };
 }
 function prjAllCosts(p) {
-  return ((p && p.costEvents) || []).concat((p && p.postArchiveCosts) || []);
+  /* v34.38.3 (PRJ-COST-RESURRECTION): هزینهٔ حذف‌شدهٔ بایگانی (tombstone _costTomb)
+     هرگز در فهرست/جمع نمایش داده نمی‌شود — هم‌سنخ ptfDealVisibleCosts برای پرونده‌ها. */
+  var tomb = (p && p._costTomb) || {};
+  return ((p && p.costEvents) || []).concat((p && p.postArchiveCosts) || [])
+    .filter(function (x) { return !(x && x.cd && tomb[String(x.cd)]); });
 }
 function prjCostTotal(p) {
   return prjAllCosts(p).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
@@ -389,6 +393,10 @@ window.prjPostCostDel = function (no, costCd) {
   pp.postArchiveCosts = (pp.postArchiveCosts || []).filter(function (x) { return x.cd !== costCd; });
   pp.costEvents = (pp.costEvents || []).filter(function (x) { return x.cd !== costCd; });
   pp.docs = (pp.docs || []).filter(function (x) { return x.costCd !== costCd; });
+  /* v34.38.3 (PRJ-COST-RESURRECTION): سنگ‌قبر حذف هزینهٔ بایگانی — حذف ماندگار در
+     merge بین‌دستگاهی (هم‌سنخ _costTomb پرونده‌های فروش) و در نمایش/جمع/گزارش مالی. */
+  pp._costTomb = pp._costTomb || {};
+  pp._costTomb[costCd] = faDateTime();
   pp.timeline = pp.timeline || [];
   pp.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینه از پرونده بایگانی: ' + (old.desc || '') + ' — ' + (+old.amt || 0).toLocaleString('fa-IR') + ' ریال' });
   pp.changeLog = pp.changeLog || [];

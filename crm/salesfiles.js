@@ -1247,17 +1247,19 @@
       }
     } catch (e) {}
     var rb = (typeof ptfRealBuyStatus === 'function') ? ptfRealBuyStatus(r.inqNo) : { total: 0, done: 0, has: false };
-    var costSum = (function (evs) {
-      /* v34.29.8: ددوب بر اساس cd پیش از جمع — نوار مالی هر هزینه را یک‌بار می‌شمارد */
-      var seen = {};
-      return (evs || []).filter(function (x) {
-        if (x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || '')))) return false;
-        var k = x && (x.cd || x.pettyCd) || x;
-        if (k && seen[k]) return false;
-        if (k) seen[k] = 1;
-        return true;
-      }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
-    })(r.costEvents);
+    var costSum = (typeof window.ptfDealCostSumIRR === 'function')
+      ? window.ptfDealCostSumIRR(r)
+      : (function (evs) {
+          /* v34.29.8: ددوب بر اساس cd پیش از جمع — نوار مالی هر هزینه را یک‌بار می‌شمارد (fallback بدون helper) */
+          var seen = {};
+          return (evs || []).filter(function (x) {
+            if (x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || '')))) return false;
+            var k = x && (x.cd || x.pettyCd) || x;
+            if (k && seen[k]) return false;
+            if (k) seen[k] = 1;
+            return true;
+          }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+        })(r.costEvents);
     var invCount = (d.invoices || []).length;
     var openAmt = (d.invoices || []).reduce(function (s, i) {
       var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(i) : ((i.payments || []).concat(i.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
@@ -1408,7 +1410,11 @@
        قدیمی دارای dealRef که costEvent آن‌ها جا افتاده نیز به‌صورت projection نمایش داده می‌شوند. */
     var pjPettyByCd = {}, pjPettyAll = getData('ptf_crm_petty') || [];
     pjPettyAll.forEach(function (p) { if (p && p.cd) pjPettyByCd[p.cd] = p; });
-    var pjCostEvents = (r.costEvents || []).slice();
+    /* v34.38.2 (COST-RESURRECTION): خواندن costEvents از منبع واحدِ قابل‌نمایش — هزینهٔ
+       tombstoneشدهٔ (حذف ماندگار) هرگز در فهرست بازسازی/نمایش داده نمی‌شود. */
+    var pjCostEvents = (typeof window.ptfDealVisibleCosts === 'function')
+      ? window.ptfDealVisibleCosts(r).slice()
+      : (r.costEvents || []).slice();
     /* v34.29.8 (COST-DEDUP): ددوب نمایشی بر اساس cd — بیمهٔ ثانویه روی دادهٔ تاریخی
        تا زمانی که merge/جاروب تعمیر همهٔ دستگاه‌ها همگرا کند. */
     (function () {
@@ -1425,6 +1431,9 @@
     pjPettyAll.forEach(function (p) {
       if (!p || p.st === 'void' || p.dealRef !== r.cd) return;
       if (pjCostEvents.some(function (ce) { return (ce.pettyCd || (ce.fromPetty && ce.cd)) === p.cd; })) return;
+      /* v34.38.2 (COST-RESURRECTION): پروجکشن زندهٔ تنخواه هم به _costTomb احترام می‌گذارد —
+         هزینهٔ تنخواهِ حذف‌شده حتی اگر dealRef هنوز ست باشد، دوباره ساخته نمی‌شود. */
+      if ((r._costTomb || {})[p.cd]) return;
       pjCostEvents.push({ cd: p.cd, pettyCd: p.cd, fromPetty: true, amt: p.amt, desc: '[تنخواه] ' + (p.desc || p.cat || ''), t: p.t, by: p.by, files: [] });
     });
     var pjPettyLinkedCds = pjCostEvents.filter(function (x) { return x.pettyCd || x.fromPetty; }).map(function (x) { return x.pettyCd || x.cd; });
@@ -2361,6 +2370,10 @@
       t: faDateTime(),
       timeline: [{ t: faDateTime(), by: curSession().name, tx: closeKind === 'settled' ? '🏁 مختومه — پایان پروژه و تسویه کامل (انتقال از پرونده‌های فروش)' : '🚫 مختومه بدون فاکتور — ' + (why || '') }]
     };
+    /* v34.38.3 (PRJ-COST-RESURRECTION): دانش حذف هزینه‌ها (tombstone) همراه بایگانی
+       منتقل می‌شود تا گزارش مالی/merge بعدی هرگز هزینهٔ حذف‌شدهٔ پیش از بایگانی را
+       باز نشمارد (پروندهٔ بایگانی‌شده باید خودش تاریخچهٔ حذفش را حمل کند). */
+    if (r._costTomb) rec._costTomb = Object.assign({}, r._costTomb);
     prjs.unshift(rec);
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
     /* v21.1 BUG-035: پیشنهادها/درخواست مرتبط را lost/stX کن تا فرصت دوباره نیاید */
@@ -2486,12 +2499,14 @@
      هم‌کد/متفاوت‌کد از union امضای کامل-JSON ② رویداد یتیم تنخواه (منبع حذف/ابطال
      شده یا لینک‌شده به پروندهٔ دیگر / لینک‌گسسته) ③ موارد حذف‌شده‌ای که tombstone
      نداشتند. جاروب: ددوب بر cd + حذف یتیم‌ها + نوشتن _costTomb برای هر حذف تا
-     merge بین‌دستگاهی هرگز بازشان نگرداند. idempotent؛ یک‌بار در هر دستگاه. */
+     merge بین‌دستگاهی هرگز بازشان نگرداند. idempotent؛ v34.38.2: فلگ نسخه‌دار شد —
+     دستگاه‌هایی که v1 (بدون فیلد v) را اجرا کرده‌اند، v2 را هم یک‌بار اجرا می‌کنند
+     تا هزینه‌های برگشتهٔ پیش از اصلاحِ render/overwrite هم پاک شوند. */
   window.ptfDealCostRepairSweep = function (force) {
     /* فلگ گارد از مسیر لایهٔ داده (A10/E2) — نه localStorage مستقیم؛ این کلید عضو
        SYNC_KEYS نیست → فقط محلی است و نویز sync ندارد. */
     var flags = (typeof getData === 'function' ? getData('ptf_app_flags') : []) || [];
-    var hasFlag = flags.some(function (x) { return x && x.cd === 'cost_repair_v1'; });
+    var hasFlag = flags.some(function (x) { return x && x.cd === 'cost_repair_v1' && (+(x.v || 1) >= 2); });
     if (!force && hasFlag) return { ok: true, skipped: true, deals: 0 };
     var ds = getData('ptf_crm_deals') || [];
     var pettyBy = {};
@@ -2529,7 +2544,7 @@
     }
     try {
       flags = flags.filter(function (x) { return x && x.cd !== 'cost_repair_v1'; });
-      flags.push({ cd: 'cost_repair_v1', t: new Date().toISOString() });
+      flags.push({ cd: 'cost_repair_v1', v: 2, t: new Date().toISOString() });
       setData('ptf_app_flags', flags);
     } catch (eFlag) {}
     return { ok: true, skipped: false, deals: touched };

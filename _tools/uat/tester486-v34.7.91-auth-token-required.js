@@ -17,9 +17,9 @@ var idx = read('crm/index.html');
 var inq = read('crm/inqreader.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.1', ver.crm_version === 'v34.38.1', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.38.1', /window\.PTF_CRM_RELEASE = 'v34\.38\.1'/.test(idx));
-T('inqreader.js cache-bust 34.38.1', /inqreader\.js\?v=34\.38\.1/.test(idx));
+T('VERSION.json = v34.38.5', ver.crm_version === 'v34.38.5', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.38.5', /window\.PTF_CRM_RELEASE = 'v34\.38\.5'/.test(idx));
+T('inqreader.js cache-bust 34.38.5', /inqreader\.js\?v=34\.38\.5/.test(idx));
 
 /* ---------- حذف ورود فقط-محلی بدون توکن ---------- */
 T('متن قدیمیِ «ورود فقط-محلی» حذف شد', idx.indexOf("users[i].username === u && users[i].passhash && users[i].passhash === ph") < 0);
