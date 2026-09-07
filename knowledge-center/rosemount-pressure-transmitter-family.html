@@ -179,12 +179,17 @@
 <p style="color:rgba(255,255,255,.75);font-size:14px">مرکز دانش فنی پیشرو تجهیز فرتاک — راهنمای مهندسی خرید</p>
 </div>
 </section>
-<div class="article-wrap">
-<div class="article-content">
+<main id="main-content" class="article-wrap">
+<article class="article-content">
+<div class="kc-byline" style="display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:10px 16px;margin:0 0 18px"><span>نویسنده: <b style="color:#334155">تیم مهندسی و تامین پیشرو تجهیز فرتاک</b></span><span>منتشرشده: <time datetime="2026-07-01">۱۰ تیر ۱۴۰۵</time></span><span>به‌روزرسانی: <time datetime="2026-08-21">۳۰ مرداد ۱۴۰۵</time></span><span>زمان مطالعه: ۵ دقیقه</span></div>
+
+<nav class="kc-toc" aria-label="فهرست مطالب" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px 18px;margin:0 0 20px;font-size:14px"><b style="display:block;margin-bottom:6px;color:#0f172a">فهرست مطالب</b><ul style="margin:0;padding-right:18px;display:grid;gap:4px;color:#334155"><li><a href="#kc-sec-1" style="color:#0e7490;text-decoration:none">خانوادهٔ ترانسمیتر فشار روزمونت</a></li><li><a href="#kc-sec-2" style="color:#0e7490;text-decoration:none">مدل‌های اصلی و جایگاه هرکدام</a></li><li><a href="#kc-sec-3" style="color:#0e7490;text-decoration:none">تفاوت 3051 و 2088 — کدام را انتخاب کنم؟</a></li><li><a href="#kc-sec-4" style="color:#0e7490;text-decoration:none">رمزگشایی Model Code روزمونت</a></li><li><a href="#kc-sec-5" style="color:#0e7490;text-decoration:none">پارامترهای کلیدی انتخاب ترانسمیتر فشار روزمونت</a></li><li><a href="#kc-sec-6" style="color:#0e7490;text-decoration:none">نمایندگی و کنترل اصالت روزمونت</a></li><li><a href="#kc-sec-7" style="color:#0e7490;text-decoration:none">نکات استعلام ترانسمیتر فشار روزمونت</a></li><li><a href="#kc-sec-8" style="color:#0e7490;text-decoration:none">جدول مقایسهٔ مدل‌های اصلی ترانسمیتر فشار روزمونت</a></li><li><a href="#kc-sec-9" style="color:#0e7490;text-decoration:none">اشتباهاتِ رایج در استعلام ترانسمیتر 3051</a></li><li><a href="#kc-sec-10" style="color:#0e7490;text-decoration:none">سوالات متداول درباره ترانسمیتر فشار روزمونت ۳۰۵۱</a></li><li><a href="#kc-sec-11" style="color:#0e7490;text-decoration:none">جمع‌بندی</a></li></ul>
+</nav>
+
 
 <p style="font-size:17px"><b>ترانسمیتر فشار روزمونت</b> — این مقاله خانوادهٔ ترانسمیتر فشار Rosemount را معرفی می‌کند: تفاوت سری‌های 3051، 2088، 3095 و 3051S، رمزگشایی Model Code و پارامترهای کلیدی انتخاب، تا پیش از استعلام بدانید دقیقاً چه مشخصاتی را باید قید کنید. برای مقایسه با برند دیگر، <a href="rosemount-vs-yokogawa-comparison.html">مقایسه ترانسمیتر Rosemount و Yokogawa</a> را ببینید.</p>
 
-<h2>خانوادهٔ ترانسمیتر فشار روزمونت</h2>
+<h2 id="kc-sec-1">خانوادهٔ ترانسمیتر فشار روزمونت</h2>
 <p>روزمونت (Emerson) گسترده‌ترین خانوادهٔ ترانسمیتر فشار صنعتی را ارائه می‌دهد. شناخت سری‌ها و تفاوت آن‌ها اولین قدم برای انتخاب درست است:</p>
 <ul>
 <li><b>3051</b> — خانوادهٔ اصلی و پرکاربردترین (Coplanar و Inline).</li>
@@ -193,13 +198,13 @@
 <li><b>3051S</b> — نسل Scalable با دقت بالا (SuperModule).</li>
 <li><b>Wireless</b> — نسخه‌های WirelessHART برای نصب بدون کابل.</li>
 </ul>
-<h2>مدل‌های اصلی و جایگاه هرکدام</h2>
+<h2 id="kc-sec-2">مدل‌های اصلی و جایگاه هرکدام</h2>
 <p><b>Rosemount 3051</b> در سه پیکربندی اصلی عرضه می‌شود: <b>3051C</b> (Coplanar — برای فشار اختلافی و گیج با دیافراگم هم‌صفحه)، <b>3051T</b> (Inline — فشار گیج/مطلق با اتصال مستقیم) و <b>3051L</b> (سطح مایع با فلنج و Remote Seal). <b>Rosemount 2088</b> برای اندازه‌گیری سادهٔ فشار گیج و مطلق با بدنهٔ جمع‌وجور و قیمت پایین‌تر طراحی شده است. <b>3095</b> با اندازه‌گیری هم‌زمان DP، فشار استاتیک و دما، دبی جرمی را بدون نیاز به تجهیز جدا محاسبه می‌کند.</p>
-<h2>تفاوت 3051 و 2088 — کدام را انتخاب کنم؟</h2>
+<h2 id="kc-sec-3">تفاوت 3051 و 2088 — کدام را انتخاب کنم؟</h2>
 <p>اگر به اندازه‌گیری <b>فشار اختلافی (DP)</b> برای فلو، سطح یا فشار با دقت بالا و رنج‌پذیری زیاد نیاز دارید، 3051 Coplanar انتخاب درست است. اگر فقط <b>فشار گیج یا مطلق</b> در یک نقطه با بودجهٔ محدودتر نیاز دارید، 2088 کفایت می‌کند. انتخاب اشتباه (مثلاً 2088 برای DP) از نظر فنی ممکن نیست؛ بنابراین اول نوع اندازه‌گیری را مشخص کنید.</p>
-<h2>رمزگشایی Model Code روزمونت</h2>
+<h2 id="kc-sec-4">رمزگشایی Model Code روزمونت</h2>
 <p>هر ترانسمیتر روزمونت با یک Model Code یکتا مشخص می‌شود که همهٔ مشخصات را در خود دارد. برای مثال <b>3051CD2A22A1AB4M5</b> به‌تفکیک بخش‌ها بیانگر نوع سنسور (CD = Coplanar DP)، رنج، متریال دیافراگم، خروجی (A = 4-20mA HART)، کانکشن فرایندی و گواهی است. هنگام خرید، Model Code پیشنهادی باید حرف‌به‌حرف با دیتاشیت پروژه تطبیق داده شود؛ تغییر یک حرف ممکن است متریال یا گواهی را عوض کند.</p>
-<h2>پارامترهای کلیدی انتخاب ترانسمیتر فشار روزمونت</h2>
+<h2 id="kc-sec-5">پارامترهای کلیدی انتخاب ترانسمیتر فشار روزمونت</h2>
 <ul>
 <li><b>رنج و رنج‌پذیری (Turndown)</b> — پوشش حداقل تا حداکثر فشار فرایند.</li>
 <li><b>متریال wetted parts</b> — دیافراگم (316L، Hastelloy، Tantalum و…) بر اساس خورندگی سیال.</li>
@@ -207,12 +212,12 @@
 <li><b>گواهی Ex</b> — ATEX / IECEx برای محیط‌های قابل اشتعال.</li>
 <li><b>Remote Seal</b> — برای سیالات خورنده، دما بالا یا نصب با فلنج.</li>
 </ul>
-<h2>نمایندگی و کنترل اصالت روزمونت</h2>
+<h2 id="kc-sec-6">نمایندگی و کنترل اصالت روزمونت</h2>
 <p>بین «نمایندگی رسمی» و «سورسینگ» تفاوت مهمی وجود دارد. نمایندگی رسمی قرارداد مستقیم با سازنده دارد؛ سورسینگ یعنی تامین از شبکهٔ توزیع مجاز با کنترل اصالت. برای کالای stock باید وضعیت new/unused، شماره سریال، سال ساخت، firmware، گواهی و سازگاری Model Code بررسی شود. برای جزئیات بیشتر، <a href="../brands/emerson-rosemount.html">راهنمای سورسینگ و نمایندگی روزمونت/امرسون</a> را ببینید.</p>
-<h2>نکات استعلام ترانسمیتر فشار روزمونت</h2>
+<h2 id="kc-sec-7">نکات استعلام ترانسمیتر فشار روزمونت</h2>
 <p>در RFQ این موارد را قید کنید: Model Code کامل یا مشخصات معادل (نوع، رنج، متریال، خروجی، گواهی)، نوع اتصال فرایندی، نیاز به Remote Seal، گواهی کالیبراسیون و انطباق با Vendor List پروژه. برای مدل 3051، <a href="../services/products/rosemount-3051.html">صفحهٔ تامین ترانسمیتر فشار Rosemount 3051</a> را نیز ببینید.</p>
 
-<h2>جدول مقایسهٔ مدل‌های اصلی ترانسمیتر فشار روزمونت</h2>
+<h2 id="kc-sec-8">جدول مقایسهٔ مدل‌های اصلی ترانسمیتر فشار روزمونت</h2>
 <p>پیش از نوشتنِ استعلام، جایگاه هر مدل را بشناسید؛ بخشِ بزرگی از اصلاحیه‌ها و دوباره‌کاری‌ها
 به انتخابِ اشتباهِ مدل برمی‌گردد:</p>
 <ul>
@@ -227,7 +232,7 @@
 <li><b>Rosemount 2090P / 2090F:</b> برای کاربردهای بهداشتی و سطح (Paper/Pulp و صنایع غذایی).</li>
 </ul>
 
-<h2>اشتباهاتِ رایج در استعلام ترانسمیتر 3051</h2>
+<h2 id="kc-sec-9">اشتباهاتِ رایج در استعلام ترانسمیتر 3051</h2>
 <ul>
 <li><b>فقط نوشتنِ «3051»:</b> بدون Range، نوعِ فشار (DP/Gauge/Absolute) و کلاسِ دقت،
 تامین‌کننده نمی‌تواند Model Code درست بدهد.</li>
@@ -240,7 +245,7 @@
 یا گواهی‌های مناطقِ خطرناک (ATEX/IECEx) را از ابتدا اعلام کنید.</li>
 </ul>
 
-<h2>سوالات متداول درباره ترانسمیتر فشار روزمونت ۳۰۵۱</h2>
+<h2 id="kc-sec-10">سوالات متداول درباره ترانسمیتر فشار روزمونت ۳۰۵۱</h2>
 <h3>تفاوت 3051C و 3051S در چیست؟</h3>
 <p>3051S دقت و پایداریِ بالاتر و امکاناتِ تشخیصی و قابلیتِ ارتقای بیشتری ارائه می‌دهد؛
 برای سرویس‌های حساس یا پروژه‌هایی که هزینهٔ توقف بالاست، معمولاً انتخابِ اول است.
@@ -252,12 +257,19 @@
 <h3>آیا امکان تامین با مدارکِ اصالت و گارانتی وجود دارد؟</h3>
 <p>بله؛ در پیشنهادِ فنی، مسیرِ تامین و مدارکِ قابل ارائه (از جمله گواهی اصالت و ضمانت)
 به‌صورت شفاف اعلام می‌شود تا پیش از سفارش، معیارِ پذیرش برای شما روشن باشد.</p>
-<h2>جمع‌بندی</h2>
+<h2 id="kc-sec-11">جمع‌بندی</h2>
 <p>انتخاب ترانسمیتر فشار روزمونت باید از نوع اندازه‌گیری (DP/GP/AP)، شرایط فرایند و Model Code دقیق شروع شود. با شفاف‌کردن این مشخصات در استعلام، پیشنهادهای فنی قابل مقایسه می‌شوند و ریسک دریافت کالای ناسازگار به حداقل می‌رسد.</p>
 
 <div class="ply-cta" style="max-width:900px;margin:0 auto;padding:0 20px 28px"><div style="background:linear-gradient(135deg,#fffcf9,#fff5eb);border:1px solid rgba(239,75,26,.22);border-radius:16px;padding:16px 22px;font-size:14px;color:#475569;line-height:1.9"><b style="color:#1e293b">نیاز به تامین ابزار دقیق دارید؟</b> <a href="../suppliers/instrumentation-supplier.html" style="color:#ef4b1a;font-weight:900">تامین‌کننده تجهیزات ابزار دقیق</a> <a href="../rfq/" style="color:#0e7490;font-weight:900">ثبت استعلام ←</a></div></div>
+
+<h2 id="kc-related">مطالب مرتبط</h2>
+<div class="related-articles">
+<a class="rel-item" href="cerabar.html"><b>ترانسمیتر فشار (Cerabar) اندرس هاسر</b><span>مرکز دانش فنی</span></a>
+<a class="rel-item" href="differential-pressure-transmitter-guide.html"><b>راهنمای ترانسمیتر اختلاف فشار (DPT)</b><span>مرکز دانش فنی</span></a>
+<a class="rel-item" href="kc-pressure-transmitter-range-selection.html"><b>راهنمای انتخاب رنج صحیح ترانسمیتر فشار</b><span>مرکز دانش فنی</span></a>
 </div>
-</div>
+</article>
+</main>
 <footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
     <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
       <div>
