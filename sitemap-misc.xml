@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://pishtaj.ir/assistant/</loc><lastmod>2026-08-30</lastmod><priority>0.7</priority></url>
+  <url><loc>https://pishtaj.ir/assistant/</loc><lastmod>2026-09-07</lastmod><priority>0.7</priority></url>
   <url><loc>https://pishtaj.ir/brands/</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/brands/abb-industrial.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/brands/atlas-copco-compressed-air.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
@@ -22,7 +22,7 @@
   <url><loc>https://pishtaj.ir/brands/vallourec-pipes.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/brands/wika-instrumentation.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/brands/yokogawa-industrial.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
-  <url><loc>https://pishtaj.ir/careers/</loc><lastmod>2026-08-31</lastmod><priority>0.8</priority></url>
+  <url><loc>https://pishtaj.ir/careers/</loc><lastmod>2026-09-07</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/catalog/</loc><lastmod>2026-08-30</lastmod><priority>0.7</priority></url>
   <url><loc>https://pishtaj.ir/comparisons/</loc><lastmod>2026-08-31</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/comparisons/a106-vs-a333-pipe.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
@@ -36,11 +36,10 @@
   <url><loc>https://pishtaj.ir/comparisons/vfd-vs-soft-starter.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/comparisons/wn-vs-so-flange.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/logistics/</loc><lastmod>2026-08-30</lastmod><priority>0.7</priority></url>
-  <url><loc>https://pishtaj.ir/news/</loc><lastmod>2026-08-30</lastmod><priority>0.7</priority></url>
-  <url><loc>https://pishtaj.ir/projects/</loc><lastmod>2026-08-31</lastmod><priority>0.7</priority></url>
+  <url><loc>https://pishtaj.ir/news/</loc><lastmod>2026-09-07</lastmod><priority>0.7</priority></url>
+  <url><loc>https://pishtaj.ir/projects/</loc><lastmod>2026-09-07</lastmod><priority>0.7</priority></url>
   <url><loc>https://pishtaj.ir/quality/</loc><lastmod>2026-08-31</lastmod><priority>0.7</priority></url>
   <url><loc>https://pishtaj.ir/rfq/</loc><lastmod>2026-08-30</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/search/</loc><lastmod>2026-08-31</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/supplier/</loc><lastmod>2026-08-30</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/suppliers/</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/suppliers/cement-supplier.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
@@ -64,7 +63,7 @@
   <url><loc>https://pishtaj.ir/suppliers/vcb-supplier.html</loc><lastmod>2026-08-30</lastmod><priority>0.8</priority></url>
   <url><loc>https://pishtaj.ir/tools/</loc><lastmod>2026-08-30</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/tools/control-valve-sizing/</loc><lastmod>2026-08-30</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/tools/rfq-checklist/</loc><lastmod>2026-08-30</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/tools/rfq-checklist/</loc><lastmod>2026-09-07</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/tracking/</loc><lastmod>2026-08-30</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/sitemap.html</loc><lastmod>2026-09-07</lastmod><priority>0.3</priority></url>
 </urlset>

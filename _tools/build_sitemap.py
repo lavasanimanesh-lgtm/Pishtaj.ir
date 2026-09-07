@@ -71,6 +71,7 @@ SUBMAP_BY_SEGMENT = {
     "services": "sitemap-services.xml",
     "en": "sitemap-en.xml",
     "about": "sitemap-core.xml",
+    "products": "sitemap-products.xml",
 }
 ROOT_SUBMAP = "sitemap-core.xml"      # صفحهٔ اصلی و فایل‌های ریشه
 DEFAULT_SUBMAP = "sitemap-misc.xml"   # suppliers، brands، comparisons، tools، careers، news و…
@@ -85,6 +86,7 @@ PRIORITY_BY_SEGMENT = {
     "services": "0.9",
     "knowledge-center": "0.9",
     "tools": "0.9",
+    "products": "0.9",
 }
 DEFAULT_PRIORITY = "0.8"
 # صفحات کمکی با اولویت پایین‌تر (فهرست صریح مسیرهای نسبی)
