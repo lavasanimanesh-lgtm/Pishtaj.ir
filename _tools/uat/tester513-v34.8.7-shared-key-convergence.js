@@ -18,7 +18,7 @@ var api = read('api/crm.php');
 var cs = read('crm/client-server.js');
 var sync = read('crm/sync.js');
 
-T('VERSION.json = v34.38.1', ver.crm_version === 'v34.38.1', ver.crm_version);
+T('VERSION.json = v34.38.6', ver.crm_version === 'v34.38.6', ver.crm_version);
 
 /* ---------- سرور: union-merge کلیدهای مشترک ---------- */
 T('sync_shared_union_key تعریف شده', /function sync_shared_union_key/.test(api));

@@ -157,10 +157,18 @@
     /* v34.29.8: ددوب بر اساس cd بین هر سه منبع — یک هزینهٔ هم‌کد که هم در
        costEvents و هم در projectCosts/postArchiveCosts نشسته یک‌بار شمرده می‌شود
        (ابلاغ «هیچ وجهی دو بار»؛ هم‌سنخ fiscalDirectProjectCosts). */
+    /* v34.38.2 (COST-SUM): هم‌قاعده با منبع واحد نوار مالی/سود پرونده —
+       هزینهٔ حذف‌شده (tombstone _costTomb) و advance/پیش‌پرداخت شمرده نمی‌شوند. */
+    var tomb = (p && p._costTomb) || {};
     var seenCd = {};
+    function isAdv(c) {
+      return !!(c && (c.fromAdvance || c.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(c.desc || c.cat || ''))));
+    }
     function sum(list) {
       return (list || []).reduce(function (s, c) {
         if (!c) return s;
+        if (isAdv(c)) return s;
+        if (c.cd && tomb[String(c.cd)]) return s; /* v34.38.2: حذف ماندگار */
         var k = String(c.cd || c.pettyCd || (String(c.t || '') + '|' + String(c.desc || '') + '|' + (+c.amt || 0)));
         if (seenCd[k]) return s;
         seenCd[k] = 1;

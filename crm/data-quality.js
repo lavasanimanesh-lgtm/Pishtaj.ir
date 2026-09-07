@@ -48,8 +48,21 @@
        گذاشته می‌شوند تا پنهان و به‌اشتباه غیررسمی حساب نشوند. */
     arr('ptf_crm_opex').forEach(function (o) {
       if (o.st === 'void') return;
-      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt, { type: 'opex', cd: o.cd, label: 'هزینه ' + (o.cat || '—') + ' — ' + (o.desc || o.cd) + (o.month ? ' (' + o.month + ')' : '') });
+      /* v34.38.5 (DATA-QUALITY SH-SALARY): ردیف‌های حقوق سهامدار (shareholderSalary/recurringKey
+         salary:*) جدا علامت‌خورده تا راهنما بگوید از تب سهامداران هم قابل اصلاح است. */
+      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt, { type: 'opex', cd: o.cd, shareholderSalary: !!(o.shareholderSalary || String(o.recurringKey || '').indexOf('salary:') === 0), label: 'هزینه ' + (o.cat || '—') + ' — ' + (o.desc || o.cd) + (o.month ? ' (' + o.month + ')' : '') });
     });
+    /* v34.38.6 (OPEX-DUP-DETECT — گام ۰): گزارش read-only ردیف‌های مشکوک به
+       دوباره‌شماری (دستی+تکرارشونده، قالب تکراری، هزینه/تنخواه هم‌مبلغ). فقط افشا
+       می‌کند؛ تعیین‌تکلیف دستی است. */
+    try {
+      if (typeof window.ptfOpexSuspectedDuplicates === 'function') {
+        window.ptfOpexSuspectedDuplicates().forEach(function (d) {
+          add(q, 'opex-suspected-duplicate', 'هزینه جاری مشکوک به دوباره‌شماری', (d.cds || [])[0], d.amt || 0, { type: 'opex-dup', label: d.label || '', cds: d.cds || [] });
+        });
+      }
+    } catch (eOdup) {}
+
     /* فاز ۲ / گام ۲: فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی */
     try {
       var sfData = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
@@ -154,10 +167,11 @@
         : '';
       var explanation = d.type === 'procurement'
         ? 'تطبیق قلم‌به‌قلم پیش‌فاکتور با خرید واقعی/استعلام قطعی نیست. این با «لینک فاکتور به تعهد» فرق دارد؛ اتصال فاکتور به‌تنهایی این مورد را نمی‌بندد.'
-        : d.type === 'opex' ? 'نوع سند (رسمی/غیررسمی) خالی است و در تراز داخل سطل نامشخص می‌ماند تا در همین فرم هزینه مشخص شود.'
+        : d.type === 'opex' ? (d.shareholderSalary ? 'این هزینه «حقوق موظف سهامدار» است؛ نوع سند را از تب سهامداران (ویرایش سهامدار → نوع سند حقوق) یا از همین فرم هزینه مشخص کنید.' : 'نوع سند (رسمی/غیررسمی) خالی است و در تراز داخل سطل نامشخص می‌ماند تا در همین فرم هزینه مشخص شود.')
         : d.type === 'supplier-invoice' ? 'نوع سند فاکتور خرید خالی است؛ از دکمهٔ اصلاح، رسمی یا غیررسمی را انتخاب کنید.'
         : d.type === 'supplier-amount' ? 'لینک تعهدها برقرار است اما جمع مبلغ تعهدها با مبلغ فاکتور یکی نیست — معمولاً قلم بدون قیمت خرید. می‌توانید اختلاف را در حساب تأمین تأیید و اخطار را بردارید.'
         : d.type === 'cheque' ? 'نوع مالکیت (شرکت/شخصی/وارده) خالی است؛ نام روی دسته چک کافی نیست. از اصلاح چک، «مالکیت چک» را انتخاب کنید.'
+        : d.type === 'opex-dup' ? 'دو رکورد هزینه ممکن است یک پرداخت را دوبار در سود سال بشمارند (ردیف دستی در کنار قالب تکرارشونده/حقوق، یا دو قالب مشابه، یا هزینه و خروج تنخواه هم‌مبلغ). این فقط یک هشدار گزارش است؛ تعیین‌تکلیف دستی است — ردیف‌های تکراری واقعی را از فرم هزینه بررسی و در صورت لزوم حذف کنید.'
         : 'این مورد نیازمند بررسی است.';
       return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + '</div>' + invoiceActions + '</div></details>';
     }).join('');

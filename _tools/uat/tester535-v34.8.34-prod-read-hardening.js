@@ -22,8 +22,8 @@ T('کلید بازگشت فوری حفظ شده', /window\.ptfProdServerToggle =
 T('v34.38.0: سرور خالی + دادهٔ محلی → رندر محلی (دادهٔ محلی حاکم تا sync)', /\(d\.total \|\| 0\) === 0 && localCount > 0/.test(idx));
 
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.38.1', ver.crm_version === 'v34.38.1', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.38.1', read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.38.1'") > -1 && read('crm/sw.js').indexOf("CACHE = 'ptf-crm-v34.38.1'") > -1);
+T('VERSION.json = v34.38.6', ver.crm_version === 'v34.38.6', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.38.6', read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.38.6'") > -1 && read('crm/sw.js').indexOf("CACHE = 'ptf-crm-v34.38.6'") > -1);
 
 console.log('\n— tester535 (v34.38.0: products read hardening) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

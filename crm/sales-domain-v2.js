@@ -645,7 +645,17 @@
     var AUTO_NO_DELETE_REASONS = {
       'phonefmt': 1, 'phonefmt-mig': 1, 'rfq-cust-heal': 1,
       'offer-cust': 1, 'offer-sup': 1, 'excel-import': 1, 'excel-std': 1,
-      'vendorlist': 1, 'site-rfq': 1, 'saveCust': 1, 'saveSup': 1
+      'vendorlist': 1, 'site-rfq': 1, 'saveCust': 1, 'saveSup': 1,
+      /* v34.38.4 (CONTACT-WIPE-EXT): گزارش کارفرما «حوزهٔ کاری مشتری هم پاک می‌شود».
+         نویسندگانِ کل‌دفتر که از getData بازنویسی می‌کنند ولی هیچ قصد حذفی ندارند،
+         باید اینجا باشند — وگرنه یک cd غایب از خواندنِ کهنه (حتی یک رکورد) entity_delete
+         واقعی می‌شود و پس از heal دوباره stub بدون ind/تماس بازسازی می‌گردد.
+         custmerge عمداً یک رکورد را حذف می‌کند؛ در فهرست نیست و آنجا allowDeletes:true
+         صریح شده است. */
+      'lead-convert': 1, 'ai-bizcard': 1, 'ai-letterhead': 1, 'ai-buyer': 1, 'coen-fill': 1,
+      'site-approve': 1, 'site-merge': 1, 'cheque-origin': 1,
+      'supspec': 1, 'supspec-migrate': 1, 'supspec-learn': 1,
+      'contact-mig': 1 /* v34.38.6 (CONTACT-WIPE R2): مهاجرت دفترچه تماس (con/ph → people) — بدون قصد حذف */
     };
     if (dels.length && AUTO_NO_DELETE_REASONS[opts.reason] && !opts.allowDeletes) {
       var mergedKeep = [], seenKeep = {};

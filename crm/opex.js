@@ -366,6 +366,18 @@
     st.opexTpl = list;
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
   }
+  /* v34.38.6 (OPEX-DUP-GUARD — گام ۲): قالبِ فعالِ دیگری با همان cat+amt+desc
+     نرمال‌شده (بجز خودش) هست؟ — مبنای هشدار نرم، نه بلوک داده. */
+  function opexTplDuplicateActive(tpl, list) {
+    if (!tpl) return null;
+    var norm = function (s) { return String(s || '').replace(/\s+/g, ' ').trim(); };
+    for (var i = 0; i < (list || []).length; i++) {
+      var t = list[i];
+      if (!t || String(t.id || '') === String(tpl.id || '')) continue;
+      if (String(t.cat || '') === String(tpl.cat || '') && Math.round(+t.amt || 0) === Math.round(+tpl.amt || 0) && norm(t.desc) === norm(tpl.desc)) return t;
+    }
+    return null;
+  }
   function recurringKeyForTpl(t, month) { return 'opex-template:' + String((t && t.id) || '') + ':' + String(month || ''); }
   function recurringRowActive(x) { return opexRowActive(x); }
   /* قالب‌هایی که برای ماه جاری هنوز ثبت نشده‌اند */
@@ -377,6 +389,64 @@
       var key = recurringKeyForTpl(t, m);
       return !list.some(function (x) { return recurringRowActive(x) && (x.recurringKey === key || (x.tplId === t.id && x.month === m)); });
     });
+  };
+
+  /* v34.38.6 (OPEX-DUP-DETECT — گام ۰ ارزیابی دوباره‌شماری): آشکارساز read-only.
+     فقط «ردیف‌های مشکوک به تکرار» را گزارش می‌کند؛ هیچ داده‌ای را تغییر نمی‌دهد.
+     خروجی برای تب کیفیت داده و گزارش‌ها — انسان تعیین‌تکلیف می‌کند. */
+  window.ptfOpexSuspectedDuplicates = function (month) {
+    var out = [];
+    try {
+      var rows = oAll().filter(opexRowActive);
+      if (month) rows = rows.filter(function (x) { return String(x.month || '') === String(month); });
+      /* شکاف ۱/۵: ردیف دستی در کنار ردیف تکرارشونده/حقوقِ هم‌دسته + هم‌مبلغ + هم‌ماه */
+      var byKey = {};
+      rows.forEach(function (x) {
+        var k = String(x.month || '') + '|' + String(x.cat || '') + '|' + Math.round(+x.amt || 0);
+        (byKey[k] = byKey[k] || []).push(x);
+      });
+      Object.keys(byKey).forEach(function (k) {
+        var g = byKey[k];
+        if (g.length < 2) return;
+        var hasRec = g.some(function (x) { return x.recurringKey || x.tplId; });
+        var hasManual = g.some(function (x) { return !x.recurringKey && !x.tplId && !x.shareholderSalary; });
+        if (hasRec && hasManual) {
+          out.push({ kind: 'manual-vs-recurring', month: g[0].month || '', cat: g[0].cat || '',
+            amt: Math.round(+g[0].amt || 0), cds: g.map(function (x) { return x.cd; }),
+            label: 'ردیف دستی + تکرارشوندهٔ هم‌دسته/هم‌مبلغ در ' + (g[0].month || '') + ' — ' + (g[0].cat || '') + ' (' + fmtT(Math.round(+g[0].amt || 0)) + ' ریال)' });
+        }
+      });
+      /* شکاف ۲: قالب‌های تکراری (هم‌cat + هم‌amt + هم‌desc نرمال‌شده) */
+      var seenT = {};
+      tpls().forEach(function (t) {
+        if (!t || !t.cat) return;
+        var kk = String(t.cat || '') + '|' + Math.round(+t.amt || 0) + '|' + String(t.desc || '').replace(/\s+/g, ' ').trim();
+        (seenT[kk] = seenT[kk] || []).push(t.id);
+      });
+      Object.keys(seenT).forEach(function (kk) {
+        var ids = seenT[kk];
+        if (ids.length > 1) {
+          out.push({ kind: 'duplicate-template', cds: ids, amt: 0,
+            label: 'قالب‌های تکرارشوندهٔ هم‌دسته/هم‌مبلغ/هم‌شرح: ' + ids.join('، ') });
+        }
+      });
+      /* شکاف ۳ (سیگنال نرم): هزینهٔ جاری و خروج تنخواهِ هم‌مبلغ در یک دوره */
+      try {
+        var petty = getData('ptf_crm_petty') || [];
+        rows.forEach(function (x) {
+          if (!x.month || x.dealRef) return;
+          petty.forEach(function (p) {
+            if (!p || String(p.st || '') === 'void' || p.dealRef) return;
+            var pAmt = Math.round(+p.amt || 0);
+            if (pAmt > 0 && pAmt === Math.round(+x.amt || 0)) {
+              out.push({ kind: 'opex-petty-twin', month: x.month || '', amt: pAmt, cds: [x.cd, p.cd],
+                label: 'هزینهٔ جاری و خروج تنخواهِ هم‌مبلغ (' + (x.month || '') + ' — ' + fmtT(pAmt) + ' ریال)' });
+            }
+          });
+        });
+      } catch (eP) {}
+    } catch (e) {}
+    return out;
   };
 
   /* ---------- ثبت هزینه ---------- */
@@ -506,6 +576,9 @@
           var tpl = list.filter(function (x) { return x && x.id === tid; })[0];
           if (!tpl) {
             tpl = { id: tid, cat: v.cat, amt: amt, desc: v.desc || '', by: curSession().name, t: faDate(), isOfficial: isOfficial };
+            /* v34.38.6 (OPEX-DUP-GUARD — گام ۲): هشدار نرم قبل از ساخت قالب تکراری. */
+            var dupTpl = opexTplDuplicateActive(tpl, list);
+            if (dupTpl && !confirm('⚠️ قالب تکرارشوندهٔ فعال دیگری با همان دسته/مبلغ/شرح موجود است (' + (dupTpl.cat || '') + ' — ' + fmtT(dupTpl.amt) + ' ریال).\nدو قالب مشابه هر ماه دو ردیف هزینهٔ جدا می‌سازند و ممکن است همان هزینه دوبار شمرده شود.\nادامه می‌دهید؟')) return;
             list.push(tpl); saveTpls(list);
           }
           /* No local OPEX row is inserted. After ACK, optional document/deal metadata is
@@ -529,6 +602,15 @@
           });
           return;
         }
+        /* v34.38.6 (OPEX-DUP-GUARD — گام ۱): هشدار نرمِ دوباره‌شماری — اگر همین ماه
+           ردیفِ فعالِ هم‌دسته + هم‌مبلغ با recurringKey/tplId (قالب/حقوق) هست، ثبت دستی
+           ممکن است همان هزینه را دوبار بشمارد. فقط تأیید می‌گیریم؛ کاربر می‌تواند عمداً
+           ادامه دهد (دو هزینهٔ واقعاً مجزا) — هیچ داده‌ای بلوک/حذف نمی‌شود. */
+        var clashRec = all.some(function (x) {
+          return opexRowActive(x) && String(x.month || '') === month && String(x.cat || '') === String(v.cat || '') &&
+            Math.round(+x.amt || 0) === amt && (x.recurringKey || x.tplId) && !x.coverInvoiceCd;
+        });
+        if (clashRec && !confirm('⚠️ برای ' + month + ' یک هزینهٔ تکرارشوندهٔ هم‌دسته و هم‌مبلغ (' + (v.cat || '') + ' — ' + fmtT(amt) + ' ریال) وجود دارد.\nثبت این ردیف دستی ممکن است همان هزینه را دوبار در سود سال بشمارد.\nاگر واقعاً دو هزینهٔ مجزا هستند ادامه دهید.')) return;
         all.unshift(rec);
         oSave(all);
         if (rec.dealRef && typeof window.ptfDealCostSync === 'function') window.ptfDealCostSync({ rec: rec, source: 'opex', dealCd: rec.dealRef, prevDealCd: '', by: curSession().name, addTx: '➕ لینک هزینه جاری به پرونده: ' + fmtT(amt) + ' ریال — ' + (v.desc || v.cat) });
@@ -760,6 +842,10 @@
         if (amount <= 0) { alert('⛔ مبلغ نامعتبر'); return; }
         var before = { cat: tpl.cat, amt: tpl.amt, desc: tpl.desc, isOfficial: tpl.isOfficial };
         tpl.cat = v.cat; tpl.amt = amount; tpl.desc = v.desc || ''; tpl.isOfficial = v.isOfficial === 'yes'; tpl.updatedAt = typeof faDateTime === 'function' ? faDateTime() : ''; tpl.updatedBy = (curSession() || {}).name || '';
+        /* v34.38.6 (OPEX-DUP-GUARD — گام ۲): ویرایش قالب به مقداری که قالبِ فعالِ
+           دیگری را تکرار کند — هشدار نرم. */
+        var dupEdit = opexTplDuplicateActive(tpl, list);
+        if (dupEdit && !confirm('⚠️ پس از این تغییر، قالب با قالبِ فعالِ «' + (dupEdit.cat || '') + ' — ' + fmtT(dupEdit.amt) + ' ریال» هم‌دسته/هم‌مبلغ/هم‌شرح می‌شود و هر ماه دو ردیف جدا می‌سازد.\nادامه می‌دهید؟')) return;
         saveTpls(list);
         var month = normMonth(materializeMonth) || ptfFaMonthNow();
         materializeTemplateOnServer(tpl, month, { restore: false, reason: 'ویرایش صریح منبع قالب ' + tid }).then(function (state) {

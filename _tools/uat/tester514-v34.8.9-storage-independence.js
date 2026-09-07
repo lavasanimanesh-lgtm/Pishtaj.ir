@@ -14,7 +14,7 @@ var ver = JSON.parse(read('VERSION.json'));
 var cs = read('crm/client-server.js');
 var sq = read('crm/storage-quota.js');
 
-T('VERSION.json = v34.38.1', ver.crm_version === 'v34.38.1', ver.crm_version);
+T('VERSION.json = v34.38.6', ver.crm_version === 'v34.38.6', ver.crm_version);
 
 /* ---------- زنجیرهٔ نجات خودکار ---------- */
 T('همگرایی موفق → فعال‌سازی خودکار فاز B', /ptfBEnableAfterConvergence\(\);/.test(cs) && /markSynced\(\);[\s\S]{0,900}ptfBEnableAfterConvergence/.test(cs));

@@ -19,10 +19,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.38.1', ver.crm_version === 'v34.38.1', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.38.1', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.1'") > -1);
-T('sw RELEASE = v34.38.1', sw.indexOf("RELEASE = 'v34.38.1'") > -1);
-T('letters.js cache-bust 34.38.1', /letters\.js\?v=34\.38\.1/.test(idx));
+T('VERSION.json = v34.38.6', ver.crm_version === 'v34.38.6', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.38.6', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.6'") > -1);
+T('sw RELEASE = v34.38.6', sw.indexOf("RELEASE = 'v34.38.6'") > -1);
+T('letters.js cache-bust 34.38.6', /letters\.js\?v=34\.38\.6/.test(idx));
 
 /* ---------- فیچر ---------- */
 T('دکمه در نوار مکاتبات', lt.indexOf('ptfLetterheadPasteOpen()') > -1 && lt.indexOf('📄 متن آماده روی سربرگ') > -1);

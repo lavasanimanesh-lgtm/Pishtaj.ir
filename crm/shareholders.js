@@ -310,6 +310,10 @@
         { id: 'pct', label: 'درصد سهام', type: 'number', value: old ? old.pct : '', required: true, dir: 'ltr', nohint: true },
         { id: 'duty', label: 'سهامدار موظف؟', type: 'select', value: old && old.duty ? 'yes' : 'no', options: [{ v: 'no', lb: 'خیر' }, { v: 'yes', lb: 'بله' }] },
         { id: 'salary', label: 'حقوق ماهانه موظف (ریال)', type: 'number', value: old && old.salary ? (+old.salary).toLocaleString('en-US') : '', placeholder: 'مثلا 200,000,000', dir: 'ltr', nohint: true } /* v21.10: type:number → data-money + nohint (درصد/حقوق نیازی به حروف ندارند) */,
+        /* v34.38.5 (DATA-QUALITY SH-SALARY): گزارش کارفرما — «تب کیفیت داده حقوق سهامدار را
+           بدون نوع رسمی/غیررسمی نشان می‌دهد ولی ویرایش سهامدار گزینه‌ای برای تعیین آن ندارد».
+           نوع سند حقوق از خود تب سهامداران تعیین و به هزینهٔ حقوق (isOfficial) انتشار می‌یابد. */
+        { id: 'salaryOfficial', label: 'نوع سند حقوق', type: 'select', value: old && old.salaryOfficial === true ? 'yes' : (old && old.salaryOfficial === false ? 'no' : ''), options: [{ v: '', lb: 'تعیین نشده' }, { v: 'yes', lb: 'رسمی / قابل قبول ممیز' }, { v: 'no', lb: 'غیررسمی' }] },
         { id: 'active', label: 'وضعیت', type: 'select', value: old && old.active === false ? 'no' : 'yes', options: [{ v: 'yes', lb: 'فعال' }, { v: 'no', lb: 'غیرفعال' }] }
       ],
       okText: 'ذخیره',
@@ -323,9 +327,13 @@
         var rec = old || { cd: genCode('SHR'), createdBy: nm(), createdT: faDateTime() };
         var prevSalary = +rec.salary || 0;
         rec.name = v.name; rec.pct = pct; rec.duty = v.duty === 'yes'; rec.salary = rec.duty ? n(v.salary) : 0; rec.active = v.active !== 'no'; rec.updatedBy = nm(); rec.updatedT = faDateTime();
+        /* v34.38.5 (DATA-QUALITY SH-SALARY): نوع سند حقوق (رسمی/غیررسمی/تعیین‌نشده) — همان
+           الگوی ptfOpexEdit؛ «تعیین نشده» یعنی کلید حذف می‌شود تا هزینه حقوق unclassified بماند. */
+        var salaryOfficial = v.salaryOfficial === 'yes' ? true : (v.salaryOfficial === 'no' ? false : undefined);
+        if (salaryOfficial === undefined) delete rec.salaryOfficial; else rec.salaryOfficial = salaryOfficial;
         if (old) a = a.map(function (x) { return x.cd === rec.cd ? rec : x; }); else a.unshift(rec);
         shSave(a);
-        audit('سهامداران', (old ? 'ویرایش ' : 'ثبت ') + rec.name + ' — ' + rec.pct + '٪' + (old && prevSalary !== rec.salary ? ' | حقوق: ' + prevSalary + ' → ' + rec.salary : ''), rec.cd);
+        audit('سهامداران', (old ? 'ویرایش ' : 'ثبت ') + rec.name + ' — ' + rec.pct + '٪' + (old && prevSalary !== rec.salary ? ' | حقوق: ' + prevSalary + ' → ' + rec.salary : '') + (salaryOfficial !== undefined ? ' | نوع سند حقوق: ' + (salaryOfficial ? 'رسمی' : 'غیررسمی') : ''), rec.cd);
         ptfShareRender();
         reconcileSalaryOnServer(month, {
           explicitEligibility: true,
