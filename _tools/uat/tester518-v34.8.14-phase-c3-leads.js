@@ -16,14 +16,14 @@ var api = read('api/sales-domain.php');
 var v2 = read('crm/sales-domain-v2.js');
 var leads = read('crm/leads.js');
 
-T('VERSION.json = v34.38.5', ver.crm_version === 'v34.38.5', ver.crm_version);
+T('VERSION.json = v34.38.6', ver.crm_version === 'v34.38.6', ver.crm_version);
 
 /* ---------- سرور ---------- */
 T('ptf_crm_leads در رجیستری موجودیت', /'ptf_crm_leads' => \[/.test(api));
 T('ptf_crm_leads در SD_KEYS', new RegExp("'ptf_crm_reminders'\\s*,\\s*'ptf_crm_le").test(api));
 T('sanitizer لیست اسکالر را نگه می‌دارد', /is_string\(\$item\)\) \{\s*\$stored = sd_text\(\$item, 300\);/.test(api)); /* v34.38.0: بدنه به sd_entity_sanitize_list منتقل شد */
 T('sanitizer لیست نقشهٔ اسکالر (hist) را نگه می‌دارد', /subItem\[\$k3\] = \$storedSub;/.test(api));
-T('SD_SERVICE_VERSION = 34.38.5', /SD_SERVICE_VERSION = '34\.38\.5'/.test(api));
+T('SD_SERVICE_VERSION = 34.38.6', /SD_SERVICE_VERSION = '34\.38\.6'/.test(api));
 
 /* ---------- کلاینت ---------- */
 T('پرچم سرنخ‌ها فعال شد', /'ptf_crm_leads': true/.test(v2)); /* v34.38.0: نقشه از این پس با W1 ادامه دارد — پرچم leads کافی است */

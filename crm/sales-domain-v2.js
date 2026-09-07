@@ -654,7 +654,8 @@
          صریح شده است. */
       'lead-convert': 1, 'ai-bizcard': 1, 'ai-letterhead': 1, 'ai-buyer': 1, 'coen-fill': 1,
       'site-approve': 1, 'site-merge': 1, 'cheque-origin': 1,
-      'supspec': 1, 'supspec-migrate': 1, 'supspec-learn': 1
+      'supspec': 1, 'supspec-migrate': 1, 'supspec-learn': 1,
+      'contact-mig': 1 /* v34.38.6 (CONTACT-WIPE R2): مهاجرت دفترچه تماس (con/ph → people) — بدون قصد حذف */
     };
     if (dels.length && AUTO_NO_DELETE_REASONS[opts.reason] && !opts.allowDeletes) {
       var mergedKeep = [], seenKeep = {};

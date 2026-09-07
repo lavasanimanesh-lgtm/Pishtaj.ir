@@ -15,8 +15,8 @@ var idx = read('crm/index.html');
 var sf = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.5', ver.crm_version === 'v34.38.5', ver.crm_version);
-T('supplier-finance.js cache-bust 34.38.5', /supplier-finance\.js\?v=34\.38\.5/.test(idx));
+T('VERSION.json = v34.38.6', ver.crm_version === 'v34.38.6', ver.crm_version);
+T('supplier-finance.js cache-bust 34.38.6', /supplier-finance\.js\?v=34\.38\.6/.test(idx));
 
 /* ---------- منطق پوششی: صادرکننده مطالبه ندارد ---------- */
 T('isCover در مانده تأمین‌کننده نادیده گرفته می‌شود', /if \(i\.isCover === true\) return;/.test(sf));

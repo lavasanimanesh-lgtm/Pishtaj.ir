@@ -15,8 +15,8 @@ var slf = read('crm/supplier-finance.js');
 var api = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.5', ver.crm_version === 'v34.38.5', ver.crm_version);
-T('supplier-finance.js cache-bust 34.38.5', /supplier-finance\.js\?v=34\.38\.5/.test(idx));
+T('VERSION.json = v34.38.6', ver.crm_version === 'v34.38.6', ver.crm_version);
+T('supplier-finance.js cache-bust 34.38.6', /supplier-finance\.js\?v=34\.38\.6/.test(idx));
 
 /* ---------- SUP-PERF-003: lazy box ---------- */
 /* v34.38.0: slBoxRows پارامتر query گرفت (جست‌وجو) — همان تابع، قراردادِ گسترده‌تر */

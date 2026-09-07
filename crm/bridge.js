@@ -326,7 +326,13 @@
     rfqs.forEach(function (r) {
       if (!r.dueISO) return;
       var due = (typeof ptfRfqDueState === 'function') ? ptfRfqDueState(r) : null;
-      if (!due || !due.bg) { if (r.dueNotified) { r.dueNotified = ''; changed = true; } return; } /* فقط پنجره هشدار (۲ روز مانده تا گذشته) */
+      if (!due || !due.bg) {
+        if (r.dueNotified) { r.dueNotified = ''; changed = true; }
+        /* v34.38.6 (DEAL-DUE-SETTLED): وقتی درخواست پاسخ داده/بسته شد، کارت rfq-due
+           هم (که بدون remCd هرگز خودبه‌خود محو نمی‌شد) برای همه حذف می‌شود. */
+        try { if (typeof window.ntfResolveByDkey === 'function') window.ntfResolveByDkey('rfq-due-' + r.cd); } catch (eRfd) {}
+        return;
+      } /* فقط پنجره هشدار (۲ روز مانده تا گذشته) */
       var stage = due.over ? 'over' : 'warn';
       if (r.dueNotified === stage) return; /* v33.4.1: فقط در لحظه‌ی گذار، نه هر روز */
       r.dueNotified = stage;
@@ -358,7 +364,13 @@
     deals.forEach(function (r) {
       if (!r.dueISO || r.st === 'archived') return;
       var st = (typeof ptfSfDueState === 'function') ? ptfSfDueState(r) : null;
-      if (!st) { if (r.dueNotified) { r.dueNotified = ''; changed = true; } return; } /* فقط پنجره هشدار: ≤۳ روز مانده یا گذشته */
+      if (!st) {
+        if (r.dueNotified) { r.dueNotified = ''; changed = true; }
+        /* v34.38.6 (DEAL-DUE-SETTLED): با تسویه/بایگانی/حذفِ تعهد، کارت deal-due
+           (بدون remCd و بدون گارد حل) برای همه بسته می‌شود — نه‌فقط بایگانیِ صریح. */
+        try { if (typeof window.ntfResolveByDkey === 'function') window.ntfResolveByDkey('deal-due-' + r.cd); } catch (eDdk) {}
+        return;
+      } /* فقط پنجره هشدار: ≤۳ روز مانده یا گذشته */
       var over = st === 'red' && r.dueISO < today;
       var stage = over ? 'over' : st === 'red' ? 'today' : 'warn';
       if (r.dueNotified === stage) return; /* v33.4.1: فقط در لحظه‌ی گذار، نه هر روز */

@@ -30,6 +30,12 @@
   /* v14.8: وضعیت تاریخ تحویل تعهدی — قرمز=گذشته/امروز، نارنجی=تا ۳ روز آینده */
   window.ptfSfDueState = function (r) {
     if (!r || !r.dueISO || r.st === 'archived') return null;
+    /* v34.38.6 (DEAL-DUE-SETTLED — گزارش کارفرما: «پروندهٔ تسویه‌شده هشدار تحویل
+       تعهدی دارد»): تسویه‌شده/مختومه (مرحلهٔ ۱۱) یعنی تحویل قطعاً انجام شده است؛
+       هشدار «نزدیک/گذشته شدن تحویل» برایش بی‌معناست. پیش از این فقط st==='archived'
+       استثنا بود و پروندهٔ تسویه‌شدهٔ هنوز-بایگانی‌نشده (رکوردش هنوز در ptf_crm_deals)
+       همچنان هشدار می‌گرفت. */
+    try { if (typeof sfStageOf === 'function' && sfStageOf(r) >= 11) return null; } catch (e) {}
     var today = new Date().toISOString().slice(0, 10);
     if (r.dueISO <= today) return 'red';
     var diff = Math.round((new Date(r.dueISO) - new Date(today)) / 86400000);
@@ -2380,6 +2386,10 @@
     if (closeKind === 'lost') sfMarkLostRelated(r);
     /* حذف از پرونده‌های فروش */
     sfSave(sfAll().filter(function (x) { return x.cd !== r.cd; }));
+    /* v34.38.6 (DEAL-DUE-SETTLED): با مختومه/بایگانی پرونده، همهٔ کارت‌های اقدامِ
+       منسوب به این پرونده (تحویل تعهدی deal-due / qc-ncr / delivery-next) برای
+       همهٔ گیرندگان بسته می‌شوند — دیگر هیچ‌کس هشدار تحویلِ پروندهٔ مختومه نمی‌بیند. */
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(r.cd); } catch (eNR) {}
     try { audit('پرونده‌های فروش', 'مختومه (' + (closeKind === 'settled' ? 'تسویه کامل' : 'بدون فاکتور') + ') و انتقال به بایگانی: ' + (r.inqNo || r.cd), r.cd); } catch (e) {}
     if (typeof notify === 'function') notify({ toRoles: ['admin', 'chairman', 'ceo'], title: '📦 پرونده فروش ' + (r.inqNo || r.cd) + ' مختومه و به بایگانی منتقل شد (' + (closeKind === 'settled' ? 'تسویه کامل' : 'بدون فاکتور: ' + (why || '')) + ')', kind: 'system', channels: ['cart'] });
     window._sfOpen = null;

@@ -232,10 +232,36 @@ window.ptfPruneStaleNotifs = function () {
       if (n.kind === 'co_expiry' || n.kind === 'referral_info') return false;
       return typeof ntfNeedsAction === 'function' ? ntfNeedsAction(n) : !!n.actionable;
     });
-    if (kept.length !== notifs.length) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' }); else setData('ptf_crm_notifs', kept);
+    if (kept.length !== notifs.length) ntfCommitRemoval(notifs, kept);
     return notifs.length - kept.length;
   } catch (ePruneN) { return 0; }
 };
+
+/* v34.38.6 (DEAL-DUE-SETTLED): حذف کارت‌های اعلان باید از مسیر فرمانِ تک‌رکوردی
+   (ptfEntityDelete) برود نه SaveCollection کل مجموعه. ریشهٔ نشانهٔ ۱/۲ (بند MAX_OPS):
+   حذفِ انبوه (>۴۰) در روتر به legacyFallback('too-many-ops') می‌خورد و چون notifs
+   یک union-key است، legacy-push فقط union می‌کند و هیچ‌چیز را روی سرور حذف نمی‌کند —
+   کارت‌ها با رفرش برمی‌گشتند. حالا هر حذف یک فرمان مستقل است (سقفی ندارد). */
+function ntfCommitRemoval(notifs, kept) {
+  try {
+    var keptCds = {};
+    kept.forEach(function (n) { if (n && n.cd) keptCds[n.cd] = 1; });
+    var removedCds = [];
+    notifs.forEach(function (n) { if (n && n.cd && !keptCds[n.cd]) removedCds.push(n.cd); });
+    if (!removedCds.length) return 0;
+    try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite('ptf_crm_notifs', JSON.stringify(kept)); } catch (eSW) {}
+    var cmdOn = window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_notifs'] && typeof window.ptfEntityDelete === 'function';
+    if (cmdOn) {
+      removedCds.forEach(function (cd) {
+        try { window.ptfEntityDelete('ptf_crm_notifs', cd, { reason: 'w2', cb: function () {} }); } catch (eD) {}
+      });
+    } else if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' });
+    else setData('ptf_crm_notifs', kept);
+    try { updateCartBadge(); } catch (eB) {}
+    try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (eB2) {}
+    return removedCds.length;
+  } catch (eNC) { return 0; }
+}
 
 function audit(module, action, ref) {
   if (Math.random() < 0.1) ptfPruneSystemLogs();
@@ -446,7 +472,18 @@ window.ntfResolveByRef = function (refCd) {
   var notifs = getData('ptf_crm_notifs');
   var kept = notifs.filter(function (n) { return !(n && (n.refCd === refCd || n.remCd === refCd)); });
   var removed = notifs.length - kept.length;
-  if (removed) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' }); else setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (eB) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (eB2) {} }
+  if (removed) ntfCommitRemoval(notifs, kept);
+  return removed;
+};
+
+/* v34.38.6 (DEAL-DUE-SETTLED): بستن کارت بر اساس کلید پایدار dkey — برای کارت‌های
+   خودکارِ بدون remCd/refCd (rfq-due/deal-due) که باید هنگام بسته‌شدن منبع حذف شوند. */
+window.ntfResolveByDkey = function (dkey) {
+  if (!dkey) return 0;
+  var notifs = getData('ptf_crm_notifs');
+  var kept = notifs.filter(function (n) { return !(n && String(n.dkey || '') === String(dkey)); });
+  var removed = notifs.length - kept.length;
+  if (removed) ntfCommitRemoval(notifs, kept);
   return removed;
 };
 

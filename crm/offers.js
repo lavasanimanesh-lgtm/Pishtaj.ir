@@ -9,7 +9,16 @@
 // مهاجرت خودکار داده قدیمی (AC6): con/ph تکی → اولین شخص رابط
 function migrateContacts() {
   ['ptf_crm_customers', 'ptf_crm_suppliers'].forEach(function(key) {
-    var items = getData(key), changed = false;
+    var items = getData(key);
+    /* v34.38.6 (CONTACT-WIPE R2): آرایهٔ خالی/کوتاه‌تر از آخرین تصویر شناخته‌شده را
+       بازنویس نکن — خواندنِ کهنهٔ getData می‌توانست دفتر را با مجموعهٔ ناقص روی
+       سرور push کند (هم‌ردیف skipEmptyOrTruncated در phonefmt). */
+    if (!Array.isArray(items) || !items.length) return;
+    try {
+      var known = window._ptfEntityLastKnown && window._ptfEntityLastKnown[key];
+      if (Array.isArray(known) && known.length > items.length) return;
+    } catch (eK) {}
+    var changed = false;
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       if (!it.people) {
@@ -28,7 +37,12 @@ function migrateContacts() {
         changed = true;
       }
     }
-    if (changed) setData(key, items);
+    /* v34.38.6 (CONTACT-WIPE R2): از روتر فرمانی با reason در AUTO_NO_DELETE بگذر —
+       نه setData خام. */
+    if (changed) {
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection(key, items, { reason: 'contact-mig' });
+      else setData(key, items);
+    }
   });
 }
 
@@ -70,6 +84,33 @@ function ptfMergeExtraCoTels(oldRec, tel) {
 window.cbEnsurePerson = cbEnsurePerson;
 window.cbPersonHasContact = cbPersonHasContact;
 window.ptfMergeExtraCoTels = ptfMergeExtraCoTels;
+
+/* v34.38.6 (CONTACT-WIPE R3): تبدیل حقوقی→حقیقی قبلاً people/coTels را عمداً صفر
+   می‌کرد و آن‌ها را به phones منتقل نمی‌کرد — شماره‌های قدیمی بی‌صدا گم می‌شدند.
+   حالا تماس‌های حقوقیِ رکورد قبلی (تلفن‌خانه + اشخاص رابط) به فهرست تلفن‌های شخص
+   منتقل می‌شوند (با dedup بر شمارهٔ نرمال‌شده) تا هیچ تماسی از بین نرود. */
+function ptfPreserveLegalContactsAsPhones(oldRec, phones) {
+  var out = (Array.isArray(phones) ? phones : []).slice();
+  if (!oldRec) return out;
+  var seen = {};
+  out.forEach(function (p) { if (p && p.n) seen[String(p.n).replace(/[^0-9]/g, '')] = 1; });
+  function push(kind, n, lb) {
+    n = String(n || '').trim();
+    if (!n) return;
+    var key = n.replace(/[^0-9]/g, '');
+    if (!key || seen[key]) return;
+    seen[key] = 1;
+    out.push({ k: kind, n: n, lb: lb || '' });
+  }
+  (oldRec.coTels || []).forEach(function (t) { if (t) push('tel', t.n, t.lb || t.ext || ''); });
+  (oldRec.people || []).forEach(function (pp) {
+    if (!pp) return;
+    (pp.tels || []).forEach(function (t) { if (t) push('tel', t.n, t.lb || t.ext || ''); });
+    (pp.mobs || []).forEach(function (t) { if (t) push('mob', t.n, t.lb || ''); });
+  });
+  return out;
+}
+window.ptfPreserveLegalContactsAsPhones = ptfPreserveLegalContactsAsPhones;
 
 function cbInit(people) {
   _cbState = { people: JSON.parse(JSON.stringify(people || [])) };
@@ -3710,7 +3751,7 @@ function saveCust2(cd) {
   } catch (eOwn) {}
   // v80.2: حقیقی → تلفن‌های خود شخص
   if (rec.kind === 'حقیقی') {
-    rec.phones = indivPhonesCollect();
+    rec.phones = ptfPreserveLegalContactsAsPhones(oldRecPre, indivPhonesCollect()); /* v34.38.6 (CONTACT-WIPE R3): تماس‌های حقوقی قبلی منتقل می‌شوند */
     rec.people = [];
     rec.coTels = [];
     rec.con = rec.co;
@@ -3830,7 +3871,7 @@ function saveSup2(cd) {
   };
   // v80.2: حقیقی → تلفن‌های خود شخص
   if (rec.kind === 'حقیقی') {
-    rec.phones = indivPhonesCollect();
+    rec.phones = ptfPreserveLegalContactsAsPhones(oldSupPre, indivPhonesCollect()); /* v34.38.6 (CONTACT-WIPE R3): تماس‌های حقوقی قبلی منتقل می‌شوند */
     rec.people = [];
     rec.coTels = [];
     rec.nm = rec.co;

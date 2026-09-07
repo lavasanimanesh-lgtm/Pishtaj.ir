@@ -770,6 +770,9 @@ function remSnooze(cd) {
   /* v34.29.6 (ONE-CLICK): تعویق هم مثل انجام‌شدن — نوشتن محلی بی‌درنگ + فرمان. */
   if (row && window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'rem-snooze' });
   else setData('ptf_crm_reminders', rems);
+  /* v34.38.6 (DEAL-DUE-SETTLED): تعویق باید کارت rem-due قبلی (با تاریخ قدیم) را ببندد؛
+     وگرنه دوباره-آمدنِ سررسید، کارتی تازه با همان dkey و readBy خالی می‌سازد. */
+  try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNRS) {}
   renderReminders();
 }
 
