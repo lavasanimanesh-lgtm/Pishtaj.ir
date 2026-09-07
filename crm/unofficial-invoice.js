@@ -1440,7 +1440,9 @@ window.buildUnInvBuilderRows = function (lines) {
         '<input type="text" data-fld="name" data-pid="' + pid + '" value="' + escP(ln.name || '') + '" placeholder="عنوان کالا / خدمت" style="width:100%;font-size:12px;font-weight:700;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;" oninput="unofficialInvoiceBuilderRecalc()">' +
         '<input type="text" data-fld="desc" data-pid="' + pid + '" value="' + escP(ln.desc || '') + '" placeholder="شرح و مشخصات فنی (اختیاری)" style="width:100%;font-size:11px;color:#475569;margin-top:3px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:6px;box-sizing:border-box;" oninput="unofficialInvoiceBuilderRecalc()">' +
       '</td>' +
-      '<td style="padding:4px;text-align:center;font-size:11px;">' + escP(unitFaFn(ln.unit)) + '</td>' +
+      '<td style="padding:4px;text-align:center;font-size:11px;">' +
+        (ln.custom ? '<input type="text" data-fld="unit" data-pid="' + pid + '" value="' + escP(unitFaFn(ln.unit)) + '" placeholder="واحد" style="width:55px;padding:3px 2px;font-size:11px;text-align:center;border:1px solid #cbd5e1;border-radius:6px;" oninput="unofficialInvoiceBuilderRecalc()">' : escP(unitFaFn(ln.unit))) +
+      '</td>' +
       '<td style="padding:4px;text-align:center;"><input type="number" min="0" step="any" data-fld="qty" data-pid="' + pid + '" value="' + (+ln.qty || 0) + '" style="direction:ltr;padding:4px;width:70px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()"></td>' +
       '<td style="padding:4px;text-align:center;"><input type="number" min="0" step="any" data-fld="price" data-pid="' + pid + '" value="' + (+ln.price || 0) + '" style="direction:ltr;padding:4px;width:150px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()"></td>' +
       '<td style="padding:4px;text-align:left;direction:ltr;" class="row-total" data-pid="' + pid + '">' + ((+ln.qty || 0) * (+ln.price || 0)).toLocaleString('en-US') + '</td>' +
@@ -1531,12 +1533,14 @@ window.unofficialInvoiceBuilderRecalc = function () {
     var pid = tr.getAttribute('data-row-id');
     var nameEl = _dlg.querySelector('input[data-fld="name"][data-pid="' + pid + '"]');
     var descEl = _dlg.querySelector('input[data-fld="desc"][data-pid="' + pid + '"]');
+    var unitEl = _dlg.querySelector('input[data-fld="unit"][data-pid="' + pid + '"]');
     var qtyEl = _dlg.querySelector('input[data-fld="qty"][data-pid="' + pid + '"]');
     var prEl = _dlg.querySelector('input[data-fld="price"][data-pid="' + pid + '"]');
     var q = qtyEl ? (+qtyEl.value || 0) : 0;
     var p = prEl ? (+prEl.value || 0) : 0;
     var nm = nameEl ? nameEl.value : '';
     var ds = descEl ? descEl.value : '';
+    var un = unitEl ? unitEl.value : '';
     var rowTotal = q * p;
     var trTotalEl = _dlg.querySelector('.row-total[data-pid="' + pid + '"]');
     if (trTotalEl) trTotalEl.textContent = rowTotal.toLocaleString('en-US');
@@ -1549,6 +1553,7 @@ window.unofficialInvoiceBuilderRecalc = function () {
       ln.lineTotal = rowTotal;
       if (nameEl) ln.name = nm;
       if (descEl) ln.desc = ds;
+      if (unitEl && un) ln.unit = un;
     }
   });
 
@@ -1609,6 +1614,10 @@ window.unofficialInvoiceBuilderAddCustomRow = function () {
   var _tbody = document.getElementById('unRowsTbody');
   _tbody.insertAdjacentHTML('beforeend', window.buildUnInvBuilderRows([newLine]));
   window.unofficialInvoiceBuilderRecalc();
+  try {
+    var newRowInput = _tbody.querySelector('input[data-fld="name"][data-pid="' + newLine._pid + '"]');
+    if (newRowInput) { newRowInput.focus(); newRowInput.select(); }
+  } catch (eF) {}
 };
 
 // ===== بازنشانی از پیشنهاد =====
@@ -1624,6 +1633,9 @@ window.unofficialInvoiceBuilderSubmit = function () {
   if (!_unInvState) return;
   var _dlg = document.getElementById('unInvBuilderDlg');
   if (!_dlg) return;
+  // همگام‌سازی فوری مقادیر جاری ورودی‌های DOM با وضعیت برنامه
+  window.unofficialInvoiceBuilderRecalc();
+
   // اعتبارسنجی: حداقل یک قلم با مبلغ > 0
   var validRows = _unInvState.lines.filter(function (l) {
     return (+l.qty || 0) > 0 && (+l.price || 0) > 0;

@@ -13,7 +13,10 @@
   var K = 'ptf_crm_deals';
 
   function sfAll() { return getData(K); }
-  function sfSave(list) { setData(K, list); }
+  function sfSave(list) {
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection(K, list, { reason: 'w2' });
+    else setData(K, list);
+  }
 
   /* v14.8: دلایل استاندارد باخت — به جای متن آزاد */
   window.SF_LOST_REASONS = [
@@ -275,7 +278,11 @@
     var idx = r ? (r.qcEvents || []).findIndex(function (x) { return x.cd === eventCd; }) : -1;
     if (!r || idx < 0) return null;
     var ev = r.qcEvents.splice(idx, 1)[0];
+    r._qcTomb = r._qcTomb || {};
+    r._qcTomb[eventCd] = new Date().toISOString();
     var keys = (ev.files || []).map(function (f) { return f.key; }).filter(Boolean);
+    r._deletedFileKeys = r._deletedFileKeys || [];
+    keys.forEach(function (k) { if (r._deletedFileKeys.indexOf(k) < 0) r._deletedFileKeys.push(k); });
     r.docs = (r.docs || []).filter(function (d) { return !d.key || keys.indexOf(d.key) < 0; });
     r.documentAudit = r.documentAudit || [];
     r.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'delete', kind: 'qcEvent', ref: eventCd, reason: reason, before: JSON.parse(JSON.stringify(ev)) });
@@ -597,8 +604,12 @@
     if (!r || idx < 0) return null;
     var beforeStage = sfStageOf(r);
     var ev = r.shipEvents.splice(idx, 1)[0];
+    r._shipTomb = r._shipTomb || {};
+    r._shipTomb[eventCd] = new Date().toISOString();
     r.stageEvidenceManaged = true;
     var keys = (ev.files || []).map(function (f) { return f.key; }).filter(Boolean);
+    r._deletedFileKeys = r._deletedFileKeys || [];
+    keys.forEach(function (k) { if (r._deletedFileKeys.indexOf(k) < 0) r._deletedFileKeys.push(k); });
     r.docs = (r.docs || []).filter(function (d) { return !d.key || keys.indexOf(d.key) < 0; });
     r.documentAudit = r.documentAudit || [];
     r.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'delete', kind: 'shipEvent', ref: eventCd, reason: reason, before: JSON.parse(JSON.stringify(ev)) });
@@ -984,6 +995,10 @@
     var ev = r && sfEventByKind(r, kind, eventCd); var f = ev && (ev.files || [])[fileIdx];
     if (!r || !ev || !f) return null;
     ev.files.splice(fileIdx, 1);
+    if (f && f.key) {
+      r._deletedFileKeys = r._deletedFileKeys || [];
+      if (r._deletedFileKeys.indexOf(f.key) < 0) r._deletedFileKeys.push(f.key);
+    }
     r.docs = (r.docs || []).filter(function (d) { return !f.key || d.key !== f.key; });
     r.documentAudit = r.documentAudit || [];
     r.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'delete-file', kind: kind, ref: eventCd, reason: reason, before: JSON.parse(JSON.stringify(f)) });
@@ -1762,6 +1777,16 @@
     var r = list.filter(function (x) { return x.cd === cd; })[0];
     if (!r || !r.docs || !r.docs[mi]) return null;
     var doc = r.docs.splice(mi, 1)[0];
+    if (doc) {
+      r._docTomb = r._docTomb || {};
+      if (doc.key) r._docTomb[doc.key] = new Date().toISOString();
+      if (doc._id) r._docTomb[doc._id] = new Date().toISOString();
+      if (doc.name) r._docTomb[doc.name] = new Date().toISOString();
+      if (doc.key) {
+        r._deletedFileKeys = r._deletedFileKeys || [];
+        if (r._deletedFileKeys.indexOf(doc.key) < 0) r._deletedFileKeys.push(doc.key);
+      }
+    }
     /* اگر این ردیف همان فایل نمایش‌داده‌شده زیر رویداد حمل/QC است، پیوند فعال آن
        نیز حذف می‌شود؛ خود رویداد (شاهد مرحله) فقط از دکمه «حذف رویداد» حذف می‌شود. */
     ['shipEvents', 'qcEvents', 'costEvents'].forEach(function (ek) { (r[ek] || []).forEach(function (ev) { ev.files = (ev.files || []).filter(function (f) { return !doc.key || f.key !== doc.key; }); }); });

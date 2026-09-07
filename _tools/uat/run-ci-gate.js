@@ -264,6 +264,7 @@ var SUITE = [
   { g: 'سایت/SEO (37.5): «ثبت نقشهٔ سایت از CRM» — نوشتنِ نقشه باید صادق باشد (وضعیت sitemap در پاسخ انتشار، هشدار پنل، cms_log خطا)، راهنمای GSC باید Full بگوید (نه Restricted)، و api/.htaccess باید gsc.php را در allowlist داشته باشد', f: '_tools/uat/tester602-v34.37.5-sitemap-honest.js' },
   { g: 'CRM/مالی (37.6): همپوشانی ستون‌های پنل فاکتورها — clip در قالب مشترک، shrink مجاز، لبهٔ همسان سربرگ، tabular-nums مبالغ', f: '_tools/uat/tester603-v34.37.6-invoice-panel-clip.js' },
   { g: 'CRM/داده (37.7): CONTACT-WIPE — تلفن/اشخاص/کانال مشتری دیگر با ذخیره یا قالب‌بندی شماره پاک نمی‌شود', f: '_tools/uat/tester604-v34.37.7-contact-wipe.js' },
+  { g: 'CRM/فاکتور و همگام‌سازی پرونده (37.8): اقلام سفارشی فاکتور غیررسمی (ویرایش نام/واحد) + سنگ‌قبر رویدادها و اسناد پرونده در sync.js و salesfiles.js', f: '_tools/uat/tester605-v34.37.8-custom-lines-and-tombstone-sync.js' },
   { g: 'سایت/ثبت‌نام تامین‌کننده (37.0): پایان آبجکت یتیم — تکراری پیش از آپلود بررسی می‌شود + بازیابی پیوست روی phone/ph/mob + انتخاب بهترین رکورد + هم‌ترازی accept با allowlist', f: '_tools/uat/tester597-v34.37.0-supplier-attach-order.js' },
   { g: 'UX (29.3): ریشه‌کنی واقعی تب‌های خالی CMS — برخورد کلاس pn/tb با CSS سراسری (سنجش computed visibility)', f: '_tools/uat/tester578-v34.29.7-cms-css-visibility.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },

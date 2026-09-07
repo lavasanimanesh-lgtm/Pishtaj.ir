@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester532 — v34.37.7 (STALE-TOKEN-HEAL): پایان حلقهٔ 403 بی‌پایان پنل ابزارها.
+/* tester532 — v34.37.8 (STALE-TOKEN-HEAL): پایان حلقهٔ 403 بی‌پایان پنل ابزارها.
    گزارش کارفرما: admin_list/admin_report_drafts/... همه 403. ریشه: نقشِ توکن
    کهنه با نقش فعلی کاربر فرق دارد (تغییر نقش بعد از صدور). فیکس: اگر نقش فعلیِ
    همان کاربر در مخزن کاربران admin/chairman است، 401/needLogin برگردانده می‌شود
@@ -21,9 +21,9 @@ T('نقش واقعاً غیرادمین → 403 admin_required باقی است',
 });
 
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.37.7', ver.crm_version === 'v34.37.7', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.37.7', /window\.PTF_CRM_RELEASE = 'v34\.37\.7'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.7'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.37.8', ver.crm_version === 'v34.37.8', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.37.8', /window\.PTF_CRM_RELEASE = 'v34\.37\.8'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.37\.8'/.test(read('crm/sw.js')));
 
-console.log('\n— tester532 (v34.37.7: STALE-TOKEN-HEAL) —');
+console.log('\n— tester532 (v34.37.8: STALE-TOKEN-HEAL) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

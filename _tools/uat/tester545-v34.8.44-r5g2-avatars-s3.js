@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester545 — v34.37.7 (R5/T4-3b — AVATARS-TO-S3): عکس پروفایل به فضای ابری
+/* tester545 — v34.37.8 (R5/T4-3b — AVATARS-TO-S3): عکس پروفایل به فضای ابری
    قرارداد: تصویر کامل آواتار (۱۲۸px) با الگوی چک‌پرینت v34.8.28 به آروان S3 (پوشهٔ avatars)
    می‌رود؛ در نقشهٔ سینک‌شوندهٔ ptf_crm_avatars فقط کلید ابری + پیش‌نمایش ریز ۶۴px (~۳KB)
    می‌ماند — سهم LS و پهنای باند سینک per کاربر ~۲۰KB → ~۳KB می‌شود. سه شکل مقدار
@@ -163,7 +163,7 @@ function extractAvatarBlock(src) {
 })().catch(function (e) { T('زنجیرهٔ بیرونی', false, String(e && e.stack || e)); finish(); });
 
 function finish() {
-  console.log('\n— tester545 (v34.37.7: R5/T4-3b — عکس پروفایل به فضای ابری؛ نقشهٔ سبک {k,t,ts}) —');
+  console.log('\n— tester545 (v34.37.8: R5/T4-3b — عکس پروفایل به فضای ابری؛ نقشهٔ سبک {k,t,ts}) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   if (f > 0) process.exit(1);
 }

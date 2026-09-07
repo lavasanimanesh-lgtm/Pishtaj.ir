@@ -158,6 +158,6 @@ head('۵. آزمون جهش');
   T('۵.۳ دستورِ Restricted در راهنما بازنگشت', GUIDE.indexOf(OLD_GUIDE) === -1);
 }
 
-console.log('\n— tester602 (v34.37.7: SITEMAP-HONEST — ثبت نقشه فقط وقتی واقعی است + راهنمای Full) —');
+console.log('\n— tester602 (v34.37.8: SITEMAP-HONEST — ثبت نقشه فقط وقتی واقعی است + راهنمای Full) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

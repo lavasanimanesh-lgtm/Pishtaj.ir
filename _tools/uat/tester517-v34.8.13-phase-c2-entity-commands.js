@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.37.7 — PHASE-C2: زیرساخت فرمان عمومی موجودیت (مسیر نازک نوشتن).
+/* v34.37.8 — PHASE-C2: زیرساخت فرمان عمومی موجودیت (مسیر نازک نوشتن).
    سرور: رجیستری موجودیت + entity_upsert/entity_delete با journal/idempotency موجود
    + tombstone عمومی (archive_purge با identities). کلاینت: ptfEntityUpsert/Delete +
    پرچم per-collection + اعمال projection بدون dirty. پایلوت: یادآورها (leads.js). */
@@ -16,7 +16,7 @@ var v2 = read('crm/sales-domain-v2.js');
 var leads = read('crm/leads.js');
 var crmphp = read('api/crm.php');
 
-T('VERSION.json = v34.37.7', ver.crm_version === 'v34.37.7', ver.crm_version);
+T('VERSION.json = v34.37.8', ver.crm_version === 'v34.37.8', ver.crm_version);
 
 /* ---------- سرور ---------- */
 T('رجیستری موجودیت تعریف شد', /function sd_entity_registry\(\): array/.test(api));
@@ -29,7 +29,7 @@ T('sanitizer ردیف (سقف کلید/طول/تودرتو)', /function sd_entit
 T('حذف = tombstone عمومی archive_purge با identities', /'kind' => 'archive_purge'.*'identities' => \[\$collection => \[\$id\]\]/s.test(api));
 T('حذف idempotent است (alreadyDeleted)', /'alreadyDeleted' => true/.test(api));
 T('فرمان‌های entity از journal پاس می‌کنند (در readOnly نیستند)', !/\('snapshot', 'health'[\s\S]{0,200}entity_upsert/.test(api));
-T('SD_SERVICE_VERSION = 34.37.7', /SD_SERVICE_VERSION = '34\.37\.7'/.test(api));
+T('SD_SERVICE_VERSION = 34.37.8', /SD_SERVICE_VERSION = '34\.37\.8'/.test(api));
 
 /* ---------- کلاینت ---------- */
 T('پرچم per-collection فعال (پایلوت یادآور)', /PTF_ENTITY_CMD_ENABLED = \{ 'ptf_crm_reminders': true/.test(v2));
@@ -40,8 +40,8 @@ T('fallback امن به مسیر legacy وقتی فاز B خاموش است', /s
 T('کلید غيرفعال → legacy بدون فرمان', /PTF_ENTITY_CMD_ENABLED\[collection\]\) \{ if \(opts\.cb\) opts\.cb\(\{ state: 'legacy' \}\)/.test(v2));
 
 /* ---------- پایلوت leads.js ---------- */
-T('remDone از فرمان سروری می‌گذرد (v34.37.7: router یکپارچه SaveCollection = فرمان اتمیک + نوشتن محلی بی‌درنگ)', /function remDone[\s\S]{0,700}ptfEntitySaveCollection\('ptf_crm_reminders', rems, \{ reason: 'rem-done' \}\)/.test(leads));
-T('remSnooze از فرمان سروری می‌گذرد (v34.37.7: همان router)', /function remSnooze[\s\S]{0,900}ptfEntitySaveCollection\('ptf_crm_reminders', rems, \{ reason: 'rem-snooze' \}\)/.test(leads));
+T('remDone از فرمان سروری می‌گذرد (v34.37.8: router یکپارچه SaveCollection = فرمان اتمیک + نوشتن محلی بی‌درنگ)', /function remDone[\s\S]{0,700}ptfEntitySaveCollection\('ptf_crm_reminders', rems, \{ reason: 'rem-done' \}\)/.test(leads));
+T('remSnooze از فرمان سروری می‌گذرد (v34.37.8: همان router)', /function remSnooze[\s\S]{0,900}ptfEntitySaveCollection\('ptf_crm_reminders', rems, \{ reason: 'rem-snooze' \}\)/.test(leads));
 T('remDel از entity_delete می‌گذرد', /function remDel[\s\S]{0,700}ptfEntityDelete\('ptf_crm_reminders'/.test(leads));
 T('هر سه مسیر fallback legacy دارند', (leads.match(/else setData\('ptf_crm_reminders'/g) || []).length >= 3);
 
@@ -66,6 +66,6 @@ T('هر سه مسیر fallback legacy دارند', (leads.match(/else setData\('
 
 T('sync_stats (C1) همچنان سر جایش است', /case 'sync_stats':/.test(crmphp));
 
-console.log('\n— tester517 (v34.37.7: PHASE-C2 فرمان عمومی موجودیت) —');
+console.log('\n— tester517 (v34.37.8: PHASE-C2 فرمان عمومی موجودیت) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

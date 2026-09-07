@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* =============================================================================
    tester600-v34.37.3-invoice-panel-undo-immediate.js
-   تثبیت دو خواستۀ کارفرما روی پنل فاکتورهای رسمی (v34.37.7):
+   تثبیت دو خواستۀ کارفرما روی پنل فاکتورهای رسمی (v34.37.8):
      ① «وقتی برای یک فاکتور لغو ارجاع می‌زنیم باید بلافاصله از ردیف‌های
         فاکتورهای ثبت‌شده/ارجاع‌شده حذف شود» — نه بعد از رفرش، نه بعد از pull.
      ② «بهم‌ریختگی چینش ستون‌ها در این قسمت» — سربرگ و ردیف باید از یک قالب
@@ -119,7 +119,7 @@ head('۱. تراز ستون‌ها روی خروجی رندر');
   const styles = (html.match(/style="([^"]*)"/g) || []).map((x) => x.slice(7, -1));
   const headM = /<div style="display:flex;align-items:center;gap:9px;padding:4px 11px;font-size:11px[^"]*">([\s\S]*?)<\/div>/.exec(html);
   const headCells = headM ? (headM[1].match(/style="([^"]*)"/g) || []).map((x) => x.slice(7, -1)) : [];
-  /* v34.37.7 (INV-PANEL-COL-CLIP): قالب ستون‌ها تکامل یافت — clip و shrink در
+  /* v34.37.8 (INV-PANEL-COL-CLIP): قالب ستون‌ها تکامل یافت — clip و shrink در
      خودِ قالب نشست و عرض‌ها واقعاً بزرگ‌تر شد؛ EXPECT همیشه «بازتابِ INV_COLS»
      است نه صفتِ جدا — همین تازگیِ آن، تست ۱.۲ را زنده نگه می‌دارد. */
   const COLS_SRC = /var INV_COLS = \[([\s\S]*?)\];/.exec(PANEL)[1];
@@ -231,6 +231,6 @@ head('۴. آزمون جهش (تستر واقعاً بارِ تشخیص دارد)
     MUT2 !== PANEL && (() => { try { const h = renderWith(MUT2, {}); return h.indexOf('سند مبنا') === -1 || !/min-width:96px/.test(h); } catch (e) { return true; } })());
 }
 
-console.log('\n— tester600 (v34.37.7: حذف فوری ردیف پس از لغو ارجاع + تراز ستون‌های پنل فاکتور) —');
+console.log('\n— tester600 (v34.37.8: حذف فوری ردیف پس از لغو ارجاع + تراز ستون‌های پنل فاکتور) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

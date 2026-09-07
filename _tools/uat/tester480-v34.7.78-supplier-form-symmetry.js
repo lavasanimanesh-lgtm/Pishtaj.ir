@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.37.7 — هم‌راستا‌سازی فیلدهای فرم ثبت‌نام تامین‌کننده + رفع پیشوند ZIP ضمایم.
+/* v34.37.8 — هم‌راستا‌سازی فیلدهای فرم ثبت‌نام تامین‌کننده + رفع پیشوند ZIP ضمایم.
    درخواست ۱: «دانلود همه (ZIP)» برای درخواست‌های دارای ضمیمه، «فایل ابری یافت نشد»
    می‌گفت — ریشه: فرم «ثبت درخواست جدید» فایل‌ها را با پیشوند rfq/ (نه rfqatt/) آپلود
    می‌کند و allowlist آن را نداشت.
@@ -19,8 +19,8 @@ var zip = read('api/zip-attachments.php');
 var sup = read('supplier/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.37.7', ver.crm_version === 'v34.37.7', ver.crm_version);
-T('inqreader.js cache-bust 34.37.7', /inqreader\.js\?v=34\.37\.7/.test(idx));
+T('VERSION.json = v34.37.8', ver.crm_version === 'v34.37.8', ver.crm_version);
+T('inqreader.js cache-bust 34.37.8', /inqreader\.js\?v=34\.37\.8/.test(idx));
 
 /* ① رفع پیشوند ZIP (rfq/) */
 T('کلاینت پیشوند rfq/ را می‌پذیرد', inq.indexOf("key.indexOf('rfq/') !== 0") > -1);
@@ -38,6 +38,6 @@ T('لیبل line-height همسان دارد', sup.indexOf('line-height: 1.7; mar
 
 T('tester480 در گیت CI', gate.indexOf('tester480-v34.7.78-supplier-form-symmetry.js') > -1);
 
-console.log('\n— tester480 (v34.37.7: هم‌راستا‌سازی فرم تامین‌کننده + پیشوند rfq/ در ZIP) —');
+console.log('\n— tester480 (v34.37.8: هم‌راستا‌سازی فرم تامین‌کننده + پیشوند rfq/ در ZIP) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
