@@ -2187,6 +2187,26 @@
     return map[st] || 0;
   }
   function ptfRecTimestamp(r) { return String((r && (r.wfUpdatedAtISO || r.updatedAtISO || r.updatedAt || r.iso || r.ts || r.t || r.dateEn || r.dueISO || r.dt || r.dateFa)) || ''); }
+  /* v34.38.0 (EVENT-DEDUP-TS): مقایسهٔ امن برای ددوب رویدادهای هم‌کد
+     (costEvents/qcEvents/shipEvents). در v34.37.8 (منتشرشده) قاعده «نسخهٔ
+     ویرایش‌شده برنده است» بود؛ در اصلاح میانیِ پس از آن (منتشرنشده) مقایسه به
+     ptfRecTimestamp خامِ رشته‌ای تغییر کرد که ① updatedT را اصلاً نمی‌خواند و
+     ② مقدارهای نامعتبر/کهنهٔ t|ts (مثل 'x' یا رشتهٔ خالی) را lexicographically
+     از ISOهای واقعی «جدیدتر» نشان می‌داد → نسخهٔ ویرایش‌شدهٔ (updatedT) در
+     ددوب به نسخهٔ کهنه می‌باخت (رگرسیون قاعدهٔ v34.29.8/v34.37.8).
+     اکنون: فقط timestamp واقعیِ قابل‌parse سنجیده می‌شود (ناخوانا = قدیمی‌ترین)
+     و در تساوی، نسخهٔ ویرایش‌شده برنده است؛ وگرنه رویداد نخست (ثبات) می‌ماند. */
+  function ptfEventTs(r) {
+    var s = String((r && (r.updatedT || r.updatedAtISO || r.updatedAt || r.iso || r.ts || r.t || r.dateEn || r.dueISO || r.dt || r.dateFa)) || '');
+    var n = Date.parse(s);
+    return isNaN(n) ? -1 : n;
+  }
+  function ptfEventDedupNewer(e, cur) {
+    var te = ptfEventTs(e), tc = ptfEventTs(cur);
+    if (te !== tc) return te > tc;
+    var ee = !!(e && (e.updatedT || e.updatedBy)), ec = !!(cur && (cur.updatedT || cur.updatedBy));
+    return ee && !ec;
+  }
   function ptfRecCompleteness(r) {
     var n = 0;
     if (!r || typeof r !== 'object') return 0;
@@ -2354,8 +2374,9 @@
         if (!cd) { ceOut.push(e); return; } /* رویداد بدون cd (قدیمی) → دست‌نخورده */
         if (costTomb[cd]) return; /* حذف‌شده → حذف ماندگار */
         if (ceSeen[cd]) {
-          /* تکرار هم‌کد: نسخه‌ای که timestamp ویرایش جدیدتری دارد برنده است. */
-          if (ptfRecTimestamp(e) > ptfRecTimestamp(ceSeen[cd])) {
+          /* تکرار هم‌کد: نسخهٔ با timestamp واقعیِ جدیدتر برنده است؛ در تساوی،
+             نسخهٔ ویرایش‌شده (updatedT/updatedBy) برنده است (EVENT-DEDUP-TS). */
+          if (ptfEventDedupNewer(e, ceSeen[cd])) {
             var idx = ceOut.indexOf(ceSeen[cd]);
             if (idx > -1) ceOut[idx] = e;
             ceSeen[cd] = e;
@@ -2385,7 +2406,7 @@
         if (!cd) { qcOut.push(e); return; }
         if (qcTomb[cd]) return;
         if (qcSeen[cd]) {
-          if (ptfRecTimestamp(e) > ptfRecTimestamp(qcSeen[cd])) {
+          if (ptfEventDedupNewer(e, qcSeen[cd])) {
             var idx = qcOut.indexOf(qcSeen[cd]);
             if (idx > -1) qcOut[idx] = e;
             qcSeen[cd] = e;
@@ -2413,7 +2434,7 @@
         if (!cd) { shOut.push(e); return; }
         if (shipTomb[cd]) return;
         if (shSeen[cd]) {
-          if (ptfRecTimestamp(e) > ptfRecTimestamp(shSeen[cd])) {
+          if (ptfEventDedupNewer(e, shSeen[cd])) {
             var idx = shOut.indexOf(shSeen[cd]);
             if (idx > -1) shOut[idx] = e;
             shSeen[cd] = e;

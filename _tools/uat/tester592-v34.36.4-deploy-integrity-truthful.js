@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =====================================================================
-   tester592 — v34.37.8 · INTEGRITY-TRUTHFUL (گیت صحتِ پس از استقرار)
+   tester592 — v34.38.0 · INTEGRITY-TRUTHFUL (گیت صحتِ پس از استقرار)
 
    چرا این تستر وجود دارد (RCA با شواهدِ ران):
    سه رانِ پیاپیِ استقرار — PR #3 (run 33909238999)، main (run 33866519467) و
@@ -396,7 +396,7 @@ T('ضدواگرایی: هر دو workflow نشانهٔ fallback پایان‌خ�
   (st.match(/tr -d '\\r'/g) || []).length >= 2 && (pr.match(/tr -d '\\r'/g) || []).length >= 2);
 
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (eClean) {}
-/* ═══ v34.37.8 (INTEGRITY-INDENT) — رگرسیونِ «گیتِ استقرار بی‌قیدوشرط قرمز» ═══
+/* ═══ v34.38.0 (INTEGRITY-INDENT) — رگرسیونِ «گیتِ استقرار بی‌قیدوشرط قرمز» ═══
    یافته: `FILES` یک رشتهٔ چندخطیِ داخل YAML است، پس همهٔ خطها جز اولی با فاصله‌های
    تورفتگیِ YAML شروع می‌شوند. حلقه با `IFS= read -r f` آن فاصله‌ها را حفظ می‌کرد و
    `[ ! -f "$f" ]` برای ۴ فایل از ۵ فایل صادق می‌شد ⇒ «در چک‌اوتِ این ران نیست» و
@@ -459,6 +459,6 @@ try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (eClean) {}
   });
 })();
 
-console.log('\n— tester592 (v34.37.8: INTEGRITY-TRUTHFUL — گیتِ صحتِ استقرار، اجراشده با curl ساختگی) —');
+console.log('\n— tester592 (v34.38.0: INTEGRITY-TRUTHFUL — گیتِ صحتِ استقرار، اجراشده با curl ساختگی) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
