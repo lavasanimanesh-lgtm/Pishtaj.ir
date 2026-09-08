@@ -393,7 +393,7 @@ console.log('\n── ۶) قرارداد CMS (فراخوان‌ها دست‌ن�
 
 console.log('\n── ۷) بهداشت ──');
 (function () {
-  T('۷.۱ VERSION.json = v34.38.9', ver.crm_version === 'v34.38.9', ver.crm_version);
+  T('۷.۱ VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
   T('۷.۲ tester590 در گیت CI ثبت شده است', gate.indexOf('tester590-v34.36.2-ai-json-repair.js') > -1);
   T('۷.۳ یادداشت انتشار این نسخه موجود است', fs.existsSync('RELEASE-NOTES-v34.38.1.md'));
   T('۷.۴ پینِ به‌روزِ tester565 (۹ اکشن) با تغییر هم‌خوان است', fs.readFileSync('_tools/uat/tester565-v34.20.0-cms-complaints.js', 'utf8').indexOf('length === 9') > -1);

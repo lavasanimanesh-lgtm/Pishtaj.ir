@@ -365,7 +365,7 @@ function attBox() { return els.venAttach; }
 
   /* ================= ۱۰) بهداشت ================= */
   console.log('\n── ۱۰) بهداشت و ثبت در گیت ──');
-  T('۱۰.۱ VERSION.json = v34.38.9', ver.crm_version === 'v34.38.9', ver.crm_version);
+  T('۱۰.۱ VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
   T('۱۰.۲ tester589 در گیت CI ثبت شده است', gate.indexOf('tester589-v34.36.2-supplier-upload-receipt.js') > -1);
   T('۱۰.۳ یادداشت انتشار این نسخه موجود است', fs.existsSync('RELEASE-NOTES-v34.38.1.md'));
   T('۱۰.۴ هیچ دادهٔ حساس (کلید/رمز) در تشخیص‌ها نشت نمی‌کند', !/attachmentDiag[\s\S]{0,400}(secret_key|access_key|CAPTCHA_SECRET)/.test(api));

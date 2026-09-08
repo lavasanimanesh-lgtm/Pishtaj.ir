@@ -59,7 +59,7 @@ console.log('── Phase 1 static contract ──');
 assert.ok(api.indexOf("['ptf_crm_opex','ptf_crm_sharetx','ptf_crm_shareholders']") > -1, 'all protected finance keys');
 assert.ok(api.indexOf('function sync_protected_identity_index') > -1, 'physical identity helper');
 assert.ok(api.indexOf('if ($saved > 0) $meta[\'_global\'] = [\'rev\' => $pushNextRev') > -1, 'single push revision');
-assert.ok(api.indexOf("'fresh' => true, 'meta' => $meta") > -1, 'fresh pull carries per-key metadata');
+assert.ok(api.indexOf("'fresh' => true") > -1 && api.indexOf("'meta' => $meta") > -1 && api.indexOf("'snapshot' =>") > -1, 'fresh pull carries per-key metadata and snapshot contract');
 assert.ok(clientServer.indexOf('base: base || bPullRevs()') > -1, 'Phase B sends per-key base');
 assert.ok(clientServer.indexOf('Array.isArray(d.savedKeys)') > -1, 'Phase B requires explicit savedKeys ACK');
 assert.ok(clientServer.indexOf('function bReadValue') > -1 && clientServer.indexOf('ptfStorageIdbGet') > -1, 'queue reads IDB mirror');

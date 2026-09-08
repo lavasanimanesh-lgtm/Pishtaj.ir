@@ -17,7 +17,7 @@ var cs = read('crm/client-server.js');
 var sync = read('crm/sync.js');
 var api = read('api/crm.php');
 
-T('VERSION.json = v34.38.9', ver.crm_version === 'v34.38.9', ver.crm_version);
+T('VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
 
 /* ---------- نجات تعارض محافظت‌شده ---------- */
 T('sync.js حل‌کنندهٔ protected را expose می‌کند', /window\.ptfSyncResolveProtectedConflictFromServer = function/.test(sync));
