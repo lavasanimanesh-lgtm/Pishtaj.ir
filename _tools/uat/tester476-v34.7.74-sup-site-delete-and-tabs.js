@@ -18,9 +18,9 @@ var brg = read('crm/bridge.js');
 var api = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
-T('cheques.js cache-bust 34.38.10', /cheques\.js\?v=34\.38\.10/.test(idx));
-T('bridge.js cache-bust 34.38.10', /bridge\.js\?v=34\.38\.10/.test(idx));
+T('VERSION.json = v34.38.11', ver.crm_version === 'v34.38.11', ver.crm_version);
+T('cheques.js cache-bust 34.38.11', /cheques\.js\?v=34\.38\.11/.test(idx));
+T('bridge.js cache-bust 34.38.11', /bridge\.js\?v=34\.38\.11/.test(idx));
 
 /* ① انتقال supPendWrap به زیر تب‌ها */
 T('تابع supPendBelowTabs تعریف شد', /function supPendBelowTabs\(\)\s*\{/.test(cheq));

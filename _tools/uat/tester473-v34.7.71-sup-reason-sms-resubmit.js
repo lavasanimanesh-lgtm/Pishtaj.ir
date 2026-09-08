@@ -19,7 +19,7 @@ var track = read('tracking/index.html');
 var sup = read('supplier/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
+T('VERSION.json = v34.38.11', ver.crm_version === 'v34.38.11', ver.crm_version);
 
 /* 1) رد ساختاریافته (کلاینت) */
 T('supReject با select دلیل', bridge.indexOf("id: 'reasonType'") > -1);

@@ -13,7 +13,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 var ver = JSON.parse(read('VERSION.json'));
 var storage = read('crm/storage.js');
 
-T('VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
+T('VERSION.json = v34.38.11', ver.crm_version === 'v34.38.11', ver.crm_version);
 T('تابع ptfReuploadQueueBuild تعریف شده', /function\s+ptfReuploadQueueBuild\s*\(/.test(storage));
 T('تابع ptfReuploadQueueExportCsv تعریف شده', /function\s+ptfReuploadQueueExportCsv\s*\(/.test(storage));
 T('روی window expose شده', /window\.ptfReuploadQueueBuild\s*=/.test(storage) && /window\.ptfReuploadQueueExportCsv\s*=/.test(storage));

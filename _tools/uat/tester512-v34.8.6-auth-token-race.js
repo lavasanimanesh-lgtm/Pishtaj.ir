@@ -25,9 +25,9 @@ var sync = read('crm/sync.js');
 var cs = read('crm/client-server.js');
 
 /* ---------- قرارداد نسخه (بامپ واقعی، بدون phase-query) ---------- */
-T('VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.38.10 (با کوتیشن)', /window\.PTF_CRM_RELEASE = 'v34\.38\.10'/.test(idx));
-T('sw.js RELEASE/CACHE = v34.38.10', /RELEASE = 'v34\.38\.10'/.test(sw) && /CACHE = 'ptf-crm-v34\.38\.10'/.test(sw));
+T('VERSION.json = v34.38.11', ver.crm_version === 'v34.38.11', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.38.11 (با کوتیشن)', /window\.PTF_CRM_RELEASE = 'v34\.38\.11'/.test(idx));
+T('sw.js RELEASE/CACHE = v34.38.11', /RELEASE = 'v34\.38\.11'/.test(sw) && /CACHE = 'ptf-crm-v34\.38\.11'/.test(sw));
 T('phase-query موقتی حذف شد', !/f0[0-9]=20260825/.test(idx) && !/PHASE0[0-9]_QUERY/.test(sw));
 T('همهٔ scriptها ?v یکسان با نسخهٔ رسمی', (function () { var re = /\?v=(\d+\.\d+\.\d+)/g, m, bad = 0; while ((m = re.exec(idx))) if (m[1] !== ver.crm_version.slice(1)) bad++; return bad === 0 && idx.indexOf('?v=' + ver.crm_version.slice(1)) > -1; })()); /* v34.38.0: چک پیشوندی قدیمی با نسخهٔ ۵۰ تصادم می‌کرد */
 

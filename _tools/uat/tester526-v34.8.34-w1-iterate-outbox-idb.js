@@ -104,8 +104,8 @@ T('preload صف در بوت صدا زده می‌شود', /window\.ptfBQueueIdbP
     function finish() {
       /* ---------- نسخه ---------- */
       var ver = JSON.parse(read('VERSION.json'));
-      T('VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
-      T('قرارداد نسخهٔ UI/sw = 34.38.10', /window\.PTF_CRM_RELEASE = 'v34\.38\.10'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.10'/.test(read('crm/sw.js')));
+      T('VERSION.json = v34.38.11', ver.crm_version === 'v34.38.11', ver.crm_version);
+      T('قرارداد نسخهٔ UI/sw = 34.38.11', /window\.PTF_CRM_RELEASE = 'v34\.38\.11'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.11'/.test(read('crm/sw.js')));
       console.log('\n— tester526 (v34.38.0: W1-iterate + OFFLINE-OUTBOX-IDB) —');
       console.log('PASS: ' + p + ' | FAIL: ' + f);
       process.exit(f ? 1 : 0);
