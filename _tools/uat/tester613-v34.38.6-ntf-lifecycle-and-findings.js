@@ -197,12 +197,12 @@ T('۵.۳ هشدار نرم قالب تکراری (گام ۲) — ساخت و و�
 /* ───────────────────── ۶) گیت / نسخه ───────────────────── */
 head('۶. گیت و نسخه');
 var ver = JSON.parse(read('VERSION.json'));
-T('۶.۱ VERSION.json = v34.38.6', ver.crm_version === 'v34.38.6', ver.crm_version);
+T('۶.۱ VERSION.json = v34.38.8', ver.crm_version === 'v34.38.8', ver.crm_version);
 T('۶.۲ tester613 در run-ci-gate.js ثبت است', gate.indexOf('tester613-v34.38.6-ntf-lifecycle-and-findings.js') > -1);
-T('۶.۳ قرارداد UI/sw = 34.38.6',
-  /window\.PTF_CRM_RELEASE = 'v34\.38\.6'/.test(idx) &&
-  /CACHE = 'ptf-crm-v34\.38\.6'/.test(read('crm/sw.js')));
-T('۶.۴ SD_SERVICE_VERSION = 34.38.6', /SD_SERVICE_VERSION = '34\.38\.6'/.test(read('api/sales-domain.php')));
+T('۶.۳ قرارداد UI/sw = 34.38.8',
+  /window\.PTF_CRM_RELEASE = 'v34\.38\.8'/.test(idx) &&
+  /CACHE = 'ptf-crm-v34\.38\.8'/.test(read('crm/sw.js')));
+T('۶.۴ SD_SERVICE_VERSION = 34.38.8', /SD_SERVICE_VERSION = '34\.38\.8'/.test(read('api/sales-domain.php')));
 
 console.log('\n— tester613 (NTF-LIFECYCLE + CONTACT-WIPE R2-R4 + OPEX-DUP-GUARD) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

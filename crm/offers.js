@@ -22,19 +22,23 @@ function migrateContacts() {
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       if (!it.people) {
-        it.people = [];
         var legacyName = it.con || it.nm || '';
         var legacyPhone = it.ph || '';
+        /* v34.38.7 (CONTACT-GHOST): مهاجرت فقط وقتی چیزی برای مهاجرت هست. پیش از این
+           برای هر رکوردِ فاقد people — حتی بدون con/ph — یک people:[] و coTels:[] خالی
+           ساخته و کل دفتر push می‌شد؛ با merge سرور، همین people:[] خالیِ payload،
+           اشخاصِ موجود در رکورد هم‌کدِ سرور (پر از تماس) را می‌شست و «اطلاعات تماس
+           ناپدید» می‌شد، در حالی که دستگاهِ دیگر از کش محلی خودش آن‌ها را می‌دید. */
         if (legacyName || legacyPhone) {
-          it.people.push({ nm: legacyName || '—', role: 'رابط اصلی', dept: '',
+          it.people = [{ nm: legacyName || '—', role: 'رابط اصلی', dept: '',
             tels: legacyPhone ? [{ n: legacyPhone, ext: '', lb: '' }] : [],
-            mobs: [], mails: [], note: '', primary: true });
+            mobs: [], mails: [], note: '', primary: true }];
+          it.coTels = it.coTels || [];
+          it.coMail = it.coMail || '';
+          it.coWeb = it.coWeb || '';
+          it.coAddr = it.coAddr || '';
+          changed = true;
         }
-        it.coTels = it.coTels || [];
-        it.coMail = it.coMail || '';
-        it.coWeb = it.coWeb || '';
-        it.coAddr = it.coAddr || '';
-        changed = true;
       }
     }
     /* v34.38.6 (CONTACT-WIPE R2): از روتر فرمانی با reason در AUTO_NO_DELETE بگذر —
@@ -3948,16 +3952,20 @@ window.ptfHealMissingCustomersFromRfqs = function () {
       kind: 'حقوقی',
       ind: HEAL_IND_MAP[r.ca || r.category] || 'سایر',
       venSt: 'unreg',
-      people: [],
-      con: r.con || '',
-      ph: r.ph || '',
       ds: 'بازسازی از درخواست ' + (r.cd || ''),
       healedFromRfq: r.cd || '',
       owner: r.crBy || r.owner || ''
     };
+    /* v34.38.7 (CONTACT-GHOST): کلیدهای تماسِ تهی (people:[] / con:'' / ph:'') هرگز در
+       payload نمی‌آیند. merge سرور «کلید حاضر را بازنویسی می‌کند» — اگر رکورد معتبرِ
+       همین کد با تماس از قبل روی سرور باشد و این stub به هر دلیلی غیر-expectCreate برسد،
+       کافی بود یک people:[] ارسال شود تا تماس‌ها روی سرور پاک شوند و دستگاهِ ثبت‌کننده
+       همچنان از کش محلی خودش آن‌ها را ببیند (دقیقاً امضای «یکی می‌بیند، یکی نمی‌بیند»). */
     if (r.con) {
+      stub.con = r.con;
       stub.people = [{ nm: r.con, role: 'رابط', primary: true, tels: [], mobs: r.ph ? [{ n: r.ph, lb: '' }] : [] }];
     }
+    if (r.ph) stub.ph = r.ph;
     if (typeof dedupStamp === 'function') dedupStamp(stub);
     if (r.crBy) stub.crBy = r.crBy;
     if (!stub.owner) stub.owner = stub.crBy || '';

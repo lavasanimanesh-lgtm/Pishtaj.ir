@@ -755,11 +755,50 @@
        می‌داد و رکورد تازه هرگز روی سرور ثبت نمی‌شد (فقط silent-write محلی که اولین
        pull آن را می‌شست). حالا یک نوبت با کد نو دوباره فرستاده می‌شود و کد محلی هم
        اصلاح می‌گردد تا دفعهٔ بعد دوباره برخورد نکند. */
+    /* v34.38.7 (CONTACT-GHOST — گزارش کارفرما: «مشتری را مدیرعامل ثبت کرده و شماره‌ها را
+       می‌بیند ولی من روی سیستم خودم نمی‌بینم؛ شاید چون شماره‌ها را انگلیسی زده»):
+       شبیه‌سازی end-to-end نشان داد ارقام انگلیسی بی‌خطرند (هوک phonefmt پیش از سرور
+       فارسی‌سازی می‌کند و تماس‌ها در کل زنجیره حفظ می‌شوند). ریشهٔ محتملِ دیدِ متفاوت
+       دو دستگاه: رکوردی که کاربرِ دوم می‌بیند «stub/تکراریِ بدون تماس» است، نه رکورد
+       اصلی. یکی از سازندگان چنین رکوردی همین مسیر بود: heal/مهاجرت‌های سیستمی
+       (بدون قصد ساخت، مثل rfq-cust-heal) در برخورد کد 409 ↓ دوباره با کد نو
+       می‌ساختند و نتیجه‌اش دو ردیف هم‌نام بود — یکی با تماس (اصل) یکی بدون (stub).
+       قاعدهٔ امن: reasonهای سیستمیِ بدون قصد ساخت، در برخورد کد نه‌تنها دوباره
+       نمی‌سازند بلکه stub محلی را هم کنار می‌گذارند تا پول بعدی رکورد معتبر سرور
+       را بیاورد. (ثبتِ واقعیِ کاربر — offer-cust/lead-convert/ai-* — مثل قبل با کد
+       نو retry می‌شود؛ قرارداد قفل‌شدهٔ tester595 بند ۵.۶.) */
+    var NO_RECREATE_ON_CONFLICT_REASONS = { 'rfq-cust-heal': 1, 'contact-mig': 1, 'phonefmt-mig': 1 };
+    function dropLocalShadowStub(coll, dropCd) {
+      try {
+        if (!dropCd) return false;
+        var liveNow = [];
+        try { liveNow = (typeof getData === 'function' ? getData(coll) : []) || []; } catch (eG) {}
+        if (!Array.isArray(liveNow)) return false;
+        var cleaned = liveNow.filter(function (x) { return !(x && String(x.cd) === dropCd); });
+        if (cleaned.length === liveNow.length) return false;
+        try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite(coll, JSON.stringify(cleaned)); } catch (eSw) {}
+        window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
+        try { window._ptfEntityLastKnown[coll] = JSON.parse(JSON.stringify(cleaned)); } catch (eLK) {}
+        /* nextArr هم بلافاصله هم‌راستا شود تا ACK نهایی (submitted === محلی) dirty پاک کند */
+        for (var xi = nextArr.length - 1; xi >= 0; xi--) {
+          if (nextArr[xi] && String(nextArr[xi].cd) === dropCd) nextArr.splice(xi, 1);
+        }
+        return true;
+      } catch (eDrop) { return false; }
+    }
     function retryWithFreshCode(coll, rec, st, settle) {
       try {
         if (!st || !/entity_id_exists/.test(String(st.error || ''))) return false;
         if (!rec) return false;
         var oldCd = String(rec.cd || '');
+        /* v34.38.7: heal/مهاجرت سیستمی در برخورد کد نمی‌سازد؛ سایهٔ محلی کنار گذاشته
+           می‌شود و رکورد معتبر سرور با پول بعدی می‌آید (ضد ردیف تکراریِ بدون تماس). */
+        if (NO_RECREATE_ON_CONFLICT_REASONS[opts.reason || '']) {
+          var dropped = dropLocalShadowStub(coll, oldCd);
+          try { if (typeof audit === 'function') audit('یکپارچگی داده', '🛟 برخورد کدِ ' + (opts.reason || '-') + ' در ' + coll + ': رکورد معتبر ' + oldCd + ' از قبل روی سرور بود؛ ساختِ دوباره انجام نشد' + (dropped ? ' و سایهٔ محلی کنار گذاشته شد' : ''), oldCd); } catch (eAuG) {}
+          settle({ state: 'acked', result: { skippedExisting: true, id: oldCd, shadowDropped: dropped } });
+          return true;
+        }
         /* حفاظت ضد حلقه — بدون آلوده کردن خودِ رکورد با فیلد موقت */
         window._ptfCodeRetryTried = window._ptfCodeRetryTried || {};
         var guardKey = coll + '|' + oldCd;

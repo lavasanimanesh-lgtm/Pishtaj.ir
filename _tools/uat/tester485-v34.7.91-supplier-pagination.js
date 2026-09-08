@@ -13,9 +13,9 @@ var idx = read('crm/index.html');
 var off = read('crm/offers.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.6', ver.crm_version === 'v34.38.6', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.38.6', /window\.PTF_CRM_RELEASE = 'v34\.38\.6'/.test(idx));
-T('offers.js cache-bust 34.38.6', /offers\.js\?v=34\.38\.6/.test(idx));
+T('VERSION.json = v34.38.8', ver.crm_version === 'v34.38.8', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.38.8', /window\.PTF_CRM_RELEASE = 'v34\.38\.8'/.test(idx));
+T('offers.js cache-bust 34.38.8', /offers\.js\?v=34\.38\.8/.test(idx));
 
 T('renderSuppliers2 صفحه‌بندی ۵۰تایی دارد', /var per = 50;/.test(off));
 T('renderSuppliers2 فقط صفحهٔ فعلی را می‌سازد', off.indexOf('var shown = list.slice(0, (page + 1) * per);') > -1 && off.indexOf('shown.forEach(function(c) {') > -1);
