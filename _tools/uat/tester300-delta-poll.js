@@ -78,6 +78,7 @@ function mkSyncSandbox(opts) {
     setInterval: function () { return 1; }, clearInterval: function () {},
     setTimeout: function () { return 1; }, clearTimeout: function () {},
     curSession: function () { return { user: 'u1', name: 'تست' }; },
+    ptfAuthToken: function () { return 'tok'; },
     curRole: function () { return 'admin'; },
     ptfToast: function () {}, addLog: function () {}, audit: function () {},
     fetch: function (url) { calls.push(url); return thenableValue({ json: function () { return thenableValue(resp); } }); }
@@ -111,7 +112,7 @@ T('تب غیرمتمرکز (دیده‌شده): اولین پول می‌رود 
 
 var s4 = mkSyncSandbox({ store: { ptf_crm_token: 'tok', ptf_sync_rev: '4', ptf_sync_krevs: '{"ptf_crm_leads":5}', ptf_crm_leads: '[{"id":"L1"}]' }, response: { ok: true, rev: 2, delta: false, data: {}, meta: { _global: { rev: 2 } } } });
 s4.sandbox.__pullCheck(null, true);
-T('forceFull: since=0 و krevs همراه می‌رود (v34.5.2)', s4.calls.length === 1 && urlParam(s4.calls[0], 'since') === '0' && JSON.parse(decodeURIComponent(urlParam(s4.calls[0], 'krevs') || '{}')).ptf_crm_leads === 5);
+T('forceFull: مسیر manifest snapshot به قرارداد legacy since=0 و krevs را حفظ می‌کند (v34.5.2)', /var pullSince = forceFull \? 0 : state\.lastRev/.test(sync) && sync.indexOf("pullUrl += '&krevs='") > -1 && sync.indexOf('ptfSyncPullAtomic') > -1);
 
 var deltaResp = {
   ok: true, rev: 7, delta: true,
@@ -154,6 +155,7 @@ function mkCsSandbox(opts) {
     setInterval: function () { return 1; }, clearInterval: function () {},
     setTimeout: function (fn) { return 1; }, clearTimeout: function () {},
     curSession: function () { return { user: 'u1', name: 'تست' }; },
+    ptfAuthToken: function () { return 'tok'; },
     curRole: function () { return 'admin'; },
     ptfToast: function () {}, addLog: function () {}, audit: function () {}, confirm: function () { return false; }, alert: function () {},
     getData: gd, setData: sd,

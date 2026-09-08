@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.38.9",
+  "crm_version": "v34.38.10",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-09-08",
-  "updated_by": "Arena Agent (v34.38.9: BACKUP-BLIND-SPOT + CONTACT-RECOVERY-PARTIAL — گزارش کارفرما «دکمهٔ بازیابی تماس‌ها کار نمی‌کند». ریشه: از فاز B (STORAGE-INDEPENDENCE v34.8.9) کلیدهای کسب‌وکاریِ بزرگ‌تر از ۸KB به IndexedDB منتقل و از localStorage حذف می‌شوند، ولی crm/backup.js همچنان مستقیم localStorage.getItem می‌خواند؛ در نتیجه ① collectBackup کلید ptf_crm_customers را اصلاً در بک‌آپ نمی‌گذاشت (بک‌آپ‌های چرخشی سرور صفر مشتری داشتند) و ② ptfBackupDeltaCollect همان کلید را با مقدار null می‌فرستاد و آخرین بک‌آپ کاملِ پایه را مسموم می‌کرد — هر دو در سکوت (ok=true). درمان: خواندن از آینهٔ فاز B (ptfBRead → localStorage → getData) + سپر پوشش کلیدهای حیاتی + تعویق بک‌آپ تا آب‌رسانی آینه + عدم ارسال کلید null در دلتا. همچنین restore-contacts.js: بازیابی «فیلد به فیلد» (شستشوی جزئی هم پوشش داده می‌شود، نه فقط رکورد کاملاً تماس‌خالی)، گزارش تشخیصی دلیل بی‌فایده بودن هر بک‌آپ، منابع اضافی (بک‌آپ اضطراری IndexedDB + فایل دستی کاربر) و عبور از سقف ۴۰ عملیاتِ روتر در بازیابی انبوه)"
+  "updated_by": "Arena Agent (v34.38.10: ATOMIC-SNAPSHOT-INTEGRITY + RESUMABLE-CHUNKS + COLLECTION-QUERY-FIX — manifest/checksum/count/bytes برای pull، staging و commit اتمیک bootstrap، retry در تغییر snapshot، و اصلاح فیلتر action در collection_query)"
 }

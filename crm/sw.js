@@ -1,8 +1,8 @@
 /* PTF CRM — Service Worker (MOB-009 release cache contract) */
 /* `RELEASE` باید با window.PTF_CRM_RELEASE، VERSION.json و query تمام scriptها یکی باشد. */
-var RELEASE = 'v34.38.9';
-var ASSET_VERSION = '34.38.9';
-var CACHE = 'ptf-crm-v34.38.9';
+var RELEASE = 'v34.38.10';
+var ASSET_VERSION = '34.38.10';
+var CACHE = 'ptf-crm-v34.38.10';
 var ASSET_QUERY = '?v=' + ASSET_VERSION;
 /* v34.8.6: تغییرات رفتاری sync/client-server با بامپ واقعی نسخه منتشر شدند؛
    phase-queryهای موقتی (f01…f08) حذف شدند و همهٔ entryها زیر همان ?v یکسان precache می‌شوند. */
@@ -45,7 +45,7 @@ var SHELL = [
   './kanban.js' + ASSET_QUERY,
   './reports.js' + ASSET_QUERY,
   './backup.js' + ASSET_QUERY,
-  './restore-contacts.js' + ASSET_QUERY, /* v34.38.9: بازیابی یک‌کلیکی تماس‌ها — آفلاین هم فایل باید در دسترس باشد */
+  './restore-contacts.js' + ASSET_QUERY, /* v34.38.10: بازیابی یک‌کلیکی تماس‌ها — آفلاین هم فایل باید در دسترس باشد */
   './tool-licenses.js' + ASSET_QUERY,
   './tool-report-drafts.js' + ASSET_QUERY,
   './tool-feedback.js' + ASSET_QUERY,

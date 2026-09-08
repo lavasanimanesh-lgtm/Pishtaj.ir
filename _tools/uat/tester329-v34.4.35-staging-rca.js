@@ -8,6 +8,7 @@
 var fs = require('fs');
 var vm = require('vm');
 var assert = require('assert');
+var webcrypto = require('crypto').webcrypto;
 
 function wait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
 
@@ -21,7 +22,7 @@ async function syncRuntimeChecks() {
   var intervalFns = [];
   var ctx = {
     console: console, JSON: JSON, Math: Math, Array: Array, Object: Object, String: String,
-    Date: Date, Promise: Promise, Blob: function () {}, navigator: { sendBeacon: function () {} },
+    Date: Date, Promise: Promise, Blob: function () {}, crypto: webcrypto, navigator: { sendBeacon: function () {} },
     localStorage: {
       getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
       setItem: function (k, v) { store[k] = String(v); },
@@ -46,6 +47,17 @@ async function syncRuntimeChecks() {
       calls.push(url);
       if (url.indexOf('action=data_rev') > -1) {
         return Promise.resolve({ json: function () { return Promise.resolve({ ok: true, rev: 1 }); } });
+      }
+      if (url.indexOf('action=data_manifest') > -1) {
+        return Promise.resolve({ json: function () { return Promise.resolve({
+          ok: true, contract: 'ptf-sync-v2',
+          snapshot: { id: 'S-2', rev: 2, complete: true, keyList: ['ptf_crm_petty'], count: 1, bytes: 10, checksum: '0'.repeat(64),
+            keys: { ptf_crm_petty: { available: true, kind: 'array', count: 1, bytes: 10, sha256: '0'.repeat(64), canonicalSha256: '53e8e4600b53b95b22d23a0e79573006c35918104c4678f6850ccc86df8f169b', chunkSize: 500 } } },
+          meta: { _global: { rev: 2 }, ptf_crm_petty: { rev: 2 } }
+        }); } });
+      }
+      if (url.indexOf('action=data_chunk') > -1) {
+        return Promise.resolve({ json: function () { return Promise.resolve({ ok: true, contract: 'ptf-sync-v2', snapshot: 'S-2', collection: 'ptf_crm_petty', total: 1, rows: [{ cd: 'PTY-1', files: [{ key: 'remote.jpg' }], updatedAtISO: '2026-08-11T08:01:00Z' }], nextOffset: 1, done: true }); } });
       }
       if (url.indexOf('action=data_pull') > -1) {
         return Promise.resolve({ json: function () { return Promise.resolve({
@@ -117,7 +129,7 @@ function staticContracts() {
   });
 
   var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-  assert.ok(/^v34\.(?:4\.(?:3[5-9]|[4-9]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(version), 'release must retain or advance the v34.4.35 RCA baseline');
+  assert.ok(/^v34\.(?:4\.(?:3[5-9]|[4-9]\d|\d{3,})|[5-9]\.\d+|\d{2,}(?:\.\d+){1,2})$/.test(version), 'release must retain or advance the v34.4.35 RCA baseline');
   var current = version.slice(1);
   ['crm/index.html', 'crm/sw.js', 'crm/manifest.json', 'crm/clear-cache.html', 'crm/shell.js'].forEach(function (f) {
     assert.ok(fs.readFileSync(f, 'utf8').indexOf(current) > -1, f + ' must use the current release cache version');

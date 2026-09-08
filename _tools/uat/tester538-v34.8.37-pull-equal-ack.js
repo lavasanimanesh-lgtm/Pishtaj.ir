@@ -22,7 +22,7 @@ T('PULL-EQUAL-ACK در مسیر برابری pull تعبیه شد', /if \(curStr
 T('پاک‌سازی dirty فقط برای کلیدِ غیر-held', /if \(curStr === newStr\) \{[\s\S]{0,700}state\.dirty\[k\] && !syncKeyHeld\(k\)[\s\S]{0,300}delete state\.dirty\[k\];[\s\S]{0,200}saveDirty\(\)/.test(sync));
 T('نشانگر بعد از PULL-EQUAL-ACK به‌روز می‌شود', /PULL-EQUAL-ACK[\s\S]{0,900}setSyncBadge\(Object\.keys\(state\.dirty\)\.length \? 'warn' : 'ok'\)/.test(sync));
 T('audit ردیف PULL-EQUAL-ACK ثبت می‌شود', /PULL-EQUAL-ACK\)', 'SYNC'\)/.test(sync));
-T('رفتار قبلی dirtyِ واقعاً-متفاوت حفظ شده (merge/keep)', /if \(state\.dirty\[k\]\) return;\s*\n\s*\n?\s*wr\(k, newStr\);/.test(sync));
+T('رفتار قبلی dirtyِ واقعاً-متفاوت حفظ شده (merge/keep)', /if \(state\.dirty\[k\]\) return;\s*\n\s*\n?\s*(?:wr\(k, newStr\)|pullWrite\(k, newStr\));/.test(sync));
 
 ['deploy-staging.yml', 'deploy-production.yml'].forEach(function (wf) {
   var w = read('.github/workflows/' + wf);

@@ -383,6 +383,15 @@
       _pullInflight = false;
       try {
         if (d && d.ok && d.data) {
+          /* حتی فاز B نباید پاسخ v2 ناقص را per-key روی mirror بنویسد؛ sync.js
+             validator قرارداد count/bytes/shape را قبل از projection اجرا می‌کند. */
+          if (typeof window.ptfSyncValidatePull === 'function') {
+            var projectionIntegrity = window.ptfSyncValidatePull(d);
+            if (!projectionIntegrity || projectionIntegrity.ok === false) {
+              _pullWaiters.splice(0).forEach(function (f) { try { f({ ok: false, reason: 'integrity', detail: projectionIntegrity && projectionIntegrity.reason }); } catch (eIntegrityWaiter) {} });
+              return;
+            }
+          }
           var t = Date.now();
           var knownRevs = bPullRevs();
           var responseGlobal = +((d && d.rev) || 0);

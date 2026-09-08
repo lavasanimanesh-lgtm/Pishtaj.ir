@@ -105,6 +105,8 @@
     writeFailures: {},
     lastPushResult: null,
     lastPullResult: null,
+    pullRetryAttempt: 0,
+    pullRetryTimer: null,
     projectionPreserved: {}
   };
 
@@ -483,7 +485,9 @@
     /* v34.8.43 (R5/T4-1b): نشست JS (SS) یا کوکی HttpOnly — کوکی برای تب‌های تازه کافی است
        چون سرور در نبود هدر از آن می‌پذیرد. */
     try { if (typeof window.ptfAuthOk === 'function' && window.ptfAuthOk()) return true; } catch (eA) {}
-    try { return !!(typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); } catch (e) { return false; }
+    try {
+      return !!(typeof ptfAuthToken === 'function' ? ptfAuthToken() : '');
+    } catch (e) { return false; }
   }
 
   /* ============ v34.7.91 (SYNC-DIAG-001) — خود-تشخیص همگام‌سازی ============
@@ -1275,6 +1279,200 @@
     try { localStorage.setItem('ptf_sync_ping', JSON.stringify({ rev: state.lastRev, t: Date.now() })); } catch (e) {}
   }
 
+  /* v34.38.10 (SYNC-SNAPSHOT-INTEGRITY): پاسخ pull قبل از هر write اعتبارسنجی
+     می‌شود. JSON کاملِ HTTP به‌تنهایی کافی نیست: اگر سرور یک projection قدیمی،
+     کوتاه‌شده یا با shape نادرست بدهد، count/bytes اعلام‌شده باید آن را رد کند.
+     این گیت روی پاسخ‌های قدیمی که snapshot ندارند backward-compatible است؛ اما
+     پاسخ v2 ناقص fail-closed است و آخرین snapshot سالم دست‌نخورده می‌ماند. */
+  function ptfUtf8Bytes(value) {
+    value = String(value == null ? '' : value);
+    try { if (typeof TextEncoder === 'function') return new TextEncoder().encode(value).length; } catch (eTE) {}
+    try { return unescape(encodeURIComponent(value)).length; } catch (eUE) { return value.length; }
+  }
+  function ptfPayloadShape(value) {
+    if (Array.isArray(value)) return { kind: 'array', count: value.length };
+    if (value && typeof value === 'object') return { kind: 'object', count: Object.keys(value).length };
+    return { kind: typeof value, count: null };
+  }
+  function ptfSha256(value) {
+    try {
+      var c = window.crypto || window.msCrypto;
+      if (!c || !c.subtle || typeof TextEncoder !== 'function') return Promise.resolve('');
+      return c.subtle.digest('SHA-256', new TextEncoder().encode(String(value))).then(function (buf) {
+        return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+      });
+    } catch (eHash) { return Promise.resolve(''); }
+  }
+  function ptfVerifyCanonicalPayload(value, spec, key) {
+    if (!spec || !spec.canonicalSha256) return Promise.resolve(value);
+    return ptfSha256(value).then(function (actual) {
+      if (!actual || actual.toLowerCase() !== String(spec.canonicalSha256).toLowerCase()) throw new Error('snapshot_checksum_mismatch:' + key);
+      return value;
+    });
+  }
+  function ptfValidatePullPayload(d) {
+    if (!d || d.ok !== true) return { ok: false, reason: 'invalid-response' };
+    var snapshot = d.snapshot;
+    /* سرورهای قدیمی هنوز contract ندارند؛ تا زمان rollout کامل، فقط shape پایه
+       را بررسی می‌کنیم و مسیر قبلی را نمی‌شکنیم. */
+    if (!snapshot) return { ok: true, legacy: true };
+    if (snapshot.complete !== true || (+snapshot.rev || 0) !== (+d.rev || 0) ||
+        (d.snapshotId && String(d.snapshotId) !== String(snapshot.id || ''))) return { ok: false, reason: 'snapshot-incomplete' };
+    var data = d.data || {}, stats = snapshot.keys || {}, dataKeys = Object.keys(data);
+    if (!Array.isArray(snapshot.keyList) || (+snapshot.count || 0) !== snapshot.keyList.length || snapshot.keyList.length !== dataKeys.length ||
+        !/^[a-f0-9]{64}$/i.test(String(snapshot.checksum || ''))) return { ok: false, reason: 'snapshot-manifest-invalid' };
+    var listed = snapshot.keyList.slice().sort().join('\\x1f'), received = dataKeys.slice().sort().join('\\x1f');
+    if (listed !== received) return { ok: false, reason: 'snapshot-key-list-mismatch' };
+    var bad = '';
+    Object.keys(data).some(function (k) {
+      if (SYNC_KEYS.indexOf(k) < 0) { bad = k + ':unknown-key'; return true; }
+      if (typeof data[k] !== 'string') { bad = k + ':not-string'; return true; }
+      var parsed;
+      try { parsed = JSON.parse(data[k]); } catch (eJson) { bad = k + ':invalid-json'; return true; }
+      var actual = ptfPayloadShape(parsed), expected = stats[k];
+      if (d.contract === 'ptf-sync-v2' && (!expected || expected.count == null || expected.bytes == null ||
+          !/^[a-f0-9]{64}$/i.test(String(expected.sha256 || '')))) {
+        bad = k + ':integrity-manifest-missing'; return true;
+      }
+      if (expected) {
+        if (expected.kind !== actual.kind || (expected.count != null && +expected.count !== actual.count) ||
+            (expected.bytes != null && +expected.bytes !== ptfUtf8Bytes(data[k]))) {
+          bad = k + ':integrity-mismatch'; return true;
+        }
+      }
+      return false;
+    });
+    return bad ? { ok: false, reason: bad } : { ok: true, legacy: false, snapshotId: snapshot.id || '' };
+  }
+  window.ptfSyncValidatePull = ptfValidatePullPayload;
+
+  /* v34.38.10 (ATOMIC-SNAPSHOT-PULL): pull کاملِ قابل ادامه.
+     data_pull برای deltaهای کوچک سریع‌تر است؛ این مسیر برای bootstrap/بازیابی کامل
+     manifest می‌گیرد، collectionهای بزرگ را با حداکثر چهار worker در chunkهای ۵۰۰تایی
+     می‌خواند و فقط پس از تکمیل همهٔ کلیدها آن‌ها را روی cache فعال می‌کند. */
+  var atomicPullRunning = false;
+  window.ptfSyncPullAtomic = function (cb, options) {
+    options = options || {};
+    if (atomicPullRunning) { if (typeof cb === 'function') cb({ ok: false, reason: 'busy' }); return; }
+    atomicPullRunning = true;
+    state.pullRequesting = true;
+    var maxAttempts = 2;
+    function finish(result) {
+      atomicPullRunning = false;
+      state.pullRequesting = false;
+      state.lastPullResult = result || { ok: false, reason: 'unknown' };
+      if (typeof cb === 'function') { try { cb(result || { ok: false, reason: 'unknown' }); } catch (eCb) {} }
+    }
+    function getJson(url, retryNo) {
+      retryNo = +retryNo || 0;
+      return Promise.resolve().then(function () { return fetch(url, { headers: authHeaders(false), cache: 'no-store' }); }).then(function (r) {
+        return r.json().then(function (d) { var httpOk = (r.ok === undefined) ? true : r.ok; if (!httpOk || !d || d.ok !== true) { var e = new Error((d && d.error) || ('HTTP ' + (r.status || 'unknown'))); e.ptfReason = (d && d.error) || 'endpoint'; throw e; } return d; });
+      }).catch(function (e) {
+        /* network/5xx/transport failures get bounded exponential backoff; auth and
+           snapshot conflicts are surfaced immediately to the outer retry policy. */
+        var msg = String(e && (e.message || e.ptfReason) || '');
+        if (retryNo >= 2 || e && e.ptfReason === 'snapshot_changed' || /authentication|forbidden|unauthorized|collection_forbidden/i.test(msg)) throw e;
+        return new Promise(function (resolve) { setTimeout(resolve, 250 * Math.pow(2, retryNo)); }).then(function () { return getJson(url, retryNo + 1); });
+      });
+    }
+    function pullOneCollection(snapshotId, key, spec) {
+      if (!spec || spec.available !== true) return Promise.reject(new Error('collection_unavailable:' + key));
+      var kind = spec.kind || 'array';
+      if (kind !== 'array') {
+        var uo = API + '?action=data_chunk&collection=' + encodeURIComponent(key) + '&snapshot=' + encodeURIComponent(snapshotId) + '&offset=0&limit=500';
+        return getJson(uo).then(function (d) {
+          if (d.snapshot !== snapshotId || typeof d.value !== 'string') throw new Error('snapshot_payload_invalid:' + key);
+          try { var parsed = JSON.parse(d.value); var sh = ptfPayloadShape(parsed); if (spec.count != null && sh.count !== spec.count) throw new Error('snapshot_count_mismatch:' + key); } catch (e) { throw e; }
+          return ptfVerifyCanonicalPayload(d.value, spec, key);
+        });
+      }
+      var rows = [], offset = 0, total = null;
+      function next() {
+        var url = API + '?action=data_chunk&collection=' + encodeURIComponent(key) + '&snapshot=' + encodeURIComponent(snapshotId) + '&offset=' + offset + '&limit=500';
+        return getJson(url).then(function (d) {
+          if (d.snapshot !== snapshotId || !Array.isArray(d.rows)) throw new Error('snapshot_payload_invalid:' + key);
+          if (total === null) total = +d.total || 0;
+          if (+d.total !== total || d.nextOffset <= offset && !d.done) throw new Error('snapshot_progress_invalid:' + key);
+          rows = rows.concat(d.rows);
+          offset = +d.nextOffset || offset;
+          if (!d.done) return next();
+          if (total !== rows.length || (spec.count != null && spec.count !== rows.length)) throw new Error('snapshot_count_mismatch:' + key);
+          var assembled = JSON.stringify(rows);
+          return ptfVerifyCanonicalPayload(assembled, spec, key);
+        });
+      }
+      return next();
+    }
+    function runAttempt(attempt) {
+      var manifestUrl = API + '?action=data_manifest';
+      getJson(manifestUrl).then(function (manifest) {
+        if (!manifest || manifest.contract !== 'ptf-sync-v2') { finish({ ok: false, reason: 'endpoint', atomic: true }); return; }
+        if (!manifest.snapshot || manifest.snapshot.complete !== true) { finish({ ok: false, reason: 'manifest_incomplete', atomic: true }); return; }
+        var snapshot = manifest.snapshot, specs = snapshot.keys || {}, keys = Object.keys(specs);
+        if (!Array.isArray(snapshot.keyList) || (+snapshot.count || 0) !== snapshot.keyList.length || snapshot.keyList.slice().sort().join('\\x1f') !== keys.slice().sort().join('\\x1f') || !/^[a-f0-9]{64}$/i.test(String(snapshot.checksum || '')) ||
+            keys.some(function (k) { return !specs[k] || !/^[a-f0-9]{64}$/i.test(String(specs[k].canonicalSha256 || '')); })) { finish({ ok: false, reason: 'manifest_integrity_invalid', atomic: true }); return; }
+        if (!keys.length) {
+          finish({ ok: true, applied: 0, rev: snapshot.rev, fresh: !(+snapshot.rev), snapshotId: snapshot.id, atomic: true });
+          return;
+        }
+        var payload = {}, cursor = 0, failed = null;
+        function worker() {
+          if (failed) return Promise.resolve();
+          var i = cursor++;
+          if (i >= keys.length) return Promise.resolve();
+          var k = keys[i];
+          return pullOneCollection(snapshot.id, k, specs[k]).then(function (str) { payload[k] = str; return worker(); }, function (e) { failed = e; return Promise.resolve(); });
+        }
+        var workers = [], n = Math.min(4, keys.length);
+        for (var w = 0; w < n; w++) workers.push(worker());
+        Promise.all(workers).then(function () {
+          if (failed) throw failed;
+          /* هیچ writeای تا این نقطه انجام نشده است: پاسخ کامل در staging حافظه است. */
+          var before = {}, staged = {}, applied = 0;
+          keys.forEach(function (k) {
+            before[k] = rd(k);
+            var str = payload[k];
+            if (options.reconcile && before[k] && typeof window.ptfSmartMerge === 'function') {
+              try {
+                var merged = window.ptfSmartMerge(k, before[k], str, { preferRemoteOpex: !state.dirty[k] });
+                if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged);
+                if (merged !== str) state.dirty[k] = true;
+                str = merged;
+              } catch (eMerge) {}
+            }
+            staged[k] = str;
+          });
+          try {
+            state.pulling = true;
+            Object.keys(staged).forEach(function (k) {
+              if (wr(k, staged[k]) === false) throw new Error('local_projection_write_failed:' + k);
+              applied++;
+            });
+            state.pulling = false;
+          } catch (eApply) {
+            state.pulling = false;
+            /* rollback best-effort؛ مهم‌تر از آن، cursor/revision تا commit کامل جلو نمی‌رود. */
+            Object.keys(before).forEach(function (k) { if (before[k] !== null && before[k] !== undefined) { try { wr(k, before[k]); } catch (eRb) {} } });
+            throw eApply;
+          }
+          applyServerMeta(manifest.meta || {}, snapshot.rev);
+          setRev(snapshot.rev);
+          saveDirty();
+          if (typeof ptfUpdateGuardCounts === 'function') ptfUpdateGuardCounts();
+          if (applied) { refreshCurrentPanel(); pingTabs(); }
+          finish({ ok: true, applied: applied, rev: snapshot.rev, fresh: !(+snapshot.rev), snapshotId: snapshot.id, atomic: true });
+        }).catch(function (e) {
+          if (attempt + 1 < maxAttempts && (String(e && e.message || '').indexOf('snapshot_changed') > -1 || e.ptfReason === 'snapshot_changed')) { runAttempt(attempt + 1); return; }
+          finish({ ok: false, reason: (e && e.ptfReason) || (e && e.message) || 'atomic-pull-failed', atomic: true });
+        });
+      }).catch(function (e) {
+        if (attempt + 1 < maxAttempts && (String(e && e.message || '').indexOf('snapshot_changed') > -1 || e.ptfReason === 'snapshot_changed')) { runAttempt(attempt + 1); return; }
+        finish({ ok: false, reason: (e && e.ptfReason) || (e && e.message) || 'atomic-pull-failed', atomic: true });
+      });
+    }
+    runAttempt(0);
+  };
+
   /* v34.38.1 (COLD-BOOT-HYDRATE): اولین pull هر بوت، حداکثر ۲ ثانیه منتظر آب‌رسانی
      آینه IDB می‌ماند تا krevs کلیدهای offloadشده کامل باشد و به‌جای دانلود کامل
      چندمگابایتی کل دیتاست در هر رفرش، پاسخ fresh/دلتا بگیرد. fail-open: نبود
@@ -1322,6 +1520,17 @@
     }
     if (!hasSyncToken()) { retryPullAfterAuth(done, forceFull, opts); return; }
     state.authWait = 0;
+    /* v34.38.10: bootstrap/full-reconcile از snapshot chunkی اتمیک استفاده می‌کند.
+       اگر API قدیمی باشد، فقط خطای نبودن endpoint به مسیر legacy برمی‌گردد؛ خطای
+       integrity/network هرگز با pull ناقص جایگزین نمی‌شود. */
+    if (forceFull && window.PTF_CRM_SNAPSHOT_V2 === true && !(opts && opts.atomicFallback) && typeof window.ptfSyncPullAtomic === 'function') {
+      window.ptfSyncPullAtomic(function (atomicResult) {
+        if (atomicResult && atomicResult.ok === false && /endpoint|unknown|not.?found/i.test(String(atomicResult.reason || ''))) {
+          pullCheck(done, forceFull, Object.assign({}, opts || {}, { atomicFallback: true }));
+        } else if (done) done(atomicResult || { ok: false, reason: 'atomic-pull-failed' });
+      }, { reconcile: !!state.initialReconcile });
+      return;
+    }
     /* v31.6.23 BUG-SYNC-DIVERGENCE: startup reconciliation must not trust a
        browser's cached global rev. Two browsers can have the same rev marker
        but different localStorage contents; force=0 pulls the complete server
@@ -1347,11 +1556,27 @@
       state.pullRequesting = false;
       result = result || { ok: true };
       state.lastPullResult = result;
-      /* پس از bootstrap، هر pull موفق snapshot-ready را دوباره اعلام می‌کند تا
-         expected setهای تازه‌رسیده (قالب/سهامدار) نیز entity-level reconcile شوند. */
-      if (state.bootstrapped && result.ok !== false) announceSnapshotReady(result);
+      if (result.ok === false) {
+        /* retry مستقل از interval اصلی؛ شکست integrity/network فقط آخرین snapshot
+           را نگه می‌دارد و با backoff کوتاه دوباره می‌کوشد، بدون اینکه cursor جلو برود. */
+        state.pullRetryAttempt = Math.min(6, (+state.pullRetryAttempt || 0) + 1);
+        if (!state.pullRetryTimer && state.bootstrapped) {
+          var retryDelay = Math.min(60000, 1000 * Math.pow(2, state.pullRetryAttempt - 1));
+          state.pullRetryTimer = setTimeout(function () {
+            state.pullRetryTimer = null;
+            if (!state.pushing && !state.pullRequesting) pullCheck(null, false, { instant: true, allowDirtyMerge: true });
+          }, retryDelay);
+        }
+      } else {
+        state.pullRetryAttempt = 0;
+        if (state.pullRetryTimer) { try { clearTimeout(state.pullRetryTimer); } catch (eRetryClear) {} state.pullRetryTimer = null; }
+        /* پس از bootstrap، هر pull موفق snapshot-ready را دوباره اعلام می‌کند تا
+           expected setهای تازه‌رسیده (قالب/سهامدار) نیز entity-level reconcile شوند. */
+        if (state.bootstrapped) announceSnapshotReady(result);
+      }
       if (done) done(result);
     }
+    var pullBefore = {};
     fetch(pullUrl, { headers: authHeaders(false) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -1369,6 +1594,16 @@
           }
           noteSyncError('pull', 'server', (d.error || 'server') + ' — نوار وضعیت با پیام «سرور در دسترس نیست» خودِ پول است، نه لزوماً قطع شبکه', d);
           finishPull({ ok: false, reason: d.error || 'server' });
+          return;
+        }
+        var pullIntegrity = ptfValidatePullPayload(d);
+        if (!pullIntegrity.ok) {
+          /* پاسخ کامل نیست/با manifest نمی‌خواند: هیچ projectionای نوشته نمی‌شود و
+             cursor نیز جلو نمی‌رود؛ retry بعدی همان snapshot را دوباره می‌گیرد. */
+          state.online = true;
+          noteSyncError('pull', 'integrity', pullIntegrity.reason || 'snapshot-invalid', d);
+          setSyncBadge('warn');
+          finishPull({ ok: false, reason: 'integrity', detail: pullIntegrity.reason || '' });
           return;
         }
         if (d.fresh) {
@@ -1412,6 +1647,11 @@
           } catch (eSnap) {}
         }
         var applied = 0;
+        function pullWrite(k, value) {
+          if (!Object.prototype.hasOwnProperty.call(pullBefore, k)) pullBefore[k] = rd(k);
+          if (wr(k, value) === false) throw new Error('local_projection_write_failed:' + k);
+          applied++;
+        }
         // Sprint 104: Smart Array Merging & Concurrency Control
         Object.keys(d.data || {}).forEach(function (k) {
           if (SYNC_KEYS.indexOf(k) < 0) return;
@@ -1438,8 +1678,8 @@
             try {
               var heldMerged = window.ptfSmartMerge(k, curStr, newStr, { preferRemoteOpex: !state.dirty[k] });
               if (typeof window.ptfApplyDeletionTombstones === 'function') heldMerged = window.ptfApplyDeletionTombstones(k, heldMerged, (d.data || {})['ptf_crm_deleted_archive']);
-              if (heldMerged && heldMerged !== curStr) { wr(k, heldMerged); applied++; }
-            } catch (eHeldMerge) {}
+              if (heldMerged && heldMerged !== curStr) { pullWrite(k, heldMerged); }
+            } catch (eHeldMerge) { if (/local_projection_write_failed/.test(String(eHeldMerge && eHeldMerge.message || ''))) throw eHeldMerge; }
             return;
           }
           /* v31.7.2 BUG-SYNC-LOCAL-LOSS: records created before sync.js
@@ -1451,13 +1691,12 @@
               var startupMerged = window.ptfSmartMerge(k, curStr, newStr, { preferRemoteOpex: !state.dirty[k] });
               if (typeof window.ptfApplyDeletionTombstones === 'function') startupMerged = window.ptfApplyDeletionTombstones(k, startupMerged, (d.data || {})['ptf_crm_deleted_archive']);
               if (startupMerged && startupMerged !== curStr) {
-                wr(k, startupMerged);
+                pullWrite(k, startupMerged);
                 /* فقط اگر این دستگاه چیزی بیش از نسخهٔ سرور داشته باشد دوباره push شود.
                    اختلاف صرفِ ترتیب کلید/نرمال‌سازی نباید بعد از هر hard refresh dirty بسازد. */
                 if (startupMerged !== newStr) state.dirty[k] = true;
-                applied++;
               }
-            } catch (eStartupMerge) {}
+            } catch (eStartupMerge) { if (/local_projection_write_failed/.test(String(eStartupMerge && eStartupMerge.message || ''))) throw eStartupMerge; }
             return;
           }
           
@@ -1466,11 +1705,8 @@
             try {
               var merged = window.ptfSmartMerge(k, curStr, newStr);
               if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged, (d.data || {})['ptf_crm_deleted_archive']);
-              if (merged && merged !== curStr) {
-                wr(k, merged);
-                applied++;
-              }
-            } catch(e) {}
+              if (merged && merged !== curStr) pullWrite(k, merged);
+            } catch(e) { if (/local_projection_write_failed/.test(String(e && e.message || ''))) throw e; }
             return;
           }
           /* v34.38.2 (COST-RESURRECTION): مسیر «جایگزینی مستقیم» pull برای پرونده‌ها
@@ -1486,8 +1722,7 @@
           }
           if (state.dirty[k]) return;
           
-          wr(k, newStr);
-          applied++;
+          pullWrite(k, newStr);
         });
         state.pulling = false;
         applyServerMeta(d.meta, d.rev);
@@ -1505,6 +1740,14 @@
       })
       .catch(function (err) {
         state.pulling = false;
+        /* اگر یکی از projection writeها شکست خورد، پاسخ فعال قبلی برگردانده می‌شود؛
+           revision/krevs نیز پایین‌تر از این نقطه هرگز commit نشده‌اند. */
+        Object.keys(pullBefore).forEach(function (k) {
+          try {
+            if (pullBefore[k] !== null && pullBefore[k] !== undefined) wr(k, pullBefore[k]);
+            else { try { localStorage.removeItem(k); } catch (eRmPull) {} }
+          } catch (eRollbackPull) {}
+        });
         state.online = false;
         noteSyncError('pull', 'network', '', err);
         setSyncBadge('offline');
@@ -1786,12 +2029,21 @@
     }
     state.initialReconcile = true;
     pullCheck(function (res) {
-      state.initialReconcile = false;
-      state.bootstrapped = true; window._ptfSyncBootstrapped = true;
       if (!res || res.ok === false) {
-        if (res && res.reason === 'network') setSyncBadge('offline');
+        /* تا snapshot کامل موفق نشود bootstrapped/cursor معتبر اعلام نمی‌شوند؛
+           polling دلتا نباید روی local snapshot ناقص سوار شود. */
+        state.initialReconcile = true;
+        state.bootstrapped = false; window._ptfSyncBootstrapped = false;
+        if (res && /network|fetch|timeout/i.test(String(res.reason || ''))) setSyncBadge('offline');
+        else setSyncBadge('warn');
+        try {
+          if (typeof ptfToast === 'function') ptfToast('⚠️ دریافت کامل CRM انجام نشد؛ آخرین snapshot سالم حفظ شد و تلاش مجدد خودکار ادامه دارد.', 'warn');
+        } catch (eInitNotice) {}
+        setTimeout(function () { if (!state.bootstrapped && !state.pushing && !state.pullRequesting) initialSync(); }, 5000);
         return;
       }
+      state.initialReconcile = false;
+      state.bootstrapped = true; window._ptfSyncBootstrapped = true;
       announceSnapshotReady(res);
       var serverEmpty = !!(res.fresh && !(+res.rev));
       if (serverEmpty) {
