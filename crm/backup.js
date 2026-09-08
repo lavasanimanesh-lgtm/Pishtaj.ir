@@ -14,6 +14,62 @@
   function canRestoreBackup() { try { return ['admin','chairman'].indexOf(curRole()) > -1; } catch (e) { return false; } }
   window.ptfCanRestoreBackup = canRestoreBackup;
 
+  /* ═════════ v34.38.9 (BACKUP-BLIND-SPOT — ریشهٔ «دکمهٔ بازیابی تماس‌ها چیزی پیدا نمی‌کند») ═════════
+     RCA: از فاز B (client-server.js v34.8.9 STORAGE-INDEPENDENCE) هر کلید کسب‌وکاریِ
+     بزرگ‌تر از ۸KB با ptfBOffloadBusinessKeysToIdb/ptfBMirror به IndexedDB منتقل و
+     «از localStorage حذف» می‌شود (localStorage.removeItem داخل ptfBMirror).
+     اما این ماژول همچنان مستقیماً localStorage.getItem می‌خواند؛ نتیجه:
+       ① collectBackup آن کلید را اصلاً در payload نمی‌گذارد (v === null → return)
+          → بک‌آپ‌های چرخشی سرور «هیچ مشتری/پیشنهاد/فاکتوری» ندارند.
+       ② ptfBackupDeltaCollect همان کلید را با مقدار null در دلتا می‌فرستد و سرور
+          data[k] = null می‌کند → آخرین بک‌آپ کاملِ پایه هم مسموم می‌شود.
+     هر دو در سکوت رخ می‌دادند (پاسخ ok=true). درمان: خواندن از «آینهٔ فاز B» و در
+     نبود آن، localStorage و در نهایت getData (کش/آینه/سرور-محور). */
+  function bkRead(k) {
+    var v = null;
+    try {
+      if (typeof window.ptfBRead === 'function') {
+        var m = window.ptfBRead(k);
+        if (m !== null && m !== undefined && m !== '') return String(m);
+      }
+    } catch (e) {}
+    try { v = localStorage.getItem(k); } catch (e2) { v = null; }
+    if (v !== null && v !== undefined) return v;
+    /* آخرین سنگر: لایهٔ دادهٔ استاندارد (getData در فاز B از آینه/کش می‌خواند).
+       فقط دادهٔ واقعیِ غیرخالی برمی‌گردد تا کلیدِ هرگز-نساخته وارد بک‌آپ نشود. */
+    try {
+      if (typeof window.getData === 'function') {
+        var d = window.getData(k);
+        if (Array.isArray(d)) { if (d.length) return JSON.stringify(d); }
+        else if (d && typeof d === 'object' && Object.keys(d).length) return JSON.stringify(d);
+      }
+    } catch (e3) {}
+    return null;
+  }
+  window.ptfBackupReadKey = bkRead;
+  /* آینهٔ فاز B هنوز از IndexedDB آب‌رسانی نشده = هیچ‌کدام از کلیدهای سنگین در دست
+     نیست. در این پنجره بک‌آپ گرفتن یعنی ثبت یک «تصویر کور». عمداً به تعویق می‌افتد. */
+  function mirrorPending() {
+    try {
+      return !!(typeof window.ptfBMirrorActive === 'function' && window.ptfBMirrorActive() && !window.ptfBIdbHydrated);
+    } catch (e) { return false; }
+  }
+  window.ptfBackupMirrorPending = mirrorPending;
+  /* سپر پوشش: بک‌آپی که کلیدهای حیاتیِ «موجود روی دستگاه» را ندارد نباید ارسال شود. */
+  var BACKUP_CRITICAL_KEYS = ['ptf_crm_customers', 'ptf_crm_suppliers', 'ptf_crm_rfqs', 'ptf_crm_offers', 'ptf_crm_invoices'];
+  function backupCoverageGap(data) {
+    var gap = [];
+    BACKUP_CRITICAL_KEYS.forEach(function (k) {
+      if (data && data[k] != null) return;
+      try {
+        var d = (typeof window.getData === 'function') ? window.getData(k) : null;
+        if (Array.isArray(d) && d.length) gap.push(k);
+      } catch (e) {}
+    });
+    return gap;
+  }
+  window.ptfBackupCoverageGap = backupCoverageGap;
+
   function mountModal(html) {
     /* مهم: مودال‌ها را به document.body اضافه می‌کنیم نه #panels.
        settings-accordion.js یک MutationObserver روی #panels دارد که هنگام
@@ -62,7 +118,9 @@
   function collectBackup() {
     var data = {};
     DATA_KEYS.forEach(function (k) {
-      var v = localStorage.getItem(k);
+      /* v34.38.9: خواندن از آینهٔ فاز B (نه فقط localStorage) — وگرنه کلیدهای
+         offloadشده (مشتریان، پیشنهادها، فاکتورها…) بی‌صدا از بک‌آپ حذف می‌شدند. */
+      var v = bkRead(k);
       if (v === null) return;
       var cap = PAYLOAD_CAPS[k];
       if (cap) {
@@ -144,7 +202,21 @@
   }
   function pushBackup(manual, cb, attempt) {
     attempt = attempt || 0;
+    /* v34.38.9 (BACKUP-BLIND-SPOT): تصویر کور نفرست. */
+    if (mirrorPending()) {
+      if (manual) alert('⏳ آینهٔ داده هنوز از IndexedDB بارگذاری نشده است. چند ثانیه بعد دوباره «بک‌آپ فوری» را بزنید تا تصویر کامل ثبت شود.');
+      cb && cb({ ok: false, error: 'mirror_not_hydrated', deferred: true });
+      return;
+    }
     var payload = collectBackup();
+    var gap = backupCoverageGap(payload.data);
+    if (gap.length) {
+      try { console.error('[PTF] بک‌آپ ناقص متوقف شد — کلیدهای حیاتیِ غایب:', gap); } catch (eC) {}
+      try { if (typeof audit === 'function') audit('یکپارچگی داده', '⛔ ارسال بک‌آپ متوقف شد چون کلیدهای حیاتی در تصویر نبودند: ' + gap.join('، '), 'BACKUP'); } catch (eA) {}
+      if (manual) alert('⛔ بک‌آپ ارسال نشد: دادهٔ این کلیدها روی دستگاه هست ولی در تصویر بک‌آپ نیامد — ' + gap.join('، ') + '\n(برای جلوگیری از جایگزینی بک‌آپ سالم با نسخهٔ ناقص متوقف شد.)');
+      cb && cb({ ok: false, error: 'coverage_gap', gap: gap });
+      return;
+    }
     backupFetch(API + '?action=save_backup', {
       method: 'POST',
       headers: ptfBackupAuthHeaders(true),
@@ -250,7 +322,7 @@
     var h = 5381;
     try {
       DATA_KEYS.forEach(function (k) {
-        var v = localStorage.getItem(k);
+        var v = bkRead(k); /* v34.38.9: آینهٔ فاز B — امضا باید کل داده را ببیند */
         h = ((h << 5) + h + k.length) | 0;
         if (v) {
           var n = v.length;
@@ -292,23 +364,33 @@
   function deltaSaveSentKeys(keys) {
     var o = deltaSigs();
     (keys || []).forEach(function (k) {
-      try { o[k] = hashString(localStorage.getItem(k)); } catch (e) {}
+      try { o[k] = hashString(bkRead(k)); } catch (e) {}
     });
     deltaSaveSigs(o);
   }
   /* جمع‌آوری دلتا: فقط کلیدهایی که امضای per-key‌شان تغییر کرده (یا امضایی ندارند) */
   window.ptfBackupDeltaCollect = function () {
     var sigs = deltaSigs();
-    var delta = {}, changed = [];
+    var delta = {}, changed = [], missing = [];
     DATA_KEYS.forEach(function (k) {
-      var v = localStorage.getItem(k);
+      var v = bkRead(k); /* v34.38.9: آینهٔ فاز B */
+      /* v34.38.9 (BACKUP-BLIND-SPOT ②): کلید بدون مقدار هرگز در دلتا نرود.
+         قبلاً delta[k] = null ارسال می‌شد و سرور data[k] = null می‌کرد — یعنی
+         آخرین بک‌آپ کاملِ پایه هم همان کلید را از دست می‌داد. «نبودِ کلید» یعنی
+         «چیزی برای گفتن ندارم»، نه «پاکش کن». */
+      if (v === null || v === undefined) { missing.push(k); return; }
       var cur = hashString(v);
       if (sigs[k] !== cur) { delta[k] = v; changed.push(k); }
     });
-    return { delta: delta, changed: changed };
+    return { delta: delta, changed: changed, missing: missing };
   };
   /* ارسال دلتا به سرور؛ اگر سرور بکاپ پایه نداشت → fallback به بکاپ کامل */
   function pushBackupDelta(manual, cb) {
+    if (mirrorPending()) {
+      if (manual) alert('⏳ آینهٔ داده هنوز بارگذاری نشده است — بک‌آپ دلتا به تعویق افتاد تا تصویر ناقص ثبت نشود.');
+      cb && cb({ ok: false, error: 'mirror_not_hydrated', deferred: true });
+      return;
+    }
     var c = window.ptfBackupDeltaCollect();
     if (!c.changed.length) { cb && cb({ ok: true, skipped: 'no_change' }); return; }
     backupFetch(API + '?action=save_backup_delta', {

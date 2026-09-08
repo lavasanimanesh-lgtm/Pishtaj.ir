@@ -24,7 +24,7 @@ var p = 0, f = 0;
 function T(n, c, d) { if (c) { p++; console.log('PASS', n); } else { f++; console.error('FAIL', n, d === undefined ? '' : d); } }
 function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
-var VER = 'v34.38.8'; /* ابزار fix-version-drift این خط را خراب کرده بود (به‌سبب قاعدهٔ R-H که «var VER = 'v» را بدون نگاه‌داشتن به زمینهٔ regex بازنویسی می‌کرد) — در این فایل VER یک مقدار لفظیِ عامد است و window هم در Node وجود ندارد. */
+var VER = 'v34.38.9'; /* ابزار fix-version-drift این خط را خراب کرده بود (به‌سبب قاعدهٔ R-H که «var VER = 'v» را بدون نگاه‌داشتن به زمینهٔ regex بازنویسی می‌کرد) — در این فایل VER یک مقدار لفظیِ عامد است و window هم در Node وجود ندارد. */
 var ver = JSON.parse(read('VERSION.json'));
 var idx = read('crm/index.html');
 var slf = read('crm/supplier-finance.js');

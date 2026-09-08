@@ -38,7 +38,7 @@ T('FIX: فرم جایگزین v34.26.1 هم دیگر داخل .pn نیست (fall
 })());
 T('FIX: هیچ <table class="tb"> در cms.js/gsc.js (برخورد با نوار بالای چسبان)',
   !/<table class="tb"/.test(cms) && !/<table class="tb"/.test(gsc) && (cms.match(/<table class="cms-tbl"/g) || []).length >= 8);
-T('FIX: PTF_CMS_JS_VER = v34.38.8 (سپر نسخهٔ کهنه، همسو با VER پوسته)', cms.indexOf("window.PTF_CMS_JS_VER = 'v34.38.8';") > -1);
+T('FIX: PTF_CMS_JS_VER = v34.38.9 (سپر نسخهٔ کهنه، همسو با VER پوسته)', cms.indexOf("window.PTF_CMS_JS_VER = 'v34.38.9';") > -1);
 
 /* ── ۲) نگهبان عمومی: هیچ کلاس خروجیِ ماژول با قاعدهٔ تک‌کلاسیِ display:none برخورد نکند ── */
 function cssSources() {
@@ -75,7 +75,7 @@ T('GUARD: هیچ <table class="tb…"> در ماژول‌های مدیریت س�
 
 /* ── ۳) گیت و نسخه ── */
 T('GATE: tester578 در run-ci-gate.js ثبت است', read('_tools/uat/run-ci-gate.js').indexOf('tester578-v34.29.7-cms-css-visibility.js') > -1);
-T('VER: VERSION.json = v34.38.8', JSON.parse(read('VERSION.json')).crm_version === 'v34.38.8');
+T('VER: VERSION.json = v34.38.9', JSON.parse(read('VERSION.json')).crm_version === 'v34.38.9');
 T('VER: یادداشت انتشار نسخهٔ جاری موجود است', (function () { try { var cv = JSON.parse(read('VERSION.json')).crm_version; return fs.existsSync(path.join(ROOT, 'RELEASE-NOTES-' + cv + '.md')); } catch (e) { return false; } })()); /* v34.38.0: متا-چک نسخه-آگnostic — کلیدواژهٔ RCA مال نسخهٔ خودِ تستر است */
 
 
