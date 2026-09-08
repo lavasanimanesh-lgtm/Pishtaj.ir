@@ -18,8 +18,8 @@ var idx = read('crm/index.html');
 var sf = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.11', ver.crm_version === 'v34.38.11', ver.crm_version);
-T('supplier-finance.js cache-bust 34.38.11', /supplier-finance\.js\?v=34\.38\.11/.test(idx));
+T('VERSION.json = v34.38.12', ver.crm_version === 'v34.38.12', ver.crm_version);
+T('supplier-finance.js cache-bust 34.38.12', /supplier-finance\.js\?v=34\.38\.12/.test(idx));
 
 /* ---------- بلوک VAT در HTML فرم ---------- */
 T('slInvVatWrap در HTML ساخته می‌شود', /id="slInvVatWrap"/.test(sf));

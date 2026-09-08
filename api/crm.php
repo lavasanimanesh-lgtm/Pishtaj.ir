@@ -514,6 +514,65 @@ function sync_tombstone_kinds_for_key($key) {
     ];
     return $map[$key] ?? [];
 }
+/* ═══ v34.38.12 (MASS-DELETE-SHIELD — RCA «۶۸ درخواست تأمین به ۱ رکورد رسید») ═══
+   حادثهٔ ۱۴۰۵/۰۶/۱۷: کلید ptf_crm_rfqsmart روی سرور از ۶۸ به ۱ ردیف رسید، بدون هیچ
+   سنگ‌قبری در بایگانی حذف. مسیر: مرورگری که bootstrap‌اش شکست خورده بود (آینهٔ IDB
+   آب‌رسانی نشده ⇒ getData برابر []) یک ردیف تازه ساخت و همان آرایهٔ یک‌عنصری را push
+   کرد. سپر قدیمی فقط آرایهٔ «خالی» را می‌گرفت، پس ۶۸→۱ از آن رد شد.
+
+   قرارداد جدید — «حذف انبوهِ بی‌سنگ‌قبر پذیرفته نمی‌شود»:
+   ردیفی که روی سرور هست، در payload نیست و هیچ سنگ‌قبری هم ندارد = «گم‌شده».
+   اگر گم‌شده‌ها هم‌زمان بیش از ۳ ردیف و بیش از ۲۵٪ مجموعه باشند، push آن کلید
+   رد و به‌عنوان conflict برگردانده می‌شود؛ کلاینت merge می‌کند و اجتماع را دوباره
+   می‌فرستد. حذف‌های عادی (تک‌رکوردی یا سنگ‌قبردار) دقیقاً مثل قبل کار می‌کنند. */
+function sync_tombstone_id_set($key, $serverArchiveJson, $incomingArchiveJson) {
+    $kindSet = array_fill_keys(array_map('strtolower', sync_tombstone_kinds_for_key($key)), true);
+    $ids = [];
+    foreach (array_merge(sync_decode_archive($serverArchiveJson), sync_decode_archive($incomingArchiveJson)) as $d) {
+        if (!is_array($d)) continue;
+        $kind = strtolower((string)($d['kind'] ?? ''));
+        if ($kind === 'archive_purge') {
+            if (is_array($d['identities'][$key] ?? null)) foreach ($d['identities'][$key] as $pid) { $pid = trim((string)$pid); if ($pid !== '') $ids[$pid] = true; }
+            if (trim((string)($d['collection'] ?? '')) === '' && is_array($d['aliases'] ?? null)) $ids['__alias_purge__'] = true;
+            continue;
+        }
+        if (!isset($kindSet[$kind])) continue;
+        $id = trim((string)($d['id'] ?? $d['no'] ?? $d['cd'] ?? ''));
+        if ($id !== '') $ids[$id] = true;
+    }
+    return $ids;
+}
+function sync_mass_deletion_report($key, $incomingJson, $serverJson, $serverArchiveJson, $incomingArchiveJson) {
+    $inc = json_decode((string)$incomingJson, true);
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($inc) || !is_array($srv)) return null;
+    /* فقط مجموعه‌های فهرستی؛ کلیدهای آبجکتی (settings/perms/…) قرارداد خودشان را دارند */
+    if ($srv !== [] && array_keys($srv) !== range(0, count($srv) - 1)) return null;
+    if ($inc !== [] && array_keys($inc) !== range(0, count($inc) - 1)) return null;
+    $srvCount = count($srv);
+    if ($srvCount < 4) return null;
+    $tomb = sync_tombstone_id_set($key, $serverArchiveJson, $incomingArchiveJson);
+    if (isset($tomb['__alias_purge__'])) return null; /* پاک‌سازی گراف پروژه: حذف عمدی و گسترده */
+    $incIds = [];
+    foreach ($inc as $r) { $id = sync_record_id_for_key($key, $r); if ($id !== '') $incIds[$id] = true; }
+    $missing = [];
+    foreach ($srv as $r) {
+        $id = sync_record_id_for_key($key, $r);
+        if ($id === '' || isset($incIds[$id]) || isset($tomb[$id])) continue;
+        $missing[] = $id;
+    }
+    $lost = count($missing);
+    if ($lost <= 3 || $lost < $srvCount * 0.25) return null;
+    return ['lost' => $lost, 'serverCount' => $srvCount, 'incomingCount' => count($inc), 'sample' => array_slice($missing, 0, 10)];
+}
+function sync_log_blocked_deletion($sdir, $key, $report, $by) {
+    try {
+        $line = json_encode(['t' => date('c'), 'key' => $key, 'by' => (string)$by] + $report, JSON_UNESCAPED_UNICODE);
+        $f = $sdir . '/mass_deletion_blocked.log';
+        if (is_file($f) && filesize($f) > 512 * 1024) @unlink($f);
+        @file_put_contents($f, $line . "\n", FILE_APPEND | LOCK_EX);
+    } catch (Throwable $e) {}
+}
 function sync_record_id_for_key($key, $r) {
     if (!is_array($r)) return '';
     if ($key === 'ptf_crm_offers') return trim((string)($r['no'] ?? $r['cd'] ?? $r['id'] ?? ''));
@@ -1083,7 +1142,13 @@ function ptf_rotate_backup($bdir, $raw, $j) {
             $ex = $exRaw ? json_decode($exRaw, true) : null;
             $exC = is_array($ex['counts'] ?? null) ? $ex['counts'] : [];
             $newC = is_array($j['counts'] ?? null) ? $j['counts'] : [];
-            foreach (['ptf_crm_customers','ptf_crm_rfqs','ptf_crm_offers','ptf_crm_suppliers','ptf_crm_products','ptf_crm_invoices','ptf_crm_deals','ptf_crm_projects'] as $gk) {
+            /* v34.38.12: فهرست دستیِ ۸ کلیدی، ptf_crm_rfqsmart را نمی‌پایید و افت ۶۸→۱
+               بدون قرنطینه در همهٔ بک‌آپ‌های چرخشی نشست. حالا هر مجموعه‌ای که در بک‌آپ
+               قبلی شمارش دارد پایش می‌شود (کلیدهای جدید خودکار پوشش داده می‌شوند). */
+            $guardKeys = [];
+            foreach (array_keys($exC) as $gk) if (is_string($gk) && strpos($gk, 'ptf_crm_') === 0) $guardKeys[$gk] = true;
+            foreach (['ptf_crm_customers','ptf_crm_rfqs','ptf_crm_offers','ptf_crm_suppliers','ptf_crm_products','ptf_crm_invoices','ptf_crm_deals','ptf_crm_projects'] as $gk) $guardKeys[$gk] = true;
+            foreach (array_keys($guardKeys) as $gk) {
                 $pv = (int)($exC[$gk] ?? 0); $nv = (int)($newC[$gk] ?? 0);
                 if ($pv >= 4 && $nv < $pv / 2) $suspect[] = $gk;
             }
@@ -2438,6 +2503,7 @@ switch($action) {
         $dbWriteFailed = false; /* v33.22.0: شکست نوشتن DB در mode=mysql → کل پاسخ ناموفق + retry */
         $rejected = []; /* v14.7 US-382 */
         $conflicts = []; $conflictData = []; $protectedConflicts = []; $krevs = []; /* v15.0 US-384 + v34.8.5 finance protection */
+        $massBlocked = []; /* v34.38.12 MASS-DELETE-SHIELD: کلید ⇒ گزارش حذف انبوهِ مسدودشده */
         $allow_wipe = !empty($j['allow_wipe']); /* فقط مسیر Go-Live (US-377) این فلگ را می‌فرستد */
         $restore = !empty($j['restore']); /* بازگردانی کامل سرور */
         if ($restore && !in_array($client_role, ['admin','chairman'], true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'restore_permission_denied']); break; }
@@ -2488,6 +2554,23 @@ switch($action) {
                 $serverUnionJson = sync_key_read($sdir, $k);
                 $mergedUnionJson = sync_union_merge_shared_key($k, $v, $serverUnionJson);
                 if ($mergedUnionJson !== null) $v = $mergedUnionJson;
+            }
+            /* v34.38.12 (MASS-DELETE-SHIELD): حذف انبوهِ بدون سنگ‌قبر = تعارض، نه ذخیره.
+               نسخهٔ سرور برگردانده می‌شود تا کلاینت merge کند و اجتماع را بفرستد. */
+            if (!$restore && !$allow_wipe && !$isSharedUnion) {
+                $mdExisting = sync_key_read($sdir, $k);
+                if ($mdExisting !== null) {
+                    $mdReport = sync_mass_deletion_report($k, $v, $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                    if ($mdReport !== null) {
+                        sync_log_blocked_deletion($sdir, $k, $mdReport, $j['by'] ?? '');
+                        $massBlocked[$k] = $mdReport;
+                        $rejected[] = $k;
+                        $conflicts[] = $k;
+                        $conflictData[$k] = sync_apply_tombstones($k, $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                        $krevs[$k] = (int)($meta[$k]['rev'] ?? 0);
+                        continue;
+                    }
+                }
             }
             /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: do not accept a stale client
                payload that increases duplicate offer lines. Existing corrupted
@@ -2628,7 +2711,8 @@ switch($action) {
         $reportedRev = (int)($meta['_global']['rev'] ?? 0);
         echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $reportedRev, 'rejected' => array_values(array_unique($rejected)),
             'skipped' => array_values(array_unique($skipped_keys)), 'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
-            'conflicts' => $conflicts, 'protectedConflicts' => array_values(array_unique($protectedConflicts)), 'serverData' => $conflictData, 'krevs' => $krevs], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK */
+            'conflicts' => $conflicts, 'protectedConflicts' => array_values(array_unique($protectedConflicts)), 'serverData' => $conflictData, 'krevs' => $krevs,
+            'massDeletionBlocked' => $massBlocked], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK + v34.38.12 سپر حذف انبوه */
         break;
 
     case 'data_pull':

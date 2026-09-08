@@ -455,18 +455,37 @@
   /* ===== v14.7 (US-382 — سپر ضد داده‌صفر، ریشه حادثه پاک شدن مشتریان) =====
      ① کلاینت: کلید اصلی که آخرین pull آن ناخالی بود، با فهرست خالی push نمی‌شود (هشدار یک‌باره).
      ② آشکارساز افت انبوه: کاهش >۵۰٪ رکورد کلیدهای حیاتی → audit + اعلان فوری admin/chairman. */
-  var GUARD_KEYS = ['ptf_crm_customers', 'ptf_crm_rfqs', 'ptf_crm_offers', 'ptf_crm_suppliers', 'ptf_crm_products', 'ptf_crm_invoices', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_smsbook', 'ptf_crm_payables', 'ptf_crm_opex', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns', 'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments', 'ptf_crm_corrections']; /* v16.7 BUG-018 + v18.1 R9: کلیدهای مالی/تنخواه/سهامداران/سال مالی زیر سپر داده‌صفر | v34.5.10: مرجوعی‌های مالیاتی/فروش به‌دلیل ماهیت مالی به سپر داده‌صفر اضافه شدند (tester341) */
+  /* v34.38.12 (GUARD-BLINDSPOT — RCA حذف ۶۸ درخواست تأمین): فهرست دستی، ptf_crm_rfqsmart
+     را نداشت؛ نه سپر ضد داده‌صفر روی آن کار می‌کرد و نه آشکارساز افت انبوه. حالا همهٔ
+     مجموعه‌های همگام‌شونده زیر سپرند (کلیدهای آبجکتی خودبه‌خود نادیده گرفته می‌شوند،
+     چون هر دو تابع فقط روی Array عمل می‌کنند) و هر کلید جدیدی خودکار پوشش می‌گیرد. */
+  var GUARD_KEYS = SYNC_KEYS.slice();
   function guardCounts() { try { return JSON.parse(localStorage.getItem('ptf_guard_counts') || '{}'); } catch (e) { return {}; } }
   function saveGuardCounts(c) { try { localStorage.setItem('ptf_guard_counts', JSON.stringify(c)); } catch (e) {} }
+  /* v34.38.12: مبنای سپر نباید از یک «نمای ناقص» به‌روز شود. اگر آینهٔ فاز B فعال
+     ولی هنوز آب‌رسانی نشده باشد، rd() برای کلیدهای offloadشده null می‌دهد و نسخهٔ
+     قبلی همان صفر را به‌عنوان مبنا ثبت می‌کرد — یعنی سپر خودش خلع‌سلاح می‌شد. */
+  function mirrorUnhydrated() {
+    try { return !!(typeof window.ptfBMirrorActive === 'function' && window.ptfBMirrorActive() && !window.ptfBIdbHydrated); } catch (eM) { return false; }
+  }
+  window.ptfSyncMirrorUnhydrated = mirrorUnhydrated;
   window.ptfUpdateGuardCounts = function () {
+    if (mirrorUnhydrated()) return false;
     var c = guardCounts();
     GUARD_KEYS.forEach(function (k) {
-      try { var a = JSON.parse(rd(k) || '[]'); if (Array.isArray(a)) c[k] = a.length; } catch (e) {}
+      try {
+        var raw = rd(k);
+        if (raw === null || raw === undefined || raw === '') return; /* ناشناخته ≠ صفر */
+        var a = JSON.parse(raw);
+        if (Array.isArray(a)) c[k] = a.length;
+      } catch (e) {}
     });
     saveGuardCounts(c);
+    return true;
   };
   function massDropCheck() {
     try {
+      if (mirrorUnhydrated()) return; /* v34.38.12: نمای ناقص = هشدار کاذب */
       var c = guardCounts();
       GUARD_KEYS.forEach(function (k) {
         var prev = +c[k] || 0;
@@ -1012,6 +1031,18 @@
   function pushViaPhaseB(done) {
     try {
       if (typeof window.ptfBFlushQueue !== 'function') return false;
+      /* v34.38.12 (PRE-BOOTSTRAP-PUSH — ریشهٔ حذف ۶۸ درخواست تأمین): گیت US-384
+         «تا سینک اولیه کامل نشده push ممنوع» فقط در pushDirty بود و مسیر فاز B از
+         بالای همان تابع، پیش از گیت، رد می‌شد. دستگاهی که هنوز snapshot سرور را
+         نگرفته (یا آینهٔ IDB آب‌رسانی نشده) نمای ناقصی از مجموعه دارد؛ ارسال آن
+         نما یعنی رونویسی دادهٔ سالم سرور. صف dirty پایدار است و بعد از bootstrap
+         خودبه‌خود ارسال می‌شود — هیچ تغییری گم نمی‌شود، فقط عقب می‌افتد. */
+      if (!state.bootstrapped) {
+        try { if (typeof window.ptfBEnqueueKeys === 'function') window.ptfBEnqueueKeys(Object.keys(state.dirty)); } catch (eQ) {}
+        schedulePush();
+        if (typeof done === 'function') done(false, { reason: 'awaiting-bootstrap' });
+        return true;
+      }
       var dirtyKeys = Object.keys(state.dirty);
       if (typeof window.ptfBEnqueueKeys === 'function' && !window.ptfBEnqueueKeys(dirtyKeys)) {
         dirtyKeys.forEach(function (k) { noteWriteFailure(k, 'صف فاز B روی مرورگر پایدار نشد'); });
@@ -1079,14 +1110,36 @@
         if ((+gc[k] || 0) < 4) return true;
         try {
           var arr = JSON.parse(rd(k) || '[]');
-          if (Array.isArray(arr) && arr.length === 0) {
+          if (!Array.isArray(arr)) return true;
+          var prevCount = +gc[k] || 0;
+          /* v34.38.12 (MASS-DELETE-SHIELD کلاینت): «خالی» تنها حالت خطرناک نبود —
+             حادثهٔ ۱۴۰۵/۰۶/۱۷ با ارسال یک آرایهٔ تک‌عنصری روی ۶۸ رکورد سرور رخ داد.
+             هر افت بیش از نصف (و بیش از ۳ رکورد) بدون سنگ‌قبرِ متناظر، همین‌جا متوقف
+             می‌شود؛ pull بعدی نسخهٔ سرور را برمی‌گرداند و merge می‌کند. */
+          var tombCount = 0;
+          try {
+            var arch = JSON.parse(rd('ptf_crm_deleted_archive') || '[]');
+            if (Array.isArray(arch)) tombCount = arch.length;
+          } catch (eArch) {}
+          var vanished = prevCount - arr.length;
+          /* آرایهٔ خالی: همان سپر US-382 (بدون تغییر).
+             افت شدید: فقط وقتی مسدود می‌شود که نمای محلی اثباتاً ناقص باشد (آینهٔ
+             فاز B آب‌رسانی نشده) — دقیقاً شرایط حادثه. حذف انبوهِ عمدی کاربر که
+             سنگ‌قبر دارد مسدود نمی‌شود؛ داوری نهایی با سپر سروری است که هر ردیف را
+             با بایگانی سنگ‌قبر می‌سنجد. */
+          var catastrophic = (arr.length === 0) || (vanished > 3 && arr.length < prevCount / 2 && mirrorUnhydrated());
+          if (catastrophic) {
             delete state.dirty[k];
             saveDirty();
+            var lbl = k.replace('ptf_crm_', '');
             if (!window._ptfZeroWarned) {
               window._ptfZeroWarned = true;
-              alert('🛡 سپر داده (US-382): فهرست «' + k.replace('ptf_crm_', '') + '» در این دستگاه خالی است ولی سرور نسخه ناخالی دارد — ارسال متوقف شد تا داده سرور پاک نشود.\n(در صورت نیاز واقعی به پاک‌سازی، از «شروع بهره‌برداری واقعی» در تنظیمات استفاده کنید)');
+              alert('🛡 سپر داده (US-382/v34.38.12): فهرست «' + lbl + '» در این دستگاه ' + arr.length + ' رکورد دارد ولی آخرین نسخهٔ سالم ' + prevCount + ' رکورد بود — ارسال متوقف شد تا دادهٔ سرور پاک نشود.\n(اگر حذف واقعاً عمدی بوده، رکوردها را از خود برنامه حذف کنید تا سنگ‌قبر ثبت شود؛ برای پاک‌سازی کامل از «شروع بهره‌برداری واقعی» استفاده کنید)');
             }
-            try { audit('سیستم', '🛡 سپر داده‌صفر: push خالی ' + k + ' مسدود شد (US-382)', k); } catch (eG) {}
+            try { audit('سیستم', '🛡 سپر حذف انبوه: push «' + lbl + '» با ' + arr.length + ' رکورد در برابر ' + prevCount + ' رکورد مسدود شد (سنگ‌قبرهای محلی: ' + tombCount + ')', k); } catch (eG) {}
+            try {
+              if (typeof notify === 'function') notify({ toRoles: ['admin', 'chairman'], title: '🛡 ارسال مشکوک «' + lbl + '» مسدود شد: ' + prevCount + ' → ' + arr.length + ' رکورد. اگر عمدی نبوده، دستگاه را رفرش کنید تا نسخهٔ سرور بازگردد.', kind: 'data_risk', channels: ['cart'], link: { panel: 'set' }, actionable: true, dkey: 'mass-del-' + lbl });
+            } catch (eN2) {}
             return false;
           }
         } catch (e2) {}
@@ -1125,6 +1178,17 @@
           var rejected = d.rejected || [];
           var skipped = d.skipped || [];
           var forbidden = d.forbidden || [];
+          /* v34.38.12: سپر سروریِ حذف انبوه فعال شده — کاربر باید بداند چه چیزی نجات
+             یافت (کلید در همان پاسخ conflict هم هست، پس merge و ارسال دوباره خودکار
+             انجام می‌شود و تغییرات واقعی کاربر گم نمی‌شوند). */
+          try {
+            var blocked = d.massDeletionBlocked || {};
+            Object.keys(blocked).forEach(function (bk) {
+              var rep = blocked[bk] || {}, lbl = bk.replace('ptf_crm_', '');
+              audit('سیستم', '🛡 سپر سروری حذف انبوه: ارسال «' + lbl + '» رد شد — ' + (+rep.lost || 0) + ' رکورد بدون سنگ‌قبر حذف می‌شد (سرور ' + (+rep.serverCount || 0) + ' ← ارسالی ' + (+rep.incomingCount || 0) + ')', bk);
+              if (typeof ptfToast === 'function') ptfToast('🛡 ارسال «' + lbl + '» رد شد: ' + (+rep.lost || 0) + ' رکورد بدون ثبت حذف، از بین می‌رفت. نسخهٔ سرور ادغام شد.', 'warn');
+            });
+          } catch (eMass) {}
           /* پاسخ ok فقط یعنی درخواست پردازش شد، نه اینکه همهٔ کلیدها ذخیره شدند.
              حذف dirty صرفاً با ACK صریح هر کلید مجاز است؛ در غیر این صورت پیام زرد
              باید بماند تا کاربر با سبزشدن کاذب، تغییرِ نرسیده را امن تصور نکند. */
