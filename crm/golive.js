@@ -134,7 +134,7 @@
       try {
         fetch('../api/crm.php?action=save_backup', {
           method: 'POST', headers: ptfGoLiveAuthHeaders(true),
-          body: JSON.stringify({ app: 'PTF-CRM', ver: 145, t: new Date().toISOString(), tFa: faDateTime(), by: curSession().name + ' (pre-golive)', counts: {}, data: (function () { var d = {}; WIPE_KEYS.concat([OPT_KEYS.prods, OPT_KEYS.sups, OPT_KEYS.audit, 'ptf_crm_users', 'ptf_crm_settings']).forEach(function (k) { var v = localStorage.getItem(k); if (v !== null) d[k] = v; }); return d; })() })
+          body: JSON.stringify({ app: 'PTF-CRM', ver: 145, t: new Date().toISOString(), tFa: faDateTime(), by: curSession().name + ' (pre-golive)', counts: {}, data: (function () { var d = {}; WIPE_KEYS.concat([OPT_KEYS.prods, OPT_KEYS.sups, OPT_KEYS.audit, 'ptf_crm_users', 'ptf_crm_settings']).forEach(function (k) { /* v34.38.9 (BACKUP-BLIND-SPOT): آینهٔ فاز B — کلیدهای offloadشده در localStorage نیستند */ var v = (typeof window.ptfBackupReadKey === 'function') ? window.ptfBackupReadKey(k) : localStorage.getItem(k); if (v !== null && v !== undefined) d[k] = v; }); return d; })() })
         }).then(function () { doWipe(); }).catch(function () { doWipe(); });
       } catch (e) { doWipe(); }
     } else doWipe();

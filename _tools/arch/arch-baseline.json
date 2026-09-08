@@ -1,7 +1,7 @@
 {
  "note": "بدهی معماری پذیرفته‌شده با امضای پایدار محتوا؛ افزایش multiset هر قاعده ⇒ شکست گیت.",
  "signatureFormat": "source-sha256-12-v2",
- "version": "v34.35.0",
+ "version": "v34.38.9",
  "rules": {
   "A1": [
    "delRfq @ bridge.js+workflow.js",
@@ -226,7 +226,7 @@
    "crm/fx.js (ls-get) [0ee28c1ac0c2] var str = sessionStorage.getItem('ptf_fx_live_cache') || localStorage.getItem('ptf_fx_live_ca…",
    "crm/fx.js (ls-get) [87ad9c02515c] try { sfA = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); if (!sfA ||…",
    "crm/fx.js (ls-set) [90803f2549a2] else { try { localStorage.setItem('ptf_fx_live_cache', str); } catch (eLs) {} }",
-   "crm/golive.js (ls-get) [463424aebac4] body: JSON.stringify({ app: 'PTF-CRM', ver: 145, t: new Date().toISOString(), tFa: faDateTime…",
+   "crm/golive.js (ls-get) [c718f09d59ed] body: JSON.stringify({ app: 'PTF-CRM', ver: 145, t: new Date().toISOString(), tFa: faDateTime…",
    "crm/golive.js (ls-get) [c9c1628c34b8] try { var v = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(v) ? v.length…",
    "crm/golive.js (ls-remove) [b7aba609ce8e] if (/^ptf_ai_hist_|^ptf_autodraft_offer_|^ptf_backup_local$|^ptf_backup_prerestore$/.test(k))…",
    "crm/golive.js (ls-remove) [da73efdf0dc3] localStorage.removeItem('ptf_sync_krevs');",
