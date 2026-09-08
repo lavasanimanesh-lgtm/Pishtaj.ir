@@ -130,8 +130,8 @@ T('A11: تطابق کامل رجیستری کلاینت/سرور', JSON.stringif
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.38.10', /window\.PTF_CRM_RELEASE = 'v34\.38\.10'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.10'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.38.13', ver.crm_version === 'v34.38.13', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.38.13', /window\.PTF_CRM_RELEASE = 'v34\.38\.13'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.13'/.test(read('crm/sw.js')));
 
 console.log('\n— tester525 (v34.38.0: W1 entity commands for customers/suppliers/products) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

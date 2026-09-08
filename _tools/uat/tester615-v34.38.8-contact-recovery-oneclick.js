@@ -157,7 +157,7 @@ T('۳.۶ S5: نقش غیرمجاز → هشدار و بدون مونت مودا�
 head('۴. سیم‌کشی UI و مارکرهای امنیتی');
 T('۴.۰ دکمهٔ بازیابی در پنل مشتریان (ستون ثبت/اکسل) نصب است',
   idx.indexOf('onclick="ptfOpenContactRecovery()"') > -1 && idx.indexOf('بازیابی تماس‌ها') > -1);
-T('۴.۱ ماژول با ?v=34.38.10 در پوسته لینک شد', /restore-contacts\.js\?v=34\.38\.10/.test(idx));
+T('۴.۱ ماژول با ?v=34.38.13 در پوسته لینک شد', /restore-contacts\.js\?v=34\.38\.13/.test(idx));
 T('۴.۲ سپر نقش S5 در ماژول است (admin/chairman فقط)', /ROLES_OK = \['admin', 'chairman'\]/.test(rc) && rc.indexOf("indexOf(curRole()) > -1") > -1);
 T('۴.۳ لیست فیلدهای قفل‌شده فقط تماس است (S1)', /CONTACT_FIELDS = \['people', 'coTels', 'con', 'ph', 'coMail', 'coWeb', 'coAddr'\]/.test(rc));
 T('۴.۴ مسیر ذخیره استاندارد با reason=offer-cust است', rc.indexOf("ptfEntitySaveCollection('ptf_crm_customers', out, { reason: SAVE_REASON") > -1 && /SAVE_REASON = 'offer-cust'/.test(rc));
@@ -168,12 +168,12 @@ T('۴.۷ sw.js پیش‌کش ماژول را دارد (آفلاین‌محوری
 /* ───────────────────── ۵. نسخه/گیت ───────────────────── */
 head('۵. نسخه و گیت');
 var ver = JSON.parse(read('VERSION.json'));
-T('۵.۰ VERSION.json = v34.38.10', ver.crm_version === 'v34.38.10', ver.crm_version);
+T('۵.۰ VERSION.json = v34.38.13', ver.crm_version === 'v34.38.13', ver.crm_version);
 T('۵.۱ tester615 در run-ci-gate.js ثبت است', gate.indexOf('tester615-v34.38.8-contact-recovery-oneclick.js') > -1);
 T('۵.۲ تسترهای رگرسیون تماس در گیت هستند',
   gate.indexOf('tester613-v34.38.6-ntf-lifecycle-and-findings.js') > -1 && gate.indexOf('tester614-v34.38.7-contact-ghost-cohorts.js') > -1);
-T('۵.۳ قرارداد نسخه 34.38.10 (UI/sw/SD)',
-  /window\.PTF_CRM_RELEASE = 'v34\.38\.10'/.test(idx) && /CACHE = 'ptf-crm-v34\.38\.10'/.test(read('crm/sw.js')) && /SD_SERVICE_VERSION = '34\.38\.10'/.test(read('api/sales-domain.php')));
+T('۵.۳ قرارداد نسخه 34.38.13 (UI/sw/SD)',
+  /window\.PTF_CRM_RELEASE = 'v34\.38\.13'/.test(idx) && /CACHE = 'ptf-crm-v34\.38\.13'/.test(read('crm/sw.js')) && /SD_SERVICE_VERSION = '34\.38\.13'/.test(read('api/sales-domain.php')));
 T('۵.۴ ابزار CLI بازیابی در ریپو حاضر است (_tools/contact-recover.js)', fs.existsSync(path.join(ROOT, '_tools/contact-recover.js')));
 
 scanDone.then(function () {

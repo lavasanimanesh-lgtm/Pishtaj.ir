@@ -678,6 +678,8 @@
       '<button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadMonthly()">📥 دانلود بک‌آپ ماهانه سرور</button>' +
       '<button class="bt bt-o" style="color:#dc2626" onclick="ptfRestorePick()">⏪ بازگردانی از فایل</button>' +
       '<button class="bt bt-o" onclick="ptfServerBackups()">📂 بک‌آپ‌های سرور</button>' +
+      /* v34.38.13 (RECORD-RECOVERY): بازگرداندن رکوردهای غایب یک مجموعه از بک‌آپ — فقط افزایشی */
+      '<button class="bt bt-o" style="color:#047857;border-color:#a7f3d0" onclick="ptfOpenRecordRecovery()" title="بازگرداندن رکوردهایی که در سامانه نیستند ولی در بک‌آپ‌های سرور هستند (بدون حذف/ویرایش رکوردهای فعلی)">🛟 بازیابی رکوردهای گم‌شده</button>' +
       ' <button class="bt bt-o" style="color:#b45309;border-color:#fed7aa" onclick="ptfDuplicateRepairOpen()">⚠️ بررسی کدهای تکراری</button>' +
       '</div>' +
       /* v33.22.2: «بررسی اتصال سرور» و «پاک‌سازی زباله‌های ابری» از UI حذف شدند (سردرگمی کاربر) —

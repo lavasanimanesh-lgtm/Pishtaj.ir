@@ -345,7 +345,13 @@ function role_guard($action_key) {
     }
     return true;
 }
-$SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','save_user'=>'users_write','del_user'=>'users_write','users_sync'=>'users_write','get_buyquotes'=>'buyprice_read','set_status'=>'approve_write','del_supplier_site'=>'approve_write','data_push'=>'sync_write','data_pull'=>'sync_read','auth_login'=>'none'];
+$SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','save_user'=>'users_write','del_user'=>'users_write','users_sync'=>'users_write','get_buyquotes'=>'buyprice_read','set_status'=>'approve_write','del_supplier_site'=>'approve_write','data_push'=>'sync_write','data_pull'=>'sync_read','data_manifest'=>'sync_read','data_chunk'=>'sync_read','auth_login'=>'none'];
+
+/* v34.38.11 (ATOMIC-PULL-COMPLETION): اندازهٔ برش بایتیِ chunk اتمیک.
+   ۲۵۶KB پیش‌فرض (چند رفت‌وبرگشت برای بزرگ‌ترین collection، بدون فشار حافظه روی
+   میزبان اشتراکی) و سقف ۱MB برای کلاینتی که صریحاً درخواست بزرگ‌تر می‌دهد. */
+if (!defined('SYNC_CHUNK_BYTES')) define('SYNC_CHUNK_BYTES', 262144);
+if (!defined('SYNC_CHUNK_BYTES_MAX')) define('SYNC_CHUNK_BYTES_MAX', 1048576);
 
 /* v31.6.26 BUG-SYNC-ROLE-ACL: CRM synchronization is not the same as
    finance_read/finance_write. Filter keys server-side so ordinary CRM roles
@@ -507,6 +513,65 @@ function sync_tombstone_kinds_for_key($key) {
         'ptf_crm_corrections' => ['correction'],
     ];
     return $map[$key] ?? [];
+}
+/* ═══ v34.38.12 (MASS-DELETE-SHIELD — RCA «۶۸ درخواست تأمین به ۱ رکورد رسید») ═══
+   حادثهٔ ۱۴۰۵/۰۶/۱۷: کلید ptf_crm_rfqsmart روی سرور از ۶۸ به ۱ ردیف رسید، بدون هیچ
+   سنگ‌قبری در بایگانی حذف. مسیر: مرورگری که bootstrap‌اش شکست خورده بود (آینهٔ IDB
+   آب‌رسانی نشده ⇒ getData برابر []) یک ردیف تازه ساخت و همان آرایهٔ یک‌عنصری را push
+   کرد. سپر قدیمی فقط آرایهٔ «خالی» را می‌گرفت، پس ۶۸→۱ از آن رد شد.
+
+   قرارداد جدید — «حذف انبوهِ بی‌سنگ‌قبر پذیرفته نمی‌شود»:
+   ردیفی که روی سرور هست، در payload نیست و هیچ سنگ‌قبری هم ندارد = «گم‌شده».
+   اگر گم‌شده‌ها هم‌زمان بیش از ۳ ردیف و بیش از ۲۵٪ مجموعه باشند، push آن کلید
+   رد و به‌عنوان conflict برگردانده می‌شود؛ کلاینت merge می‌کند و اجتماع را دوباره
+   می‌فرستد. حذف‌های عادی (تک‌رکوردی یا سنگ‌قبردار) دقیقاً مثل قبل کار می‌کنند. */
+function sync_tombstone_id_set($key, $serverArchiveJson, $incomingArchiveJson) {
+    $kindSet = array_fill_keys(array_map('strtolower', sync_tombstone_kinds_for_key($key)), true);
+    $ids = [];
+    foreach (array_merge(sync_decode_archive($serverArchiveJson), sync_decode_archive($incomingArchiveJson)) as $d) {
+        if (!is_array($d)) continue;
+        $kind = strtolower((string)($d['kind'] ?? ''));
+        if ($kind === 'archive_purge') {
+            if (is_array($d['identities'][$key] ?? null)) foreach ($d['identities'][$key] as $pid) { $pid = trim((string)$pid); if ($pid !== '') $ids[$pid] = true; }
+            if (trim((string)($d['collection'] ?? '')) === '' && is_array($d['aliases'] ?? null)) $ids['__alias_purge__'] = true;
+            continue;
+        }
+        if (!isset($kindSet[$kind])) continue;
+        $id = trim((string)($d['id'] ?? $d['no'] ?? $d['cd'] ?? ''));
+        if ($id !== '') $ids[$id] = true;
+    }
+    return $ids;
+}
+function sync_mass_deletion_report($key, $incomingJson, $serverJson, $serverArchiveJson, $incomingArchiveJson) {
+    $inc = json_decode((string)$incomingJson, true);
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($inc) || !is_array($srv)) return null;
+    /* فقط مجموعه‌های فهرستی؛ کلیدهای آبجکتی (settings/perms/…) قرارداد خودشان را دارند */
+    if ($srv !== [] && array_keys($srv) !== range(0, count($srv) - 1)) return null;
+    if ($inc !== [] && array_keys($inc) !== range(0, count($inc) - 1)) return null;
+    $srvCount = count($srv);
+    if ($srvCount < 4) return null;
+    $tomb = sync_tombstone_id_set($key, $serverArchiveJson, $incomingArchiveJson);
+    if (isset($tomb['__alias_purge__'])) return null; /* پاک‌سازی گراف پروژه: حذف عمدی و گسترده */
+    $incIds = [];
+    foreach ($inc as $r) { $id = sync_record_id_for_key($key, $r); if ($id !== '') $incIds[$id] = true; }
+    $missing = [];
+    foreach ($srv as $r) {
+        $id = sync_record_id_for_key($key, $r);
+        if ($id === '' || isset($incIds[$id]) || isset($tomb[$id])) continue;
+        $missing[] = $id;
+    }
+    $lost = count($missing);
+    if ($lost <= 3 || $lost < $srvCount * 0.25) return null;
+    return ['lost' => $lost, 'serverCount' => $srvCount, 'incomingCount' => count($inc), 'sample' => array_slice($missing, 0, 10)];
+}
+function sync_log_blocked_deletion($sdir, $key, $report, $by) {
+    try {
+        $line = json_encode(['t' => date('c'), 'key' => $key, 'by' => (string)$by] + $report, JSON_UNESCAPED_UNICODE);
+        $f = $sdir . '/mass_deletion_blocked.log';
+        if (is_file($f) && filesize($f) > 512 * 1024) @unlink($f);
+        @file_put_contents($f, $line . "\n", FILE_APPEND | LOCK_EX);
+    } catch (Throwable $e) {}
 }
 function sync_record_id_for_key($key, $r) {
     if (!is_array($r)) return '';
@@ -888,7 +953,7 @@ $log_file = $log_dir . '/api_log.txt';
 $old_log = __DIR__ . '/../crm/api_log.txt';
 if (file_exists($old_log)) @unlink($old_log);
 /* پول/rev هر چند ثانیه تکرار می‌شود — خواندن+بازنویسی کل لاگ روی هر درخواست، خودِ بار را سنگین می‌کرد. */
-$SKIP_API_LOG = ['data_pull', 'data_rev', 'get_events', 'sms_status', 'role_verify'];
+$SKIP_API_LOG = ['data_pull', 'data_rev', 'data_manifest', 'data_chunk', 'get_events', 'sms_status', 'role_verify']; /* v34.38.11: chunkهای اتمیک پرتکرارند و نباید لاگ را بچرخانند */
 if (!in_array($action, $SKIP_API_LOG, true)) {
     $log_entry = date('Y-m-d H:i:s') . " | " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . " | $action\n";
     @file_put_contents($log_file, $log_entry, FILE_APPEND | LOCK_EX);
@@ -1012,7 +1077,7 @@ function sync_key_read($sdir, $k) {
 /* v34.38.10 (SYNC-SNAPSHOT-INTEGRITY): آمار payload قبل از انتشار به کلاینت.
    کلاینت با این قرارداد می‌تواند پاسخ ناقص/بریده یا projection نامعتبر را قبل از
    هر write رد کند؛ «نبودن یک کلید در delta» هرگز با آرایهٔ خالی اشتباه نمی‌شود. */
-function sync_payload_stats($json) {
+function sync_payload_stats($json, $wantCanonical = true) {
     $raw = (string)$json;
     $value = json_decode($raw, true);
     $kind = 'invalid'; $count = null;
@@ -1027,12 +1092,16 @@ function sync_payload_stats($json) {
             $kind = gettype($value);
         }
     }
-    $canonical = ($kind === 'invalid') ? null : json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    /* v34.38.11: بازتولید canonical گران است (decode+encode کل payload). فقط جایی
+       محاسبه می‌شود که واقعاً منتشر می‌شود؛ chunkها آن را لازم ندارند و نباید در هر
+       رفت‌وبرگشت کل مجموعه را دوباره کدگذاری کنند. */
+    $canonical = (!$wantCanonical || $kind === 'invalid') ? null : json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     return [
         'kind' => $kind,
         'count' => $count,
         'bytes' => strlen($raw),
         'sha256' => hash('sha256', $raw),
+        'canonical' => ($canonical === false) ? null : $canonical,
         'canonicalSha256' => $canonical === false || $canonical === null ? null : hash('sha256', $canonical)
     ];
 }
@@ -1073,7 +1142,13 @@ function ptf_rotate_backup($bdir, $raw, $j) {
             $ex = $exRaw ? json_decode($exRaw, true) : null;
             $exC = is_array($ex['counts'] ?? null) ? $ex['counts'] : [];
             $newC = is_array($j['counts'] ?? null) ? $j['counts'] : [];
-            foreach (['ptf_crm_customers','ptf_crm_rfqs','ptf_crm_offers','ptf_crm_suppliers','ptf_crm_products','ptf_crm_invoices','ptf_crm_deals','ptf_crm_projects'] as $gk) {
+            /* v34.38.12: فهرست دستیِ ۸ کلیدی، ptf_crm_rfqsmart را نمی‌پایید و افت ۶۸→۱
+               بدون قرنطینه در همهٔ بک‌آپ‌های چرخشی نشست. حالا هر مجموعه‌ای که در بک‌آپ
+               قبلی شمارش دارد پایش می‌شود (کلیدهای جدید خودکار پوشش داده می‌شوند). */
+            $guardKeys = [];
+            foreach (array_keys($exC) as $gk) if (is_string($gk) && strpos($gk, 'ptf_crm_') === 0) $guardKeys[$gk] = true;
+            foreach (['ptf_crm_customers','ptf_crm_rfqs','ptf_crm_offers','ptf_crm_suppliers','ptf_crm_products','ptf_crm_invoices','ptf_crm_deals','ptf_crm_projects'] as $gk) $guardKeys[$gk] = true;
+            foreach (array_keys($guardKeys) as $gk) {
                 $pv = (int)($exC[$gk] ?? 0); $nv = (int)($newC[$gk] ?? 0);
                 if ($pv >= 4 && $nv < $pv / 2) $suspect[] = $gk;
             }
@@ -2428,6 +2503,7 @@ switch($action) {
         $dbWriteFailed = false; /* v33.22.0: شکست نوشتن DB در mode=mysql → کل پاسخ ناموفق + retry */
         $rejected = []; /* v14.7 US-382 */
         $conflicts = []; $conflictData = []; $protectedConflicts = []; $krevs = []; /* v15.0 US-384 + v34.8.5 finance protection */
+        $massBlocked = []; /* v34.38.12 MASS-DELETE-SHIELD: کلید ⇒ گزارش حذف انبوهِ مسدودشده */
         $allow_wipe = !empty($j['allow_wipe']); /* فقط مسیر Go-Live (US-377) این فلگ را می‌فرستد */
         $restore = !empty($j['restore']); /* بازگردانی کامل سرور */
         if ($restore && !in_array($client_role, ['admin','chairman'], true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'restore_permission_denied']); break; }
@@ -2478,6 +2554,23 @@ switch($action) {
                 $serverUnionJson = sync_key_read($sdir, $k);
                 $mergedUnionJson = sync_union_merge_shared_key($k, $v, $serverUnionJson);
                 if ($mergedUnionJson !== null) $v = $mergedUnionJson;
+            }
+            /* v34.38.12 (MASS-DELETE-SHIELD): حذف انبوهِ بدون سنگ‌قبر = تعارض، نه ذخیره.
+               نسخهٔ سرور برگردانده می‌شود تا کلاینت merge کند و اجتماع را بفرستد. */
+            if (!$restore && !$allow_wipe && !$isSharedUnion) {
+                $mdExisting = sync_key_read($sdir, $k);
+                if ($mdExisting !== null) {
+                    $mdReport = sync_mass_deletion_report($k, $v, $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                    if ($mdReport !== null) {
+                        sync_log_blocked_deletion($sdir, $k, $mdReport, $j['by'] ?? '');
+                        $massBlocked[$k] = $mdReport;
+                        $rejected[] = $k;
+                        $conflicts[] = $k;
+                        $conflictData[$k] = sync_apply_tombstones($k, $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                        $krevs[$k] = (int)($meta[$k]['rev'] ?? 0);
+                        continue;
+                    }
+                }
             }
             /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: do not accept a stale client
                payload that increases duplicate offer lines. Existing corrupted
@@ -2618,7 +2711,8 @@ switch($action) {
         $reportedRev = (int)($meta['_global']['rev'] ?? 0);
         echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $reportedRev, 'rejected' => array_values(array_unique($rejected)),
             'skipped' => array_values(array_unique($skipped_keys)), 'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
-            'conflicts' => $conflicts, 'protectedConflicts' => array_values(array_unique($protectedConflicts)), 'serverData' => $conflictData, 'krevs' => $krevs], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK */
+            'conflicts' => $conflicts, 'protectedConflicts' => array_values(array_unique($protectedConflicts)), 'serverData' => $conflictData, 'krevs' => $krevs,
+            'massDeletionBlocked' => $massBlocked], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK + v34.38.12 سپر حذف انبوه */
         break;
 
     case 'data_pull':
@@ -2684,6 +2778,7 @@ switch($action) {
             if ($serverArchiveJson === null) { $tmpA = sync_key_read($sdir, 'ptf_crm_deleted_archive'); $serverArchiveJson = ($tmpA === null) ? '[]' : $tmpA; }
             $out[$k] = sync_apply_tombstones($k, $kv, $serverArchiveJson, '[]');
             $integrity[$k] = sync_payload_stats($out[$k]);
+            unset($integrity[$k]['canonical']); /* رشتهٔ کمکی؛ منتشر نمی‌شود */
             /* یک payload معتبر باید حداقل JSON قابل‌parse باشد؛ دادهٔ خراب هرگز
                با ACK موفق به کلاینت ارسال نمی‌شود. */
             if ($integrity[$k]['kind'] === 'invalid') {
@@ -2730,45 +2825,67 @@ switch($action) {
        این مسیر برای pull کامل اتمیک است؛ data_pull دلتا برای polling روزمره حفظ می‌شود.
        snapshot با rev سراسری pin می‌شود؛ اگر بین دو chunk سرور جلو برود، کلاینت
        snapshot را commit نمی‌کند و از ابتدا با rev تازه retry می‌نماید. */
+    /* v34.38.11 (ATOMIC-PULL-COMPLETION — RCA «دریافت کامل CRM انجام نشد»):
+       manifest دیگر «همه یا هیچ» نیست. کلید ناخوانا/غایب از فهرست snapshot خارج و
+       در unavailable گزارش می‌شود؛ کلاینت بقیه را کامل می‌گیرد و برای آن کلید آخرین
+       نسخهٔ سالم محلی را نگه می‌دارد (به‌جای شکست کل bootstrap به‌خاطر یک کلید).
+       ضمناً payloadSha256/bytes همان رشتهٔ دقیقی است که chunkها بایت‌به‌بایت می‌دهند،
+       بنابراین صحت‌سنجی کلاینت دیگر به هم‌ارزی json_encode پی‌اچ‌پی و JSON.stringify
+       مرورگر وابسته نیست (ریشهٔ snapshot_checksum_mismatch). */
     case 'data_manifest':
         verify_request();
         $dm_sdir = $data_dir . '/sync';
         $dm_meta_file = $dm_sdir . '/meta.json';
         $dm_meta = file_exists($dm_meta_file) ? (json_decode(file_get_contents($dm_meta_file), true) ?: []) : [];
         $dm_rev = (int)($dm_meta['_global']['rev'] ?? 0);
+        $dm_archiveRev = (int)($dm_meta['ptf_crm_deleted_archive']['rev'] ?? 0);
         $dm_allowed = sync_allowed_keys_for_role($client_role);
         $dm_archive = null;
         $dm_keys = [];
+        $dm_unavailable = [];
         $dm_payloads = [];
         $dm_canonicalPayloads = [];
         foreach ($dm_allowed as $dm_k) {
             if (!isset($dm_meta[$dm_k]) || !is_array($dm_meta[$dm_k])) continue;
+            $dm_keyRev = (int)($dm_meta[$dm_k]['rev'] ?? 0);
             $dm_raw = sync_key_read($dm_sdir, $dm_k);
             if ($dm_raw === null) {
-                $dm_keys[$dm_k] = ['available' => false, 'rev' => (int)($dm_meta[$dm_k]['rev'] ?? 0)];
+                $dm_unavailable[$dm_k] = ['reason' => 'payload_missing', 'rev' => $dm_keyRev];
                 continue;
             }
             if ($dm_archive === null) { $dm_a = sync_key_read($dm_sdir, 'ptf_crm_deleted_archive'); $dm_archive = ($dm_a === null) ? '[]' : $dm_a; }
             $dm_payload = sync_apply_tombstones($dm_k, $dm_raw, $dm_archive, '[]');
             $dm_stats = sync_payload_stats($dm_payload);
-            if ($dm_stats['kind'] !== 'invalid') {
-                $dm_payloads[$dm_k] = $dm_payload;
-                $dm_canonicalPayloads[$dm_k] = json_encode(json_decode($dm_payload, true), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if ($dm_stats['kind'] === 'invalid' || $dm_stats['canonicalSha256'] === null) {
+                /* JSON خراب یا UTF-8 نامعتبر: هرگز به‌عنوان «داده» منتشر نمی‌شود و
+                   هرگز هم کل snapshot را از کار نمی‌اندازد. */
+                $dm_unavailable[$dm_k] = ['reason' => ($dm_stats['kind'] === 'invalid' ? 'payload_unparsable' : 'payload_not_encodable'), 'rev' => $dm_keyRev];
+                continue;
             }
-            $dm_stats['available'] = ($dm_stats['kind'] !== 'invalid');
-            $dm_stats['rev'] = (int)($dm_meta[$dm_k]['rev'] ?? 0);
-            $dm_stats['chunkSize'] = 500;
+            $dm_payloads[$dm_k] = $dm_payload;
+            $dm_canonicalPayloads[$dm_k] = (string)$dm_stats['canonical'];
+            unset($dm_stats['canonical']);
+            $dm_stats['available'] = true;
+            $dm_stats['rev'] = $dm_keyRev;
+            $dm_stats['chunkSize'] = 500;                 /* سازگاری عقب‌رو: مسیر ردیفی */
+            $dm_stats['chunkBytes'] = SYNC_CHUNK_BYTES;   /* مسیر بایتیِ دقیق (v34.38.11) */
+            $dm_stats['payloadSha256'] = $dm_stats['sha256'];
             $dm_keys[$dm_k] = $dm_stats;
         }
-        echo json_encode([
+        ptf_echo_json([
             'ok' => true,
             'contract' => 'ptf-sync-v2',
+            'byteChunks' => true,
             'revision' => $dm_rev,
             'snapshotId' => 'S-' . $dm_rev,
             'snapshot' => [
                 'id' => 'S-' . $dm_rev,
                 'rev' => $dm_rev,
+                'archiveRev' => $dm_archiveRev,
                 'complete' => true,
+                'degraded' => count($dm_unavailable) > 0,
+                'unavailable' => $dm_unavailable,
+                'chunkBytes' => SYNC_CHUNK_BYTES,
                 'keyList' => array_keys($dm_keys),
                 'count' => count($dm_keys),
                 'recordCount' => array_sum(array_map(function ($s) { return (int)($s['count'] ?? 0); }, $dm_keys)),
@@ -2778,38 +2895,108 @@ switch($action) {
             ],
             'meta' => $dm_meta,
             'role' => $client_role
-        ], JSON_UNESCAPED_UNICODE);
+        ]);
         break;
 
     case 'data_chunk':
         verify_request();
         $dc_collection = trim((string)($_REQUEST['collection'] ?? ''));
         $dc_snapshot = trim((string)($_REQUEST['snapshot'] ?? ''));
+        $dc_mode = strtolower(trim((string)($_REQUEST['mode'] ?? 'rows')));
         $dc_allowed = sync_allowed_keys_for_role($client_role);
         if (!in_array($dc_collection, $dc_allowed, true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'collection_forbidden']); break; }
         $dc_sdir = $data_dir . '/sync';
         $dc_meta_file = $dc_sdir . '/meta.json';
         $dc_meta = file_exists($dc_meta_file) ? (json_decode(file_get_contents($dc_meta_file), true) ?: []) : [];
         $dc_rev = (int)($dc_meta['_global']['rev'] ?? 0);
+        $dc_keyRev = (int)($dc_meta[$dc_collection]['rev'] ?? 0);
+        $dc_archiveRev = (int)($dc_meta['ptf_crm_deleted_archive']['rev'] ?? 0);
+        $dc_drift = false;
+        /* v34.38.11 (SNAPSHOT-DRIFT-TOLERANCE — ریشهٔ livelock): rev سراسری روی یک CRM
+           شلوغ در فاصلهٔ دو chunk تقریباً همیشه جلو می‌رود (حتی با نوشتن یک لاگ audit
+           توسط کاربر دیگر) و نسخهٔ قبلی همهٔ chunkها را 409 می‌کرد؛ نتیجه: pull اتمیک
+           هرگز تمام نمی‌شد و پیام «دریافت کامل CRM انجام نشد» هر چند ثانیه تکرار می‌شد.
+           منبع حقیقتِ یک collection فقط rev خودش و rev بایگانی سنگ‌قبر است: اگر این دو
+           از زمان manifest تغییر نکرده باشند، بایت‌های payload قطعاً همان‌اند و chunk با
+           snapshot قدیمی هم دقیقاً همان داده را می‌دهد (drift). فقط تغییرِ واقعیِ همان
+           collection (یا بایگانی) 409 می‌گیرد تا کلاینت manifest تازه بگیرد. */
         if ($dc_snapshot !== '' && $dc_snapshot !== 'S-' . $dc_rev) {
-            http_response_code(409);
-            echo json_encode(['ok'=>false,'error'=>'snapshot_changed','rev'=>$dc_rev,'snapshot'=>'S-' . $dc_rev]);
-            break;
+            $dc_pinKey = array_key_exists('keyRev', $_REQUEST) ? (int)$_REQUEST['keyRev'] : -1;
+            $dc_pinArchive = array_key_exists('archiveRev', $_REQUEST) ? (int)$_REQUEST['archiveRev'] : -1;
+            $dc_stable = ($dc_pinKey >= 0 && $dc_pinKey === $dc_keyRev && $dc_pinArchive >= 0 && $dc_pinArchive === $dc_archiveRev);
+            if (!$dc_stable) {
+                http_response_code(409);
+                echo json_encode([
+                    'ok'=>false,'error'=>'snapshot_changed','rev'=>$dc_rev,'snapshot'=>'S-' . $dc_rev,
+                    'collection'=>$dc_collection,'keyRev'=>$dc_keyRev,'archiveRev'=>$dc_archiveRev,
+                    'changed'=>($dc_pinKey >= 0 && $dc_pinKey !== $dc_keyRev) ? 'collection' : (($dc_pinArchive >= 0 && $dc_pinArchive !== $dc_archiveRev) ? 'archive' : 'global')
+                ]);
+                break;
+            }
+            $dc_drift = true;
         }
         $dc_raw = sync_key_read($dc_sdir, $dc_collection);
         if ($dc_raw === null) { http_response_code(409); echo json_encode(['ok'=>false,'error'=>'collection_missing','collection'=>$dc_collection]); break; }
         $dc_archive = sync_key_read($dc_sdir, 'ptf_crm_deleted_archive');
         $dc_payload = sync_apply_tombstones($dc_collection, $dc_raw, $dc_archive === null ? '[]' : $dc_archive, '[]');
-        $dc_dec = json_decode($dc_payload, true);
         $dc_offset = max(0, (int)($_REQUEST['offset'] ?? 0));
+        $dc_dec = null;
+        if ($dc_mode === 'bytes') {
+            /* حالت بایتی به decode نیاز ندارد: کلاینت خودش پس از الحاق، shape/count را
+               با manifest می‌سنجد. این مسیر در هر chunk اجرا می‌شود و باید سبک بماند. */
+            $dc_stats = ['kind' => null, 'count' => null, 'bytes' => strlen($dc_payload), 'sha256' => hash('sha256', $dc_payload)];
+        } else {
+            $dc_dec = json_decode($dc_payload, true);
+            $dc_stats = sync_payload_stats($dc_payload, false);
+            unset($dc_stats['canonical']);
+        }
+        $dc_pinned = $dc_drift ? $dc_snapshot : ('S-' . $dc_rev);
+        $dc_common = [
+            'ok'=>true,'contract'=>'ptf-sync-v2','snapshot'=>$dc_pinned,'snapshotId'=>$dc_pinned,
+            'serverSnapshot'=>'S-' . $dc_rev,'drift'=>$dc_drift,'revision'=>$dc_rev,
+            'collection'=>$dc_collection,'rev'=>$dc_keyRev,'keyRev'=>$dc_keyRev,'archiveRev'=>$dc_archiveRev,
+            'kind'=>$dc_stats['kind'],'count'=>$dc_stats['count'],
+            'sha256'=>$dc_stats['sha256'],'payloadSha256'=>$dc_stats['sha256'],'bytesTotal'=>$dc_stats['bytes']
+        ];
+        /* v34.38.11 — mode=bytes: برش دقیقِ همان رشته‌ای که data_pull می‌فرستد.
+           کلاینت فقط رشته‌ها را به‌هم می‌چسباند و sha256 می‌گیرد؛ هیچ re-encode بین
+           PHP و JS در میان نیست، پس نه اختلاف 1.0 در برابر 1، نه {} در برابر []،
+           و نه فرارِ اسلش می‌تواند pull سالم را رد کند یا شکل داده را عوض کند. */
+        if ($dc_mode === 'bytes') {
+            $dc_total = strlen($dc_payload);
+            $dc_limit = min(SYNC_CHUNK_BYTES_MAX, max(4096, (int)($_REQUEST['limit'] ?? SYNC_CHUNK_BYTES)));
+            if ($dc_offset > $dc_total) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'offset_out_of_range','bytesTotal'=>$dc_total]); break; }
+            $dc_part = substr($dc_payload, $dc_offset, $dc_limit);
+            if ($dc_part === false) $dc_part = '';
+            $dc_partLen = strlen($dc_part);
+            /* مرز UTF-8: هرگز وسط یک کاراکتر چندبایتی نبُریم، وگرنه JSON پاسخ خراب می‌شود. */
+            if ($dc_offset + $dc_partLen < $dc_total && $dc_partLen > 0) {
+                $dc_trim = 0;
+                for ($dc_i = $dc_partLen - 1; $dc_i >= 0 && $dc_i >= $dc_partLen - 4; $dc_i--) {
+                    $dc_b = ord($dc_part[$dc_i]);
+                    if (($dc_b & 0xC0) === 0x80) { $dc_trim++; continue; }
+                    $dc_need = (($dc_b & 0x80) === 0x00) ? 1 : ((($dc_b & 0xE0) === 0xC0) ? 2 : ((($dc_b & 0xF0) === 0xE0) ? 3 : ((($dc_b & 0xF8) === 0xF0) ? 4 : 1)));
+                    $dc_trim = ($dc_need > $dc_trim + 1) ? ($dc_trim + 1) : 0;
+                    break;
+                }
+                if ($dc_trim > 0 && $dc_trim < $dc_partLen) { $dc_part = substr($dc_part, 0, $dc_partLen - $dc_trim); $dc_partLen = strlen($dc_part); }
+            }
+            $dc_next = $dc_offset + $dc_partLen;
+            /* gzip مثل data_pull: chunk ۲۵۶کیلوبایتی بدون فشرده‌سازی، پهنای باند bootstrap
+               را چند برابر می‌کرد. */
+            ptf_echo_json(array_merge($dc_common, [
+                'mode'=>'bytes','offset'=>$dc_offset,'limit'=>$dc_limit,'part'=>$dc_part,
+                'partBytes'=>$dc_partLen,'nextOffset'=>$dc_next,'done'=>($dc_next >= $dc_total)
+            ]));
+            break;
+        }
         $dc_limit = min(500, max(1, (int)($_REQUEST['limit'] ?? 500)));
-        $dc_stats = sync_payload_stats($dc_payload);
         if (is_array($dc_dec) && (($dc_dec === []) || array_keys($dc_dec) === range(0, count($dc_dec) - 1))) {
             $dc_rows = array_slice($dc_dec, $dc_offset, $dc_limit);
             $dc_next = $dc_offset + count($dc_rows);
-            echo json_encode(['ok'=>true,'contract'=>'ptf-sync-v2','snapshot'=>'S-' . $dc_rev,'snapshotId'=>'S-' . $dc_rev,'revision'=>$dc_rev,'collection'=>$dc_collection,'rev'=>(int)($dc_meta[$dc_collection]['rev'] ?? 0),'offset'=>$dc_offset,'limit'=>$dc_limit,'total'=>count($dc_dec),'rows'=>$dc_rows,'nextOffset'=>$dc_next,'done'=>$dc_next >= count($dc_dec)], JSON_UNESCAPED_UNICODE);
+            ptf_echo_json(array_merge($dc_common, ['mode'=>'rows','offset'=>$dc_offset,'limit'=>$dc_limit,'total'=>count($dc_dec),'rows'=>$dc_rows,'nextOffset'=>$dc_next,'done'=>$dc_next >= count($dc_dec)]));
         } else {
-            echo json_encode(['ok'=>true,'contract'=>'ptf-sync-v2','snapshot'=>'S-' . $dc_rev,'snapshotId'=>'S-' . $dc_rev,'revision'=>$dc_rev,'collection'=>$dc_collection,'rev'=>(int)($dc_meta[$dc_collection]['rev'] ?? 0),'value'=>$dc_payload,'total'=>$dc_stats['count'],'done'=>true], JSON_UNESCAPED_UNICODE);
+            ptf_echo_json(array_merge($dc_common, ['mode'=>'value','value'=>$dc_payload,'total'=>$dc_stats['count'],'done'=>true]));
         }
         break;
 

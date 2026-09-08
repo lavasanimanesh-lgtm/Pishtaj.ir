@@ -14,7 +14,7 @@ var GSC = blk(cms, 'GSC-BRIDGE', 'window.cmsSeoIssue = function');
 var PANEL = blk(cms, "var _go = window.goPanel;", '})();')
 
 /* ═══ A) کش‌سنجی ═══ */
-T('CACHE: نشانگر نسخهٔ فایل (PTF_CMS_JS_VER) در بارگذاری ثبت می‌شود', cms.indexOf("window.PTF_CMS_JS_VER = 'v34.38.10';") > -1);
+T('CACHE: نشانگر نسخهٔ فایل (PTF_CMS_JS_VER) در بارگذاری ثبت می‌شود', cms.indexOf("window.PTF_CMS_JS_VER = 'v34.38.13';") > -1);
 T('CACHE: ناهماهنگی VER پوسته با نسخهٔ فایل → بنر قرمز مرئی با نسخهٔ هر دو', STALE.indexOf('window.VER !== window.PTF_CMS_JS_VER') > -1 && STALE.indexOf('فایل برنامهٔ مدیریت سایت در مرورگر شما قدیمی است') > -1);
 T('CACHE: دکمهٔ پاک‌سازی = حذف ثبت SW + حذف caches + ریلود', STALE.indexOf('getRegistrations') > -1 && STALE.indexOf('r.unregister()') > -1 && STALE.indexOf('caches.delete(k)') > -1 && STALE.indexOf('location.reload(true)') > -1);
 

@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.38.10",
+  "crm_version": "v34.38.13",
   "last_stable_tag": "v2026.08.16-0100",
-  "last_updated": "2026-09-08",
-  "updated_by": "Arena Agent (v34.38.10: ATOMIC-SNAPSHOT-INTEGRITY + RESUMABLE-CHUNKS + COLLECTION-QUERY-FIX — manifest/checksum/count/bytes برای pull، staging و commit اتمیک bootstrap، retry در تغییر snapshot، و اصلاح فیلتر action در collection_query)"
+  "last_updated": "2026-09-09",
+  "updated_by": "Arena Agent (v34.38.13: RECORD-RECOVERY — ابزار بازیابی رکوردهای گم‌شدهٔ یک مجموعه از بک‌آپ‌های چرخشی سرور/فایل دانلودشده؛ فقط افزایشی، سنگ‌قبرآگاه، admin/chairman)"
 }
