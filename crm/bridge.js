@@ -1620,7 +1620,14 @@
   /* v14.7 (US-380 AC2): تایید درخواست سایت → ساخت/اتصال خودکار مشتری + رکورد کامل */
   function rfqSiteEnsureCustomer(r) {
     var custs = getData('ptf_crm_customers');
-    var normP = function (s) { return String(s || '').replace(/\D/g, '').replace(/^0098/, '0').replace(/^98/, '0'); };
+    /* v34.38.7 (CONTACT-GHOST یافتهٔ فرعی): \D فقط ارقام لاتین را رقم می‌داند؛
+       شمارهٔ واردشده با ارقام فارسی کاملاً حذف می‌شد و dedup-by-phone هرگز
+       مشتری موجود را پیدا نمی‌کرد → مشتری هم‌نامِ تکراری ساخته می‌شد.
+       ابتدا ارقام فارسی/عربی به لاتین تبدیل می‌شود (سازگار با dedupNormPhone). */
+    var normP = function (s) {
+      s = (typeof ptfToEnDigits === 'function') ? ptfToEnDigits(String(s == null ? '' : s)) : String(s || '');
+      return s.replace(/\D/g, '').replace(/^0098/, '0').replace(/^98/, '0');
+    };
     /* v34.29.7 (SITE-PARITY): کانال تماس فرم سایت طبق موازین CRM (مثل ptfXlsPerson/
        فرم مشتری) — شمارهٔ موبایل → mobs، ثابت → tels با ext؛ دیگر همه‌چیز بی‌شرط
        موبایل نمی‌شود. */
