@@ -17,7 +17,7 @@ var llm = read('api/chat-llm.php');
 var crm = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.12', ver.crm_version === 'v34.38.12', ver.crm_version);
+T('VERSION.json = v34.38.13', ver.crm_version === 'v34.38.13', ver.crm_version);
 
 /* سهمیهٔ توکن مجزای چت عمومی */
 T('سهمیهٔ جدا (ptf_chat_public_quota.json)', llm.indexOf('ptf_chat_public_quota.json') > -1);

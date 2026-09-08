@@ -9,7 +9,7 @@
      سپس ptfHealMissingCustomersFromRfqs مشتری را به‌صورت stub بازسازی می‌کرد ولی
      بدون ind (حوزهٔ کاری) — چون stub فقط co/con/ph داشت. نتیجه: «حوزهٔ کاری پاک شد».
 
-   قرارداد قفل‌شده در v34.38.12:
+   قرارداد قفل‌شده در v34.38.13:
      ① فهرست AUTO_NO_DELETE_REASONS با reasonهای کل‌دفترِ بدون قصد حذف تکمیل شد
         (lead-convert/ai-bizcard/ai-letterhead/ai-buyer/coen-fill + site-approve/
         site-merge/cheque-origin/supspec/supspec-migrate/supspec-learn) — cd غایب
@@ -221,14 +221,14 @@ function runHeal(rfqs, custs, archive) {
 /* ───────────────────── ۴) گیت / نسخه ───────────────────── */
 head('۴. گیت و نسخه');
 var ver = JSON.parse(read('VERSION.json'));
-T('۴.۱ VERSION.json = v34.38.12', ver.crm_version === 'v34.38.12', ver.crm_version);
+T('۴.۱ VERSION.json = v34.38.13', ver.crm_version === 'v34.38.13', ver.crm_version);
 T('۴.۲ tester611 در run-ci-gate.js ثبت است',
   gate.indexOf('tester611-v34.38.4-contact-wipe-ind-heal.js') > -1);
 T('۴.۳ tester604 (ضد رگرسیون) هنوز در گیت است',
   gate.indexOf('tester604-v34.37.7-contact-wipe.js') > -1);
-T('۴.۴ قرارداد UI/sw = 34.38.12',
-  /window\.PTF_CRM_RELEASE = 'v34\.38\.12'/.test(idx) &&
-  /CACHE = 'ptf-crm-v34\.38\.12'/.test(read('crm/sw.js')));
+T('۴.۴ قرارداد UI/sw = 34.38.13',
+  /window\.PTF_CRM_RELEASE = 'v34\.38\.13'/.test(idx) &&
+  /CACHE = 'ptf-crm-v34\.38\.13'/.test(read('crm/sw.js')));
 
 console.log('\n— tester611 (CONTACT-WIPE-EXT: حوزهٔ کاری مشتری در heal/حذف کهنه حفظ می‌شود) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

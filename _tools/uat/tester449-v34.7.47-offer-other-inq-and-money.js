@@ -18,9 +18,9 @@ var inq = read('crm/inqreader.js');
 var ver = JSON.parse(read('VERSION.json'));
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.38.12', ver.crm_version === 'v34.38.12', ver.crm_version);
-T('index.html PTF_CRM_RELEASE = v34.38.12', /window\.PTF_CRM_RELEASE = 'v34\.38\.12'/.test(read('crm/index.html')));
-T('sw.js RELEASE = v34.38.12', /RELEASE = 'v34\.38\.12'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.38.13', ver.crm_version === 'v34.38.13', ver.crm_version);
+T('index.html PTF_CRM_RELEASE = v34.38.13', /window\.PTF_CRM_RELEASE = 'v34\.38\.13'/.test(read('crm/index.html')));
+T('sw.js RELEASE = v34.38.13', /RELEASE = 'v34\.38\.13'/.test(read('crm/sw.js')));
 
 /* ---------- دکمه مجزا در فرم مشترک پیشنهاد/رویژن ---------- */
 T('فرم پیشنهاد دکمهٔ بارگذاری از درخواست دیگر دارد',

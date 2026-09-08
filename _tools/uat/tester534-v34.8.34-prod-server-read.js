@@ -19,8 +19,8 @@ T('کلید بازگشت فوری (ptfProdServerToggle)', /window\.ptfProdServer
 T('پیش‌فرض: سروری روشن (prodServerRead !== false)', /st\.prodServerRead !== false/.test(idx));
 
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.38.12', ver.crm_version === 'v34.38.12', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.38.12', /window\.PTF_CRM_RELEASE = 'v34\.38\.12'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.12'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.38.13', ver.crm_version === 'v34.38.13', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.38.13', /window\.PTF_CRM_RELEASE = 'v34\.38\.13'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.13'/.test(read('crm/sw.js')));
 
 console.log('\n— tester534 (v34.38.0: products server-side reads) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
