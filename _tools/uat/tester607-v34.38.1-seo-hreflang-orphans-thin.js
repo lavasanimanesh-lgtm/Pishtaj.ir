@@ -107,7 +107,7 @@ T('۴.۴ lastmod صفحات لمس‌شده به‌روز است',
 head('۵. انطباق نسخه و نگهبان گیت');
 
 var verJson = JSON.parse(read('VERSION.json'));
-T('۵.۱ VERSION.json روی v34.38.13 است', verJson.crm_version === 'v34.38.13', verJson.crm_version);
+T('۵.۱ VERSION.json روی v34.38.14 است', verJson.crm_version === 'v34.38.14', verJson.crm_version);
 T('۵.۲ تستر در گیت CI ثبت شده است',
   read('_tools/uat/run-ci-gate.js').indexOf('tester607-v34.38.1-seo-hreflang-orphans-thin.js') > -1);
 

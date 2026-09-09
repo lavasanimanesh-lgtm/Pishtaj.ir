@@ -14,7 +14,7 @@ var chat = read('assets/js/ptf-chat.js');
 var llm = read('api/chat-llm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.13', ver.crm_version === 'v34.38.13', ver.crm_version);
+T('VERSION.json = v34.38.14', ver.crm_version === 'v34.38.14', ver.crm_version);
 
 /* کارت‌های غنی */
 T('رندر کارت مقاله', chat.indexOf("c.type === 'article'") > -1);
