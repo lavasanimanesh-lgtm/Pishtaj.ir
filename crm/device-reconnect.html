@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-store">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>اتصال مجدد امن مرورگر — PTF CRM</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Tahoma,sans-serif;max-width:760px;margin:26px auto;padding:20px;line-height:2;background:#f8fafc;color:#1e293b}
+  h1{color:#0f766e;font-size:21px;display:flex;align-items:center;gap:8px}
+  .why{background:#fffbeb;border:1px solid #fcd34d;border-radius:14px;padding:14px 18px;font-size:13px;color:#92400e;line-height:1.95}
+  .card{background:#fff;border:1px solid #cbd5e1;border-radius:14px;padding:18px;margin-top:16px;box-shadow:0 3px 10px rgba(0,0,0,.03)}
+  .card h3{margin:0 0 8px;font-size:15px;color:#0f172a}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  th,td{border:1px solid #e2e8f0;padding:7px 10px;text-align:right}
+  th{background:#f1f5f9}
+  .badge{display:inline-block;padding:2px 12px;border-radius:20px;font-size:12px;font-weight:bold}
+  .b-ok{background:#d1fae5;color:#065f46}
+  .b-bad{background:#fee2e2;color:#991b1b}
+  .b-warn{background:#fef3c7;color:#92400e}
+  .b-idle{background:#e2e8f0;color:#475569}
+  button{background:linear-gradient(90deg,#0f766e,#0d9488);color:#fff;border:none;border-radius:10px;padding:12px 22px;font-size:14px;font-weight:bold;cursor:pointer;font-family:inherit}
+  button:disabled{background:#94a3b8;cursor:not-allowed}
+  button.danger{background:linear-gradient(90deg,#b91c1c,#dc2626)}
+  button.ghost{background:#fff;color:#0f766e;border:1.5px solid #0f766e}
+  .task{display:flex;gap:10px;align-items:flex-start;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:13px}
+  .task.done-ok{border-color:#86efac;background:#f0fdf4}
+  .task.done-fail{border-color:#fca5a5;background:#fef2f2}
+  .task input{margin-top:4px}
+  .task b.tt{display:block}
+  .task small.d{color:#64748b;display:block;line-height:1.8}
+  .task .st{margin-inline-start:auto;font-size:12px;font-weight:bold;white-space:nowrap}
+  pre{background:#f1f5f9;border:1px solid #e2e8f0;padding:10px;border-radius:8px;overflow-x:auto;font-size:12px;direction:ltr;text-align:left;max-height:220px}
+  .notice{font-size:12.5px;color:#475569;margin-top:10px}
+  code{background:#f1f5f9;padding:1px 6px;border-radius:5px;font-size:12px;color:#334155;direction:ltr;display:inline-block}
+</style>
+</head>
+<body>
+<h1>🔌 اتصال مجدد امن مرورگر — PTF CRM (v34.38.14)</h1>
+
+<div class="why">
+  <b>این صفحه برای چه دستگاهی است؟</b> مرورگری که پس از حادثهٔ داده (مثلاً حذف درخواست‌های تامین)
+  دیگر نمی‌تواند با سرور همگام شود و نشانگر همگام‌سازی‌اش قرمز/معطل می‌ماند.<br>
+  <b>چرا؟</b> صورت‌مسئلهٔ معلق این مرورگر (دادهٔ کهنهٔ محلی + صف ارسال) هنوز تلاش می‌کند روی
+  سرور بنویسد و سپر جدید سرور آن را رد می‌کند — چرخهٔ شکست تکرار می‌شود.<br>
+  <b>این ابزار چه می‌کند؟</b> ۱) بک‌آپ کامل از حافظهٔ همین مرورگر، ۲) خنثی‌سازی فقط «صف ارسال و
+  نشانه‌های معلق» (دادهٔ سرور و رکوردهای سیستم پاک نمی‌شوند)، ۳) تازه‌سازی اسکریپت‌ها، ۴) ورود مجدد
+  و دریافت دادهٔ سالم از سرور.
+</div>
+
+<div class="card">
+  <h3>۰ · تشخیص خودکار وضعیت این مرورگر</h3>
+  <table>
+    <tr><th>مورد</th><th>وضعیت</th><th>جزئیات</th></tr>
+    <tr><td>دسترسی به سرور API</td><td id="stNet"><span class="badge b-idle">در حال بررسی…</span></td><td id="dsNet" style="font-size:12px;color:#64748b"></td></tr>
+    <tr><td>نشست کاربر در همین مرورگر</td><td id="stSes"><span class="badge b-idle">در حال بررسی…</span></td><td id="dsSes" style="font-size:12px;color:#64748b"></td></tr>
+    <tr><td>صف ارسال آفلاین (معطل)</td><td id="stQ"><span class="badge b-idle">…</span></td><td id="dsQ" style="font-size:12px;color:#64748b"></td></tr>
+    <tr><td>کلیدهای معلق همگام‌سازی</td><td id="stD"><span class="badge b-idle">…</span></td><td id="dsD" style="font-size:12px;color:#64748b"></td></tr>
+    <tr><td>دادهٔ محلی این مرورگر</td><td id="stL"><span class="badge b-idle">…</span></td><td id="dsL" style="font-size:12px;color:#64748b"></td></tr>
+  </table>
+  <div style="margin-top:10px">
+    <button class="ghost" onclick="runDiagnosis(true)">🔁 اجرای مجدد تشخیص</button>
+    <button class="ghost" onclick="copyReport()">📋 کپی گزارش تشخیص</button>
+  </div>
+  <div class="notice" id="diagNote"></div>
+</div>
+
+<div class="card">
+  <h3>۱ · بک‌آپ کامل از حافظهٔ همین مرورگر (پیش از هر پاکسازی)</h3>
+  <p style="font-size:13px;color:#475569;margin:4px 0">تمام localStorage و sessionStorage و کالکشن IndexedDB این نشست در یک فایل JSON دانلود می‌شود. این فایل را نزد خود نگه دارید؛ در صورت نیاز پشتیبانی می‌تواند رکوردهای خاص را از آن بازگرداند.</p>
+  <button id="btnBackup" onclick="doBackup()">⬇️ دانلود بک‌آپ کامل حافظهٔ این مرورگر</button>
+  <label style="display:block;margin-top:12px;font-size:13px">
+    <input type="checkbox" id="ackBackup"> بک‌آپ را دانلود کرده و نزد خود نگه می‌دارم.
+  </label>
+</div>
+
+<div class="card">
+  <h3>۲ · خنثی‌سازی علت قطعی (جراحی‌وار)</h3>
+  <div class="notice" style="margin-top:0">پیش‌فرض‌ها برای سناریوی «مرورگری که نمی‌تواند به سرور وصل شود» انتخاب شده‌اند.
+  رکوردهای کسب‌وکار (<code>ptf_crm_*</code>) و نشانگرهای «انتقال یک‌باره» پاک نمی‌شوند.</div>
+  <div id="taskList"></div>
+  <div style="margin-top:12px">
+    <button class="danger" id="btnNeutralize" onclick="doNeutralize(this)" disabled>🧯 خنثی‌سازی موارد انتخاب‌شده</button>
+    <div class="notice">تا قبل از تأیید بک‌آپ (مرحلهٔ ۱)، این دکمه غیرفعال است.</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>۳ · تازه‌سازی اسکریپت‌های مرورگر</h3>
+  <p style="font-size:13px;color:#475569;margin:4px 0">کدهای قدیمیِ کش‌شده (Service Worker / Cache) ممکن است نسخهٔ ناسازگار با سرور را اجرا کنند. این مرحله فقط فایل‌های برنامه را تازه می‌کند — به داده دست نمی‌زند.</p>
+  <button id="btnScripts" onclick="doScriptsRefresh(this)">🔄 تازه‌سازی اسکریپت‌ها (بدون لمس دیتابیس)</button>
+  <p id="msgScripts" style="font-size:13px"></p>
+</div>
+
+<div class="card" style="border-color:#86efac;background:#f0fdf4">
+  <h3>۴ · ورود مجدد و اتصال</h3>
+  <ol style="font-size:13px;color:#166534;margin:6px 0;padding-right:22px;line-height:2">
+    <li>بعد از انجام مراحل ۱ تا ۳، روی «ورود به سامانه» بزنید و با همان نام کاربری دوباره وارد شوید.</li>
+    <li>حدود ۳۰ ثانیه صبر کنید تا دادهٔ کامل از سرور بارگیری شود (پول کامل).</li>
+    <li>نشانگر همگام‌سازی سبز شد؟ ✅ مرورگر متصل است. قرمز ماند؟ صفحهٔ <code>sync-diagnostics.html</code> را باز کنید و خروجی آن را برای پشتیبانی بفرستید.</li>
+  </ol>
+  <button style="background:linear-gradient(90deg,#166534,#15803d)" onclick="window.location.href='./index.html?v=34.38.14'">🔑 ورود به سامانه</button>
+</div>
+
+<script>
+/*Standalone by design: this page must work even when the app itself is in a broken state.*/
+var API = '../api/crm.php';
+var VER = 'v34.38.14';
+var IDB_NAME = 'ptf-crm-storage-v1';
+var REPORT = { ver: VER, at: new Date().toISOString(), url: location.href, diag: {}, steps: {} };
+var R = REPORT;
+
+/* ---------- helpers ---------- */
+function setBadge(id, ok, label) {
+  var el = document.getElementById(id);
+  el.innerHTML = '<span class="badge ' + (ok === true ? 'b-ok' : ok === false ? 'b-bad' : 'b-warn') + '">' + label + '</span>';
+}
+function setDetail(id, txt) { document.getElementById(id).textContent = txt || ''; }
+function idbReq() {
+  return new Promise(function (res, rej) {
+    try { var r = indexedDB.open(IDB_NAME); r.onerror = function () { rej(r.error); }; r.onsuccess = function () { res(r.result); }; }
+    catch (e) { rej(e); }
+  });
+}
+function idbGet(key) {
+  return idbReq().then(function (db) {
+    return new Promise(function (res) {
+      try {
+        var tx = db.transaction('kv', 'readonly').objectStore('kv').get(key);
+        tx.onsuccess = function () { db.close(); res(tx.result || null); };
+        tx.onerror = function () { db.close(); res(null); };
+      } catch (e) { db.close(); res(null); }
+    });
+  }, function () { return null; });
+}
+function idbPut(key, valJs) {
+  return idbReq().then(function (db) {
+    return new Promise(function (res) {
+      try {
+        var tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put({ id: key, value: valJs });
+        tx.oncomplete = function () { db.close(); res(true); };
+        tx.onerror = function () { db.close(); res(false); };
+      } catch (e) { db.close(); res(false); }
+    });
+  }, function () { return false; });
+}
+function idbDelete(key) {
+  return idbReq().then(function (db) {
+    return new Promise(function (res) {
+      try {
+        var tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').delete(key);
+        tx.oncomplete = function () { db.close(); res(true); };
+        tx.onerror = function () { db.close(); res(false); };
+      } catch (e) { db.close(); res(false); }
+    });
+  }, function () { return false; });
+}
+function idbDump() { /* full kv dump: {key: value} */
+  return idbReq().then(function (db) {
+    return new Promise(function (res) {
+      var out = {};
+      try {
+        var cr = db.transaction('kv', 'readonly').objectStore('kv').openCursor();
+        cr.onsuccess = function () { var c = cr.result;
+          if (!c) { db.close(); res(out); return; }
+          try { out[String(c.key)] = (c.value && c.value.value !== undefined) ? c.value.value : c.value; } catch (eP) { out[String(c.key)] = '<unreadable>'; }
+          c.continue();
+        };
+        cr.onerror = function () { db.close(); res(out); };
+      } catch (e) { db.close(); res(out); }
+    });
+  }, function () { return {}; });
+}
+function idbKeysMatching(prefixList) {
+  return idbReq().then(function (db) {
+    return new Promise(function (res) {
+      var out = [];
+      try {
+        var cr = db.transaction('kv', 'readonly').objectStore('kv').openKeyCursor();
+        cr.onsuccess = function () { var c = cr.result;
+          if (!c) { db.close(); res(out); return; }
+          var k = String(c.key || '');
+          for (var i = 0; i < prefixList.length; i++) if (k.indexOf(prefixList[i]) === 0) { out.push(k); break; }
+          c.continue();
+        };
+        cr.onerror = function () { db.close(); res(out); };
+      } catch (e) { db.close(); res(out); }
+    });
+  }, function () { return []; });
+}
+function rmLS(key) { try { localStorage.removeItem(key); } catch (e) {} }
+function rmSS(key) { try { sessionStorage.removeItem(key); } catch (e) {} }
+function lsCount(prefix) { var n = 0, b = 0; try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf(prefix) === 0) { n++; b += (localStorage.getItem(k) || '').length; } } } catch (e) {} return { n: n, bytes: b }; }
+
+/* ---------- مرحله ۰: تشخیص ---------- */
+function probeServer() {
+  setBadge('stNet', null, 'در حال بررسی…');
+  var t0 = Date.now();
+  return fetch(API + '?action=users_get', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(function (r) { return r.json().then(function (d) {
+      setBadge('stNet', true, 'در دسترس ✅');
+      setDetail('dsNet', 'پاسخ HTTP ' + r.status + ' در ' + (Date.now() - t0) + 'ms — مسیر API سالم است.');
+      R.diag.server = { ok: true, http: r.status, ms: Date.now() - t0 };
+    }); })
+    .catch(function (e) {
+      setBadge('stNet', false, 'خطای شبکه ❌');
+      var msg = String(e && e.name === 'TypeError' ? 'اینترنت/مسیر API قطع است یا صفحه از روی فایل باز شده (file://). صفحه را از همان آدرس اصلی سایت باز کنید.' : String(e));
+      setDetail('dsNet', msg);
+      R.diag.server = { ok: false, error: msg };
+    });
+}
+function probeSession() {
+  var tok = ''; try { tok = localStorage.getItem('ptf_crm_token') || ''; } catch (e) {}
+  if (!tok) { try { var s = JSON.parse(sessionStorage.getItem('ptf_crm_session') || '{}'); tok = s.token || ''; } catch (e) {} }
+  if (!tok) { setBadge('stSes', null, 'بدون نشست'); setDetail('dsSes', 'توکن در این مرورگر نیست — بعد از خنثی‌سازی، ورود مجدد لازم است.'); R.diag.session = { ok: null, why: 'no-token' }; return Promise.resolve(); }
+  /* since=خیلی بزرگ → پاسخ سبک برای سنجش اعتبار توکن */
+  return fetch(API + '?action=data_pull&since=999999999', { headers: { 'X-CRM-Token': tok } })
+    .then(function (r) {
+      if (r.status === 401) { setBadge('stSes', false, 'منقضی/نامعتبر ❌'); setDetail('dsSes', 'توکن همین مرورگر دیگر معتبر نیست — ورود مجدد الزامی است (مرحلهٔ ۴).'); R.diag.session = { ok: false, why: 'expired' }; return; }
+      setBadge('stSes', true, 'معتبر ✅'); setDetail('dsSes', 'توکن پاسخ سرور را سبز گرفت؛ مشکل احتمالاً در صف ارسال/نشانه‌های محلی است (مرحلهٔ ۲).'); R.diag.session = { ok: true };
+    })
+    .catch(function (e) { setBadge('stSes', null, 'نامشخص'); setDetail('dsSes', 'سنجش نشست ممکن نشد: ' + String(e)); R.diag.session = { ok: null, why: 'unreachable' }; });
+}
+function probeLocal() {
+  var out = {};
+  var qLS = 0;
+  try { qLS = Object.keys(JSON.parse(localStorage.getItem('ptf_b_queue') || '{}')).length; } catch (e) {}
+  return idbGet('q:ptf_b_queue').then(function (row) {
+    var qIDB = 0;
+    try { if (row && row.value) qIDB = Object.keys(JSON.parse(row.value)).length; } catch (e) {}
+    var q = qLS + qIDB;
+    setBadge('stQ', q === 0, q === 0 ? 'خالی ✅' : q + ' کلید معلق ⚠️');
+    setDetail('dsQ', q ? 'صف ارسال دارای موارد معلق است — همین وضعیت معمولاً عامل چرخهٔ شکست sync روی مرورگر حادثه‌دیده است. خنثی‌سازی مرحلهٔ ۲ آن را پاک می‌کند.' : 'صف ارسال تمیز است.');
+    out.queue = { ls: qLS, idb: qIDB };
+    var d = 0; try { d = Object.keys(JSON.parse(localStorage.getItem('ptf_sync_dirty') || '{}')).length; } catch (e) {}
+    var run = ''; try { run = localStorage.getItem('ptf_sync_run') || ''; } catch (e) {}
+    setBadge('stD', d === 0 && !run, (d === 0 && !run) ? 'تمیز ✅' : 'معلق ⚠️');
+    setDetail('dsD', d + ' کلید در مجموعهٔ معلق (dirty)' + (run ? ' · یک اجرای sync معلق باقی مانده (' + run + ')' : ''));
+    out.dirty = d; out.run = run || null;
+    var biz = { customers: 0, rfqs: 0, offers: 0, invoices: 0 }, ptf = lsCount('ptf');
+    ['ptf_crm_customers', 'ptf_crm_rfqs', 'ptf_crm_offers', 'ptf_crm_invoices'].forEach(function (k) {
+      try { var a = JSON.parse(localStorage.getItem(k) || '[]'); if (Array.isArray(a)) biz[k] = a.length; } catch (e) {}
+    });
+    setBadge('stL', true, biz.ptf_crm_customers + '/' + biz.ptf_crm_rfqs + '/' + biz.ptf_crm_offers + '/' + biz.ptf_crm_invoices);
+    setDetail('dsL', 'مشتری/درخواست/پیشنهاد/فاکتور · ' + ptf.n + ' کلید ptf_* · ~' + Math.round(ptf.bytes / 1024) + ' KB در localStorage');
+    out.local = { counts: biz, keys: ptf.n, bytes: ptf.bytes };
+    R.diag.local = out;
+  });
+}
+function runDiagnosis() {
+  R.diag = {}; setDetail('diagNote', '');
+  Promise.all([probeServer(), probeSession(), probeLocal()]).then(function () {
+    var s = R.diag;
+    if (s.server && s.server.ok && (s.session && s.session.ok === false || s.local && (s.local.queue.idb + s.local.queue.ls + s.local.dirty) > 0)) {
+      setDetail('diagNote', '🔎 تصویر منطبق بر «مرورگر گیرکرده پس از حادثه»: سرور سالم است ولی نشست معتبر نیست یا صف ارسال معلق است. مراحل ۱ تا ۴ را به ترتیب طی کنید.');
+    }
+  });
+}
+
+/* ---------- مرحله ۱: بک‌آپ ---------- */
+function doBackup() {
+  var btn = document.getElementById('btnBackup'); btn.disabled = true;
+  try {
+    var ls = {}; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k) ls[k] = localStorage.getItem(k); }
+    var ss = {}; for (var j = 0; j < sessionStorage.length; j++) { var sk = sessionStorage.key(j); if (sk) ss[sk] = sessionStorage.getItem(sk); }
+    idbDump().then(function (idb) {
+      var payload = { meta: { ver: VER, at: new Date().toISOString(), page: 'device-reconnect', url: location.href, note: 'نسخهٔ پشتیبان پیش از اتصال مجدد — برای بازگردانی نزد پشتیبانی نگه‌دارید.' }, localStorage: ls, sessionStorage: ss, indexedDB: { store: 'kv', rows: idb } };
+      var blob = new Blob([JSON.stringify(payload, null, 1)], { type: 'application/json' });
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'ptf-device-backup-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      R.steps.backup = { ok: true, lsKeys: Object.keys(ls).length, idbRows: Object.keys(idb).length, bytes: blob.size };
+      btn.textContent = '✅ بک‌آپ دانلود شد (' + Math.round(blob.size / 1024) + ' KB) — اگر فایل را نگرفتید دوباره بزنید';
+      document.getElementById('ackBackup').disabled = false;
+      btn.disabled = false;
+    });
+  } catch (e) { R.steps.backup = { ok: false, error: String(e) }; alert('خطا در بک‌آپ: ' + e); btn.disabled = false; }
+}
+
+/* ---------- مرحله ۲: خنثی‌سازی ---------- */
+var TASKS = [
+  { id: 'queue', def: true, tt: 'صف ارسال آفلاین (مععلوم اصلیِ «وصل نمی‌شود»)',
+    d: 'کلیدهای معلق صف ارسال (IDB: q:ptf_b_queue و بقایای LS). این همان سمی است که هر بار تلاش می‌کند دادهٔ کهنه روی سرور بنویسد و سپر ردش می‌کند.',
+    run: function () { return idbPut('q:ptf_b_queue', '{}').then(function (ok) { rmLS('ptf_b_queue'); return ok || true; }); } },
+  { id: 'dirty', def: true, tt: 'مجموعهٔ کلیدهای معلق همگام‌سازی',
+    d: 'ptf_sync_dirty — این مجموعه در هر روشن‌شدن، صف ارسال را دوباره می‌سازد؛ پاک نشود، مشکل برمی‌گردد.',
+    run: function () { rmLS('ptf_sync_dirty'); return Promise.resolve(true); } },
+  { id: 'run', def: true, tt: 'شناسهٔ اجرای sync معلق',
+    d: 'ptf_sync_run — قفل تلاشِ معلقِ چرخهٔ همگام‌سازی (اگر جا بماند، بوت بعدی را زرد نگه می‌دارد).',
+    run: function () { rmLS('ptf_sync_run'); return Promise.resolve(true); } },
+  { id: 'revs', def: true, tt: 'نشان‌گرِ نسخه‌های همگام‌سازی (واترمارک)',
+    d: 'ptf_sync_rev + ptf_sync_krevs — با پاک‌کردنشان، بعد از ورود مجدد یک pull کامل از سرور می‌آید و همهٔ جدول‌ها با نسخهٔ سالم سرور جایگزین می‌شوند.',
+    run: function () { rmLS('ptf_sync_rev'); rmLS('ptf_sync_krevs'); return Promise.resolve(true); } },
+  { id: 'session', def: true, tt: 'پایان نشست (ورود مجدد اجباری)',
+    d: 'توکن و اطلاعات نشست از localStorage/sessionStorage پاک می‌شود. نام کاربری/رمزتان را می‌دانید (OTP). بدون این، ممکن است توکن قدیمی رد شود.',
+    run: function () { ['ptf_crm_token', 'ptf_crm_token_role', 'ptf_crm_session'].forEach(function (k) { rmLS(k); rmSS(k); }); return Promise.resolve(true); } },
+  { id: 'idem', def: false, danger: true, tt: 'صف فرمان‌های دامنهٔ معلق (اختیاری)',
+    d: 'ردیف‌های idem: در IndexedDB = فرمان‌های اتمیک در صف تکرار. فقط اگر قبلاً با همان مرورگر یک فرمان (مثل حذف/بایگانی) ناتمام مانده، فعال کنید. فرمان‌های سالم معلق از دست می‌روند.',
+    run: function () { return idbKeysMatching(['idem:']).then(function (ks) {
+        return Promise.all(ks.map(function (k) { return idbDelete(k); })).then(function () { return ks.length; });
+      }); } },
+  { id: 'mig', def: false, danger: true, tt: 'نشانگرهای «انتقال یک‌باره» (فقط به دستور پشتیبانی)',
+    d: 'ptf_b_flushed_*/ptf_b_synced_* — پاک کردنشان انتقال یک‌باره را دوباره راه می‌اندازد و ممکن است دادهٔ محلی همین مرورگر را به سمت سرور روانه کند. برای این حادثه لازم نیست؛ هشدار جدی.',
+    run: function () { var ks = []; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i) || ''; if (k.indexOf('ptf_b_flushed_') === 0 || k.indexOf('ptf_b_synced_') === 0) ks.push(k); } ks.forEach(rmLS); return Promise.resolve(ks.length); } }
+];
+function renderTasks() {
+  var h = '';
+  TASKS.forEach(function (t, i) {
+    h += '<label class="task" id="task-' + t.id + '">' +
+      '<input type="checkbox" ' + (t.def ? 'checked' : '') + ' onchange="TASKS[' + i + '].def=this.checked;checkNeutralizeGate()">' +
+      '<span><b class="tt">' + t.tt + '</b><small class="d">' + t.d + '</small></span>' +
+      '<span class="st" id="sttask-' + t.id + '">—</span></label>';
+  });
+  document.getElementById('taskList').innerHTML = h;
+}
+function checkNeutralizeGate() {
+  var ack = document.getElementById('ackBackup').checked;
+  document.getElementById('btnNeutralize').disabled = !ack;
+}
+function doNeutralize(btn) {
+  btn.disabled = true; btn.textContent = 'در حال خنثی‌سازی...';
+  R.steps.neutralize = [];
+  var chosen = TASKS.filter(function (t) { return t.def; });
+  Promise.all(chosen.map(function (t) {
+    var cell = document.getElementById('task-' + t.id), st = document.getElementById('sttask-' + t.id);
+    return t.run().then(function (r) {
+      cell.classList.add('done-ok'); st.textContent = '✅ انجام شد';
+      R.steps.neutralize.push({ id: t.id, ok: true, result: typeof r === 'number' ? r : 'ok' });
+    }).catch(function (e) {
+      cell.classList.add('done-fail'); st.textContent = '⚠️ خطا';
+      R.steps.neutralize.push({ id: t.id, ok: false, error: String(e) });
+    });
+  })).then(function () {
+    btn.textContent = '✅ خنثی‌سازی انجام شد — به مرحلهٔ ۳ بروید';
+    setTimeout(runDiagnosis, 600);
+  });
+}
+
+/* ---------- مرحله ۳: تازه‌سازی اسکریپت ---------- */
+function doScriptsRefresh(btn) {
+  var msg = document.getElementById('msgScripts');
+  msg.textContent = 'در حال به‌روزرسانی اسکریپت‌ها...';
+  btn.disabled = true;
+  var p1 = (navigator.serviceWorker && navigator.serviceWorker.getRegistrations
+    ? navigator.serviceWorker.getRegistrations().then(function (regs) { return Promise.all(regs.map(function (r) { return r.update(); })); })
+    : Promise.resolve([])).catch(function () { return []; });
+  var p2 = (window.caches && caches.keys
+    ? caches.keys().then(function (keys) { return Promise.all(keys.map(function (k) { if (k.indexOf('ptf-crm') === 0) return caches.delete(k); })); })
+    : Promise.resolve([])).catch(function () { return []; });
+  Promise.all([p1, p2]).then(function () {
+    try { localStorage.setItem('ptf_app_ver', VER); } catch (e) {}
+    R.steps.scripts = { ok: true };
+    msg.innerHTML = '<b style="color:#059669">✅ اسکریپت‌ها تازه شدند. حالا به مرحلهٔ ۴ بروید و وارد شوید.</b>';
+  }).catch(function (e) { msg.textContent = 'خطا: ' + e; });
+}
+
+/* ---------- گزارش ---------- */
+function copyReport() {
+  R.at = new Date().toISOString();
+  var txt = JSON.stringify(R, null, 1);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function () { alert('گزارش در حافظهٔ موقت کپی شد — برای پشتیبانی بفرستید.'); });
+  } else {
+    var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); alert('گزارش کپی شد.'); } catch (e) { prompt('گزارش را کپی کنید:', txt); }
+    document.body.removeChild(ta);
+  }
+}
+
+document.getElementById('ackBackup').disabled = true;
+document.getElementById('ackBackup').addEventListener('change', checkNeutralizeGate);
+renderTasks();
+window.addEventListener('load', function () { setTimeout(runDiagnosis, 300); });
+</script>
+</body>
+</html>
