@@ -38,10 +38,10 @@ var unofficial = read('crm/unofficial-invoice.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('نسخه رسمی v34.38.15 است', JSON.parse(read('VERSION.json')).crm_version === 'v34.38.15');
-T('index و service worker روی v34.38.15 هستند',
-  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.15'") > -1 &&
-  read('crm/sw.js').indexOf("RELEASE = 'v34.38.15'") > -1);
+T('نسخه رسمی v34.38.16 است', JSON.parse(read('VERSION.json')).crm_version === 'v34.38.16');
+T('index و service worker روی v34.38.16 هستند',
+  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.16'") > -1 &&
+  read('crm/sw.js').indexOf("RELEASE = 'v34.38.16'") > -1);
 
 /* اجرای خود تابع renderReceivables با دو فاکتور متعلق به پیشنهاد ارزی.
    یکی باز و دیگری تسویه‌شده است؛ metadata ارزی legacy نیز عمداً روی پرداخت seed شده

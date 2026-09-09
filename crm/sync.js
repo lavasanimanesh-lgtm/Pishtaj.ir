@@ -1411,16 +1411,22 @@
         !/^[a-f0-9]{64}$/i.test(String(snapshot.checksum || ''))) return { ok: false, reason: 'snapshot-manifest-invalid' };
     var listed = snapshot.keyList.slice().sort().join('\\x1f'), received = dataKeys.slice().sort().join('\\x1f');
     if (listed !== received) return { ok: false, reason: 'snapshot-key-list-mismatch' };
-    var bad = '';
+    var bad = '', unavailable = [];
     Object.keys(data).some(function (k) {
       if (SYNC_KEYS.indexOf(k) < 0) { bad = k + ':unknown-key'; return true; }
       if (typeof data[k] !== 'string') { bad = k + ':not-string'; return true; }
       var parsed;
       try { parsed = JSON.parse(data[k]); } catch (eJson) { bad = k + ':invalid-json'; return true; }
       var actual = ptfPayloadShape(parsed), expected = stats[k];
+      /* v34.38.16 (PULL-RESILIENCE): اگر سرور برای کلید entryِ کاملِ manifest ندارد
+         (مثل کلیدِ commission_records که مقدارش شیء/تهی است و سرور count/kind را درست
+         گزارش نمی‌کند)، کلِ snapshot fail نمی‌شود؛ کلید در فهرست unavailable می‌رود تا
+         caller نسخهٔ سالمِ محلیِ همان کلید را نگه دارد و بقیهٔ کلیدها اعمال شوند.
+         (الگوی v34.38.11 برای کلیدِ ناخوانا در مسیر اتمیک.) */
       if (d.contract === 'ptf-sync-v2' && (!expected || expected.count == null || expected.bytes == null ||
           !/^[a-f0-9]{64}$/i.test(String(expected.sha256 || '')))) {
-        bad = k + ':integrity-manifest-missing'; return true;
+        unavailable.push(k);
+        return false;
       }
       if (expected) {
         if (expected.kind !== actual.kind || (expected.count != null && +expected.count !== actual.count) ||
@@ -1430,7 +1436,10 @@
       }
       return false;
     });
-    return bad ? { ok: false, reason: bad } : { ok: true, legacy: false, snapshotId: snapshot.id || '' };
+    if (bad) return { ok: false, reason: bad };
+    var res = { ok: true, legacy: false, snapshotId: snapshot.id || '' };
+    if (unavailable.length) res.unavailable = unavailable;
+    return res;
   }
   window.ptfSyncValidatePull = ptfValidatePullPayload;
 
@@ -1791,6 +1800,17 @@
           finishPull({ ok: false, reason: 'integrity', detail: pullIntegrity.reason || '' });
           return;
         }
+        /* v34.38.16 (PULL-RESILIENCE): کلیدهایی که سرور entry کاملِ manifest برایشان
+           نفرستاد (integrity-manifest-missing → unavailable) روی دادهٔ محلی نوشته
+           نمی‌شوند؛ آخرین نسخهٔ سالم محلیِ همان کلید حفظ می‌شود و بقیهٔ کلیدها
+           به‌روزرسانی می‌شوند تا bootstrap گیر نکند. */
+        var pullUnavailable = (pullIntegrity && pullIntegrity.unavailable) || [];
+        if (pullUnavailable.length) {
+          state.lastUnavailableKeys = pullUnavailable;
+          if (d.data) {
+            try { pullUnavailable.forEach(function (k) { if (Object.prototype.hasOwnProperty.call(d.data, k)) delete d.data[k]; }); } catch (eUnav) {}
+          }
+        }
         if (d.fresh) {
           applyServerMeta(d.meta, d.rev);
           setSyncBadge('ok');
@@ -1921,7 +1941,11 @@
           if (typeof updateInboxBadge === 'function') updateInboxBadge();
           pingTabs(); /* v33.21.1: بقیهٔ تب‌های همین مرورگر را لحظه‌ای مطلع کن */
         }
-        finishPull({ ok: true, applied: applied, rev: d.rev }); /* v34.4.34: نتیجه واقعی برای refresh مودال */
+        var _pullRes = { ok: true, applied: applied, rev: d.rev }; /* v34.4.34: نتیجه واقعی برای refresh مودال */
+        /* v34.38.16: کلیدهای unavailable را با همان قرارداد مسیر اتمیک گزارش کن تا
+           bootstrap کامل شود و کاربر بداند کدام بخش نسخهٔ محلی دارد. */
+        if (pullUnavailable.length) _pullRes.unavailable = pullUnavailable;
+        finishPull(_pullRes);
       })
       .catch(function (err) {
         state.pulling = false;

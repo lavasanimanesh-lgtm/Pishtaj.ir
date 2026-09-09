@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.38.15';
+const SD_SERVICE_VERSION = '34.38.16';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -508,6 +508,31 @@ function sd_case_offer_refs(array $case): array {
 function sd_offer_linked_to_case(array $offer,array $refs): bool {
     $id=trim((string)($offer['_id']??$offer['cd']??''));$no=trim((string)($offer['no']??''));
     return ($id!==''&&isset($refs['ids'][$id]))||($no!==''&&isset($refs['nos'][$no]));
+}
+/* v34.38.17 (ORPHAN-ARCHIVED — گزارش کارفرما): پس از مختومه/بایگانی پروندهٔ فروش،
+   رکورد پرونده از ptf_crm_deals به ptf_crm_projects می‌رود (state='archived',
+   origin='salesfile') و پیشنهاد برنده همان st='won' سالم می‌ماند. گزارش مهاجرت/
+   یکپارچگی که فقط ptf_crm_dealsِ فعال را می‌بیند، چنین پیشنهادی را orphan_won بحرانی
+   گزارش می‌کرد. این helper پیوندِ پیشنهاد را به یک رکورد بایگانیِ salesfile اثبات
+   می‌کند (از شمارهٔ پیشنهاد + سازگاری هویت، بدون فیلتر sd_active چون آن رکورد عمداً
+   بسته است). برادر کلاینتِ same-name در crm/sales-domain-v2.js است و هر دو باید هم‌راستا
+   بمانند (قانون A11). */
+function sd_archived_case_for_offer(array $offer,array $projects): ?array {
+    $no=trim((string)($offer['no']??''));if($no==='')return null;
+    $hit=null;
+    foreach($projects as $p){
+        if(!is_array($p))continue;
+        if((string)($p['origin']??'')!=='salesfile')continue;
+        if(strtolower(trim((string)($p['state']??'')))!=='archived')continue;
+        $pno=trim((string)($p['wonOffer']??$p['offerNo']??''));
+        $linked=$pno!==''&&$pno===$no;
+        if(!$linked&&is_array($p['offerNos']??null)){foreach($p['offerNos'] as $n){if(trim((string)$n)!==''&&trim((string)$n)===$no){$linked=true;break;}}}
+        if(!$linked)continue;
+        $pi=sd_identity($p['inqNo']??'');$oi=sd_identity($offer['inqNo']??'');
+        if($pi!==''&&$oi!==''&&$pi!==$oi)continue;
+        if($hit===null)$hit=$p;
+    }
+    return $hit;
 }
 function sd_resolve_case_customer(array $case,array $cases,array $offers,array $invoices,array $receipts,array $customers): array {
     $aliases=[];foreach([$case['_id']??'',$case['cd']??'']as $v){$v=trim((string)$v);if($v!=='')$aliases[$v]=true;}
@@ -1276,6 +1301,9 @@ function sd_purge_receipt_path(string $planHash): string { $dir=dirname(sd_sync_
 
 function sd_migration_report(): array {
     $offers=sd_read('ptf_crm_offers'); $cases=sd_read('ptf_crm_deals');
+    /* v34.38.17 (ORPHAN-ARCHIVED): برای تشخیصِ orphan_won کاذب باید به رکوردهای بایگانی
+       (ptf_crm_projects با origin=salesfile و state=archived) نیز نگاه کرد. */
+    $projects=sd_read('ptf_crm_projects');
     $invoices=sd_read('ptf_crm_invoices'); $receipts=sd_read('ptf_crm_case_receipts');
     $byNo=[]; $issues=[]; $safe=[];
     foreach($offers as $o) if(is_array($o)&&!empty($o['no'])) $byNo[(string)$o['no']][]=$o;
@@ -1287,7 +1315,13 @@ function sd_migration_report(): array {
             if(!is_array($c)||!sd_active($c)) continue;
             if(sd_case_offer_linked($c,$o)) $matchingCases[]=$c;
         }
-        if(($o['st']??'')==='won'&&!$matchingCases) $issues[]=['type'=>'orphan_won','severity'=>'critical','ref'=>$no];
+        if(($o['st']??'')==='won'&&!$matchingCases) {
+            /* اگر پیشنهاد برنده به یک پروندهٔ بایگانی/مختومهٔ salesfile متصل باشد،
+               orphan نیست؛ به‌جای orphan_wonِ بحرانی یک مورد اطلاعی صادر می‌کنیم. */
+            $archived=sd_archived_case_for_offer($o,$projects);
+            if($archived!==null)$issues[]=['type'=>'orphan_won_archived','severity'=>'info','ref'=>$no,'projectNo'=>trim((string)($archived['no']??$archived['cd']??''))];
+            else $issues[]=['type'=>'orphan_won','severity'=>'critical','ref'=>$no];
+        }
         if(count($matchingCases)>1) $issues[]=['type'=>'duplicate_case','severity'=>'critical','ref'=>$no,'count'=>count($matchingCases)];
         $pays=is_array($o['advance']['payments']??null)?$o['advance']['payments']:[];
         if(!$pays&&!empty($o['advance'])&&(!empty($o['advance']['cashFull'])||!empty($o['advance']['paid']))) $issues[]=['type'=>'inferred_cash','severity'=>'critical','ref'=>$no,'amount'=>sd_num($o['advance']['amt']??0)];

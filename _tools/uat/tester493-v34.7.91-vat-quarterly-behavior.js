@@ -19,8 +19,8 @@ var idx = read('crm/index.html');
 var shared = read('crm/vat-shared.js');
 var q = read('crm/vat-quarterly.js');
 
-T('VERSION.json = v34.38.15', ver.crm_version === 'v34.38.15', ver.crm_version);
-T('vat-quarterly.js cache-bust 34.38.15', /vat-quarterly\.js\?v=34\.38\.15/.test(idx));
+T('VERSION.json = v34.38.16', ver.crm_version === 'v34.38.16', ver.crm_version);
+T('vat-quarterly.js cache-bust 34.38.16', /vat-quarterly\.js\?v=34\.38\.16/.test(idx));
 T('توابع خالص export شده‌اند', /window\.ptfVatCalcSeason = calc/.test(q) && /window\.ptfVatState = stateFor/.test(q));
 
 /* ---------- sandbox ---------- */
