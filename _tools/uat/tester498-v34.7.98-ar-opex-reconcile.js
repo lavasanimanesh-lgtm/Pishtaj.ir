@@ -9,17 +9,17 @@ var fs = require('fs'), path = require('path'), vm = require('vm');
 var ROOT = path.resolve(__dirname, '../..');
 function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
-SECTION('Release v34.38.14: پین‌های رسمی');
+SECTION('Release v34.38.15: پین‌های رسمی');
 (function releasePins() {
   var ver = JSON.parse(read('VERSION.json'));
   var idx = read('crm/index.html'), sw = read('crm/sw.js');
-  T('VERSION.json = v34.38.14', ver.crm_version === 'v34.38.14', ver.crm_version);
-  T('index release و cache-bust روی 34.38.14 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.14'") > -1 && idx.indexOf('?v=34.7.96') === -1);
-  T('service worker release/cache/assets روی 34.38.14 است', sw.indexOf("RELEASE = 'v34.38.14'") > -1 && sw.indexOf("ASSET_VERSION = '34.38.14'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.38.14'") > -1);
-  T('manifest.version = 34.38.14', JSON.parse(read('crm/manifest.json')).version === '34.38.14');
-  T('clear-cache روی v34.38.14 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.38.14'") > -1);
-  T('shell fallback روی v34.38.14 است', read('crm/shell.js').indexOf("'v34.38.14'") > -1);
-  T('sales-domain service روی 34.38.14 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.38.14'") > -1);
+  T('VERSION.json = v34.38.15', ver.crm_version === 'v34.38.15', ver.crm_version);
+  T('index release و cache-bust روی 34.38.15 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.15'") > -1 && idx.indexOf('?v=34.7.96') === -1);
+  T('service worker release/cache/assets روی 34.38.15 است', sw.indexOf("RELEASE = 'v34.38.15'") > -1 && sw.indexOf("ASSET_VERSION = '34.38.15'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.38.15'") > -1);
+  T('manifest.version = 34.38.15', JSON.parse(read('crm/manifest.json')).version === '34.38.15');
+  T('clear-cache روی v34.38.15 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.38.15'") > -1);
+  T('shell fallback روی v34.38.15 است', read('crm/shell.js').indexOf("'v34.38.15'") > -1);
+  T('sales-domain service روی 34.38.15 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.38.15'") > -1);
 })();
 
 SECTION('AR: یک Receipt، یک قرارداد عددی در خزانه و حساب مشتری');
