@@ -1,6 +1,6 @@
 'use strict';
 /* ─────────────────────────────────────────────────────────────────────────────
-   tester623 — v34.38.15 (BOOT-REVERT)
+   tester623 — v34.38.16 (BOOT-REVERT)
 
    دستور کارفرما (۱۴۰۵/۰۶/۱۹): «مشکلات زیادی برای ورود به سیستم در چند تغییر اخیر
    ایجاد شده؛ اولین تغییری که سبب این موضوع شده — از جایی که فراخوانی از سرور
@@ -21,7 +21,7 @@
       (برگشتِ قابل-اطمینان، نه جراحی کور).
    ۳) سپرهای حذف انبوه v34.38.12 (که برای بدترین عارضهٔ همین ریشه ساخته شدند)
       سرِ کار می‌مانند.
-   ۴) قرارداد انتشار v34.38.15 (VERSION/index/sw/manifest/SD) هم‌تراز است.
+   ۴) قرارداد انتشار v34.38.16 (VERSION/index/sw/manifest/SD) هم‌تراز است.
 
    اجرا: node _tools/uat/tester623-v34.38.15-boot-legacy-pull.js
    ───────────────────────────────────────────────────────────────────────────── */
@@ -58,10 +58,10 @@ test('endpointهای اتمیک سرور حذف نشده‌اند (فعال‌س
   api.indexOf("case 'data_manifest':") > -1 && api.indexOf("case 'data_chunk':") > -1);
 test('سپر حذف انبوه v34.38.12 سرِ کار مانده (data_push + قرنطینهٔ بک‌آپ)',
   api.indexOf('mass_deletion_blocked') > -1);
-test('قرارداد انتشار هم‌تراز v34.38.15 است',
-  version === 'v34.38.15' && /window\.PTF_CRM_RELEASE = 'v34\.38\.15'/.test(idx) &&
-  sw.indexOf("RELEASE = 'v34.38.15'") > -1 && manifest.version === '34.38.15' &&
-  sd.indexOf("SD_SERVICE_VERSION = '34.38.15'") > -1);
+test('قرارداد انتشار هم‌تراز v34.38.16 است',
+  version === 'v34.38.16' && /window\.PTF_CRM_RELEASE = 'v34\.38\.16'/.test(idx) &&
+  sw.indexOf("RELEASE = 'v34.38.16'") > -1 && manifest.version === '34.38.16' &&
+  sd.indexOf("SD_SERVICE_VERSION = '34.38.16'") > -1);
 
 /* ===========================================================================
    بخش ۲ — شبیه‌سازی رفتاری: بوت با پرچمِ index.html (خاموش)
@@ -212,7 +212,7 @@ function bootVm(flagValue) {
 }
 
 (async function run() {
-  /* ── سناریو ۱: پرچم خاموش (وضعیت index.html پس از v34.38.15) ─────────────── */
+  /* ── سناریو ۱: پرچم خاموش (وضعیت index.html پس از v34.38.16) ─────────────── */
   var A = bootVm(false);
   var r1 = await new Promise(function (resolve) { A.ctx.ptfSyncFullResync(resolve); });
   test('دریافت کامل با پرچم خاموش موفق می‌شود (رفتار قبل از v34.38.10)',
@@ -237,7 +237,7 @@ function bootVm(flagValue) {
     console.log('=== tester623: ' + failures + ' FAIL ===');
     process.exit(1);
   }
-  console.log('PASS tester623-v34.38.15-boot-legacy-pull');
+  console.log('PASS tester623-v34.38.16-boot-legacy-pull');
 })().catch(function (e) {
   console.log('FAIL exception: ' + (e && e.stack || e));
   process.exit(1);

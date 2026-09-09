@@ -1320,7 +1320,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>CRM | سامانه مدیریت | پیشرو تجهیز فرتاک</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="manifest" href="manifest.json?v=34.38.15">
+<link rel="manifest" href="manifest.json?v=34.38.16">
 <meta name="theme-color" content="#ef4b1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2282,15 +2282,18 @@ try {
 } catch(e) {}
 
 // ===== ارتقای خودکار نسخه: با هر نسخه جدید، کش قدیمی PWA یک بار پاک می‌شود (داده‌ها دست نمی‌خورند) =====
-window.PTF_CRM_RELEASE = 'v34.38.15'; window.VER = 'v34.38.15'; window.PTF_CRM_SNAPSHOT_V2 = false; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
-/* v34.38.15 (BOOT-REVERT — بازگشت مسیر ورود/بوت به قبل از v34.38.10):
-   مسیر «pull اتمیک» (data_manifest + data_chunk) که در v34.38.10 به بوت اضافه شد، ریشهٔ
-   زنجیرهٔ مشکلات ورود بود (RCA: ARENA-CRM-ATOMIC-PULL-INCOMPLETE-RCA-2026-09-08.md —
-   bootstrap دائمی fail-closed، پیام تکرارشوندهٔ «دریافت کامل CRM انجام نشد»، قفل‌شدن
-   ارسال تغییرات و در نهایت حادثهٔ حذف انبوه ۶۸→۱ رکورد). با false شدن این پرچم،
-   بوت/ورود دقیقاً مثل قبل از v34.38.10 از همان data_pull تک‌مرحله‌ای می‌آید.
-   کد مسیر اتمیک (ptfSyncPullAtomic) عمداً حذف نشده تا پس از اعتبارسنجی کافی روی
-   دادهٔ واقعی، با true کردن صریح همین پرچم دوباره فعال شود. */
+window.PTF_CRM_RELEASE = 'v34.38.16'; window.VER = 'v34.38.16'; window.PTF_CRM_SNAPSHOT_V2 = false; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
+/* v34.38.16 (PULL-RESILIENCE — روی BOOT-REVERTِ v34.38.15):
+   v34.38.15 بوت را به قبل از v34.38.10 برگرداند (PTF_CRM_SNAPSHOT_V2=false ⇒ بوت از
+   همان data_pull تک‌مرحله‌ایِ قبل از .10 می‌آید) ولی سپرهای امنیتیِ داده (.12 حذفِ
+   انبوه، .13 بازیابی رکورد، .14 یکتایی/بازیابی بایگانی) دست‌نخورده ماندند.
+   v34.38.16 یک نقطهٔ باقی‌مانده را می‌بندد: اعتبارسنجِ مشترکِ قرارداد v2
+   (ptfValidatePullPayload) روی مسیر legacy هم اجرا می‌شد و اگر سرور برای یک کلید
+   entryِ کاملِ manifest نمی‌داد (مثل ptf_crm_commission_records که مقدارش شیء/تهی
+   است و count/kind درست نمی‌گرفت)، کلِ snapshot fail می‌شد ⇒ «دریافت کامل اولیه هنوز
+   تکمیل نشده». اکنون چنین کلیدی «unavailable» می‌شود (نسخهٔ سالم محلی حفظ می‌شود)
+   و بقیهٔ کلیدها اعمال می‌شوند تا bootstrap گیر نکند. integrity-mismatch واقعی
+   همچنان fail-closed می‌ماند. */
 /* v34.29.0 (VER-SHIELD — سپر نسخهٔ کهنه): ریشهٔ «رفع شده ولی هنوز خراب» این بود که مرورگر/
    تبِ باز، JS قدیمی را اجرا می‌کند و هیچ خود-تشخیصی نداشت. اکنون نسخهٔ سرور (manifest.json با
    cache:no-store و از مسیر network-first سرویس‌ورکر) با نسخهٔ صفحه مقایسه می‌شود؛ اگر قدیمی
@@ -4445,118 +4448,118 @@ setInterval(function(){
   document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
 }, 1000);
 </script>
-<script defer src="ui-kit.js?v=34.38.15"></script>
+<script defer src="ui-kit.js?v=34.38.16"></script>
 <!-- MOB-008: nav shell باید پیش از ده‌ها bundle عملیاتی اجرا شود. -->
-<script defer src="mobilenav.js?v=34.38.15"></script>
-<script defer src="storage-quota.js?v=34.38.15"></script>
-<script defer src="moneyx.js?v=34.38.15"></script>
-<script defer src="finance-helpers.js?v=34.38.15"></script>
-<script defer src="metrics-shared.js?v=34.38.15"></script>
-<script defer src="ar-reconcile.js?v=34.38.15"></script>
-<script defer src="finance-core.js?v=34.38.15"></script>
-<script defer src="finance-write-guard.js?v=34.38.15"></script>
-<script defer src="date-kit.js?v=34.38.15"></script>
-<script defer src="dialogx.js?v=34.38.15"></script>
-<script defer src="dedup.js?v=34.38.15"></script>
-<script defer src="codegen.js?v=34.38.15"></script>
-<script async src="xlsx.min.js?v=34.38.15"></script>
-<script defer src="sortable.js?v=34.38.15"></script>
-<script defer src="offers.js?v=34.38.15"></script>
-<script defer src="surplus.js?v=34.38.15"></script>
-<script defer src="launcher.js?v=34.38.15"></script>
-<script defer src="leads.js?v=34.38.15"></script>
-<script defer src="storage.js?v=34.38.15"></script>
-<script defer src="rbac.js?v=34.38.15"></script>
-<script defer src="official-ledger.js?v=34.38.15"></script>
-<script defer src="projects.js?v=34.38.15"></script>
-<script defer src="letters.js?v=34.38.15"></script>
-<script defer src="draftx.js?v=34.38.15"></script>
-<script defer src="analyzer.js?v=34.38.15"></script>
-<script defer src="management-intelligence.js?v=34.38.15"></script>
-<script defer src="contracts.js?v=34.38.15"></script>
-<script defer src="shell.js?v=34.38.15"></script>
-<script defer src="bridge.js?v=34.38.15"></script>
-<script defer src="kanban.js?v=34.38.15"></script>
-<script defer src="reports.js?v=34.38.15"></script>
-<script defer src="backup.js?v=34.38.15"></script>
-<script defer src="restore-contacts.js?v=34.38.15"></script>
-<script defer src="restore-collection.js?v=34.38.15"></script>
-<script defer src="tool-licenses.js?v=34.38.15"></script>
-<script defer src="tool-report-drafts.js?v=34.38.15"></script>
-<script defer src="tool-feedback.js?v=34.38.15"></script>
-<script defer src="sms.js?v=34.38.15"></script>
-<script defer src="rfqsmart.js?v=34.38.15"></script>
-<script defer src="cms.js?v=34.38.15"></script>
-<script defer src="gsc.js?v=34.38.15"></script>
-<script defer src="careers.js?v=34.38.15"></script>
-<script defer src="perms.js?v=34.38.15"></script>
-<script defer src="petty.js?v=34.38.15"></script>
-<script defer src="opex.js?v=34.38.15"></script>
-<script defer src="shareholders.js?v=34.38.15"></script>
-<script defer src="theme.js?v=34.38.15"></script>
-<script defer src="archive.js?v=34.38.15"></script>
-<script defer src="offers-pro.js?v=34.38.15"></script>
-<script defer src="buycompare.js?v=34.38.15"></script>
-<script defer src="procurement-link.js?v=34.38.15"></script>
-<script defer src="listtools.js?v=34.38.15"></script>
-<script defer src="icons.js?v=34.38.15"></script>
-<script defer src="guards.js?v=34.38.15"></script>
-<script defer src="tables.js?v=34.38.15"></script>
-<script defer src="inqreader.js?v=34.38.15"></script>
-<script defer src="offerlock.js?v=34.38.15"></script>
-<script defer src="workflow.js?v=34.38.15"></script>
-<script defer src="fx.js?v=34.38.15"></script>
-<script defer src="modalx.js?v=34.38.15"></script>
-<script defer src="iconx.js?v=34.38.15"></script>
-<script defer src="salesfiles.js?v=34.38.15"></script>
-<script defer src="offer-rial-convert.js?v=34.38.15"></script>
-<script defer src="docsx.js?v=34.38.15"></script>
-<script defer src="oppo.js?v=34.38.15"></script>
-<script defer src="cheque-module.js?v=34.38.15"></script>
-<script defer src="cheque-panel.js?v=34.38.15"></script>
-<script defer src="cheque-print.js?v=34.38.15"></script>
-<script defer src="cheques.js?v=34.38.15"></script>
-<script defer src="messengers.js?v=34.38.15"></script>
-<script defer src="phonefmt.js?v=34.38.15"></script>
-<script defer src="tour.js?v=34.38.15"></script>
-<script defer src="ai-workbench.js?v=34.38.15"></script>
-<script defer src="golive.js?v=34.38.15"></script>
-<script defer src="custmerge.js?v=34.38.15"></script>
-<script defer src="listclean.js?v=34.38.15"></script>
-<script defer src="supspec.js?v=34.38.15"></script>
-<script defer src="scoring.js?v=34.38.15"></script>
-<script defer src="vat-shared.js?v=34.38.15"></script>
-<script defer src="vat-quarterly.js?v=34.38.15"></script>
-<script defer src="supplier-finance.js?v=34.38.15"></script>
-<script defer src="customer-finance.js?v=34.38.15"></script>
-<script defer src="working-capital.js?v=34.38.15"></script>
-<script defer src="treasury.js?v=34.38.15"></script>
-<script defer src="treasury-call.js?v=34.38.15"></script>
-<script defer src="ledger-report.js?v=34.38.15"></script>
-<script defer src="data-quality.js?v=34.38.15"></script>
-<script defer src="commission.js?v=34.38.15"></script>
+<script defer src="mobilenav.js?v=34.38.16"></script>
+<script defer src="storage-quota.js?v=34.38.16"></script>
+<script defer src="moneyx.js?v=34.38.16"></script>
+<script defer src="finance-helpers.js?v=34.38.16"></script>
+<script defer src="metrics-shared.js?v=34.38.16"></script>
+<script defer src="ar-reconcile.js?v=34.38.16"></script>
+<script defer src="finance-core.js?v=34.38.16"></script>
+<script defer src="finance-write-guard.js?v=34.38.16"></script>
+<script defer src="date-kit.js?v=34.38.16"></script>
+<script defer src="dialogx.js?v=34.38.16"></script>
+<script defer src="dedup.js?v=34.38.16"></script>
+<script defer src="codegen.js?v=34.38.16"></script>
+<script async src="xlsx.min.js?v=34.38.16"></script>
+<script defer src="sortable.js?v=34.38.16"></script>
+<script defer src="offers.js?v=34.38.16"></script>
+<script defer src="surplus.js?v=34.38.16"></script>
+<script defer src="launcher.js?v=34.38.16"></script>
+<script defer src="leads.js?v=34.38.16"></script>
+<script defer src="storage.js?v=34.38.16"></script>
+<script defer src="rbac.js?v=34.38.16"></script>
+<script defer src="official-ledger.js?v=34.38.16"></script>
+<script defer src="projects.js?v=34.38.16"></script>
+<script defer src="letters.js?v=34.38.16"></script>
+<script defer src="draftx.js?v=34.38.16"></script>
+<script defer src="analyzer.js?v=34.38.16"></script>
+<script defer src="management-intelligence.js?v=34.38.16"></script>
+<script defer src="contracts.js?v=34.38.16"></script>
+<script defer src="shell.js?v=34.38.16"></script>
+<script defer src="bridge.js?v=34.38.16"></script>
+<script defer src="kanban.js?v=34.38.16"></script>
+<script defer src="reports.js?v=34.38.16"></script>
+<script defer src="backup.js?v=34.38.16"></script>
+<script defer src="restore-contacts.js?v=34.38.16"></script>
+<script defer src="restore-collection.js?v=34.38.16"></script>
+<script defer src="tool-licenses.js?v=34.38.16"></script>
+<script defer src="tool-report-drafts.js?v=34.38.16"></script>
+<script defer src="tool-feedback.js?v=34.38.16"></script>
+<script defer src="sms.js?v=34.38.16"></script>
+<script defer src="rfqsmart.js?v=34.38.16"></script>
+<script defer src="cms.js?v=34.38.16"></script>
+<script defer src="gsc.js?v=34.38.16"></script>
+<script defer src="careers.js?v=34.38.16"></script>
+<script defer src="perms.js?v=34.38.16"></script>
+<script defer src="petty.js?v=34.38.16"></script>
+<script defer src="opex.js?v=34.38.16"></script>
+<script defer src="shareholders.js?v=34.38.16"></script>
+<script defer src="theme.js?v=34.38.16"></script>
+<script defer src="archive.js?v=34.38.16"></script>
+<script defer src="offers-pro.js?v=34.38.16"></script>
+<script defer src="buycompare.js?v=34.38.16"></script>
+<script defer src="procurement-link.js?v=34.38.16"></script>
+<script defer src="listtools.js?v=34.38.16"></script>
+<script defer src="icons.js?v=34.38.16"></script>
+<script defer src="guards.js?v=34.38.16"></script>
+<script defer src="tables.js?v=34.38.16"></script>
+<script defer src="inqreader.js?v=34.38.16"></script>
+<script defer src="offerlock.js?v=34.38.16"></script>
+<script defer src="workflow.js?v=34.38.16"></script>
+<script defer src="fx.js?v=34.38.16"></script>
+<script defer src="modalx.js?v=34.38.16"></script>
+<script defer src="iconx.js?v=34.38.16"></script>
+<script defer src="salesfiles.js?v=34.38.16"></script>
+<script defer src="offer-rial-convert.js?v=34.38.16"></script>
+<script defer src="docsx.js?v=34.38.16"></script>
+<script defer src="oppo.js?v=34.38.16"></script>
+<script defer src="cheque-module.js?v=34.38.16"></script>
+<script defer src="cheque-panel.js?v=34.38.16"></script>
+<script defer src="cheque-print.js?v=34.38.16"></script>
+<script defer src="cheques.js?v=34.38.16"></script>
+<script defer src="messengers.js?v=34.38.16"></script>
+<script defer src="phonefmt.js?v=34.38.16"></script>
+<script defer src="tour.js?v=34.38.16"></script>
+<script defer src="ai-workbench.js?v=34.38.16"></script>
+<script defer src="golive.js?v=34.38.16"></script>
+<script defer src="custmerge.js?v=34.38.16"></script>
+<script defer src="listclean.js?v=34.38.16"></script>
+<script defer src="supspec.js?v=34.38.16"></script>
+<script defer src="scoring.js?v=34.38.16"></script>
+<script defer src="vat-shared.js?v=34.38.16"></script>
+<script defer src="vat-quarterly.js?v=34.38.16"></script>
+<script defer src="supplier-finance.js?v=34.38.16"></script>
+<script defer src="customer-finance.js?v=34.38.16"></script>
+<script defer src="working-capital.js?v=34.38.16"></script>
+<script defer src="treasury.js?v=34.38.16"></script>
+<script defer src="treasury-call.js?v=34.38.16"></script>
+<script defer src="ledger-report.js?v=34.38.16"></script>
+<script defer src="data-quality.js?v=34.38.16"></script>
+<script defer src="commission.js?v=34.38.16"></script>
 
-<script defer src="my-customers-filter.js?v=34.38.15"></script>
-<script defer src="insights.js?v=34.38.15"></script>
-<script defer src="myday.js?v=34.38.15"></script>
-<script defer src="lossguard.js?v=34.38.15"></script>
-<script defer src="fiscal.js?v=34.38.15"></script>
-<script defer src="financehub.js?v=34.38.15"></script>
-<script defer src="theme-contrast.js?v=34.38.15"></script>
-<script defer src="key-registry.js?v=34.38.15"></script>
-<script defer src="sync.js?v=34.38.15"></script>
-<script defer src="client-server.js?v=34.38.15"></script>
-<script defer src="unofficial-invoice.js?v=34.38.15"></script>
-<script defer src="user-guide.js?v=34.38.15"></script>
-<script defer src="settings-accordion.js?v=34.38.15"></script>
-<script defer src="mobile-actions.js?v=34.38.15"></script>
-<script defer src="mobile-table-labels.js?v=34.38.15"></script>
-<script defer src="mobile-nav-state.js?v=34.38.15"></script>
-<script defer src="nav-focus.js?v=34.38.15"></script>
+<script defer src="my-customers-filter.js?v=34.38.16"></script>
+<script defer src="insights.js?v=34.38.16"></script>
+<script defer src="myday.js?v=34.38.16"></script>
+<script defer src="lossguard.js?v=34.38.16"></script>
+<script defer src="fiscal.js?v=34.38.16"></script>
+<script defer src="financehub.js?v=34.38.16"></script>
+<script defer src="theme-contrast.js?v=34.38.16"></script>
+<script defer src="key-registry.js?v=34.38.16"></script>
+<script defer src="sync.js?v=34.38.16"></script>
+<script defer src="client-server.js?v=34.38.16"></script>
+<script defer src="unofficial-invoice.js?v=34.38.16"></script>
+<script defer src="user-guide.js?v=34.38.16"></script>
+<script defer src="settings-accordion.js?v=34.38.16"></script>
+<script defer src="mobile-actions.js?v=34.38.16"></script>
+<script defer src="mobile-table-labels.js?v=34.38.16"></script>
+<script defer src="mobile-nav-state.js?v=34.38.16"></script>
+<script defer src="nav-focus.js?v=34.38.16"></script>
 <!-- v35: command-driven Sales-to-Cash loads last and replaces the legacy financial/write surfaces atomically. -->
-<script defer src="sales-domain-v2.js?v=34.38.15"></script>
-<script defer src="official-invoice-v2.js?v=34.38.15"></script>
-<script defer src="tax-returns.js?v=34.38.15"></script>
-<script defer src="case-revision.js?v=34.38.15"></script>
+<script defer src="sales-domain-v2.js?v=34.38.16"></script>
+<script defer src="official-invoice-v2.js?v=34.38.16"></script>
+<script defer src="tax-returns.js?v=34.38.16"></script>
+<script defer src="case-revision.js?v=34.38.16"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 'use strict';
 /* ─────────────────────────────────────────────────────────────────────────────
-   tester619 — v34.38.15 (MASS-DELETE-SHIELD)
+   tester619 — v34.38.16 (MASS-DELETE-SHIELD)
 
    حادثهٔ واقعی (پروداکشن، ۱۴۰۵/۰۶/۱۷ — شواهد از بک‌آپ‌های چرخشی):
      daily-2026-09-07 → ptf_crm_rfqsmart = ۶۸ رکورد
@@ -169,7 +169,7 @@ test('پاسخ سپر سروری به کاربر گزارش می‌شود',
   syncSrc.indexOf('🛡 سپر سروری حذف انبوه') > -1);
 test('آشکارساز افت انبوه در نمای ناقص هشدار کاذب نمی‌دهد',
   syncSrc.indexOf('if (mirrorUnhydrated()) return; /* v34.38.12: نمای ناقص = هشدار کاذب */') > -1);
-test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.15');
+test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.16');
 
 console.log('');
 if (failures) { console.log('=== tester619: ' + failures + ' FAIL ==='); process.exit(1); }

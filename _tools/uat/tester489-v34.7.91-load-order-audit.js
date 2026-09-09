@@ -14,8 +14,8 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 var ver = JSON.parse(read('VERSION.json'));
 var idx = read('crm/index.html');
 
-T('VERSION.json = v34.38.15', ver.crm_version === 'v34.38.15', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.38.15', /window\.PTF_CRM_RELEASE = 'v34\.38\.15'/.test(idx));
+T('VERSION.json = v34.38.16', ver.crm_version === 'v34.38.16', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.38.16', /window\.PTF_CRM_RELEASE = 'v34\.38\.16'/.test(idx));
 
 var srcs = [];
 var re = /<script[^>]*src="([^"]+)"/g, m;
@@ -24,8 +24,8 @@ var localSrcs = srcs.filter(function (s) { return s.indexOf('http') !== 0 && !s.
 T('تعداد اسکریپت‌های محلی > ۵۰', localSrcs.length > 50, localSrcs.length);
 var missing = localSrcs.filter(function (s) { return !fs.existsSync(path.join(ROOT, 'crm', s.replace(/\?.*$/, ''))); });
 T('همه‌ی اسکریپت‌های محلی روی دیسک موجودند', missing.length === 0, missing.join(', '));
-var wrongVer = localSrcs.filter(function (s) { return /\?v=/.test(s) && !/v=34\.38\.15/.test(s); });
-T('همه‌ی cache-bust ها = 34.38.15', wrongVer.length === 0, wrongVer.join(', '));
+var wrongVer = localSrcs.filter(function (s) { return /\?v=/.test(s) && !/v=34\.38\.16/.test(s); });
+T('همه‌ی cache-bust ها = 34.38.16', wrongVer.length === 0, wrongVer.join(', '));
 
 /* ترتیب قابل‌اعتماد */
 function pos(sub) { return idx.indexOf(sub); }

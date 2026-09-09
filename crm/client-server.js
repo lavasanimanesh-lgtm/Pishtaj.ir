@@ -392,12 +392,18 @@
               return;
             }
           }
+          /* v34.38.16 (PULL-RESILIENCE): کلیدهایی که سرور entry کاملِ manifest برایشان
+             نفرستاد روی آینه/محلی نوشته نمی‌شوند؛ نسخهٔ سالمِ قبلی همان کلید حفظ می‌شود. */
+          var _unavailProj = (projectionIntegrity && projectionIntegrity.unavailable) || [];
+          var _unavailSet = {};
+          _unavailProj.forEach(function (k) { _unavailSet[k] = true; });
           var t = Date.now();
           var knownRevs = bPullRevs();
           var responseGlobal = +((d && d.rev) || 0);
           var currentGlobal = bPullSince();
           var responseIsCurrentOrNewer = responseGlobal >= currentGlobal;
           Object.keys(d.data).forEach(function (k) {
+            if (_unavailSet[k]) return;
             if (typeof d.data[k] !== 'string') return;
             var incomingRev = +(((d.meta || {})[k] || {}).rev) || 0;
             /* A current/newer global response may legitimately carry a lower per-key

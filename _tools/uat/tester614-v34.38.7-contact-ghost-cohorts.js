@@ -272,16 +272,16 @@ T('۴.۸ fallback digits اگر phonefmt هنوز لود نشده باشد', /pt
 /* نسخه/گیت */
 head('۵. گیت و نسخه');
 var ver = JSON.parse(read('VERSION.json'));
-T('۵.۱ VERSION.json = v34.38.15', ver.crm_version === 'v34.38.15', ver.crm_version);
+T('۵.۱ VERSION.json = v34.38.16', ver.crm_version === 'v34.38.16', ver.crm_version);
 T('۵.۲ tester614 در run-ci-gate.js ثبت است', gate.indexOf('tester614-v34.38.7-contact-ghost-cohorts.js') > -1);
 T('۵.۳ تسترهای رگرسیون تماس (604/611/613) در گیت هستند',
   gate.indexOf('tester604-v34.37.7-contact-wipe.js') > -1 &&
   gate.indexOf('tester611-v34.38.4-contact-wipe-ind-heal.js') > -1 &&
   gate.indexOf('tester613-v34.38.6-ntf-lifecycle-and-findings.js') > -1);
-T('۵.۴ قرارداد UI/sw/SD = 34.38.15',
-  /window\.PTF_CRM_RELEASE = 'v34\.38\.15'/.test(idx) &&
-  /CACHE = 'ptf-crm-v34\.38\.15'/.test(read('crm/sw.js')) &&
-  /SD_SERVICE_VERSION = '34\.38\.15'/.test(read('api/sales-domain.php')));
+T('۵.۴ قرارداد UI/sw/SD = 34.38.16',
+  /window\.PTF_CRM_RELEASE = 'v34\.38\.16'/.test(idx) &&
+  /CACHE = 'ptf-crm-v34\.38\.16'/.test(read('crm/sw.js')) &&
+  /SD_SERVICE_VERSION = '34\.38\.16'/.test(read('api/sales-domain.php')));
 
 /* ─────────────── اجرای سناریوهای رفتاری ─────────────── */
 Promise.all([scenario1Done]).then(function () {

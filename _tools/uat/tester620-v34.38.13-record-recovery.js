@@ -1,6 +1,6 @@
 'use strict';
 /* ─────────────────────────────────────────────────────────────────────────────
-   tester620 — v34.38.15 (RECORD-RECOVERY)
+   tester620 — v34.38.16 (RECORD-RECOVERY)
 
    ابزار «بازیابی رکوردهای گم‌شده از بک‌آپ» (crm/restore-collection.js) که برای
    برگرداندن ۶۷ درخواست تأمینِ حذف‌شده در حادثهٔ ۱۴۰۵/۰۶/۱۷ ساخته شد
@@ -130,11 +130,11 @@ test('اسکن از بک‌آپ‌های سرور + امکان افزودن فا
   src.indexOf("action=list_backups") > -1 && src.indexOf('action=get_backup&name=') > -1 &&
   src.indexOf('window.ptfRestoreCollectionAddSource') > -1);
 test('اسکریپت در index.html بارگذاری و در sw.js precache شده است',
-  /restore-collection\.js\?v=34\.38\.15/.test(indexHtml) && sw.indexOf("'./restore-collection.js' + ASSET_QUERY") > -1);
+  /restore-collection\.js\?v=34\.38\.16/.test(indexHtml) && sw.indexOf("'./restore-collection.js' + ASSET_QUERY") > -1);
 test('دکمهٔ ابزار در بخش بک‌آپ تنظیمات هست', backupJs.indexOf('ptfOpenRecordRecovery()') > -1);
 test('تستر در گیت CI ثبت است', gate.indexOf('tester620-v34.38.13-record-recovery.js') > -1);
-test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.15');
+test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.16');
 
 console.log('');
 if (failures) { console.log('=== tester620: ' + failures + ' FAIL ==='); process.exit(1); }
-console.log('PASS tester620-v34.38.15-record-recovery');
+console.log('PASS tester620-v34.38.16-record-recovery');
