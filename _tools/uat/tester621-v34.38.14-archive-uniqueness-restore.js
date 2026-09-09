@@ -1,6 +1,6 @@
 'use strict';
 /* ─────────────────────────────────────────────────────────────────────────────
-   tester621 — v34.38.14 (ARCHIVE-UNIQUENESS + RESTORE)
+   tester621 — v34.38.15 (ARCHIVE-UNIQUENESS + RESTORE)
 
    گزارش کارفرما: «پرونده‌ای را از پرونده‌های فروش بایگانی کردم؛ به بایگانی رفت
    ولی بعد از رفرش در پرونده‌های فروش هم بود. یک پرونده باید یکتاست — هم‌زمان
@@ -27,7 +27,7 @@
      U7) افشا رابط‌کاربری: دکمهٔ «↩️ به جریان انداختن پرونده» در بایگانی فقط
          برای پرونده‌های بایگانی‌شده با ریشهٔ فروش + گارد نقش.
 
-   اجرا: node _tools/uat/tester621-v34.38.14-archive-uniqueness-restore.js
+   اجرا: node _tools/uat/tester621-v34.38.15-archive-uniqueness-restore.js
    ───────────────────────────────────────────────────────────────────────────── */
 var fs = require('fs');
 var path = require('path');
@@ -234,11 +234,11 @@ setTimeout(function () {
 
   console.log('\n── پین‌های انتشار ──');
   test('تستر در گیت CI ثبت است', gate.indexOf('tester621-v34.38.14-archive-uniqueness-restore.js') > -1);
-  test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.14', version);
-  test('cache-buster در index.html به‌روز است', indexHtml.indexOf('salesfiles.js?v=34.38.14') > -1);
-  test('Service Worker به‌روز است', sw.indexOf("v34.38.14") > -1);
+  test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.15', version);
+  test('cache-buster در index.html به‌روز است', indexHtml.indexOf('salesfiles.js?v=34.38.15') > -1);
+  test('Service Worker به‌روز است', sw.indexOf("v34.38.15") > -1);
 
   console.log('');
   if (failures) { console.log('=== tester621: ' + failures + ' FAIL ==='); process.exit(1); }
-  console.log('PASS tester621-v34.38.14-archive-uniqueness-restore');
+  console.log('PASS tester621-v34.38.15-archive-uniqueness-restore');
 }, 60);

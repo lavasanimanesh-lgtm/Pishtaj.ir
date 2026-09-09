@@ -18,10 +18,10 @@ var theme = read('crm/theme-contrast.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.38.14', ver.crm_version === 'v34.38.14', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.38.14', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.14'") > -1);
-T('sw RELEASE = v34.38.14', sw.indexOf("RELEASE = 'v34.38.14'") > -1);
-T('offers.js cache-bust 34.38.14', idx.indexOf('offers.js?v=34.38.14') > -1);
+T('VERSION.json = v34.38.15', ver.crm_version === 'v34.38.15', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.38.15', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.15'") > -1);
+T('sw RELEASE = v34.38.15', sw.indexOf("RELEASE = 'v34.38.15'") > -1);
+T('offers.js cache-bust 34.38.15', idx.indexOf('offers.js?v=34.38.15') > -1);
 
 /* ---------- ترتیب فیلدها ---------- */
 var iBuyer = off.indexOf('id="ofBuyer"');
