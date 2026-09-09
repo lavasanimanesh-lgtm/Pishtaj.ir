@@ -118,62 +118,6 @@ var _curPrj = null;
    داده master مشترک (مشتری/کالا/تامین‌کننده) هرگز در graph حذف نیست. */
 function ptfArchivePurgeAllowed(){try{return['admin','chairman'].indexOf(curRole())>-1;}catch(e){return false;}}
 window.ptfArchivePurgeAllowed=ptfArchivePurgeAllowed;
-
-/* v34.38.14 (RESTORE): «به جریان انداختن» پروندهٔ بایگانی‌شده — بازگشت به پرونده‌های
-   فروش، تا پیش از «حذف قطعی». قرارداد مالکیت: یک پرونده فروش دقیقاً در یک محل است
-   (بایگانی XOR پرونده‌های فروش). هستهٔ داده در salesfiles.js
-   (ptfSalesfileRestoreFromArchive) است؛ این تابع فقط گارد نقش + تایید کاربر است. */
-window.ptfArchiveCaseCanRestore = function (p) {
-  if (!p || String(p.state || '') !== 'archived') return false;
-  if (p.origin === 'salesfile') return true;
-  if (p.dealCd) return true;
-  if (String(p.no || '').indexOf('ARC-') === 0) return true;
-  return false;
-};
-window.ptfArchiveCaseRestore = function (no) {
-  if (!(typeof window.ptfArcDocAllowed === 'function' && window.ptfArcDocAllowed())) {
-    alert('🔒 به جریان انداختن پروندهٔ بایگانی‌شده فقط توسط ادمین، رئیس هیئت‌مدیره، مدیر بازرگانی و مدیرعامل مجاز است.');
-    return;
-  }
-  if (typeof window.ptfSalesfileRestoreFromArchive !== 'function') {
-    alert('ماژول پرونده‌های فروش بارگذاری نشده است — یک بار رفرش کنید.');
-    return;
-  }
-  var p = (getData('ptf_crm_projects') || []).filter(function (x) { return x && String(x.no) === String(no); })[0];
-  if (!p) { alert('⛔ پرونده در بایگانی یافت نشد.'); return; }
-  if (!window.ptfArchiveCaseCanRestore(p)) { alert('⛔ این رکورد بایگانی، پروندهٔ فروش مختومه نیست و قابل به جریان انداختن با این مسیر نیست.'); return; }
-  /* اگر نسخهٔ فعالی از همین پرونده در «پرونده‌های فروش» هست (دادهٔ آلودهٔ قدیمی)،
-     قانون یکتایی الزام می‌کند یکی بماند — پیش‌فرض امن: نسخهٔ فعال می‌ماند. */
-  var aliases = [p.inqNo, p.dealCd, p.cd ? String(p.cd).replace(/^ARC-/, '') : ''].filter(Boolean).map(String);
-  var live = [];
-  try { live = (getData('ptf_crm_deals') || []).filter(function (d) { return d && (aliases.indexOf(String(d.cd || '')) > -1 || aliases.indexOf(String(d.inqNo || '')) > -1); }); } catch (eL) {}
-  var msg = live.length
-    ? '⚠️ برای این پرونده نسخهٔ فعالی در «پرونده‌های فروش» وجود دارد (' + live.map(function (d) { return d.cd; }).join('، ') + ').\n\nیک پروندهٔ فروش نمی‌تواند هم‌زمان هم در بایگانی باشد هم در جریان.\n\nتأیید = نسخهٔ بایگانی حذف و نسخهٔ فعالِ در جریان حفظ می‌شود (یکتاسازی).'
-    : '↩️ به جریان انداختن پروندهٔ «' + no + '»' + (p.buyerCo ? ' — ' + p.buyerCo : '') + '\n\nپرونده از بایگانی حذف و به «پرونده‌های فروش» برمی‌گردد؛ اسناد، رویدادهای QC/ارسال، هزینه‌ها و زیان‌ها همراه آن برمی‌گردند و شناسهٔ پرونده (لینک تنخواه/چک/فاکتور) حفظ می‌شود.\nاین کار تا پیش از «حذف قطعی» هر زمان قابل انجام است.\n\nادامه می‌دهید؟';
-  if (!confirm(msg)) return;
-  var res = window.ptfSalesfileRestoreFromArchive(no, { mode: 'auto' });
-  if (!res || !res.ok) {
-    var map = {
-      not_found: 'پرونده در بایگانی یافت نشد — صفحه را همگام‌سازی کنید.',
-      not_archived: 'این پرونده بایگانی‌شده نیست.',
-      read_projects: 'خواندن دادهٔ بایگانی ناموفق بود.',
-      read_deals: 'خواندن دادهٔ پرونده‌های فروش ناموفق بود.',
-      project_delete_failed: 'حذف پرونده از بایگانی کامل نشد.',
-      deal_upsert_failed: 'ثبت پرونده در فهرست فروش کامل نشد.'
-    };
-    alert('⛔ به جریان انداختن انجام نشد: ' + (map[res && res.why] || String(res && res.why || 'خطای نامشخص')));
-    return;
-  }
-  try { audit('بایگانی', '↩️ به جریان افتادن پروندهٔ ' + no + ' از بایگانی' + (res.mode === 'prefer-live' ? ' (یکتاسازی — نسخهٔ فعال ' + (res.dupKept || '') + ' حفظ شد)' : ' → پرونده فروش ' + (res.dealCd || '')), res.dealCd || no); } catch (eA) {}
-  try { if (typeof notify === 'function') notify({ toRoles: ['admin', 'chairman', 'ceo'], title: '↩️ پروندهٔ ' + no + (res.mode === 'prefer-live' ? ' — رونوشت بایگانی‌اش حذف و نسخهٔ فعال حفظ شد (یکتاسازی)' : ' از بایگانی به پرونده‌های فروش بازگردانده شد'), kind: 'system', channels: ['cart'] }); } catch (eN) {}
-  try { hideModal(); } catch (eH) {}
-  try { if (typeof renderProjects2 === 'function') renderProjects2(); } catch (eR1) {}
-  try { if (typeof renderDeals === 'function') renderDeals(); } catch (eR2) {}
-  var okMsg = res.mode === 'prefer-live'
-    ? '✅ یکتاسازی انجام شد — نسخهٔ فعال در جریان حفظ و رونوشت بایگانی حذف شد'
-    : '✅ پرونده از بایگانی خارج و به پرونده‌های فروش برگشت';
-  if (typeof ptfToast === 'function') ptfToast(okMsg, 'ok'); else alert(okMsg);
-};
 function ptfArchivePurgeClose(){document.querySelectorAll('#ptfArchivePurgeDlg').forEach(function(x){x.remove();});}
 window.ptfArchivePurgeClose=ptfArchivePurgeClose;
 function ptfArchivePurgeApi(action,payload){if(typeof window.ptfSalesDomainApi!=='function')return Promise.reject(new Error('موتور فرمان سرور بارگذاری نشده است'));return window.ptfSalesDomainApi(action,payload||{});}
@@ -297,8 +241,6 @@ function openProject(no) {
     '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="ptfOpenProjectBinder(\'' + ptfOnClickArg(no) + '\')">🗄️ زونکن دیجیتال</button>' +
     /* v34.5.8: نمایش سود پرونده از بایگانی/پرونده فروش حذف شد — موتور سال مالی دست‌نخورده */
     (typeof ptfLossOpen === 'function' && ['admin','chairman','ceo','commercial'].indexOf(curRole()) > -1 ? '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'project\',\'' + ptfOnClickArg(no) + '\')">💥 ثبت زیان پروژه</button>' : '') +
-    /* v34.38.14 (RESTORE): بازگشت پروندهٔ بایگانی‌شده به جریان — تا پیش از «حذف قطعی» */
-    (window.ptfArchiveCaseCanRestore && window.ptfArchiveCaseCanRestore(p) && ptfArcDocAllowed() ? '<button class="bt" style="font-size:12px;background:#065f46;color:#fff" onclick="ptfArchiveCaseRestore(\'' + ptfOnClickArg(no) + '\')">↩️ به جریان انداختن پرونده</button>' : '') +
     (p.state === 'archived' && ptfArchivePurgeAllowed() ? '<button class="bt" style="font-size:12px;background:#991b1b;color:#fff" onclick="ptfArchivePurgeOpen(\'' + ptfOnClickArg(no) + '\')">🧹 حذف قطعی داده آزمایشی</button>' : '') +
     (p.archiveKey
       ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="openStoredFile(\'' + ptfOnClickArg(p.archiveKey) + '\')">🗄 دانلود zip بایگانی</button>' +

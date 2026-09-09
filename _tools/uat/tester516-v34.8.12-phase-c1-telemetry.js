@@ -14,7 +14,7 @@ var ver = JSON.parse(read('VERSION.json'));
 var api = read('api/crm.php');
 var doc = read('PHASE-C1-HOT-COLLECTIONS.md');
 
-T('VERSION.json = v34.38.14', ver.crm_version === 'v34.38.14', ver.crm_version);
+T('VERSION.json = v34.38.9', ver.crm_version === 'v34.38.9', ver.crm_version);
 T('تله‌متری push در data_push نوشته می‌شود', /PHASE-C1 — اندازه‌گیری[\s\S]{0,200}push_stats\.json/.test(api));
 T('شمارش تعارض و reject تفکیک‌شده ثبت می‌شود', /\$row\['conflicts'\][\s\S]{0,200}\$row\['rejects'\]/.test(api));
 T('نوشتن stats اتمیک است (tmp+rename)', /tmpS = \$statsFile \. '\.tmp\.'[\s\S]{0,200}@rename\(\$tmpS, \$statsFile\)/.test(api));

@@ -184,5 +184,5 @@ function makeCtx() {
 function finish() {
   console.log('\n— tester543 (v34.38.0: R4-گام۱ — پرچم PTF_LEGACY_PUSH_OFF + داشبورد تصمیم) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
-  process.exit(f > 0 ? 1 : 0);
+  if (f > 0) process.exit(1);
 }

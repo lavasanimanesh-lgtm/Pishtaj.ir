@@ -105,13 +105,6 @@
     writeFailures: {},
     lastPushResult: null,
     lastPullResult: null,
-    pullRetryAttempt: 0,
-    pullRetryTimer: null,
-    atomicFailStreak: 0,      /* v34.38.11: شکست‌های پیاپی pull اتمیک ⇒ عبور به مسیر دلتا */
-    lastAtomicFailure: null,  /* v34.38.11: آخرین علت شکست اتمیک برای تشخیص و پیام دقیق */
-    lastUnavailableKeys: [],  /* v34.38.11: کلیدهایی که سرور ناخوانا اعلام کرده است */
-    bootstrapAttempt: 0,      /* v34.38.11: شمارندهٔ تلاش bootstrap برای backoff پیام */
-    lastBootstrapNotice: null,
     projectionPreserved: {}
   };
 
@@ -320,12 +313,6 @@
       lastPushResult: state.lastPushResult,
       lastPullResult: state.lastPullResult,
       projectionPreserved: Object.assign({}, state.projectionPreserved),
-      /* v34.38.11: وضعیت مسیر pull اتمیک برای «تشخیص همگام‌سازی» تنظیمات — چرا bootstrap
-         کامل نشد و کدام کلیدها روی سرور ناخوانا بوده‌اند. */
-      atomicFailStreak: +state.atomicFailStreak || 0,
-      lastAtomicFailure: state.lastAtomicFailure,
-      unavailableKeys: (state.lastUnavailableKeys || []).slice(),
-      bootstrapAttempt: +state.bootstrapAttempt || 0,
       lastError: readSyncLastError()
     };
   };
@@ -455,37 +442,18 @@
   /* ===== v14.7 (US-382 — سپر ضد داده‌صفر، ریشه حادثه پاک شدن مشتریان) =====
      ① کلاینت: کلید اصلی که آخرین pull آن ناخالی بود، با فهرست خالی push نمی‌شود (هشدار یک‌باره).
      ② آشکارساز افت انبوه: کاهش >۵۰٪ رکورد کلیدهای حیاتی → audit + اعلان فوری admin/chairman. */
-  /* v34.38.12 (GUARD-BLINDSPOT — RCA حذف ۶۸ درخواست تأمین): فهرست دستی، ptf_crm_rfqsmart
-     را نداشت؛ نه سپر ضد داده‌صفر روی آن کار می‌کرد و نه آشکارساز افت انبوه. حالا همهٔ
-     مجموعه‌های همگام‌شونده زیر سپرند (کلیدهای آبجکتی خودبه‌خود نادیده گرفته می‌شوند،
-     چون هر دو تابع فقط روی Array عمل می‌کنند) و هر کلید جدیدی خودکار پوشش می‌گیرد. */
-  var GUARD_KEYS = SYNC_KEYS.slice();
+  var GUARD_KEYS = ['ptf_crm_customers', 'ptf_crm_rfqs', 'ptf_crm_offers', 'ptf_crm_suppliers', 'ptf_crm_products', 'ptf_crm_invoices', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_smsbook', 'ptf_crm_payables', 'ptf_crm_opex', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns', 'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments', 'ptf_crm_corrections']; /* v16.7 BUG-018 + v18.1 R9: کلیدهای مالی/تنخواه/سهامداران/سال مالی زیر سپر داده‌صفر | v34.5.10: مرجوعی‌های مالیاتی/فروش به‌دلیل ماهیت مالی به سپر داده‌صفر اضافه شدند (tester341) */
   function guardCounts() { try { return JSON.parse(localStorage.getItem('ptf_guard_counts') || '{}'); } catch (e) { return {}; } }
   function saveGuardCounts(c) { try { localStorage.setItem('ptf_guard_counts', JSON.stringify(c)); } catch (e) {} }
-  /* v34.38.12: مبنای سپر نباید از یک «نمای ناقص» به‌روز شود. اگر آینهٔ فاز B فعال
-     ولی هنوز آب‌رسانی نشده باشد، rd() برای کلیدهای offloadشده null می‌دهد و نسخهٔ
-     قبلی همان صفر را به‌عنوان مبنا ثبت می‌کرد — یعنی سپر خودش خلع‌سلاح می‌شد. */
-  function mirrorUnhydrated() {
-    try { return !!(typeof window.ptfBMirrorActive === 'function' && window.ptfBMirrorActive() && !window.ptfBIdbHydrated); } catch (eM) { return false; }
-  }
-  window.ptfSyncMirrorUnhydrated = mirrorUnhydrated;
   window.ptfUpdateGuardCounts = function () {
-    if (mirrorUnhydrated()) return false;
     var c = guardCounts();
     GUARD_KEYS.forEach(function (k) {
-      try {
-        var raw = rd(k);
-        if (raw === null || raw === undefined || raw === '') return; /* ناشناخته ≠ صفر */
-        var a = JSON.parse(raw);
-        if (Array.isArray(a)) c[k] = a.length;
-      } catch (e) {}
+      try { var a = JSON.parse(rd(k) || '[]'); if (Array.isArray(a)) c[k] = a.length; } catch (e) {}
     });
     saveGuardCounts(c);
-    return true;
   };
   function massDropCheck() {
     try {
-      if (mirrorUnhydrated()) return; /* v34.38.12: نمای ناقص = هشدار کاذب */
       var c = guardCounts();
       GUARD_KEYS.forEach(function (k) {
         var prev = +c[k] || 0;
@@ -515,9 +483,7 @@
     /* v34.8.43 (R5/T4-1b): نشست JS (SS) یا کوکی HttpOnly — کوکی برای تب‌های تازه کافی است
        چون سرور در نبود هدر از آن می‌پذیرد. */
     try { if (typeof window.ptfAuthOk === 'function' && window.ptfAuthOk()) return true; } catch (eA) {}
-    try {
-      return !!(typeof ptfAuthToken === 'function' ? ptfAuthToken() : '');
-    } catch (e) { return false; }
+    try { return !!(typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); } catch (e) { return false; }
   }
 
   /* ============ v34.7.91 (SYNC-DIAG-001) — خود-تشخیص همگام‌سازی ============
@@ -595,8 +561,6 @@
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
       '<button class="bt" onclick="ptfSyncRunDiagnostics()">🔄 بررسی اتصال/نشست</button>' +
       '<button class="bt bt-o" onclick="ptfSyncFlushNow(function(ok){ if(typeof ptfToast===\'function\') ptfToast(ok?\'همگام‌سازی انجام شد؛ همهٔ تغییرات ارسال شد\':\'هنوز تغییرات ارسال‌نشده در صف است؛ نوار وضعیت را ببینید\', ok?\'ok\':\'warn\'); })">⬆ تلاش مجدد ارسال</button>' +
-      /* v34.38.11: دریافت کامل مجدد — برای وقتی کاربر گزارش می‌دهد «داده کامل بارگذاری نشد». */
-      '<button class="bt bt-o" onclick="ptfSyncFullResync(function(r){ if(typeof ptfToast===\'function\') ptfToast((r&&r.ok!==false)?(\'✅ دریافت کامل انجام شد (\'+(+r.applied||0)+\' بخش به‌روز شد)\'):(\'⚠️ دریافت کامل انجام نشد — علت: \'+((r&&r.reason)||\'نامشخص\')), (r&&r.ok!==false)?\'ok\':\'warn\'); if(typeof ptfSyncDiagnosticsRefresh===\'function\') ptfSyncDiagnosticsRefresh(); })">⬇ دریافت کامل مجدد</button>' +
       '</div>';
   };
   window.ptfSyncDiagnosticsRefresh = function () {
@@ -624,20 +588,7 @@
     var writeLine = c.writeFailures.length
       ? '<span style="color:#b91c1c">🔴 ' + c.writeFailures.length + ' کلید مشکل حافظهٔ محلی؛ تب را نبندید: ' + escP(c.writeFailures.join('، ')) + '</span>'
       : '<span style="color:#059669">✅ حافظهٔ محلی برای رکوردها در این نشست خطای ثبت نداده</span>';
-    /* v34.38.11: وضعیت دریافت کامل (bootstrap) — گزارش «داده کامل نمی‌آید» باید در همین
-       کادر پاسخ داشته باشد: bootstrap موفق شده یا نه، آخرین علت شکست مسیر اتمیک چه بوده
-       و کدام کلیدها را سرور ناخوانا اعلام کرده است. */
-    var boot = state.bootstrapped
-      ? '<span style="color:#059669">✅ دریافت کامل اولیه انجام شده است</span>'
-      : '<span style="color:#b45309">⚠️ دریافت کامل اولیه هنوز تکمیل نشده (تلاش ' + (+state.bootstrapAttempt || 0) + ')</span>';
-    if (state.lastAtomicFailure && state.lastAtomicFailure.reason) {
-      boot += '<br><small style="color:#94a3b8">آخرین علت شکست دریافت اتمیک: ' + escP(state.lastAtomicFailure.reason) + '</small>';
-    }
-    if ((state.lastUnavailableKeys || []).length) {
-      boot += '<br><span style="color:#b45309">⚠️ کلیدهای ناخوانا روی سرور (نسخهٔ محلی حفظ شد): ' + escP(state.lastUnavailableKeys.slice(0, 8).join('، ')) + '</span>';
-    }
     el.innerHTML = '<div>' + tokenLine + '</div>' +
-      '<div>' + boot + '</div>' +
       '<div>' + dirtyLine + '</div>' +
       '<div>' + queueLine + '</div>' +
       '<div>' + writeLine + '</div>' +
@@ -1031,18 +982,6 @@
   function pushViaPhaseB(done) {
     try {
       if (typeof window.ptfBFlushQueue !== 'function') return false;
-      /* v34.38.12 (PRE-BOOTSTRAP-PUSH — ریشهٔ حذف ۶۸ درخواست تأمین): گیت US-384
-         «تا سینک اولیه کامل نشده push ممنوع» فقط در pushDirty بود و مسیر فاز B از
-         بالای همان تابع، پیش از گیت، رد می‌شد. دستگاهی که هنوز snapshot سرور را
-         نگرفته (یا آینهٔ IDB آب‌رسانی نشده) نمای ناقصی از مجموعه دارد؛ ارسال آن
-         نما یعنی رونویسی دادهٔ سالم سرور. صف dirty پایدار است و بعد از bootstrap
-         خودبه‌خود ارسال می‌شود — هیچ تغییری گم نمی‌شود، فقط عقب می‌افتد. */
-      if (!state.bootstrapped) {
-        try { if (typeof window.ptfBEnqueueKeys === 'function') window.ptfBEnqueueKeys(Object.keys(state.dirty)); } catch (eQ) {}
-        schedulePush();
-        if (typeof done === 'function') done(false, { reason: 'awaiting-bootstrap' });
-        return true;
-      }
       var dirtyKeys = Object.keys(state.dirty);
       if (typeof window.ptfBEnqueueKeys === 'function' && !window.ptfBEnqueueKeys(dirtyKeys)) {
         dirtyKeys.forEach(function (k) { noteWriteFailure(k, 'صف فاز B روی مرورگر پایدار نشد'); });
@@ -1110,36 +1049,14 @@
         if ((+gc[k] || 0) < 4) return true;
         try {
           var arr = JSON.parse(rd(k) || '[]');
-          if (!Array.isArray(arr)) return true;
-          var prevCount = +gc[k] || 0;
-          /* v34.38.12 (MASS-DELETE-SHIELD کلاینت): «خالی» تنها حالت خطرناک نبود —
-             حادثهٔ ۱۴۰۵/۰۶/۱۷ با ارسال یک آرایهٔ تک‌عنصری روی ۶۸ رکورد سرور رخ داد.
-             هر افت بیش از نصف (و بیش از ۳ رکورد) بدون سنگ‌قبرِ متناظر، همین‌جا متوقف
-             می‌شود؛ pull بعدی نسخهٔ سرور را برمی‌گرداند و merge می‌کند. */
-          var tombCount = 0;
-          try {
-            var arch = JSON.parse(rd('ptf_crm_deleted_archive') || '[]');
-            if (Array.isArray(arch)) tombCount = arch.length;
-          } catch (eArch) {}
-          var vanished = prevCount - arr.length;
-          /* آرایهٔ خالی: همان سپر US-382 (بدون تغییر).
-             افت شدید: فقط وقتی مسدود می‌شود که نمای محلی اثباتاً ناقص باشد (آینهٔ
-             فاز B آب‌رسانی نشده) — دقیقاً شرایط حادثه. حذف انبوهِ عمدی کاربر که
-             سنگ‌قبر دارد مسدود نمی‌شود؛ داوری نهایی با سپر سروری است که هر ردیف را
-             با بایگانی سنگ‌قبر می‌سنجد. */
-          var catastrophic = (arr.length === 0) || (vanished > 3 && arr.length < prevCount / 2 && mirrorUnhydrated());
-          if (catastrophic) {
+          if (Array.isArray(arr) && arr.length === 0) {
             delete state.dirty[k];
             saveDirty();
-            var lbl = k.replace('ptf_crm_', '');
             if (!window._ptfZeroWarned) {
               window._ptfZeroWarned = true;
-              alert('🛡 سپر داده (US-382/v34.38.12): فهرست «' + lbl + '» در این دستگاه ' + arr.length + ' رکورد دارد ولی آخرین نسخهٔ سالم ' + prevCount + ' رکورد بود — ارسال متوقف شد تا دادهٔ سرور پاک نشود.\n(اگر حذف واقعاً عمدی بوده، رکوردها را از خود برنامه حذف کنید تا سنگ‌قبر ثبت شود؛ برای پاک‌سازی کامل از «شروع بهره‌برداری واقعی» استفاده کنید)');
+              alert('🛡 سپر داده (US-382): فهرست «' + k.replace('ptf_crm_', '') + '» در این دستگاه خالی است ولی سرور نسخه ناخالی دارد — ارسال متوقف شد تا داده سرور پاک نشود.\n(در صورت نیاز واقعی به پاک‌سازی، از «شروع بهره‌برداری واقعی» در تنظیمات استفاده کنید)');
             }
-            try { audit('سیستم', '🛡 سپر حذف انبوه: push «' + lbl + '» با ' + arr.length + ' رکورد در برابر ' + prevCount + ' رکورد مسدود شد (سنگ‌قبرهای محلی: ' + tombCount + ')', k); } catch (eG) {}
-            try {
-              if (typeof notify === 'function') notify({ toRoles: ['admin', 'chairman'], title: '🛡 ارسال مشکوک «' + lbl + '» مسدود شد: ' + prevCount + ' → ' + arr.length + ' رکورد. اگر عمدی نبوده، دستگاه را رفرش کنید تا نسخهٔ سرور بازگردد.', kind: 'data_risk', channels: ['cart'], link: { panel: 'set' }, actionable: true, dkey: 'mass-del-' + lbl });
-            } catch (eN2) {}
+            try { audit('سیستم', '🛡 سپر داده‌صفر: push خالی ' + k + ' مسدود شد (US-382)', k); } catch (eG) {}
             return false;
           }
         } catch (e2) {}
@@ -1178,17 +1095,6 @@
           var rejected = d.rejected || [];
           var skipped = d.skipped || [];
           var forbidden = d.forbidden || [];
-          /* v34.38.12: سپر سروریِ حذف انبوه فعال شده — کاربر باید بداند چه چیزی نجات
-             یافت (کلید در همان پاسخ conflict هم هست، پس merge و ارسال دوباره خودکار
-             انجام می‌شود و تغییرات واقعی کاربر گم نمی‌شوند). */
-          try {
-            var blocked = d.massDeletionBlocked || {};
-            Object.keys(blocked).forEach(function (bk) {
-              var rep = blocked[bk] || {}, lbl = bk.replace('ptf_crm_', '');
-              audit('سیستم', '🛡 سپر سروری حذف انبوه: ارسال «' + lbl + '» رد شد — ' + (+rep.lost || 0) + ' رکورد بدون سنگ‌قبر حذف می‌شد (سرور ' + (+rep.serverCount || 0) + ' ← ارسالی ' + (+rep.incomingCount || 0) + ')', bk);
-              if (typeof ptfToast === 'function') ptfToast('🛡 ارسال «' + lbl + '» رد شد: ' + (+rep.lost || 0) + ' رکورد بدون ثبت حذف، از بین می‌رفت. نسخهٔ سرور ادغام شد.', 'warn');
-            });
-          } catch (eMass) {}
           /* پاسخ ok فقط یعنی درخواست پردازش شد، نه اینکه همهٔ کلیدها ذخیره شدند.
              حذف dirty صرفاً با ACK صریح هر کلید مجاز است؛ در غیر این صورت پیام زرد
              باید بماند تا کاربر با سبزشدن کاذب، تغییرِ نرسیده را امن تصور نکند. */
@@ -1369,276 +1275,6 @@
     try { localStorage.setItem('ptf_sync_ping', JSON.stringify({ rev: state.lastRev, t: Date.now() })); } catch (e) {}
   }
 
-  /* v34.38.10 (SYNC-SNAPSHOT-INTEGRITY): پاسخ pull قبل از هر write اعتبارسنجی
-     می‌شود. JSON کاملِ HTTP به‌تنهایی کافی نیست: اگر سرور یک projection قدیمی،
-     کوتاه‌شده یا با shape نادرست بدهد، count/bytes اعلام‌شده باید آن را رد کند.
-     این گیت روی پاسخ‌های قدیمی که snapshot ندارند backward-compatible است؛ اما
-     پاسخ v2 ناقص fail-closed است و آخرین snapshot سالم دست‌نخورده می‌ماند. */
-  function ptfUtf8Bytes(value) {
-    value = String(value == null ? '' : value);
-    try { if (typeof TextEncoder === 'function') return new TextEncoder().encode(value).length; } catch (eTE) {}
-    try { return unescape(encodeURIComponent(value)).length; } catch (eUE) { return value.length; }
-  }
-  function ptfPayloadShape(value) {
-    if (Array.isArray(value)) return { kind: 'array', count: value.length };
-    if (value && typeof value === 'object') return { kind: 'object', count: Object.keys(value).length };
-    return { kind: typeof value, count: null };
-  }
-  function ptfSha256(value) {
-    try {
-      var c = window.crypto || window.msCrypto;
-      if (!c || !c.subtle || typeof TextEncoder !== 'function') return Promise.resolve('');
-      return c.subtle.digest('SHA-256', new TextEncoder().encode(String(value))).then(function (buf) {
-        return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
-      });
-    } catch (eHash) { return Promise.resolve(''); }
-  }
-  /* v34.38.11: مقایسهٔ hash «canonical» حذف شد. canonicalSha256 سرور روی بازتولید
-     json_encode پی‌اچ‌پی محاسبه می‌شود و مرورگر هرگز نمی‌تواند آن را بازسازی کند
-     (۱.۰ در برابر ۱، {} در برابر []، خروجی PRETTY_PRINT فرمان‌های دامنه، فرار اسلش).
-     معیار درست، sha256 خودِ بایت‌های payload است که chunk بایتی دقیقاً همان را
-     تحویل می‌دهد — نگاه کنید به verifyAssembled در ptfSyncPullAtomic. */
-  function ptfValidatePullPayload(d) {
-    if (!d || d.ok !== true) return { ok: false, reason: 'invalid-response' };
-    var snapshot = d.snapshot;
-    /* سرورهای قدیمی هنوز contract ندارند؛ تا زمان rollout کامل، فقط shape پایه
-       را بررسی می‌کنیم و مسیر قبلی را نمی‌شکنیم. */
-    if (!snapshot) return { ok: true, legacy: true };
-    if (snapshot.complete !== true || (+snapshot.rev || 0) !== (+d.rev || 0) ||
-        (d.snapshotId && String(d.snapshotId) !== String(snapshot.id || ''))) return { ok: false, reason: 'snapshot-incomplete' };
-    var data = d.data || {}, stats = snapshot.keys || {}, dataKeys = Object.keys(data);
-    if (!Array.isArray(snapshot.keyList) || (+snapshot.count || 0) !== snapshot.keyList.length || snapshot.keyList.length !== dataKeys.length ||
-        !/^[a-f0-9]{64}$/i.test(String(snapshot.checksum || ''))) return { ok: false, reason: 'snapshot-manifest-invalid' };
-    var listed = snapshot.keyList.slice().sort().join('\\x1f'), received = dataKeys.slice().sort().join('\\x1f');
-    if (listed !== received) return { ok: false, reason: 'snapshot-key-list-mismatch' };
-    var bad = '';
-    Object.keys(data).some(function (k) {
-      if (SYNC_KEYS.indexOf(k) < 0) { bad = k + ':unknown-key'; return true; }
-      if (typeof data[k] !== 'string') { bad = k + ':not-string'; return true; }
-      var parsed;
-      try { parsed = JSON.parse(data[k]); } catch (eJson) { bad = k + ':invalid-json'; return true; }
-      var actual = ptfPayloadShape(parsed), expected = stats[k];
-      if (d.contract === 'ptf-sync-v2' && (!expected || expected.count == null || expected.bytes == null ||
-          !/^[a-f0-9]{64}$/i.test(String(expected.sha256 || '')))) {
-        bad = k + ':integrity-manifest-missing'; return true;
-      }
-      if (expected) {
-        if (expected.kind !== actual.kind || (expected.count != null && +expected.count !== actual.count) ||
-            (expected.bytes != null && +expected.bytes !== ptfUtf8Bytes(data[k]))) {
-          bad = k + ':integrity-mismatch'; return true;
-        }
-      }
-      return false;
-    });
-    return bad ? { ok: false, reason: bad } : { ok: true, legacy: false, snapshotId: snapshot.id || '' };
-  }
-  window.ptfSyncValidatePull = ptfValidatePullPayload;
-
-  /* v34.38.10 (ATOMIC-SNAPSHOT-PULL): pull کاملِ قابل ادامه.
-     data_pull برای deltaهای کوچک سریع‌تر است؛ این مسیر برای bootstrap/بازیابی کامل
-     manifest می‌گیرد، collectionهای بزرگ را با حداکثر چهار worker در chunk می‌خواند
-     و فقط پس از تکمیل همهٔ کلیدها آن‌ها را روی cache فعال می‌کند.
-
-     v34.38.11 (ATOMIC-PULL-COMPLETION — RCA «دریافت کامل CRM انجام نشد»): سه ریشهٔ
-     شکستِ همیشگی این مسیر برداشته شد.
-     ۱) صحت‌سنجی دیگر روی بازتولید JSON در مرورگر تکیه نمی‌کند. chunk بایتی، تکه‌های
-        دقیقِ همان رشتهٔ سرور را می‌دهد و کلاینت فقط الحاق + sha256 می‌کند. قبلاً
-        rows دوباره با JSON.stringify کدگذاری می‌شد و هر اختلاف طبیعی PHP/JS
-        (۱.۰ در برابر ۱، {} در برابر []، فرار اسلش) کل snapshot را رد می‌کرد —
-        و بدتر، در صورت عبور، شکل داده را هم عوض می‌کرد.
-     ۲) کلید ناخوانا دیگر کل bootstrap را زمین نمی‌زند؛ سرور آن را در unavailable
-        گزارش می‌کند، بقیه کامل می‌آیند و آخرین نسخهٔ سالم محلی همان کلید می‌ماند.
-     ۳) تغییر rev سراسری وسط pull با pin کردن rev هر collection تحمل می‌شود و در
-        صورت تغییر واقعی، manifest تازه با backoff دوباره تلاش می‌شود (چند نوبت)،
-        به‌جای شکست پس از یک retry. */
-  var atomicPullRunning = false;
-  var ATOMIC_CHUNK_BYTES = 262144;
-  window.ptfSyncPullAtomic = function (cb, options) {
-    options = options || {};
-    if (atomicPullRunning) { if (typeof cb === 'function') cb({ ok: false, reason: 'busy' }); return; }
-    atomicPullRunning = true;
-    state.pullRequesting = true;
-    var maxAttempts = 4;
-    function finish(result) {
-      atomicPullRunning = false;
-      state.pullRequesting = false;
-      state.lastPullResult = result || { ok: false, reason: 'unknown' };
-      if (typeof cb === 'function') { try { cb(result || { ok: false, reason: 'unknown' }); } catch (eCb) {} }
-    }
-    function getJson(url, retryNo) {
-      retryNo = +retryNo || 0;
-      return Promise.resolve().then(function () { return fetch(url, { headers: authHeaders(false), cache: 'no-store' }); }).then(function (r) {
-        return r.json().then(function (d) { var httpOk = (r.ok === undefined) ? true : r.ok; if (!httpOk || !d || d.ok !== true) { var e = new Error((d && d.error) || ('HTTP ' + (r.status || 'unknown'))); e.ptfReason = (d && d.error) || 'endpoint'; throw e; } return d; });
-      }).catch(function (e) {
-        /* network/5xx/transport failures get bounded exponential backoff; auth and
-           snapshot conflicts are surfaced immediately to the outer retry policy. */
-        var msg = String(e && (e.message || e.ptfReason) || '');
-        if (retryNo >= 2 || e && e.ptfReason === 'snapshot_changed' || /authentication|forbidden|unauthorized|collection_forbidden/i.test(msg)) throw e;
-        return new Promise(function (resolve) { setTimeout(resolve, 250 * Math.pow(2, retryNo)); }).then(function () { return getJson(url, retryNo + 1); });
-      });
-    }
-    function pullOneCollection(snapshotId, key, spec, archiveRev) {
-      if (!spec || spec.available !== true) return Promise.reject(new Error('collection_unavailable:' + key));
-      var pins = '&keyRev=' + (+spec.rev || 0) + '&archiveRev=' + (+archiveRev || 0);
-      var base = API + '?action=data_chunk&collection=' + encodeURIComponent(key) + '&snapshot=' + encodeURIComponent(snapshotId) + pins;
-      function verifyAssembled(assembled) {
-        /* بایت‌های دریافتی باید دقیقاً همان payload سرور باشند: طول + شکل + sha256. */
-        if (spec.bytes != null && ptfUtf8Bytes(assembled) !== +spec.bytes) throw new Error('snapshot_bytes_mismatch:' + key);
-        var parsed;
-        try { parsed = JSON.parse(assembled); } catch (eParse) { throw new Error('snapshot_payload_invalid:' + key); }
-        var sh = ptfPayloadShape(parsed);
-        if (spec.kind && sh.kind !== spec.kind) throw new Error('snapshot_kind_mismatch:' + key);
-        if (spec.count != null && sh.count !== +spec.count) throw new Error('snapshot_count_mismatch:' + key);
-        var want = String(spec.payloadSha256 || spec.sha256 || '');
-        if (!/^[a-f0-9]{64}$/i.test(want)) return Promise.resolve(assembled);
-        return ptfSha256(assembled).then(function (actual) {
-          /* مرورگر بدون crypto.subtle: طول/شکل/تعداد تأیید شده‌اند و hash مانع نمی‌شود. */
-          if (actual && actual.toLowerCase() !== want.toLowerCase()) throw new Error('snapshot_checksum_mismatch:' + key);
-          return assembled;
-        });
-      }
-      /* مسیر ترجیحی v34.38.11 — برش بایتیِ دقیق، بدون هیچ بازتولید JSON در مرورگر. */
-      if (spec.chunkBytes || options.byteChunks) {
-        var limit = Math.max(4096, +spec.chunkBytes || ATOMIC_CHUNK_BYTES);
-        var parts = [], byteOffset = 0, totalBytes = null, guard = 0;
-        var nextPart = function () {
-          return getJson(base + '&mode=bytes&offset=' + byteOffset + '&limit=' + limit).then(function (d) {
-            if (d.snapshot !== snapshotId || typeof d.part !== 'string') throw new Error('snapshot_payload_invalid:' + key);
-            if (totalBytes === null) totalBytes = +d.bytesTotal || 0;
-            if ((+d.bytesTotal || 0) !== totalBytes) throw new Error('snapshot_progress_invalid:' + key);
-            var nextOff = +d.nextOffset || 0;
-            if (!d.done && nextOff <= byteOffset) throw new Error('snapshot_progress_invalid:' + key);
-            if (++guard > 8192) throw new Error('snapshot_progress_invalid:' + key);
-            parts.push(d.part);
-            byteOffset = nextOff;
-            if (!d.done) return nextPart();
-            var assembled = parts.join('');
-            if (ptfUtf8Bytes(assembled) !== totalBytes) throw new Error('snapshot_bytes_mismatch:' + key);
-            return verifyAssembled(assembled);
-          });
-        };
-        return nextPart();
-      }
-      /* سازگاری عقب‌رو با سرور قدیمی‌تر (بدون mode=bytes) — اسکیوی استقرار. */
-      var kind = spec.kind || 'array';
-      if (kind !== 'array') {
-        return getJson(base + '&offset=0&limit=500').then(function (d) {
-          if (d.snapshot !== snapshotId || typeof d.value !== 'string') throw new Error('snapshot_payload_invalid:' + key);
-          var parsed = JSON.parse(d.value), sh = ptfPayloadShape(parsed);
-          if (spec.count != null && sh.count !== spec.count) throw new Error('snapshot_count_mismatch:' + key);
-          return d.value;
-        });
-      }
-      var rows = [], offset = 0, total = null;
-      function next() {
-        return getJson(base + '&offset=' + offset + '&limit=500').then(function (d) {
-          if (d.snapshot !== snapshotId || !Array.isArray(d.rows)) throw new Error('snapshot_payload_invalid:' + key);
-          if (total === null) total = +d.total || 0;
-          if (+d.total !== total || (d.nextOffset <= offset && !d.done)) throw new Error('snapshot_progress_invalid:' + key);
-          rows = rows.concat(d.rows);
-          offset = +d.nextOffset || offset;
-          if (!d.done) return next();
-          if (total !== rows.length || (spec.count != null && spec.count !== rows.length)) throw new Error('snapshot_count_mismatch:' + key);
-          return JSON.stringify(rows);
-        });
-      }
-      return next();
-    }
-    function runAttempt(attempt, carry) {
-      /* v34.38.11: پیشرفت تلاش قبلی هدر نمی‌رود — collectionهایی که rev خودشان و rev
-         بایگانی سنگ‌قبر عوض نشده، دوباره دانلود نمی‌شوند و فقط کلیدِ واقعاً تغییرکرده
-         تازه گرفته می‌شود. روی دیتاست چندمگابایتی، این تفاوت «هرگز تمام نشدن» و
-         «تمام شدن» است. */
-      carry = carry || {};
-      var manifestUrl = API + '?action=data_manifest';
-      getJson(manifestUrl).then(function (manifest) {
-        if (!manifest || manifest.contract !== 'ptf-sync-v2') { finish({ ok: false, reason: 'endpoint', atomic: true }); return; }
-        if (!manifest.snapshot || manifest.snapshot.complete !== true) { finish({ ok: false, reason: 'manifest_incomplete', atomic: true }); return; }
-        var snapshot = manifest.snapshot, specs = snapshot.keys || {}, keys = Object.keys(specs);
-        /* کلیدهای ناخوانا (فایل غایب/JSON خراب) از منظر سرور اعلام می‌شوند؛ pull بقیه
-           کامل انجام می‌شود و نسخهٔ سالم محلیِ همان کلیدها دست‌نخورده می‌ماند. */
-        var unavailable = Object.keys(snapshot.unavailable || {});
-        if (!Array.isArray(snapshot.keyList) || (+snapshot.count || 0) !== snapshot.keyList.length || snapshot.keyList.slice().sort().join('\x1f') !== keys.slice().sort().join('\x1f') || !/^[a-f0-9]{64}$/i.test(String(snapshot.checksum || '')) ||
-            keys.some(function (k) { return !specs[k] || specs[k].available !== true || !/^[a-f0-9]{64}$/i.test(String(specs[k].payloadSha256 || specs[k].sha256 || specs[k].canonicalSha256 || '')); })) { finish({ ok: false, reason: 'manifest_integrity_invalid', atomic: true }); return; }
-        if (!keys.length) {
-          finish({ ok: true, applied: 0, rev: snapshot.rev, fresh: !(+snapshot.rev), snapshotId: snapshot.id, atomic: true, unavailable: unavailable, degraded: unavailable.length > 0 });
-          return;
-        }
-        var payload = {}, cursor = 0, failed = null, reused = 0;
-        var archiveRev = +snapshot.archiveRev || 0;
-        function worker() {
-          if (failed) return Promise.resolve();
-          var i = cursor++;
-          if (i >= keys.length) return Promise.resolve();
-          var k = keys[i];
-          var kept = carry[k];
-          if (kept && +kept.rev === (+specs[k].rev || 0) && +kept.archiveRev === archiveRev && typeof kept.str === 'string') {
-            payload[k] = kept.str; reused++;
-            return worker();
-          }
-          return pullOneCollection(snapshot.id, k, specs[k], archiveRev).then(function (str) { payload[k] = str; return worker(); }, function (e) { failed = e; return Promise.resolve(); });
-        }
-        var workers = [], n = Math.min(4, keys.length);
-        for (var w = 0; w < n; w++) workers.push(worker());
-        Promise.all(workers).then(function () {
-          if (failed) throw failed;
-          /* هیچ writeای تا این نقطه انجام نشده است: پاسخ کامل در staging حافظه است. */
-          var before = {}, staged = {}, applied = 0;
-          keys.forEach(function (k) {
-            before[k] = rd(k);
-            var str = payload[k];
-            if (options.reconcile && before[k] && typeof window.ptfSmartMerge === 'function') {
-              try {
-                var merged = window.ptfSmartMerge(k, before[k], str, { preferRemoteOpex: !state.dirty[k] });
-                if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged);
-                if (merged !== str) state.dirty[k] = true;
-                str = merged;
-              } catch (eMerge) {}
-            }
-            staged[k] = str;
-          });
-          try {
-            state.pulling = true;
-            Object.keys(staged).forEach(function (k) {
-              if (wr(k, staged[k]) === false) throw new Error('local_projection_write_failed:' + k);
-              applied++;
-            });
-            state.pulling = false;
-          } catch (eApply) {
-            state.pulling = false;
-            /* rollback best-effort؛ مهم‌تر از آن، cursor/revision تا commit کامل جلو نمی‌رود. */
-            Object.keys(before).forEach(function (k) { if (before[k] !== null && before[k] !== undefined) { try { wr(k, before[k]); } catch (eRb) {} } });
-            throw eApply;
-          }
-          applyServerMeta(manifest.meta || {}, snapshot.rev);
-          setRev(snapshot.rev);
-          saveDirty();
-          if (typeof ptfUpdateGuardCounts === 'function') ptfUpdateGuardCounts();
-          if (applied) { refreshCurrentPanel(); pingTabs(); }
-          finish({ ok: true, applied: applied, rev: snapshot.rev, fresh: !(+snapshot.rev), snapshotId: snapshot.id, atomic: true, unavailable: unavailable, degraded: unavailable.length > 0, reused: reused, attempts: attempt + 1 });
-        }).catch(function (e) {
-          var nextCarry = {};
-          Object.keys(payload).forEach(function (k) { nextCarry[k] = { rev: +((specs[k] || {}).rev || 0), archiveRev: archiveRev, str: payload[k] }; });
-          retryOrFail(attempt, e, nextCarry);
-        });
-      }).catch(function (e) { retryOrFail(attempt, e, carry); });
-    }
-    /* v34.38.11: تغییر snapshot وسط pull روی CRM شلوغ «عادی» است، نه خطا. تا سه بار
-       دیگر با manifest تازه و backoff کوتاه تلاش می‌کنیم؛ chunkهای collectionهای
-       بدون تغییر با pin شدن rev دوباره دانلود نمی‌شوند. سایر خطاها fail-closed
-       می‌مانند و آخرین snapshot سالم محلی دست‌نخورده باقی می‌ماند. */
-    function retryOrFail(attempt, e, carry) {
-      var msg = String((e && (e.ptfReason || e.message)) || '');
-      var retriable = msg.indexOf('snapshot_changed') > -1 || msg.indexOf('collection_missing') > -1;
-      if (retriable && attempt + 1 < maxAttempts) {
-        setTimeout(function () { runAttempt(attempt + 1, carry); }, Math.min(4000, 300 * Math.pow(2, attempt)));
-        return;
-      }
-      finish({ ok: false, reason: (e && e.ptfReason) || (e && e.message) || 'atomic-pull-failed', atomic: true, attempts: attempt + 1 });
-    }
-    runAttempt(0, null);
-  };
-
   /* v34.38.1 (COLD-BOOT-HYDRATE): اولین pull هر بوت، حداکثر ۲ ثانیه منتظر آب‌رسانی
      آینه IDB می‌ماند تا krevs کلیدهای offloadشده کامل باشد و به‌جای دانلود کامل
      چندمگابایتی کل دیتاست در هر رفرش، پاسخ fresh/دلتا بگیرد. fail-open: نبود
@@ -1686,36 +1322,6 @@
     }
     if (!hasSyncToken()) { retryPullAfterAuth(done, forceFull, opts); return; }
     state.authWait = 0;
-    /* v34.38.10: bootstrap/full-reconcile از snapshot chunkی اتمیک استفاده می‌کند.
-       اگر API قدیمی باشد، فقط خطای نبودن endpoint به مسیر legacy برمی‌گردد؛ خطای
-       integrity/network هرگز با pull ناقص جایگزین نمی‌شود. */
-    if (forceFull && window.PTF_CRM_SNAPSHOT_V2 === true && !(opts && opts.atomicFallback) && typeof window.ptfSyncPullAtomic === 'function') {
-      window.ptfSyncPullAtomic(function (atomicResult) {
-        atomicResult = atomicResult || { ok: false, reason: 'atomic-pull-failed' };
-        if (atomicResult.ok !== false) {
-          state.atomicFailStreak = 0;
-          state.lastAtomicFailure = null;
-          state.lastUnavailableKeys = atomicResult.unavailable || [];
-          if (done) done(atomicResult);
-          return;
-        }
-        if (atomicResult.reason === 'busy') { if (done) done(atomicResult); return; }
-        state.atomicFailStreak = (+state.atomicFailStreak || 0) + 1;
-        state.lastAtomicFailure = { reason: String(atomicResult.reason || ''), at: Date.now(), streak: state.atomicFailStreak };
-        noteSyncError('pull', 'atomic', String(atomicResult.reason || 'atomic-pull-failed'), atomicResult);
-        /* v34.38.11 (NO-DEAD-BOOTSTRAP): مسیر اتمیک هرگز نباید تنها راه ورود داده باشد.
-           سرور قدیمی (endpoint) یا دو شکست پیاپی ⇒ همان pull دلتای معتبرِ قبلی اجرا
-           می‌شود (با همان صحت‌سنجی count/bytes/sha256)، تا کاربر به‌جای حلقهٔ بی‌پایان
-           «دریافت کامل CRM انجام نشد» داده‌اش را ببیند. تلاش اتمیک در بوت بعدی و پس از
-           موفقیت دلتا دوباره از سر گرفته می‌شود. */
-        if (/endpoint|unknown|not.?found/i.test(String(atomicResult.reason || '')) || state.atomicFailStreak >= 2) {
-          pullCheck(done, forceFull, Object.assign({}, opts || {}, { atomicFallback: true, atomicFailReason: String(atomicResult.reason || '') }));
-          return;
-        }
-        if (done) done(atomicResult);
-      }, { reconcile: !!state.initialReconcile });
-      return;
-    }
     /* v31.6.23 BUG-SYNC-DIVERGENCE: startup reconciliation must not trust a
        browser's cached global rev. Two browsers can have the same rev marker
        but different localStorage contents; force=0 pulls the complete server
@@ -1741,27 +1347,11 @@
       state.pullRequesting = false;
       result = result || { ok: true };
       state.lastPullResult = result;
-      if (result.ok === false) {
-        /* retry مستقل از interval اصلی؛ شکست integrity/network فقط آخرین snapshot
-           را نگه می‌دارد و با backoff کوتاه دوباره می‌کوشد، بدون اینکه cursor جلو برود. */
-        state.pullRetryAttempt = Math.min(6, (+state.pullRetryAttempt || 0) + 1);
-        if (!state.pullRetryTimer && state.bootstrapped) {
-          var retryDelay = Math.min(60000, 1000 * Math.pow(2, state.pullRetryAttempt - 1));
-          state.pullRetryTimer = setTimeout(function () {
-            state.pullRetryTimer = null;
-            if (!state.pushing && !state.pullRequesting) pullCheck(null, false, { instant: true, allowDirtyMerge: true });
-          }, retryDelay);
-        }
-      } else {
-        state.pullRetryAttempt = 0;
-        if (state.pullRetryTimer) { try { clearTimeout(state.pullRetryTimer); } catch (eRetryClear) {} state.pullRetryTimer = null; }
-        /* پس از bootstrap، هر pull موفق snapshot-ready را دوباره اعلام می‌کند تا
-           expected setهای تازه‌رسیده (قالب/سهامدار) نیز entity-level reconcile شوند. */
-        if (state.bootstrapped) announceSnapshotReady(result);
-      }
+      /* پس از bootstrap، هر pull موفق snapshot-ready را دوباره اعلام می‌کند تا
+         expected setهای تازه‌رسیده (قالب/سهامدار) نیز entity-level reconcile شوند. */
+      if (state.bootstrapped && result.ok !== false) announceSnapshotReady(result);
       if (done) done(result);
     }
-    var pullBefore = {};
     fetch(pullUrl, { headers: authHeaders(false) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -1779,16 +1369,6 @@
           }
           noteSyncError('pull', 'server', (d.error || 'server') + ' — نوار وضعیت با پیام «سرور در دسترس نیست» خودِ پول است، نه لزوماً قطع شبکه', d);
           finishPull({ ok: false, reason: d.error || 'server' });
-          return;
-        }
-        var pullIntegrity = ptfValidatePullPayload(d);
-        if (!pullIntegrity.ok) {
-          /* پاسخ کامل نیست/با manifest نمی‌خواند: هیچ projectionای نوشته نمی‌شود و
-             cursor نیز جلو نمی‌رود؛ retry بعدی همان snapshot را دوباره می‌گیرد. */
-          state.online = true;
-          noteSyncError('pull', 'integrity', pullIntegrity.reason || 'snapshot-invalid', d);
-          setSyncBadge('warn');
-          finishPull({ ok: false, reason: 'integrity', detail: pullIntegrity.reason || '' });
           return;
         }
         if (d.fresh) {
@@ -1832,11 +1412,6 @@
           } catch (eSnap) {}
         }
         var applied = 0;
-        function pullWrite(k, value) {
-          if (!Object.prototype.hasOwnProperty.call(pullBefore, k)) pullBefore[k] = rd(k);
-          if (wr(k, value) === false) throw new Error('local_projection_write_failed:' + k);
-          applied++;
-        }
         // Sprint 104: Smart Array Merging & Concurrency Control
         Object.keys(d.data || {}).forEach(function (k) {
           if (SYNC_KEYS.indexOf(k) < 0) return;
@@ -1863,8 +1438,8 @@
             try {
               var heldMerged = window.ptfSmartMerge(k, curStr, newStr, { preferRemoteOpex: !state.dirty[k] });
               if (typeof window.ptfApplyDeletionTombstones === 'function') heldMerged = window.ptfApplyDeletionTombstones(k, heldMerged, (d.data || {})['ptf_crm_deleted_archive']);
-              if (heldMerged && heldMerged !== curStr) { pullWrite(k, heldMerged); }
-            } catch (eHeldMerge) { if (/local_projection_write_failed/.test(String(eHeldMerge && eHeldMerge.message || ''))) throw eHeldMerge; }
+              if (heldMerged && heldMerged !== curStr) { wr(k, heldMerged); applied++; }
+            } catch (eHeldMerge) {}
             return;
           }
           /* v31.7.2 BUG-SYNC-LOCAL-LOSS: records created before sync.js
@@ -1876,12 +1451,13 @@
               var startupMerged = window.ptfSmartMerge(k, curStr, newStr, { preferRemoteOpex: !state.dirty[k] });
               if (typeof window.ptfApplyDeletionTombstones === 'function') startupMerged = window.ptfApplyDeletionTombstones(k, startupMerged, (d.data || {})['ptf_crm_deleted_archive']);
               if (startupMerged && startupMerged !== curStr) {
-                pullWrite(k, startupMerged);
+                wr(k, startupMerged);
                 /* فقط اگر این دستگاه چیزی بیش از نسخهٔ سرور داشته باشد دوباره push شود.
                    اختلاف صرفِ ترتیب کلید/نرمال‌سازی نباید بعد از هر hard refresh dirty بسازد. */
                 if (startupMerged !== newStr) state.dirty[k] = true;
+                applied++;
               }
-            } catch (eStartupMerge) { if (/local_projection_write_failed/.test(String(eStartupMerge && eStartupMerge.message || ''))) throw eStartupMerge; }
+            } catch (eStartupMerge) {}
             return;
           }
           
@@ -1890,8 +1466,11 @@
             try {
               var merged = window.ptfSmartMerge(k, curStr, newStr);
               if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged, (d.data || {})['ptf_crm_deleted_archive']);
-              if (merged && merged !== curStr) pullWrite(k, merged);
-            } catch(e) { if (/local_projection_write_failed/.test(String(e && e.message || ''))) throw e; }
+              if (merged && merged !== curStr) {
+                wr(k, merged);
+                applied++;
+              }
+            } catch(e) {}
             return;
           }
           /* v34.38.2 (COST-RESURRECTION): مسیر «جایگزینی مستقیم» pull برای پرونده‌ها
@@ -1907,7 +1486,8 @@
           }
           if (state.dirty[k]) return;
           
-          pullWrite(k, newStr);
+          wr(k, newStr);
+          applied++;
         });
         state.pulling = false;
         applyServerMeta(d.meta, d.rev);
@@ -1925,14 +1505,6 @@
       })
       .catch(function (err) {
         state.pulling = false;
-        /* اگر یکی از projection writeها شکست خورد، پاسخ فعال قبلی برگردانده می‌شود؛
-           revision/krevs نیز پایین‌تر از این نقطه هرگز commit نشده‌اند. */
-        Object.keys(pullBefore).forEach(function (k) {
-          try {
-            if (pullBefore[k] !== null && pullBefore[k] !== undefined) wr(k, pullBefore[k]);
-            else { try { localStorage.removeItem(k); } catch (eRmPull) {} }
-          } catch (eRollbackPull) {}
-        });
         state.online = false;
         noteSyncError('pull', 'network', '', err);
         setSyncBadge('offline');
@@ -2010,12 +1582,6 @@
   window.ptfSyncPullNow = function (cb) {
     instantPullWaiters.push(typeof cb === 'function' ? cb : function () {});
     drainInstantPulls();
-  };
-  /* v34.38.11: «دریافت کامل مجدد» — همان مسیر bootstrap (snapshot اتمیک با گذر خودکار
-     به pull دلتا در صورت ناسالم‌بودن مسیر اتمیک). برای دکمهٔ تشخیص در تنظیمات و برای
-     ماژول‌هایی که پس از خطا می‌خواهند یک دریافت کامل و قابل‌اتکا درخواست کنند. */
-  window.ptfSyncFullResync = function (cb) {
-    pullCheck(function (res) { if (typeof cb === 'function') { try { cb(res || { ok: false, reason: 'unknown' }); } catch (eCb) {} } }, true, { allowDirtyMerge: true });
   };
   /* v34.8.22 (T5-1): نوشتن بی‌صدا — فقط برای ترفندهای نمایش (مثل فیلتر کالاهای
      مخفی حین رندر)؛ نه dirty می‌سازد نه push. تغییر «داده» هرگز از این مسیر نیست. */
@@ -2220,43 +1786,12 @@
     }
     state.initialReconcile = true;
     pullCheck(function (res) {
-      if (!res || res.ok === false) {
-        /* تا snapshot کامل موفق نشود bootstrapped/cursor معتبر اعلام نمی‌شوند؛
-           polling دلتا نباید روی local snapshot ناقص سوار شود. */
-        state.initialReconcile = true;
-        state.bootstrapped = false; window._ptfSyncBootstrapped = false;
-        state.bootstrapAttempt = (+state.bootstrapAttempt || 0) + 1;
-        var bootReason = String((res && (res.detail || res.reason)) || 'unknown');
-        if (res && /network|fetch|timeout/i.test(String(res.reason || ''))) setSyncBadge('offline');
-        else setSyncBadge('warn');
-        /* v34.38.11 (BOOT-NOTICE-SANITY): نسخهٔ قبلی هر ۵ ثانیه دقیقاً همان جملهٔ
-           بی‌اطلاعات را تکرار می‌کرد. حالا: علت واقعی در متن می‌آید، همان علت
-           حداکثر یک‌بار در دقیقه توست می‌شود و فاصلهٔ تلاش مجدد پلکانی است
-           (۵ ← ۱۰ ← ۲۰ ← ۳۰ ثانیه) تا سرورِ گرفتار بیشتر شلوغ نشود. */
-        try {
-          var prevNotice = state.lastBootstrapNotice || {};
-          var sameReason = prevNotice.reason === bootReason;
-          var quiet = sameReason && (Date.now() - (+prevNotice.at || 0)) < 60000;
-          if (!quiet && typeof ptfToast === 'function') {
-            state.lastBootstrapNotice = { reason: bootReason, at: Date.now() };
-            ptfToast('⚠️ دریافت کامل CRM هنوز انجام نشده (علت: ' + bootReason + ')؛ آخرین snapshot سالم حفظ شد و تلاش مجدد خودکار ادامه دارد.', 'warn');
-          }
-        } catch (eInitNotice) {}
-        var bootDelay = Math.min(30000, 5000 * state.bootstrapAttempt);
-        setTimeout(function () { if (!state.bootstrapped && !state.pushing && !state.pullRequesting) initialSync(); }, bootDelay);
-        return;
-      }
       state.initialReconcile = false;
       state.bootstrapped = true; window._ptfSyncBootstrapped = true;
-      state.bootstrapAttempt = 0;
-      state.lastBootstrapNotice = null;
-      /* کلید ناخوانای سرور نباید بی‌صدا بماند: کاربر باید بداند کدام بخش قدیمی است. */
-      try {
-        var degradedKeys = (res.unavailable || []).map(function (k) { return String(k).replace('ptf_crm_', ''); });
-        if (degradedKeys.length && typeof ptfToast === 'function') {
-          ptfToast('⚠️ ' + degradedKeys.length + ' بخش روی سرور قابل خواندن نبود و نسخهٔ محلی همان‌ها حفظ شد: ' + degradedKeys.slice(0, 6).join('، ') + (degradedKeys.length > 6 ? '…' : ''), 'warn');
-        }
-      } catch (eDegraded) {}
+      if (!res || res.ok === false) {
+        if (res && res.reason === 'network') setSyncBadge('offline');
+        return;
+      }
       announceSnapshotReady(res);
       var serverEmpty = !!(res.fresh && !(+res.rev));
       if (serverEmpty) {

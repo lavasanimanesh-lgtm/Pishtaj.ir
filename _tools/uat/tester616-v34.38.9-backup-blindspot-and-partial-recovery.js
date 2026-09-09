@@ -19,7 +19,7 @@
           `$ex['data'][$k] = null` می‌کرد → آخرین بک‌آپ کاملِ پایه هم مسموم.
      هر دو در سکوت (پاسخ ok=true).
 
-   این تستر قرارداد اصلاح v34.38.14 را قفل می‌کند:
+   این تستر قرارداد اصلاح v34.38.9 را قفل می‌کند:
      ۱. backup.js از آینهٔ فاز B می‌خواند (بوت واقعی vm با آینهٔ شبیه‌سازی‌شده)
      ۲. دلتا هرگز مقدار null نمی‌فرستد + امضا کل داده را می‌بیند
      ۳. سپر پوشش کلیدهای حیاتی و تعویق تا آب‌رسانی آینه
@@ -176,7 +176,7 @@ function bootRc(opts) {
   return win;
 }
 
-head('۴. بازیابی فیلد-به-فیلد (شستشوی جزئی) — قرارداد v34.38.14');
+head('۴. بازیابی فیلد-به-فیلد (شستشوی جزئی) — قرارداد v34.38.9');
 var R = bootRc({});
 /* CUST-P1: ph سالم مانده ولی اشخاص رابط پاک شده‌اند (امضای واقعی گزارش‌های میدانی)
    CUST-P2: people هست ولی هیچ کانال تماسی ندارد (نام تنها) — عملاً خالی
@@ -251,12 +251,12 @@ var scanDone = R4.ptfContactRecoverScan(function () {}).then(function (res) {
 
 head('۷. نسخه و گیت');
 var ver = JSON.parse(read('VERSION.json'));
-T('۷.۰ VERSION.json = v34.38.14', ver.crm_version === 'v34.38.14', ver.crm_version);
+T('۷.۰ VERSION.json = v34.38.9', ver.crm_version === 'v34.38.9', ver.crm_version);
 T('۷.۱ tester616 در run-ci-gate.js ثبت است', gate.indexOf('tester616-v34.38.9-backup-blindspot-and-partial-recovery.js') > -1);
-T('۷.۲ قرارداد UI/sw/SD = 34.38.14',
-  /window\.PTF_CRM_RELEASE = 'v34\.38\.14'/.test(read('crm/index.html')) &&
-  /CACHE = 'ptf-crm-v34\.38\.14'/.test(read('crm/sw.js')) &&
-  /SD_SERVICE_VERSION = '34\.38\.14'/.test(read('api/sales-domain.php')));
+T('۷.۲ قرارداد UI/sw/SD = 34.38.9',
+  /window\.PTF_CRM_RELEASE = 'v34\.38\.9'/.test(read('crm/index.html')) &&
+  /CACHE = 'ptf-crm-v34\.38\.9'/.test(read('crm/sw.js')) &&
+  /SD_SERVICE_VERSION = '34\.38\.9'/.test(read('api/sales-domain.php')));
 T('۷.۳ تسترهای رگرسیون تماس همچنان در گیت‌اند (زنجیرهٔ CONTACT-WIPE/GHOST)',
   gate.indexOf('tester604-v34.37.7-contact-wipe.js') > -1 &&
   gate.indexOf('tester611-v34.38.4-contact-wipe-ind-heal.js') > -1 &&
