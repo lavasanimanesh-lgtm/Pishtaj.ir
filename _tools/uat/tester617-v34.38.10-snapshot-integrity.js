@@ -1,5 +1,5 @@
 'use strict';
-/* v34.38.13 — snapshot integrity, resumable full pull, atomic staging and query route regression. */
+/* v34.38.14 — snapshot integrity, resumable full pull, atomic staging and query route regression. */
 var fs = require('fs');
 var vm = require('vm');
 var assert = require('assert');
@@ -32,7 +32,7 @@ test('collection_query does not treat action as a record filter',
   api.indexOf("$cq_reserved = ['action','collection'") > -1);
 test('client uses atomic snapshot pull with bounded workers and retry',
   sync.indexOf('window.ptfSyncPullAtomic') > -1 && sync.indexOf('Math.min(4, keys.length)') > -1 &&
-  sync.indexOf('maxAttempts = 4') > -1 /* v34.38.13: تلاش بیشتر با backoff برای drift اسنپ‌شات */ && sync.indexOf('250 * Math.pow(2, retryNo)') > -1);
+  sync.indexOf('maxAttempts = 4') > -1 /* v34.38.14: تلاش بیشتر با backoff برای drift اسنپ‌شات */ && sync.indexOf('250 * Math.pow(2, retryNo)') > -1);
 test('phase B validates the whole response before per-key projection',
   clientServer.indexOf('window.ptfSyncValidatePull') > -1 && clientServer.indexOf("reason: 'integrity'") > -1);
 
@@ -62,6 +62,6 @@ test('valid v2 response passes shape/count/byte validation', ctx.ptfSyncValidate
 good.snapshot.keys.ptf_crm_leads.bytes++;
 test('truncated or mismatched payload is rejected before write', ctx.ptfSyncValidatePull(good).ok === false);
 
-test('release cache contract is aligned', version === 'v34.38.13' && index.indexOf("window.PTF_CRM_RELEASE = 'v34.38.13'") > -1 &&
-  sw.indexOf("var RELEASE = 'v34.38.13'") > -1 && manifest.version === '34.38.13');
+test('release cache contract is aligned', version === 'v34.38.14' && index.indexOf("window.PTF_CRM_RELEASE = 'v34.38.14'") > -1 &&
+  sw.indexOf("var RELEASE = 'v34.38.14'") > -1 && manifest.version === '34.38.14');
 console.log('PASS tester617-v34.38.10-snapshot-integrity');

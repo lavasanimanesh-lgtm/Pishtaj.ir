@@ -13,9 +13,32 @@
   var K = 'ptf_crm_deals';
 
   function sfAll() { return getData(K); }
-  function sfSave(list) {
+  function sfSave(list, opts) {
+    /* v34.38.14 (ARCHIVE-ATOMIC): opts اختیاری برای ذخیره‌های هدفمند (prevArr صریح /
+       allowBulkDelete) — مسیر پیش‌فرض بدون opts عیناً همان خط تاریخی است. */
+    if (opts) {
+      var o = { reason: 'w2' };
+      for (var ok in opts) o[ok] = opts[ok];
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection(K, list, o);
+      else setData(K, list);
+      return;
+    }
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection(K, list, { reason: 'w2' });
     else setData(K, list);
+  }
+
+  /* v34.38.14 (CASE-UNIQUENESS — ریشه‌یابی «پرونده بایگانی‌شده بعد از رفرش در پرونده‌های
+     فروش هم بود»): حذف هدفمند یک پرونده از فهرست فروش با پایهٔ صریح (prevArr) تا
+     دیفِ روتر دقیقاً همان یک حذف باشد. پیش از این وقتی پرونده‌ای که بایگانی می‌شد
+     «آخرین» پروندهٔ باز بود، ته‌شدن کالکشن به‌عنوان امضای «خواندن کهنه/حذف انبوه»
+     تلقی می‌شد و حذف عمدی کاربر به legacy تنزل می‌یافت — فرمان entity_delete هرگز
+     به سرور نمی‌رسید و نسخهٔ سرور در pull/merge بعدی پرونده را زنده می‌کرد
+     (هم‌زمان هم در بایگانی هم در فروش!). این تابع همیشه همان یک حذف عمدی را می‌فرستد. */
+  function sfRemoveDeal(r, reason) {
+    if (!r || !r.cd) return;
+    var before = sfAll().slice();
+    var after = sfAll().filter(function (x) { return !(x && String(x.cd) === String(r.cd)); });
+    sfSave(after, { reason: reason || 'sf-archive', prevArr: before, allowBulkDelete: true });
   }
 
   /* v14.8: دلایل استاندارد باخت — به جای متن آزاد */
@@ -1169,6 +1192,14 @@
   window.renderDeals = function () {
     var el = document.getElementById('dealWrap');
     if (!el) return;
+    /* v34.38.14 (CASE-UNIQUENESS): جاروی «یک پرونده = یک محل» — با throttle تا حلقه
+       نشود؛ نسخه‌های زندهٔ تکراریِ بایگانی‌شده را پیش از رندر حذف می‌کند. */
+    try {
+      if (Date.now() - (window._sfUniqueSweepAt || 0) > 3000 && typeof window.ptfSalesfileUniquenessSweep === 'function') {
+        window._sfUniqueSweepAt = Date.now();
+        window.ptfSalesfileUniquenessSweep({ quiet: true });
+      }
+    } catch (eUS) {}
     var q = ((document.getElementById('sfSrch') || {}).value || '').trim().toLowerCase();
     /* v16.8 (US-404 فاز ۱) + US-435: تب فرصت‌ها با دو نمای درخواست/مشتری */
     if ((window._sfTab || 'files') === 'oppo') {
@@ -1180,8 +1211,10 @@
     var list = sfAll().filter(function (r) {
       if (r.st === 'archived') return false;
       /* v16.8 (US-404): پرونده = فقط ابلاغ‌شده (wonOffer) — رکوردهای قدیمی دارای فاکتور هم از باب احتیاط پرونده می‌مانند.
-         رکوردهای قدیمی بدون برد حذف نمی‌شوند (مهاجرت نرم) — در تب فرصت‌ها نمایندگی می‌شوند و با برد، همین رکورد پرونده می‌شود. */
-      if (!r.wonOffer && !(r.inqNo && sfHasInvoice(r))) return false;
+         رکوردهای قدیمی بدون برد حذف نمی‌شوند (مهاجرت نرم) — در تب فرصت‌ها نمایندگی می‌شوند و با برد، همین رکورد پرونده می‌شود.
+         v34.38.14: پروندهٔ «به جریان افتاده از بایگانی» (restoredFrom) — حتی مختومهٔ
+         بدون فاکتور (بدون wonOffer) — باید در فهرست فروش دیده شود تا کار ادامه یابد. */
+      if (!r.wonOffer && !r.restoredFrom && !(r.inqNo && sfHasInvoice(r))) return false;
       return !q || ((r.inqNo || '') + ' ' + (r.buyerCo || '') + ' ' + ((typeof ptfCustFaByEn === 'function') ? ptfCustFaByEn(r.buyerCo) : '') + ' ' + (r.offerNo || '')).toLowerCase().indexOf(q) > -1; /* v34.18.0: جستجو با نام فارسی هم */
     });
     var h = '';
@@ -2318,7 +2351,7 @@
     /* v21.1 BUG-035: idempotent — اگر قبلاً بایگانی شده، رکورد تکراری نساز */
     var existing = sfFindArchivedProject(r);
     if (existing) {
-      try { sfSave(sfAll().filter(function (x) { return x.cd !== r.cd; })); } catch (e) {}
+      try { sfRemoveDeal(r, 'sf-archive-dedupe'); } catch (e) {}
       window._sfOpen = null;
       try { renderDeals(); } catch (e2) {}
       if (typeof ptfToast === 'function') ptfToast('این پرونده قبلاً بایگانی شده است', 'ok');
@@ -2336,7 +2369,14 @@
       supply: d.supply.map(function (q) { return { no: q.no || q.cd || '', t: q.t || '' }; }),
       misc: (r.docs || []).map(function (m) { return { name: m.name, key: m.key || null, t: m.t, by: m.by }; })
     };
+    /* v34.38.14 (ARCHIVE-ATOMIC): رکورد بایگانی تا امروز «cd» نداشت و هر ذخیرهٔ
+       کالکشن projects به legacy تکیه‌کل (پوش کل آرایه) تنزل می‌یافت. با cd پایدار و
+       قطعی (مشتق از cd پرونده: تلاش مجدد/دوبار بایگانی، همان رکورد را upsert می‌کند،
+       نه رونوشت) بایگانی از مسیر فرمان اتمیک انجام می‌شود. */
+    var arcCd = r.cd ? ('ARC-' + String(r.cd).replace(/[^A-Za-z0-9._:-]/g, '-')).slice(0, 60)
+                     : (typeof genCode === 'function' ? genCode('ARC') : ('ARC-' + Date.now().toString(36)));
     var rec = {
+      cd: arcCd, /* v34.38.14 */
       no: 'ARC-' + (r.inqNo || r.cd),
       dealCd: r.cd || '', /* AUD-07: مرجع پرونده‌ی اصلی برای یافتن بایگانی از روی cd سابق (sfReverseAutoSettle) */
       buyerCo: r.buyerCo || '',
@@ -2373,6 +2413,11 @@
       docs: keepDocs ? (r.docs || []).map(function (m) { return { folder: 'misc', name: m.name, key: m.key || null, t: m.t, by: m.by }; }) : [],
       docSnap: docSnap, /* BUG-ARCHIVE: فهرست کامل اسناد بایگانی‌شده */
       offerNos: d.offers.map(function (o) { return o.no; }),
+      /* v34.38.14 (RESTORE): تایم‌لاین اصلی پرونده و وضعیت پیش از مختومه همراه آرشیو
+         نگه داشته می‌شود تا «به جریان انداختن» از بایگانی، پرونده را با حافظهٔ کامل
+         برگرداند (پیش از این تایم‌لاین با بایگانی برای همیشه از دست می‌رفت). */
+      originTimeline: (r.timeline || []).slice(),
+      origSt: r.st || 'open',
       t: faDateTime(),
       timeline: [{ t: faDateTime(), by: curSession().name, tx: closeKind === 'settled' ? '🏁 مختومه — پایان پروژه و تسویه کامل (انتقال از پرونده‌های فروش)' : '🚫 مختومه بدون فاکتور — ' + (why || '') }]
     };
@@ -2384,8 +2429,8 @@
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
     /* v21.1 BUG-035: پیشنهادها/درخواست مرتبط را lost/stX کن تا فرصت دوباره نیاید */
     if (closeKind === 'lost') sfMarkLostRelated(r);
-    /* حذف از پرونده‌های فروش */
-    sfSave(sfAll().filter(function (x) { return x.cd !== r.cd; }));
+    /* حذف از پرونده‌های فروش — v34.38.14: هدفمند و از مسیر فرمان (رضایت سپر حذف انبوه) */
+    sfRemoveDeal(r, 'sf-archive');
     /* v34.38.6 (DEAL-DUE-SETTLED): با مختومه/بایگانی پرونده، همهٔ کارت‌های اقدامِ
        منسوب به این پرونده (تحویل تعهدی deal-due / qc-ncr / delivery-next) برای
        همهٔ گیرندگان بسته می‌شوند — دیگر هیچ‌کس هشدار تحویلِ پروندهٔ مختومه نمی‌بیند. */
@@ -2396,6 +2441,191 @@
     renderDeals();
     if (typeof ptfToast === 'function') ptfToast('پرونده مختومه و به بایگانی منتقل شد', 'ok');
   }
+
+  /* ═══ v34.38.14 (CASE-UNIQUENESS): قانون «یک پرونده = یک محل».
+     پرونده‌ای که در بایگانی به‌عنوان مختومه ثبت شده (state archived / origin salesfile)
+     هرگز نباید هم‌زمان در پرونده‌های فروش دیده شود. این جارو در هر رندر فهرست فروش
+     و پس از هر بازگشت‌از‌بایگانی اجرا می‌شود و نسخهٔ زندهٔ تکراری را — فقط با اثباتِ
+     وجود رکورد بایگانی — از مسیر فرمان (تک‌رکوردی، prevArr صریح، tombstone‌دار) حذف
+     می‌کند؛ هم دادهٔ آلودهٔ قبلی (پروندهٔ هم‌زمان در دو محل) را التیام می‌دهد، هم
+     هر بازگشت تصادفی آینده را — از هر مسیر sync — خنثی می‌کند. */
+  window.ptfSalesfileUniquenessSweep = function (opts) {
+    opts = opts || {};
+    var out = { ok: true, scanned: 0, removed: [], kept: 0 };
+    var list = [];
+    try { list = sfAll(); } catch (e0) { out.ok = false; return out; }
+    out.scanned = list.length;
+    var dups = [];
+    try { dups = list.filter(function (r) { return !!(r && r.cd && sfFindArchivedProject(r)); }); }
+    catch (e1) { out.ok = false; return out; }
+    if (!dups.length) { out.kept = list.length; return out; }
+    var rm = {};
+    dups.forEach(function (r) { rm[String(r.cd)] = 1; });
+    var after = list.filter(function (r) { return !(r && rm[String(r.cd)]); });
+    try {
+      sfSave(after, { reason: 'sf-unique-sweep', prevArr: list.slice(), allowBulkDelete: true });
+      out.removed = dups.map(function (r) { return String(r.cd); });
+      out.kept = after.length;
+      try { audit('یکپارچگی داده', '🧹 جاروی یکتایی پرونده: ' + dups.length + ' نسخهٔ تکراریِ هم‌زمان با بایگانی از پرونده‌های فروش حذف شد (' + out.removed.join('، ') + ')', out.removed[0] || ''); } catch (eA) {}
+      if (!opts.quiet && typeof ptfToast === 'function') ptfToast('🧹 ماهیت یکتای پرونده اعمال شد: ' + dups.length + ' نسخهٔ تکراری (موجود در بایگانی) از فهرست فروش پاک شد', 'ok');
+    } catch (e2) { out.ok = false; }
+    return out;
+  };
+
+  /* v34.38.14 (RESTORE): خنثی‌سازی سنگ‌قبرهای حذفِ همین پرونده تا در push/pull بعدی
+     دوباره حذف نشود — قرینهٔ دقیق گام ② entity_restore سرور (kind → restored:<kind>).
+     بدون این گام، بازگرداندن پرونده پس از بایگانیِ موفقِ فرمانی، tombstone قدیمی
+     رکورد را در sync بعدی دوباره می‌کشت. */
+  function sfNeutralizeDealTombstones(cds) {
+    var fixed = 0;
+    if (!cds || !cds.length) return fixed;
+    var want = {};
+    cds.forEach(function (c) { if (c) want[String(c)] = 1; });
+    var before = [];
+    try { before = getData('ptf_crm_deleted_archive') || []; } catch (e) { return fixed; }
+    if (!before.length) return fixed;
+    var arch = JSON.parse(JSON.stringify(before)); /* کلون — کش/آرایهٔ مشترک mutate نمی‌شود */
+    var dealKinds = { deal: 1, deals: 1, salesfile: 1 }; /* عین sync_tombstone_kinds_for_key(ptf_crm_deals) در سرور */
+    var changed = false;
+    arch.forEach(function (a) {
+      if (!a || typeof a !== 'object') return;
+      var kind = String(a.kind || '').toLowerCase();
+      if (!kind || kind.indexOf('restored:') === 0) return;
+      var hit = false;
+      if (kind === 'archive_purge') {
+        [a.id, a.cd, a.no].forEach(function (x) { if (x != null && want[String(x)]) hit = true; });
+        (a.aliases || []).forEach(function (x) { if (x != null && want[String(x)]) hit = true; });
+        var idn = (a.identities && a.identities['ptf_crm_deals']) || [];
+        idn.forEach(function (x) { if (x != null && want[String(x)]) hit = true; });
+      } else if (dealKinds[kind]) {
+        var k = String(a.id || a.no || a.cd || '');
+        if (k && want[k]) hit = true;
+      }
+      if (!hit) return;
+      a.kind = 'restored:' + String(a.kind || '');
+      try { a.restoredAt = faDateTime(); a.restoredBy = (curSession() || {}).name || ''; } catch (eM) {}
+      changed = true; fixed++;
+    });
+    if (changed) {
+      try {
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arch, { reason: 'sf-restore', prevArr: before });
+        else setData('ptf_crm_deleted_archive', arch);
+      } catch (eS) {}
+    }
+    return fixed;
+  }
+
+  /* v34.38.14 (RESTORE): هستهٔ «به جریان انداختن» پروندهٔ بایگانی‌شده — بازگشت به
+     پرونده‌های فروش، تا پیش از «حذف قطعی». قرارداد result:
+       ok:false + why در {not_found, not_archived, read_projects, read_deals, project_delete_failed, deal_upsert_failed}
+       ok:true  + mode در {restore (بازگشت کامل), prefer-live (نسخهٔ فعال موجود بود؛ فقط رونوشت بایگانی حذف شد), prefer-archive (نسخهٔ فعال هم‌نام جایگزین شد)}
+     هر سه حالت با همان تضمینِ «یک پرونده = یک محل» خاتمه می‌یابند. */
+  window.ptfSalesfileRestoreFromArchive = function (arcNo, opts) {
+    opts = opts || {};
+    var prjs = [];
+    try { prjs = getData('ptf_crm_projects') || []; } catch (e0) { return { ok: false, why: 'read_projects' }; }
+    var idx = -1;
+    for (var i = 0; i < prjs.length; i++) {
+      var p0 = prjs[i];
+      if (p0 && String(p0.no) === String(arcNo)) { idx = i; break; }
+    }
+    if (idx < 0) return { ok: false, why: 'not_found' };
+    var p = prjs[idx];
+    if (String(p && p.state || '') !== 'archived') return { ok: false, why: 'not_archived' };
+
+    /* نام‌های یکتای رکورد بایگانی — برای یافتن هر نسخهٔ فعال/تکراری هم‌نام */
+    var arcAliases = [];
+    [p.inqNo, p.dealCd, p.cd ? String(p.cd).replace(/^ARC-/, '') : '', p.no ? String(p.no).replace(/^ARC-/, '') : '']
+      .forEach(function (x) { if (x && arcAliases.indexOf(String(x)) < 0) arcAliases.push(String(x)); });
+
+    var list = [];
+    try { list = sfAll().slice(); } catch (e1) { return { ok: false, why: 'read_deals' }; }
+    var live = list.filter(function (d) {
+      if (!d) return false;
+      var keys = [String(d.cd || ''), String(d.inqNo || '')];
+      for (var k = 0; k < keys.length; k++) if (keys[k] && arcAliases.indexOf(keys[k]) > -1) return true;
+      return false;
+    });
+
+    var mode = live.length ? 'prefer-live' : 'restore';
+    if (live.length && opts.mode === 'prefer-archive') mode = 'prefer-archive';
+
+    /* ① حذف رکورد از بایگانی — در هر سه حالت (پرونده از این محل خارج می‌شود) */
+    var prjAfter = prjs.filter(function (x, xi) { return xi !== idx; });
+    try {
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjAfter, { reason: 'sf-restore', prevArr: prjs.slice(), allowBulkDelete: true });
+      else setData('ptf_crm_projects', prjAfter);
+    } catch (eP) { return { ok: false, why: 'project_delete_failed' }; }
+
+    var dealCd = p.dealCd || (p.cd && String(p.cd).indexOf('ARC-') !== 0 ? String(p.cd) : '') || '';
+    if (!dealCd) { try { dealCd = genCode('DEAL'); } catch (eG) { dealCd = 'DEAL-' + Date.now().toString(36); } }
+
+    /* ② سنگ‌قبرهای حذف همین پرونده خنثی می‌شوند تا بازگشت در sync کُشته نشود */
+    var tombFixed = 0;
+    try { tombFixed = sfNeutralizeDealTombstones([dealCd, p.dealCd, p.inqNo, p.cd ? String(p.cd).replace(/^ARC-/, '') : '']); } catch (eT) {}
+
+    if (mode === 'prefer-live') {
+      /* یکتاسازیِ دادهٔ آلوده: نسخهٔ فعال حفظ می‌شود؛ فقط رونوشت بایگانی حذف شد. */
+      try { audit('بایگانی', '↩️ یکتاسازی: رونوشت بایگانیِ پروندهٔ دارای نسخهٔ فعال حذف و نسخهٔ ' + (live[0].cd || '') + ' در جریان حفظ شد (' + arcNo + ')', live[0].cd || ''); } catch (eA) {}
+      return { ok: true, mode: mode, dealCd: String(live[0].cd || ''), dupKept: String(live[0].cd || ''), tombFixed: tombFixed };
+    }
+
+    /* ③ ساخت رکورد پروندهٔ فروش از اسنپ‌شات بایگانی — با «cd اصلی» تا همهٔ لینک‌های
+       مالی (تنخواه dealRef / چک dealCd / تسویه خودکار) بی‌آسیب بمانند */
+    var who = '';
+    try { who = (curSession() || {}).name || ''; } catch (eW) {}
+    var tl = (p.originTimeline || []).slice();
+    tl.push({ t: faDateTime(), by: who, tx: '↩️ به جریان افتادن از بایگانی — پروندهٔ فروش دوباره فعال شد (رکورد بایگانی ' + String(arcNo) + ' حذف؛ نوع مختومه قبلی: ' + (p.closeKind === 'lost' ? 'بدون فاکتور — ' + (p.closeWhy || '-') : 'تسویه کامل') + ')' });
+    var deal = {
+      cd: dealCd,
+      inqNo: p.inqNo || '',
+      buyerCo: p.buyerCo || '',
+      wonOffer: p.wonOffer || p.offerNo || '',
+      st: 'open',
+      t: p.t || faDateTime(),
+      by: who,
+      docs: (p.docs || []).map(function (d) { return { name: d.name, key: d.key || null, t: d.t, by: d.by }; }),
+      awardDocs: (p.awardDocs || []).slice(),
+      qcEvents: (p.qcEvents || []).slice(),
+      shipEvents: (p.shipEvents || []).slice(),
+      lossEvents: (p.lossEvents || []).slice(),
+      costEvents: (p.costEvents || []).slice(),
+      timeline: tl,
+      restoredFrom: String(arcNo),
+      restoredAt: faDateTime(),
+      restoredBy: who
+    };
+    ['_costTomb', '_qcTomb', '_shipTomb', '_docsTomb'].forEach(function (k) {
+      if (p[k] && typeof p[k] === 'object') { try { deal[k] = JSON.parse(JSON.stringify(p[k])); } catch (eC) {} }
+    });
+    /* تسویهٔ خودکارِ قبل از بایگانی حفظ می‌شود تا «برگشت تسویه» (sfReverseAutoSettle)
+       پس از به جریان افتادن هم در دسترس بماند */
+    if (p.closeKind === 'settled') {
+      deal.autoSettleReceipts = (p.autoSettleReceipts || []).slice();
+      deal.autoSettleDate = p.autoSettleDate || '';
+      deal.autoSettleBy = p.autoSettleBy || '';
+    }
+
+    /* ④ نوشتن در پرونده‌های فروش — prefer-archive: نسخه‌های فعال هم‌نام در همان
+       ذخیره حذف می‌شوند تا فقط نسخهٔ بازگردانده‌شده بماند */
+    var next;
+    if (mode === 'prefer-archive') {
+      var rmCds = {};
+      live.forEach(function (d) { rmCds[String(d.cd)] = 1; });
+      next = list.filter(function (d) { return !(d && rmCds[String(d.cd)]); });
+    } else {
+      next = list.filter(function (d) { return !(d && String(d.cd) === String(deal.cd)); });
+    }
+    next.unshift(deal);
+    try { sfSave(next, { reason: 'sf-restore', prevArr: list, allowBulkDelete: true }); }
+    catch (eD) { return { ok: false, why: 'deal_upsert_failed' }; }
+
+    /* ⑤ قفل نهایی ماهیت یکتا — هر باقی‌ماندهٔ تصادفی در هر سو پاکسازی می‌شود */
+    try { window.ptfSalesfileUniquenessSweep({ quiet: true }); } catch (eU) {}
+
+    try { audit('بایگانی', '↩️ به جریان افتادن پروندهٔ بایگانی‌شده: ' + arcNo + ' → پرونده فروش ' + dealCd + (tombFixed ? ' (' + tombFixed + ' سنگ‌قبر خنثی شد)' : ''), dealCd); } catch (eA2) {}
+    return { ok: true, mode: mode, dealCd: dealCd, tombFixed: tombFixed };
+  };
 
   /* ---------- اتصال نامه‌ها: گزینه پرونده‌های فروش در کشوی «لینک به پرونده» نامه ---------- */
   function hookLetterModal() {
@@ -2560,5 +2790,8 @@
     return { ok: true, skipped: false, deals: touched };
   };
   try { window.ptfDealCostRepairSweep(); } catch (eRS) {}
+  /* v34.38.14 (CASE-UNIQUENESS): جاروی یکبارهٔ بوت — دادهٔ آلودهٔ قبلی (پروندهٔ
+     هم‌زمان در بایگانی و پرونده‌های فروش) بلافاصله پس از ورود التیام می‌یابد. */
+  try { setTimeout(function () { try { if (typeof window.ptfSalesfileUniquenessSweep === 'function') window.ptfSalesfileUniquenessSweep({ quiet: true }); } catch (e) {} }, 2500); } catch (eUS2) {}
 })();
 ;

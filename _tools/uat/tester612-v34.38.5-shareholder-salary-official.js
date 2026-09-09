@@ -10,7 +10,7 @@
    «هزینه جاری بدون تعیین نوع رسمی/غیررسمی» می‌ماند؛ و ویرایش سهامدار هم فیلدی
    برای تعیین نوع سند نداشت.
 
-   قرارداد قفل‌شده در v34.38.13:
+   قرارداد قفل‌شده در v34.38.14:
      ① ویرایش/ثبت سهامدار فیلد «نوع سند حقوق» (رسمی/غیررسمی/تعیین‌نشده → salaryOfficial).
      ② سرور register_shareholder_salary و reconcile_shareholder_salaries نوع سند را
         به ردیف هزینهٔ حقوق (isOfficial) انتشار می‌دهند — فقط وقتی صریح باشد.
@@ -147,12 +147,12 @@ function runEdit(oldRec, values) {
 /* ───────────────────── ۵) گیت / نسخه ───────────────────── */
 head('۵. گیت و نسخه');
 var ver = JSON.parse(read('VERSION.json'));
-T('۵.۱ VERSION.json = v34.38.13', ver.crm_version === 'v34.38.13', ver.crm_version);
+T('۵.۱ VERSION.json = v34.38.14', ver.crm_version === 'v34.38.14', ver.crm_version);
 T('۵.۲ tester612 در run-ci-gate.js ثبت است', gate.indexOf('tester612-v34.38.5-shareholder-salary-official.js') > -1);
-T('۵.۳ قرارداد UI/sw = 34.38.13',
-  /window\.PTF_CRM_RELEASE = 'v34\.38\.13'/.test(idx) &&
-  /CACHE = 'ptf-crm-v34\.38\.13'/.test(read('crm/sw.js')));
-T('۵.۴ SD_SERVICE_VERSION = 34.38.13', /SD_SERVICE_VERSION = '34\.38\.13'/.test(php));
+T('۵.۳ قرارداد UI/sw = 34.38.14',
+  /window\.PTF_CRM_RELEASE = 'v34\.38\.14'/.test(idx) &&
+  /CACHE = 'ptf-crm-v34\.38\.14'/.test(read('crm/sw.js')));
+T('۵.۴ SD_SERVICE_VERSION = 34.38.14', /SD_SERVICE_VERSION = '34\.38\.14'/.test(php));
 
 console.log('\n— tester612 (DATA-QUALITY SH-SALARY: نوع سند حقوق سهامدار از تب سهامداران تعیین و به هزینه انتشار می‌یابد) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
