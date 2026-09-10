@@ -234,9 +234,9 @@ setTimeout(function () {
 
   console.log('\n── پین‌های انتشار ──');
   test('تستر در گیت CI ثبت است', gate.indexOf('tester621-v34.38.14-archive-uniqueness-restore.js') > -1);
-  test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.16', version);
-  test('cache-buster در index.html به‌روز است', indexHtml.indexOf('salesfiles.js?v=34.38.16') > -1);
-  test('Service Worker به‌روز است', sw.indexOf("v34.38.16") > -1);
+  test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.19', version);
+  test('cache-buster در index.html به‌روز است', indexHtml.indexOf('salesfiles.js?v=34.38.19') > -1);
+  test('Service Worker به‌روز است', sw.indexOf("v34.38.19") > -1);
 
   console.log('');
   if (failures) { console.log('=== tester621: ' + failures + ' FAIL ==='); process.exit(1); }

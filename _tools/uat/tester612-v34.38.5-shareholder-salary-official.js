@@ -147,12 +147,12 @@ function runEdit(oldRec, values) {
 /* ───────────────────── ۵) گیت / نسخه ───────────────────── */
 head('۵. گیت و نسخه');
 var ver = JSON.parse(read('VERSION.json'));
-T('۵.۱ VERSION.json = v34.38.16', ver.crm_version === 'v34.38.16', ver.crm_version);
+T('۵.۱ VERSION.json = v34.38.19', ver.crm_version === 'v34.38.19', ver.crm_version);
 T('۵.۲ tester612 در run-ci-gate.js ثبت است', gate.indexOf('tester612-v34.38.5-shareholder-salary-official.js') > -1);
-T('۵.۳ قرارداد UI/sw = 34.38.16',
-  /window\.PTF_CRM_RELEASE = 'v34\.38\.16'/.test(idx) &&
-  /CACHE = 'ptf-crm-v34\.38\.16'/.test(read('crm/sw.js')));
-T('۵.۴ SD_SERVICE_VERSION = 34.38.16', /SD_SERVICE_VERSION = '34\.38\.16'/.test(php));
+T('۵.۳ قرارداد UI/sw = 34.38.19',
+  /window\.PTF_CRM_RELEASE = 'v34\.38\.19'/.test(idx) &&
+  /CACHE = 'ptf-crm-v34\.38\.19'/.test(read('crm/sw.js')));
+T('۵.۴ SD_SERVICE_VERSION = 34.38.19', /SD_SERVICE_VERSION = '34\.38\.19'/.test(php));
 
 console.log('\n— tester612 (DATA-QUALITY SH-SALARY: نوع سند حقوق سهامدار از تب سهامداران تعیین و به هزینه انتشار می‌یابد) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
