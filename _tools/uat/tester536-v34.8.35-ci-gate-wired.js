@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 /* tester536 — v34.38.0 (فاز صفرِ نازک‌سازی: T0-3 / T0-4 / T0-6)
+   ✳ به‌روزرسانی قرارداد T0-6 در v34.38.18-02 (CACHE-HOTFIX): پین «فایل کامیت‌شدهٔ
+   crm/.htaccess از no-cache پاک است» معکوس شد — گزارش کارفرما (پردهٔ بوت روی
+   موبایل می‌آمد ولی دسکتاپ نه) ثابت کرد پین ۳۰روزهٔ JS بدون بامپ نسخه،
+   باندل کهنه را تا ۳۰ روز روی کلاینت نگه می‌دارد. جزئیات در متنِ بلوک T0-6.
    «گیت‌های CI باید در GitHub Actions اجرا شوند» — نه فقط روی دستگاه ایجنت.
 
    پیشینه (یافتهٔ F-1 ممیزی ۲۰۲۶-۰۸-۲۸):
@@ -86,13 +90,23 @@ function contract(st, pr, lint, existsFn) {
   C('T0-4 استیجینگ: با وجود حذف از هش، نسخهٔ زندهٔ index.html چک می‌شود',
     st.slice(st.indexOf('Post-deploy integrity check')).indexOf('crm/index.html') > -1);
 
-  /* ---------- T0-6: کش استیجینگ ---------- */
+  /* ---------- T0-6: کش CRM ----------
+     v34.38.18-02 (CACHE-HOTFIX — گزارش کارفرما «پردهٔ بوت روی موبایل می‌آید
+     ولی دسکتاپ نه»): سیاست قدیمی «no-cache فقط استیجینگ؛ پروداکشن = پین ۳۰روزهٔ
+     JS + بامپ کوئری نسخه» در عمل شکست — ۵ مرج پیاپی (#۲۴ تا #۲۸) محتوای
+     sync.js/index.html را زیر همان ?v=34.38.16 بدون بامپ منتشر کردند و
+     مرورگرهای دسکتاپ تا ۳۰ روز باندل کهنه اجرا می‌کردند. شواهد قطعی:
+     compare گیت‌هابِ 98e6fc44…afcf0a74 (همان URL، محتوای متفاوت) + پین
+     FilesMatch\.(js)$ ریشه. قرارداد جدید: زیردرخت /crm در هر دو محیط
+     no-cache/revalidate است و فایلِ کامیت‌شدهٔ crm/.htaccess تکیه‌گاهِ
+     واحدِ حقیقت است؛ تزریقِ استیجینگ به‌طور عمدی حفظ (idempotent) شده ولی
+     دیگر لازم نیست. پین ۳۰روزهٔ سایتِ عمومی (SEO/پرفرمنس) دست‌نخورده‌اند. */
   C('T0-6 استیجینگ: no-cache برای js/html به crm/.htaccess تزریق می‌شود',
     /Header set Cache-Control "no-cache, must-revalidate"/.test(st) &&
     /FilesMatch/.test(st) && /js\|html/.test(st));
-  C('T0-6 تزریقِ کش در فایل کامیت‌شدهٔ crm/.htaccess نیست (نشت به پروداکشن ممنوع)',
-    !/no-cache, must-revalidate/.test(read('crm/.htaccess')));
-  C('T0-6 تزریق فقط در استیجینگ است، نه در workflow پروداکشن',
+  C('T0-6 فایل کامیت‌شدهٔ crm/.htaccess اکنون عمداً no-cache دارد (CACHE-HOTFIX v34.38.18-02؛ نه نشت — قرارداد بازنگری‌شده)',
+    /CACHE-HOTFIX/.test(read('crm/.htaccess')) && /no-cache, must-revalidate/.test(read('crm/.htaccess')));
+  C('T0-6 تزریق فقط در فایل کامیت‌شده/استیجینگ است، نه در workflow پروداکشن',
     pr.indexOf('no-cache, must-revalidate') === -1);
 
   /* ---------- گیت روی PR به main ---------- */
