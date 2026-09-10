@@ -1583,7 +1583,7 @@
        شمارش هشدار جدا می‌کنیم تا کاربرِ پروندهٔ سالمِ بسته، اخطارِ یتیم نبیند. */
     var archived=f.filter(function(x){return x.type==='orphan_won_archived';});
     var issues=f.filter(function(x){return x.type!=='orphan_won_archived';});
-    function guideBtn(x){return ' <button class="bt bt-o" style="font-size:11px;color:#1d4ed8;border-color:#93c5fd" onclick="ptfSalesFindingGuideOpen(\''+arg(x.id)+'\')">🧭 راهنمای بررسی</button>';}
+    function guideBtn(x){return ' <button class="bt bt-o" style="font-size:11px;color:#1d4ed8;border-color:#93c5fd" onclick="ptfSalesFindingGuideOpen(\''+arg(x.id)+'\')">🧭 راهنمای بررسی و رفع</button>';}
     var archivedBox=archived.length?'<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px;margin:8px 0"><b style="color:#1e40af">🗄 '+archived.length+' پیشنهاد برنده به پروندهٔ بایگانی/مختومه متصل است (داده سالم — قابل باز کردن)</b>'+archived.map(function(x){
       var open=x.projectNo?' <button class="bt bt-o" style="font-size:11px;color:#065f46;border-color:#a7f3d0" onclick="ptfOpenArchivedWonFile(\''+arg(x.projectNo)+'\')">بازکردن پروندهٔ بایگانی</button>':'';
       return '<div style="padding:6px 0;border-bottom:1px dashed #bfdbfe;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="margin-left:auto">'+esc(x.label)+'</span>'+guideBtn(x)+open+'</div>';
