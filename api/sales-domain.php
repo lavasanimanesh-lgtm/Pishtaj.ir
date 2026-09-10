@@ -2285,9 +2285,32 @@ try {
             }
         }
         if($explicitTemplate&&$scopeTemplate!==''&&$matchedTemplates===0)sd_out(['ok'=>false,'error'=>'opex_template_not_found','templateId'=>$scopeTemplate],404);
+        /* v34.38.19 (DATA-QUALITY SH-SALARY-FIX): نوع سند حقوق (salaryOfficial) باید روی
+           همهٔ ماه‌های حقوقِ همان سهامدار منتشر شود، نه فقط ماهِ جاریِ reconcile — وگرنه
+           یافتهٔ «بدون تعیین نوع رسمی/غیررسمی» در کیفیت داده پس از تعیین هم باقی می‌ماند.
+           فقط ردیف‌های فعالِ حقوق همان سهامدارِ محدوده (scopeShareholder)؛ ماهِ سال قفل‌شده
+           رد می‌شود و هیچ void/ادغامی رخ نمی‌دهد. */
+        $salaryOfficialPropagated=0;$salaryOfficialLockedSkipped=0;
+        if($includeSalaries&&$explicitEligibility){
+            $salaryOfficialByCd=[];
+            foreach($shareholders as $sh){if(!is_array($sh)||empty($sh['cd']))continue;$shCd=sd_text($sh['cd'],160);if($scopeShareholder!==''&&$shCd!==$scopeShareholder)continue;$val=null;if(array_key_exists('salaryOfficial',$sh)&&$sh['salaryOfficial']!==null&&$sh['salaryOfficial']!=='')$val=!empty($sh['salaryOfficial']);if($val!==null)$salaryOfficialByCd[$shCd]=$val;}
+            if($salaryOfficialByCd){
+                $shCdByTx=[];foreach($sharetx as $tx){if(!is_array($tx))continue;$txCd=trim((string)($tx['cd']??''));$txSh=trim((string)($tx['shCd']??''));if($txCd!==''&&$txSh!=='')$shCdByTx[$txCd]=$txSh;}
+                foreach($opex as $oxIndex=>$ox){
+                    if(!is_array($ox)||empty($ox['shareholderSalary'])||!sd_active($ox))continue;
+                    $rowShCd='';if(preg_match('/^salary:(.+):(?:13|14)\d{2}\/\d{2}$/',trim((string)($ox['recurringKey']??'')),$mKey))$rowShCd=$mKey[1];
+                    if($rowShCd===''){$txCd=trim((string)($ox['shareTx']??''));if($txCd!==''&&isset($shCdByTx[$txCd]))$rowShCd=$shCdByTx[$txCd];}
+                    if($rowShCd===''||!array_key_exists($rowShCd,$salaryOfficialByCd))continue;
+                    $rowMonth=trim((string)($ox['month']??''));
+                    if($rowMonth!==''&&sd_is_locked($snaps,$rowMonth)){$salaryOfficialLockedSkipped++;continue;}
+                    $want=$salaryOfficialByCd[$rowShCd];
+                    if(!array_key_exists('isOfficial',$ox)||(bool)$ox['isOfficial']!==$want){$opex[$oxIndex]['isOfficial']=$want;$opex[$oxIndex]['updatedAtISO']=$now;$opex[$oxIndex]['updatedBy']=$user;$salaryOfficialPropagated++;}
+                }
+            }
+        }
         sd_ensure_recurring_opex_row_identities($opex);
         $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];if(count($corrections)>$correctionStart)$changes['ptf_crm_corrections']=$corrections;$responseChanges=['ptf_crm_opex'=>[]];if(sd_recurring_sharetx_projection_allowed($action))$responseChanges['ptf_crm_sharetx']=[];
-        $result=['month'=>$month,'created'=>$created,'updated'=>$updated,'voided'=>$voided,'conflicts'=>$conflicts,'suppressedTombstones'=>$suppressed,'invalidTemplates'=>$invalidTemplates,'includedSalaries'=>$includeSalaries,'includedTemplates'=>$includeTemplates,'scopeTemplate'=>$scopeTemplate,'possibleDuplicates'=>$possibleDuplicates,'mode'=>'server-authoritative-upsert','projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
+        $result=['month'=>$month,'created'=>$created,'updated'=>$updated,'voided'=>$voided,'conflicts'=>$conflicts,'suppressedTombstones'=>$suppressed,'invalidTemplates'=>$invalidTemplates,'includedSalaries'=>$includeSalaries,'includedTemplates'=>$includeTemplates,'scopeTemplate'=>$scopeTemplate,'possibleDuplicates'=>$possibleDuplicates,'salaryOfficialPropagated'=>$salaryOfficialPropagated,'salaryOfficialLockedSkipped'=>$salaryOfficialLockedSkipped,'mode'=>'server-authoritative-upsert','projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
     }
     elseif ($action === 'backfill_shareholder_salaries') {
         /* v34.38.19 (SH-SALARY-MONTH-GAP / F-4): جبران کنترل‌شدهٔ ماه‌های غایب حقوقِ

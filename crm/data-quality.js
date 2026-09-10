@@ -18,8 +18,42 @@
      این تابع فقط از official-ledger.js می‌خواند؛ هیچ پیش‌فرضی حدس نمی‌زند
      و هیچ رکوردی را تغییر نمی‌دهد — صرفاً فهرست برای بررسی دستی کارفرما/حسابدار. */
   function ledgerOfOpexSafe(o) {
-    try { return typeof window.ptfLedgerOfOpex === 'function' ? window.ptfLedgerOfOpex(o) : (o && o.isOfficial === true ? 'official' : (o && o.isOfficial === false ? 'unofficial' : 'unclassified')); }
+    try {
+      var cls = typeof window.ptfLedgerOfOpex === 'function' ? window.ptfLedgerOfOpex(o) : (o && o.isOfficial === true ? 'official' : (o && o.isOfficial === false ? 'unofficial' : 'unclassified'));
+      /* v34.38.19 (DATA-QUALITY SH-SALARY-FIX): ردیف حقوق سهامدار که هنوز isOfficial
+         ندارد، نوع سند را از پروفایل سهامدار (salaryOfficial) می‌خواند تا پس از تعیینِ
+         «رسمی/غیررسمی» در تب سهامداران، یافتهٔ «بدون تعیین نوع» فوراً رفع شود — حتی برای
+         ماه‌های سالِ قفل‌شده که سرور مجاز به نوشتن نیست. فقط‌خواندنی است؛ هیچ رکوردی
+         تغییر نمی‌کند. */
+      if (cls === 'unclassified') {
+        var so = shareholderSalaryOfficialOf(o);
+        if (so === true) cls = 'official';
+        else if (so === false) cls = 'unofficial';
+      }
+      return cls;
+    }
     catch (e) { return 'unclassified'; }
+  }
+  function shareholderSalaryOfficialOf(o) {
+    try {
+      if (!o) return null;
+      var shCd = '';
+      var m = String(o.recurringKey || '').match(/^salary:(.+):(?:13|14)\d{2}\/\d{2}$/);
+      if (m) shCd = m[1];
+      if (!shCd) {
+        var txCd = String(o.shareTx || '');
+        if (txCd) {
+          var tx = arr('ptf_crm_sharetx').filter(function (x) { return x && x.cd === txCd; })[0];
+          if (tx && tx.shCd) shCd = String(tx.shCd);
+        }
+      }
+      if (!shCd) return null;
+      var sh = arr('ptf_crm_shareholders').filter(function (x) { return x && x.cd === shCd; })[0];
+      if (!sh) return null;
+      if (sh.salaryOfficial === true) return true;
+      if (sh.salaryOfficial === false) return false;
+      return null;
+    } catch (e) { return null; }
   }
   function ledgerOfSupplierInvoiceSafe(inv) {
     try { return typeof window.ptfLedgerOfSupplierInvoice === 'function' ? window.ptfLedgerOfSupplierInvoice(inv) : (inv && inv.isOfficial === true ? 'official' : (inv && inv.isOfficial === false ? 'unofficial' : 'unclassified')); }
