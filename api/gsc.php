@@ -263,7 +263,11 @@ function gsc_pick_site($cfg, $needWrite = true, $silent = false) {
     /* v34.29.1: نسخهٔ بدونِ توقفِ تشخیص پراپرتی — خروجی ساختاریافته برای «آزمون اتصال GSC» */
     $list = gsc_api($cfg, 'webmasters/v3/sites', null, 'GET', $silent);
     if (isset($list['__error'])) return ['verdict' => 'api_error', 'error' => $list['__error'], 'sites' => [], 'host' => ''];
-    $sites = $list['site'] ?? [];
+    /* v34.38.19 (GSC-SITEENTRY-FIX): پاسخِ webmasters/v3/sites فهرست را زیر کلیدِ
+       «siteEntry» برمی‌گرداند (نه «site») — خواندنِ «site» باعث می‌شد فهرستِ قابل‌دسترسی
+       همیشه خالی بماند و «آزمون اتصال» به‌نادرست property_not_found بدهد حتی وقتی
+       سرویس‌اکانت درست با سطح Full اضافه شده بود. (تستر 634 این قرارداد را قفل می‌کند.) */
+    $sites = $list['siteEntry'] ?? [];
     $want = (string)$cfg['site_url'];
     $host = 'pishtaj.ir';
     $m = [];
