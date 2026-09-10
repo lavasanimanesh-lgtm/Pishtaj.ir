@@ -31,12 +31,12 @@
   .nav-drop{display:grid;justify-items:stretch}
   .nav-drop-menu{position:static;display:flex;box-shadow:none;border:0;padding:0 8px 4px;background:transparent;min-width:0}
 }
-/* Products mega menu: category = submenu, items = direct product links */
-.nav-mega-col{min-width:0;display:flex;flex-direction:column;gap:1px}
-.nav-mega-head{display:block;font-size:12px!important;font-weight:900!important;color:#ef4b1a!important;padding:4px 8px!important;margin:0 0 4px;white-space:nowrap!important}
-.main-nav .nav-mega a{white-space:normal!important;font-size:12.5px!important;font-weight:700!important;padding:4px 8px!important;line-height:1.45!important;border-radius:8px!important;color:#334155!important;display:block;text-align:right}
-.main-nav .nav-mega a:hover{background:rgba(239,75,26,.1)!important;color:#ef4b1a!important}
-.main-nav .nav-mega-all{grid-column:1/-1;text-align:center;font-weight:900!important;color:#0e7490!important;margin-top:6px;border-top:1px solid #e2e8f0;padding-top:10px!important}
+/* Products mega menu: category = submenu, items = direct product links.
+   Desktop (>=851px): hover/focus 6-column dropdown panel.
+   Mobile  (<=850px): collapsible accordion with caret toggle, category accordions
+   with count badges, large tap targets and a gradient "all products" CTA.
+   NOTE: ptf-discover.js injects an identical copy of these rules (id="ptf-mega-css")
+   so the behaviour also exists on pages that do not load discover.css. Keep in sync. */
 .site-header .main-nav>a,
 .site-header .main-nav>.nav-drop>a,
 .site-header .main-nav>.nav-products>a{
@@ -54,12 +54,50 @@
 }
 @media(min-width:851px){
   .nav-drop.nav-products{position:relative}
-  .nav-products .nav-mega{position:fixed;top:84px;right:16px;left:16px;z-index:95;width:auto;max-width:1180px;margin:0 auto;display:none;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px 12px;padding:16px 18px 12px;border-radius:18px;background:#fff;border:1px solid var(--line,#e2e8f0);box-shadow:0 18px 48px rgba(15,23,42,.16);max-height:min(72vh,560px);overflow:auto}
-  .nav-products:hover>.nav-mega,.nav-products:focus-within>.nav-mega,.nav-products.is-open>.nav-mega{display:grid}
+  .nav-products .nav-mega{position:fixed;top:84px;right:16px;left:16px;z-index:95;width:auto;max-width:1180px;margin:0 auto;display:none}
+  .nav-products:hover>.nav-mega,.nav-products:focus-within>.nav-mega,.nav-products.is-open>.nav-mega{display:block}
+  .nav-products .nav-mega .nav-mega-inner{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px 12px;padding:16px 18px 12px;border-radius:18px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 18px 48px rgba(15,23,42,.16);max-height:min(72vh,560px);overflow:auto}
+  .nav-mega-col{min-width:0;display:flex;flex-direction:column;gap:1px}
+  .nav-mega-head{display:flex;align-items:center;gap:6px;width:100%;border:0;background:transparent;font-family:inherit;font-size:12px!important;font-weight:900!important;color:#ef4b1a!important;padding:4px 8px!important;margin:0 0 4px;white-space:nowrap!important;text-align:right;cursor:default}
+  .nav-mega-head svg,.nav-mega-count{display:none}
+  .nav-mega-items{display:flex;flex-direction:column;gap:1px}
+  .nav-mega-items-in{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .main-nav .nav-mega a{white-space:normal!important;font-size:12.5px!important;font-weight:700!important;padding:4px 8px!important;line-height:1.45!important;border-radius:8px!important;color:#334155!important;display:block;text-align:right}
+  .main-nav .nav-mega a:hover{background:rgba(239,75,26,.1)!important;color:#ef4b1a!important}
+  .main-nav .nav-mega-all{grid-column:1/-1;text-align:center;font-weight:900!important;color:#0e7490!important;margin-top:6px;border-top:1px solid #e2e8f0;padding:10px 8px 0!important}
+  .nav-mega-trigger{display:none!important}
 }
 @media(max-width:850px){
-  .nav-drop.nav-products{position:relative;display:grid;justify-items:stretch}
-  .nav-products .nav-mega{position:static;display:grid;grid-template-columns:1fr 1fr;max-height:none;box-shadow:none;border:0;padding:6px 8px 10px;overflow:visible;left:auto;right:auto;width:auto;margin:0}
+  .main-nav{row-gap:6px!important;max-height:calc(100vh - 108px)!important;max-height:calc(100dvh - 108px)!important;overflow-y:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .site-header .main-nav>a,.site-header .main-nav>.nav-drop>a,.site-header .main-nav>.nav-products>a{height:auto!important;min-height:44px!important;max-height:none!important;font-size:15px!important;padding:10px 14px!important;justify-content:flex-start!important;border-radius:14px!important}
+  .nav-drop.nav-products{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;justify-items:stretch;align-items:center}
+  .nav-products>a{width:100%}
+  .nav-mega-trigger{appearance:none;-webkit-appearance:none;display:inline-grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid #e2e8f0;border-radius:14px;background:#fff;color:#ef4b1a;cursor:pointer}
+  .nav-mega-trigger svg{width:18px;height:18px;transition:transform .28s ease}
+  .nav-products.is-open>.nav-mega-trigger{background:rgba(239,75,26,.08);border-color:rgba(239,75,26,.35)}
+  .nav-products.is-open>.nav-mega-trigger svg{transform:rotate(180deg)}
+  .nav-products .nav-mega{grid-column:1/-1;position:static;display:grid;grid-template-rows:0fr;transition:grid-template-rows .34s cubic-bezier(.65,.05,.36,1);width:100%;margin:0}
+  .nav-products.is-open>.nav-mega{grid-template-rows:1fr}
+  .nav-products .nav-mega .nav-mega-inner{overflow:hidden;min-height:0;visibility:hidden;transition:visibility 0s .35s;display:flex;flex-direction:column;gap:6px;padding-top:8px}
+  .nav-products.is-open .nav-mega-inner{visibility:visible;transition:none}
+  .nav-mega-col{border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;overflow:hidden;transition:border-color .25s ease,background .25s ease}
+  .nav-mega-col.open{background:#fff;border-color:rgba(239,75,26,.3)}
+  .nav-mega-head{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;padding:6px 12px;border:0;background:transparent;font-family:inherit;font-size:14.5px;font-weight:900;color:#0f2744!important;text-align:right;cursor:pointer}
+  .nav-mega-head .nav-mega-name{flex:1 1 auto;min-width:0}
+  .nav-mega-count{flex:0 0 auto;font-style:normal;font-size:11px;font-weight:900;line-height:1.8;color:#ef4b1a;background:rgba(239,75,26,.1);border-radius:999px;padding:0 9px}
+  .nav-mega-head svg{flex:0 0 auto;width:16px;height:16px;color:#94a3b8;transition:transform .28s ease}
+  .nav-mega-col.open .nav-mega-head{color:#ef4b1a!important}
+  .nav-mega-col.open .nav-mega-head svg{transform:rotate(180deg);color:#ef4b1a}
+  .nav-mega-items{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s ease}
+  .nav-mega-col.open .nav-mega-items{grid-template-rows:1fr}
+  .nav-mega-items-in{overflow:hidden;min-height:0;visibility:hidden;transition:visibility 0s .3s;display:flex;flex-direction:column;padding:0 8px 8px}
+  .nav-mega-col.open .nav-mega-items-in{visibility:visible;transition:none}
+  .main-nav .nav-mega .nav-mega-items-in a{display:flex;align-items:center;min-height:42px;padding:6px 10px!important;font-size:14px!important;font-weight:700!important;line-height:1.5!important;white-space:normal!important;text-align:right;color:#334155!important;border-radius:10px}
+  .main-nav .nav-mega .nav-mega-items-in a:hover,.main-nav .nav-mega .nav-mega-items-in a:active,.main-nav .nav-mega .nav-mega-items-in a:focus-visible{background:rgba(239,75,26,.08)!important;color:#ef4b1a!important}
+  .main-nav .nav-mega-all{display:flex!important;align-items:center;justify-content:center;min-height:48px;border-radius:16px;background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff!important;font-weight:900!important;font-size:14.5px!important;padding:8px 12px!important;margin:2px 0 0;border:0!important;box-shadow:0 10px 22px rgba(239,75,26,.22)}
+}
+@media(prefers-reduced-motion:reduce){
+  .nav-products .nav-mega,.nav-mega-items,.nav-mega-items-in,.nav-mega .nav-mega-inner,.nav-mega-trigger svg,.nav-mega-head svg{transition:none!important}
 }
 .ptf-card-actions{display:flex;gap:8px;flex-wrap:nowrap;align-items:stretch;margin-top:auto}
 .ptf-card-actions a{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;text-align:center;box-sizing:border-box;min-height:42px;padding:8px 10px;font-size:12.5px;font-weight:900;line-height:1.3;white-space:nowrap;border-radius:12px;text-decoration:none;background:#f1f5f9;color:#0f2744}
