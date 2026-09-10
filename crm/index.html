@@ -1970,12 +1970,33 @@ async function ptf2faContinue(u, resp) {
   } catch (e) { return { ok: false, error: 'twofa_error', message: 'خطای ورود دومرحله‌ای' }; }
 }
 function ptfInvalidateSession(msg) {
+  try { if (typeof window.ptfBootSplashHide === 'function') window.ptfBootSplashHide(); } catch (eSplashHide) {}
   try { if (typeof ptfAuthClear === 'function') ptfAuthClear(); } catch (eAc) {}
   try { if (typeof ptfAuthClear === 'function') ptfAuthClear(); } catch (eAc4) {}
   try { localStorage.removeItem('ptf_crm_session'); localStorage.removeItem('ptf_crm_token'); localStorage.removeItem('ptf_crm_token_role'); } catch (e) {}
   var le = document.getElementById('lerr');
   if (le) { le.textContent = msg || 'نشست سرور معتبر نیست؛ لطفاً دوباره وارد شوید.'; le.style.display = 'block'; }
   try { document.getElementById('crmL').style.display = 'none'; document.getElementById('loginS').style.display = 'grid'; } catch (e2) {}
+}
+/* v34.38.17 (BOOT-SPLASH-001): بازخورد «در حال بررسی» روی دکمه ورود + جلوگیری از دابل‌کلیک */
+function ptfLoginBusy(on) {
+  try {
+    var btn = document.querySelector('#loginS .btn-l');
+    if (!btn) return;
+    if (on) {
+      if (btn.classList.contains('busy')) return;
+      btn.setAttribute('data-ptf-label', btn.innerHTML);
+      btn.classList.add('busy');
+      btn.disabled = true;
+      btn.innerHTML = '⏳ در حال بررسی…';
+    } else {
+      if (!btn.classList.contains('busy')) return;
+      btn.classList.remove('busy');
+      btn.disabled = false;
+      var prev = btn.getAttribute('data-ptf-label');
+      if (prev) btn.innerHTML = prev;
+    }
+  } catch (e) {}
 }
 async function doLogin() {
   var lock = loginLockState();
@@ -1987,6 +2008,8 @@ async function doLogin() {
     setTimeout(function(){ le.style.display = 'none'; }, 3000);
     return;
   }
+  ptfLoginBusy(true);
+  try {
   var u = document.getElementById('uName').value.trim().toLowerCase();
   var p = document.getElementById('uPass').value.trim();
   var ph = await sha256Hex(p);
@@ -2148,6 +2171,7 @@ async function doLogin() {
   le.textContent = st.until ? '🔒 ۵ تلاش ناموفق — ورود ۶۰ ثانیه قفل شد' : (errMsg || 'نام کاربری یا رمز عبور اشتباه است');
   le.style.display = 'block';
   setTimeout(function(){ le.style.display = 'none'; }, 6000);
+  } finally { ptfLoginBusy(false); }
 }
 
 function showCrm() {
@@ -2179,6 +2203,8 @@ function showCrm() {
   var crmRoot = document.getElementById('crmL');
   crmRoot.setAttribute('data-ptf-boot', 'loading');
   crmRoot.style.display = 'flex';
+  /* v34.38.17 (BOOT-SPLASH-001): پردهٔ «در حال آماده‌سازی» + سکوت پیام‌های گذرا تا آماده‌به‌کار شدن */
+  try { if (!window._ptfSyncBootstrapped && typeof window.ptfBootSplashShow === 'function') window.ptfBootSplashShow(); } catch (eSplash) {}
   document.getElementById('navAv').textContent = (s.name||'?')[0]||'?';
   document.getElementById('navU').textContent = s.name||'کاربر';
   try{var _nr=document.getElementById('navRole');if(_nr){var _lb='';try{_lb=(typeof roleDef==='function'?roleDef().lb:'')||(typeof ROLES!=='undefined'&&typeof curRole==='function'&&ROLES[curRole()]?ROLES[curRole()].lb:'');}catch(e2){}_nr.textContent=_lb||'—';_nr.title=_lb||'';}}catch(eNR){}
@@ -2215,6 +2241,8 @@ function showCrm() {
 }
 
 function doLogout() {
+  /* v34.38.17 (BOOT-SPLASH-001): برداشتن پرده آماده‌سازی در خروج */
+  try { if (typeof window.ptfBootSplashHide === 'function') window.ptfBootSplashHide(); } catch (eSplashHide) {}
   /* v34.8.6 (AUTH-LOGOUT-REVOKE): توکن روی سرور هم باطل شود تا تعویض اکانت روی
      دستگاه مشترک، توکن اکانت قبلی را زنده روی سرور نگذارد. best-effort است. */
   try {
@@ -4449,6 +4477,8 @@ setInterval(function(){
 }, 1000);
 </script>
 <script defer src="ui-kit.js?v=34.38.16"></script>
+<!-- v34.38.17 (BOOT-SPLASH-001): پرده آماده‌سازی + سکوت پیام‌های گذرای بوت — بلافاصله پس از ui-kit تا گیت توست زود نصب شود. -->
+<script defer src="boot-splash.js?v=34.38.16"></script>
 <!-- MOB-008: nav shell باید پیش از ده‌ها bundle عملیاتی اجرا شود. -->
 <script defer src="mobilenav.js?v=34.38.16"></script>
 <script defer src="storage-quota.js?v=34.38.16"></script>
@@ -4558,6 +4588,12 @@ setInterval(function(){
 <script defer src="nav-focus.js?v=34.38.16"></script>
 <!-- v35: command-driven Sales-to-Cash loads last and replaces the legacy financial/write surfaces atomically. -->
 <script defer src="sales-domain-v2.js?v=34.38.16"></script>
+<script defer src="official-invoice-v2.js?v=34.38.16"></script>
+<script defer src="tax-returns.js?v=34.38.16"></script>
+<script defer src="case-revision.js?v=34.38.16"></script>
+</body>
+</html>
+omain-v2.js?v=34.38.16"></script>
 <script defer src="official-invoice-v2.js?v=34.38.16"></script>
 <script defer src="tax-returns.js?v=34.38.16"></script>
 <script defer src="case-revision.js?v=34.38.16"></script>

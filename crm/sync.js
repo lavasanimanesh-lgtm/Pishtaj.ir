@@ -2041,6 +2041,16 @@
   window.ptfSyncFullResync = function (cb) {
     pullCheck(function (res) { if (typeof cb === 'function') { try { cb(res || { ok: false, reason: 'unknown' }); } catch (eCb) {} } }, true, { allowDirtyMerge: true });
   };
+  /* v34.38.17 (BOOT-SPLASH-001): «تلاش مجدد» پردهٔ آماده‌سازی — همان مسیر bootstrap را
+     جلو می‌اندازد (FullResync به‌تنهایی bootstrapped را ست نمی‌کند). اگر pull در جریان
+     باشد false می‌دهد تا دکمه فقط تایمرها را ریست کند و منتظر همان درخواست بماند. */
+  window.ptfSyncRetryBootstrap = function () {
+    try {
+      if (state.bootstrapped || state.pushing || state.pullRequesting) return false;
+      initialSync();
+      return true;
+    } catch (e) { return false; }
+  };
   /* v34.8.22 (T5-1): نوشتن بی‌صدا — فقط برای ترفندهای نمایش (مثل فیلتر کالاهای
      مخفی حین رندر)؛ نه dirty می‌سازد نه push. تغییر «داده» هرگز از این مسیر نیست. */
   window.ptfSilentWrite = function (k, str) {
@@ -2257,6 +2267,10 @@
            بی‌اطلاعات را تکرار می‌کرد. حالا: علت واقعی در متن می‌آید، همان علت
            حداکثر یک‌بار در دقیقه توست می‌شود و فاصلهٔ تلاش مجدد پلکانی است
            (۵ ← ۱۰ ← ۲۰ ← ۳۰ ثانیه) تا سرورِ گرفتار بیشتر شلوغ نشود. */
+        /* v34.38.17 (BOOT-SPLASH-001): در سکوت بوت، شکستِ گذرا توست نمی‌شود؛ پرده
+           مرحله/شمارهٔ تلاش را نشان می‌دهد. توستِ throttleشدهٔ پایین فقط وقتی دیده
+           می‌شود که سکوت تمام شده باشد (مثلاً ادامهٔ محلی)، یعنی مشکل واقعی است. */
+        try { if (typeof window.ptfBootSplashStep === 'function') window.ptfBootSplashStep('retry', { attempt: state.bootstrapAttempt, reason: bootReason }); } catch (eSplashStep) {}
         try {
           var prevNotice = state.lastBootstrapNotice || {};
           var sameReason = prevNotice.reason === bootReason;
@@ -2275,12 +2289,17 @@
       state.bootstrapAttempt = 0;
       state.lastBootstrapNotice = null;
       /* کلید ناخوانای سرور نباید بی‌صدا بماند: کاربر باید بداند کدام بخش قدیمی است. */
+      var degradedMsg = '';
       try {
         var degradedKeys = (res.unavailable || []).map(function (k) { return String(k).replace('ptf_crm_', ''); });
-        if (degradedKeys.length && typeof ptfToast === 'function') {
-          ptfToast('⚠️ ' + degradedKeys.length + ' بخش روی سرور قابل خواندن نبود و نسخهٔ محلی همان‌ها حفظ شد: ' + degradedKeys.slice(0, 6).join('، ') + (degradedKeys.length > 6 ? '…' : ''), 'warn');
+        if (degradedKeys.length) {
+          degradedMsg = '⚠️ ' + degradedKeys.length + ' بخش روی سرور قابل خواندن نبود و نسخهٔ محلی همان‌ها حفظ شد: ' + degradedKeys.slice(0, 6).join('، ') + (degradedKeys.length > 6 ? '…' : '');
+          if (typeof ptfToast === 'function') ptfToast(degradedMsg, 'warn');
         }
       } catch (eDegraded) {}
+      /* v34.38.17 (BOOT-SPLASH-001): پایان پردهٔ آماده‌سازی. توست بالا در سکوت بوت
+         صف می‌شود؛ همین یک پیام واقعاً مهم، صریحاً پس از محو پرده نمایش داده می‌شود. */
+      try { if (typeof window.ptfBootSplashReady === 'function') window.ptfBootSplashReady(res, degradedMsg); } catch (eSplashReady) {}
       announceSnapshotReady(res);
       var serverEmpty = !!(res.fresh && !(+res.rev));
       if (serverEmpty) {
