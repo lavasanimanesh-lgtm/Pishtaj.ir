@@ -1131,9 +1131,12 @@
      که فقط ptf_crm_dealsِ فعال را می‌بیند، چنین پیشنهادی را «orphan_won» بحرانی گزارش
      می‌کرد و دکمهٔ «بازگرداندن برد/حذف پیشنهاد» نشان می‌داد — یعنی به کاربرِ پروندهٔ
      مختومهٔ سالم می‌گفت بردش یتیم است. این helperها، پیوندِ پیشنهاد به یک رکورد
-     بایگانیِ salesfile را (از شمارهٔ پیشنهاد و سازگاری هویت) اثبات می‌کنند تا به‌جای
-     orphan_won یک یافتهٔ اطلاعی «پروندهٔ بسته/بایگانی» صادر شود که فقط قابل باز کردن
-     است و هرگز دکمهٔ revoke/حذف برد ندارد. */
+     بایگانیِ salesfile را (از شمارهٔ پیشنهاد و سازگاری هویت) اثبات می‌کنند.
+     v34.38.17: ابتدا یک یافتهٔ اطلاعی «پروندهٔ بسته/بایگانی» صادر شد که فقط قابل باز
+     کردن بود. کارفرما گزارش داد همین ردیفِ اطلاعی نیز در کادر بالای فهرست پیشنهادها
+     به‌صورت «یافته» دیده می‌شود درحالی‌که چنین پیشنهادی دادهٔ سالم است و یافته محسوب
+     نمی‌شود؛ بنابراین v34.38.18 صدور آن یافته را برداشت و این اثباتِ پیوند اکنون تنها
+     برای سرکوب orphan_wonِ بحرانیِ کاذب مصرف دارد. */
   function archivedSalesFile(p) {
     return !!(p && p.origin === 'salesfile' && String(p.state || '').toLowerCase() === 'archived');
   }
@@ -1376,7 +1379,7 @@
   window.ptfSalesIntegrityScan=function(){
     var out=[],offers=data('ptf_crm_offers'),cases=data('ptf_crm_deals'),invs=data('ptf_crm_invoices'),rs=data('ptf_crm_case_receipts'),als=data('ptf_crm_receipt_allocations');
     var byNo={};offers.forEach(function(o){if(o&&o.no)(byNo[o.no]=byNo[o.no]||[]).push(o);});Object.keys(byNo).forEach(function(no){if(byNo[no].length>1)out.push({id:'duplicate-offer:'+no,severity:'critical',type:'duplicate_offer',label:'شماره پیشنهاد تکراری '+no,evidence:byNo[no]});});
-    offers.forEach(function(o){if(!o||o.st!=='won'||o.rialOf)return;var cs=casesForOffer(o);if(!cs.length){var arch=archivedCaseForOffer(o);if(arch)out.push({id:'orphan-won-archived:'+o.no,severity:'info',type:'orphan_won_archived',offerNo:o.no,projectNo:String(arch.no||arch.cd||''),label:'پیشنهاد برنده به پروندهٔ بایگانی/مختومه متصل است: '+o.no});else out.push({id:'orphan-won:'+o.no,severity:'critical',type:'orphan_won',offerNo:o.no,label:'پیشنهاد برنده بدون پرونده: '+o.no});}else if(cs.length>1)out.push({id:'duplicate-case:'+o.no,severity:'critical',type:'duplicate_case',offerNo:o.no,label:cs.length+' پرونده برای پیشنهاد '+o.no});if(o.advance&&(o.advance.cashFull||o.advance.paid)&&!arr(o.advance.payments).length)out.push({id:'synthetic-advance:'+o.no,severity:'critical',type:'synthetic_advance',offerNo:o.no,label:'اثر استنتاجی paid/cashFull بدون رویداد وصول: '+o.no});});
+    offers.forEach(function(o){if(!o||o.st!=='won'||o.rialOf)return;var cs=casesForOffer(o);if(!cs.length){/* v34.38.18 (ORPHAN-ARCHIVED-DISPLAY — گزارش کارفرما): پیوند پیشنهاد برنده به پروندهٔ بایگانی/مختومه دادهٔ سالم است و «یافته» محسوب نمی‌شود — در کادر بالای فهرست پیشنهادها نمایش داده نمی‌شود و در هیچ شمارش/کیفیت‌داده‌ای نمی‌آید. اثبات پیوند فقط orphan_wonِ بحرانیِ کاذب را سرکوب می‌کند. */if(!archivedCaseForOffer(o))out.push({id:'orphan-won:'+o.no,severity:'critical',type:'orphan_won',offerNo:o.no,label:'پیشنهاد برنده بدون پرونده: '+o.no});}else if(cs.length>1)out.push({id:'duplicate-case:'+o.no,severity:'critical',type:'duplicate_case',offerNo:o.no,label:cs.length+' پرونده برای پیشنهاد '+o.no});if(o.advance&&(o.advance.cashFull||o.advance.paid)&&!arr(o.advance.payments).length)out.push({id:'synthetic-advance:'+o.no,severity:'critical',type:'synthetic_advance',offerNo:o.no,label:'اثر استنتاجی paid/cashFull بدون رویداد وصول: '+o.no});});
     invs.forEach(function(i){if(!i||i.isUnofficial||!active(i))return;var fs=arr(i.files).filter(function(f){return active(f)&&['accounting_official_invoice','modian_tax_invoice'].indexOf(f.category)>-1;});if(!fs.length)out.push({id:'invoice-file:'+invoiceId(i),severity:'high',type:'missing_invoice_attachment',invoiceId:invoiceId(i),label:'فاکتور رسمی بدون مدرک اجباری: '+(i.no||i.cd)});});
     als.forEach(function(a){if(!a||!active(a))return;var receipt=rs.filter(function(r){return receiptId(r)===a.receiptId;})[0],inv=invs.filter(function(i){return invoiceId(i)===a.invoiceId;})[0];if(!receipt||!active(receipt)||!inv||!active(inv))out.push({id:'orphan-allocation:'+String(a._id||a.cd),severity:'critical',type:'orphan_allocation',label:'تخصیص فعال با مبدأ ابطال/مفقود'});});
     return out;
@@ -1403,16 +1406,15 @@
   function genericFindingGuide(f){
     var defs={
       orphan_won:['پیشنهاد برنده است اما هیچ پرونده فعالی به آن متصل نیست.','شماره پیشنهاد و مشتری را کنترل کنید.','مطمئن شوید پرونده در بایگانی یا دستگاه دیگر وجود ندارد.','اگر واقعاً پرونده‌ای تشکیل نشده، «بازگرداندن کنترل‌شده» را بزنید؛ پیشنهاد حذف نمی‌شود.'],
-      orphan_won_archived:['این پیشنهاد برنده است و به یک پروندهٔ مختومه/بایگانی‌شدهٔ فروش متصل است؛ داده‌ها سالم‌اند.','برای مشاهدهٔ مدارک و تاریخچهٔ آن پرونده، دکمهٔ «بازکردن پروندهٔ بایگانی» را بزنید.','پروندهٔ مختومه در بخش «بایگانی» نگهداری می‌شود و در لیست پرونده‌های فعال نیست — این وضعیت یتیم نیست و هیچ برد/پیشنهادی نباید برگردانده یا حذف شود.','اگر می‌خواهید پرونده به جریان برگردد، از خود پروندهٔ بایگانی از اقدام «به جریان انداختن پرونده» استفاده کنید.'],
       duplicate_offer:['بیش از یک رکورد با یک شماره پیشنهاد وجود دارد؛ سیستم اجازه حدس‌زدن رکورد صحیح را ندارد.','تاریخ، مشتری، اقلام و شناسه داخلی هر نسخه را مقایسه کنید.','رکورد دارای پرونده/فاکتور/دریافت را بدون بررسی حذف نکنید.','پس از تعیین رکورد اصلی، حذف یا ادغام باید با پیش‌بررسی وابستگی و ثبت دلیل انجام شود.'],
       synthetic_advance:['علامت paid/cashFull بدون رویداد دریافت واقعی پیدا شده است.','رسید بانکی و پرونده فروش را بررسی کنید.','اگر دریافت واقعی بوده، آن را از «دریافت و حساب پرونده» ثبت کنید.','اگر فقط شرط پرداخت بوده، هیچ اثر مالی نسازید؛ این هشدار یادآور پاک‌سازی metadata قدیمی است.'],
       missing_invoice_attachment:['فاکتور رسمی فعال حداقل یک فایل معتبر حسابداری یا مودیان ندارد.','فاکتور را در ماژول فاکتورها باز کنید.','تصویر یا PDF معتبر را مشاهده و بارگذاری کنید.','در صورت جایگزینی، دلیل را ثبت کنید؛ ضمیمه رسمی مستقل حذف نمی‌شود.'],
       orphan_allocation:['یک تخصیص مالی به دریافت یا فاکتور فعال متصل نیست.','شناسه دریافت و فاکتور را در گردش حساب بررسی کنید.','هیچ مبلغی را دستی تکرار نکنید.','اصلاح باید با بازسازی تخصیص‌های همان پرونده و حفظ سابقه انجام شود.']
     };
     var steps=defs[f.type]||['این یافته نیازمند بررسی داده‌های مبدأ است.','رکوردهای مرتبط را باز و شناسه‌ها را مقایسه کنید.','قبل از هر اقدام از وابستگی مالی/عملیاتی مطمئن شوید.','فقط از اقدام کنترل‌شده همان ردیف استفاده کنید.'];
-    var action=f.type==='orphan_won_archived'
-      ?'<button class="bt" onclick="closeFindingGuide();ptfOpenArchivedWonFile(\''+arg(f.projectNo||f.offerNo)+'\')">بازکردن پروندهٔ بایگانی</button>'
-      :(f.type==='orphan_won'&&canRepairOfferWin()?'<button class="bt" onclick="closeFindingGuide();ptfRevokeOfferWin(\''+arg(f.offerNo)+'\')">بازگرداندن کنترل‌شده پیشنهاد</button>':'');
+    /* v34.38.18: دیگر یافتهٔ orphan_won_archived صادر نمی‌شود؛ مسیر اقدامِ «بازکردن پروندهٔ
+       بایگانی» از راهنما حذف شد (بازکردن همان پرونده از پنل بایگانی در دسترس است — ptfOpenArchivedWonFile). */
+    var action=f.type==='orphan_won'&&canRepairOfferWin()?'<button class="bt" onclick="closeFindingGuide();ptfRevokeOfferWin(\''+arg(f.offerNo)+'\')">بازگرداندن کنترل‌شده پیشنهاد</button>':'';
     return '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px;margin-top:12px"><b>یافته:</b> '+esc(f.label)+'</div><ol style="line-height:2.1;margin:12px 20px">'+steps.map(function(s){return'<li>'+esc(s)+'</li>';}).join('')+'</ol><div style="display:flex;justify-content:flex-end;gap:8px"><button class="bt bt-o" onclick="closeFindingGuide()">فعلاً فقط بررسی می‌کنم</button>'+action+'</div>';
   }
   function duplicateCaseGuide(f,plan){
@@ -1579,18 +1581,14 @@
   window.ptfSalesIntegrityHtml=function(){
     var f=window.ptfSalesIntegrityScan();
     var adminAction=role()==='admin'?'<button class="bt bt-o" style="font-size:11px;margin-right:6px" onclick="ptfSalesMigrationOpen()">گزارش و مهاجرت کنترل‌شده</button>':'';
-    /* orphan_won_archived یافته‌ای اطلاعیِ «برد به پروندهٔ مختومه متصل است» است؛ آن را از
-       شمارش هشدار جدا می‌کنیم تا کاربرِ پروندهٔ سالمِ بسته، اخطارِ یتیم نبیند. */
-    var archived=f.filter(function(x){return x.type==='orphan_won_archived';});
-    var issues=f.filter(function(x){return x.type!=='orphan_won_archived';});
+    /* v34.38.18 (ORPHAN-ARCHIVED-DISPLAY — گزارش کارفرما): دیگر نوع orphan_won_archived در
+       scan وجود ندارد؛ پیشنهادِ متصل به پروندهٔ بایگانی «یافته» نیست و نه در کادر بالای فهرست
+       پیشنهادها نمایش داده می‌شود و نه در شمارش می‌آید. باکس اطلاعیِ جداگانهٔ v34.38.17 برچیده شد. */
+    var issues=f;
     function guideBtn(x){return ' <button class="bt bt-o" style="font-size:11px;color:#1d4ed8;border-color:#93c5fd" onclick="ptfSalesFindingGuideOpen(\''+arg(x.id)+'\')">🧭 راهنمای بررسی و رفع</button>';}
-    var archivedBox=archived.length?'<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px;margin:8px 0"><b style="color:#1e40af">🗄 '+archived.length+' پیشنهاد برنده به پروندهٔ بایگانی/مختومه متصل است (داده سالم — قابل باز کردن)</b>'+archived.map(function(x){
-      var open=x.projectNo?' <button class="bt bt-o" style="font-size:11px;color:#065f46;border-color:#a7f3d0" onclick="ptfOpenArchivedWonFile(\''+arg(x.projectNo)+'\')">بازکردن پروندهٔ بایگانی</button>':'';
-      return '<div style="padding:6px 0;border-bottom:1px dashed #bfdbfe;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="margin-left:auto">'+esc(x.label)+'</span>'+guideBtn(x)+open+'</div>';
-    }).join('')+'</div>':'';
-    if(!issues.length)return (archivedBox||'<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:8px;margin:8px 0;color:#065f46">✅ یکپارچگی فروش تا وصول تأیید شد.'+adminAction+'</div>')+(archivedBox?'':adminAction);
+    if(!issues.length)return '<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:8px;margin:8px 0;color:#065f46">✅ یکپارچگی فروش تا وصول تأیید شد.'+adminAction+'</div>';
     var roleNote=!canRepairOfferWin()?'<div style="font-size:11px;color:#9a3412;margin-top:5px">اصلاح برد فقط برای ادمین یا رئیس هیئت‌مدیره فعال است؛ نقش فعلی: '+esc(role()||'نامشخص')+'</div>':'';
-    return archivedBox+'<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;margin:8px 0"><b style="color:#9a3412">⚠️ '+issues.length+' یافته فروش تا وصول</b>'+adminAction+roleNote+issues.map(function(x){
+    return '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;margin:8px 0"><b style="color:#9a3412">⚠️ '+issues.length+' یافته فروش تا وصول</b>'+adminAction+roleNote+issues.map(function(x){
       var guide=guideBtn(x);
       var revoke=x.type==='orphan_won'&&canRepairOfferWin()?' <button class="bt bt-o" style="font-size:11px;color:#b45309" onclick="ptfRevokeOfferWin(\''+arg(x.offerNo)+'\')">بازگرداندن کنترل‌شده به وضعیت قبل</button>':'';
       var remove=x.type==='orphan_won'&&role()==='admin'?' <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfRepairOrphanOffer(\''+arg(x.offerNo)+'\')">لغو برد و حذف پیشنهاد</button>':'';
@@ -1598,7 +1596,7 @@
     }).join('')+'</div>';
   };
   function hookQuality(){if(window._salesV2QualityHook||typeof window.ptfDataQualityHtml!=='function')return false;window._salesV2QualityHook=true;var old=window.ptfDataQualityHtml;window.ptfDataQualityHtml=function(){return old()+'<div id="salesIntegrityQuality">'+window.ptfSalesIntegrityHtml()+'</div>';};var oldRender=window.ptfDataQualityRender;if(typeof oldRender==='function')window.ptfDataQualityRender=function(){oldRender.apply(this,arguments);var el=document.getElementById('salesIntegrityQuality');if(el)el.innerHTML=window.ptfSalesIntegrityHtml();};return true;}
-  function hookOfferRender(){if(window._salesV2OfferRenderHook||typeof window.renderOffers!=='function')return false;window._salesV2OfferRenderHook=true;var old=window.renderOffers;window.renderOffers=function(){old.apply(this,arguments);var host=document.getElementById('oTb');if(!host)return;var findings=window.ptfSalesIntegrityScan().filter(function(x){return x.type==='orphan_won'||x.type==='orphan_won_archived'||x.type==='duplicate_offer'||x.type==='duplicate_case';});var oldBox=document.getElementById('ptfOfferIntegrity');if(oldBox)oldBox.remove();if(findings.length)host.insertAdjacentHTML('beforebegin','<div id="ptfOfferIntegrity">'+window.ptfSalesIntegrityHtml()+'</div>');};return true;}
+  function hookOfferRender(){if(window._salesV2OfferRenderHook||typeof window.renderOffers!=='function')return false;window._salesV2OfferRenderHook=true;var old=window.renderOffers;window.renderOffers=function(){old.apply(this,arguments);var host=document.getElementById('oTb');if(!host)return;var findings=window.ptfSalesIntegrityScan().filter(function(x){return x.type==='orphan_won'||x.type==='duplicate_offer'||x.type==='duplicate_case';}); /* v34.38.18: orphan_won_archived دیگر یافته نیست و از کادر بالای رکوردهای پیشنهاد حذف شد */var oldBox=document.getElementById('ptfOfferIntegrity');if(oldBox)oldBox.remove();if(findings.length)host.insertAdjacentHTML('beforebegin','<div id="ptfOfferIntegrity">'+window.ptfSalesIntegrityHtml()+'</div>');};return true;}
   hookQuality();hookOfferRender();var hookTry=0,hookTimer=setInterval(function(){hookTry++;var a=hookQuality(),b=hookOfferRender();if((window._salesV2QualityHook&&window._salesV2OfferRenderHook)||hookTry>30)clearInterval(hookTimer);},300);
   /* v34.8.39 (T5-2b — DEV→IDB): مهاجرت یک‌بارهٔ تشخیصی‌های legacy فرمان از localStorage
      به Dev-KV (IndexedDB) — الگوی امن رودمپ: نوشتن در IDB موفق، فقط آن‌وقت حذف از LS.

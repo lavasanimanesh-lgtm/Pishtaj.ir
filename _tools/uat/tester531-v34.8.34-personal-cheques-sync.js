@@ -71,8 +71,8 @@ T('مهاجرت در بوت صدا زده می‌شود', /window\.chMigratePers
     T('رفتاری: کلید مشترک ۲ رکورد دارد', idbShared.length === 2, idbShared.length);
 
     var ver = JSON.parse(read('VERSION.json'));
-    T('VERSION.json = v34.38.16', ver.crm_version === 'v34.38.16', ver.crm_version);
-    T('قرارداد نسخهٔ UI/sw = 34.38.16', /window\.PTF_CRM_RELEASE = 'v34\.38\.16'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.16'/.test(read('crm/sw.js')));
+    T('VERSION.json = v34.38.19', ver.crm_version === 'v34.38.19', ver.crm_version);
+    T('قرارداد نسخهٔ UI/sw = 34.38.19', /window\.PTF_CRM_RELEASE = 'v34\.38\.19'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.19'/.test(read('crm/sw.js')));
     console.log('\n— tester531 (v34.38.0: personal cheques sync) —');
     console.log('PASS: ' + p + ' | FAIL: ' + f);
     process.exit(f ? 1 : 0);

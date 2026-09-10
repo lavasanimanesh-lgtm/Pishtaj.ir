@@ -21,7 +21,7 @@
       (برگشتِ قابل-اطمینان، نه جراحی کور).
    ۳) سپرهای حذف انبوه v34.38.12 (که برای بدترین عارضهٔ همین ریشه ساخته شدند)
       سرِ کار می‌مانند.
-   ۴) قرارداد انتشار v34.38.16 (VERSION/index/sw/manifest/SD) هم‌تراز است.
+   ۴) قرارداد انتشار v34.38.19 (VERSION/index/sw/manifest/SD) هم‌تراز است.
 
    اجرا: node _tools/uat/tester623-v34.38.15-boot-legacy-pull.js
    ───────────────────────────────────────────────────────────────────────────── */
@@ -59,9 +59,9 @@ test('endpointهای اتمیک سرور حذف نشده‌اند (فعال‌س
 test('سپر حذف انبوه v34.38.12 سرِ کار مانده (data_push + قرنطینهٔ بک‌آپ)',
   api.indexOf('mass_deletion_blocked') > -1);
 test('قرارداد انتشار هم‌تراز v34.38.16 است',
-  version === 'v34.38.16' && /window\.PTF_CRM_RELEASE = 'v34\.38\.16'/.test(idx) &&
-  sw.indexOf("RELEASE = 'v34.38.16'") > -1 && manifest.version === '34.38.16' &&
-  sd.indexOf("SD_SERVICE_VERSION = '34.38.16'") > -1);
+  version === 'v34.38.19' && /window\.PTF_CRM_RELEASE = 'v34\.38\.19'/.test(idx) &&
+  sw.indexOf("RELEASE = 'v34.38.19'") > -1 && manifest.version === '34.38.19' &&
+  sd.indexOf("SD_SERVICE_VERSION = '34.38.19'") > -1);
 
 /* ===========================================================================
    بخش ۲ — شبیه‌سازی رفتاری: بوت با پرچمِ index.html (خاموش)

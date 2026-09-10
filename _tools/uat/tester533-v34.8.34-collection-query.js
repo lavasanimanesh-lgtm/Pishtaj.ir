@@ -60,8 +60,8 @@ T('متد GET با X-CRM-Token', /action: 'collection_query', collection: collec
 T('صرفاً خواندنی — نوشتن از این مسیر عبور نمی‌کند', !/setData/.test((sync.match(/window\.ptfCollectionQuery = function[\s\S]*?\n  \};/) || [''])[0]));
 
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.38.16', ver.crm_version === 'v34.38.16', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.38.16', /window\.PTF_CRM_RELEASE = 'v34\.38\.16'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.16'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.38.19', ver.crm_version === 'v34.38.19', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.38.19', /window\.PTF_CRM_RELEASE = 'v34\.38\.19'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.19'/.test(read('crm/sw.js')));
 
 console.log('\n— tester533 (v34.38.0: T3-1 collection_query) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

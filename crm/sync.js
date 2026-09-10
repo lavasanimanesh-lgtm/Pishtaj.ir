@@ -1,4 +1,10 @@
 /* =====================================================================
+   PTF CRM — sync.js — v34.38.19 (BOOT-BAR-QUIET + AUTO-MIGRATE-001):
+   سکوتِ کاملِ لحظهٔ ورود — بنر هشدار پایین صفحه حین بوت/پرده باز نمی‌شود و
+   «انتقال یک‌باره» خودکار و بی‌دکمه در همان پرده انجام می‌شود؛ پس از رفع
+   سکوت، بنر فقط اگر واقعاً تغییری معلق مانده باشد نمایش داده می‌شود.
+   ───────────────────────────────────────────────────────────────────── */
+/* =====================================================================
    PTF CRM — Sprint 79 (sync.js)
    US-151 فاز ۲: همگام‌سازی کل داده CRM بین دستگاه‌ها/مرورگرها
    مدل: server-authoritative با نسخه (rev) سراسری
@@ -2175,6 +2181,17 @@
     el.title = x[1];
     /* v33.2.1: بنر هشدار تغییرات ذخیره‌نشده */
     var banner = document.getElementById('ptfUnsavedBanner');
+    /* v34.38.19 (BOOT-BAR-QUIET — درخواست کارفرما ۲۰۲۶-۰۹-۱۰ «هشدارها در زمان
+       ورود نمایش داده نشوند»): در سکوت بوت (پردهٔ آماده‌سازی) بنر پایین صفحه
+       هرگز باز نمی‌شود؛ نشانگر 🟢/🟡 بالای صفحه به‌روز می‌ماند و رندر واقعی
+       بنر بلافاصله پس از پایان سکوت از روی همان وضعیت انجام می‌شود
+       (listener «ptf:boot-quiet-end» در boot()). محافظتِ داده همچنان فعال است:
+       dirty را auto-push می‌کند و اگر پس از بوت واقعاً معلق بماند بنر می‌آید. */
+    if (banner && window.ptfBootQuiet === true) {
+      banner.style.display = 'none';
+      queueNoticeStackOffset();
+      return;
+    }
     if (banner) {
       var dirtyCount = Object.keys(state.dirty).length;
       var failedKeys = Object.keys(state.writeFailures);
@@ -2299,8 +2316,27 @@
       } catch (eDegraded) {}
       /* v34.38.17 (BOOT-SPLASH-001): پایان پردهٔ آماده‌سازی. توست بالا در سکوت بوت
          صف می‌شود؛ همین یک پیام واقعاً مهم، صریحاً پس از محو پرده نمایش داده می‌شود. */
-      try { if (typeof window.ptfBootSplashReady === 'function') window.ptfBootSplashReady(res, degradedMsg); } catch (eSplashReady) {}
-      announceSnapshotReady(res);
+      /* v34.38.19 (AUTO-MIGRATE-001 — فرمان کارفرما: «انتقال یک‌باره و همگرایی
+         با سرور بدون زدن دکمه‌ای اتوماتیک انجام شود»): اگر این دستگاه هنوز
+         انتقال/همگرایی نکرده، آماده‌اعلان‌کردن ورود تا پایان مهاجرتِ خودکارِ
+         بی‌صدا نگه داشته می‌شود و پرده مرحلهٔ «migrate» را نشان می‌دهد.
+         failsafe ۴۰ ثانیه: ورود هرگز گیر نمی‌کند (fail-open). */
+      var readyDone = false;
+      function finishReady() {
+        if (readyDone) return;
+        readyDone = true;
+        try { if (typeof window.ptfBootSplashReady === 'function') window.ptfBootSplashReady(res, degradedMsg); } catch (eSplashReady) {}
+        announceSnapshotReady(res);
+      }
+      try {
+        if (typeof window.ptfBAutoMigrate === 'function' &&
+            typeof window.ptfBMigrationNeeded === 'function' &&
+            window.ptfBMigrationNeeded()) {
+          try { if (typeof window.ptfBootSplashStep === 'function') window.ptfBootSplashStep('migrate', {}); } catch (eMigStep) {}
+          setTimeout(function () { try { finishReady(); } catch (eFR2) {} }, 40000);
+          window.ptfBAutoMigrate({ source: 'login', cb: function () { try { finishReady(); } catch (eFR1) {} } });
+        } else finishReady();
+      } catch (eAutoMig) { finishReady(); }
       var serverEmpty = !!(res.fresh && !(+res.rev));
       if (serverEmpty) {
         var hasData = SYNC_KEYS.some(function (k) { return (rd(k) || '[]').length > 10; });
@@ -2319,6 +2355,14 @@
   function boot() {
     if (!curSession().user) return;
     injectBadge();
+    /* v34.38.19 (BOOT-BAR-QUIET): پس از رفع سکوت بوت، بنر هشدار پایین صفحه با
+       وضعیت واقعیِ همان لحظه (dirty باقی‌مانده یا همه‌چیز همگام) دوباره رندر شود. */
+    try {
+      window.addEventListener('ptf:boot-quiet-end', function () {
+        try { setSyncBadge(_lastSyncBadge || (Object.keys(state.dirty).length ? 'warn' : 'ok')); } catch (eBQ) {}
+      });
+    } catch (eQuietEnd) {}
+
     /* v34.8.42 (R4-گام۱): پرچم‌های موتور — read-through از ptfCache/سرور؛ غیرمسدودکننده */
     try { window.ptfEngineFlagsLoad(false); } catch (eEf) {}
     /* v34.4.42: dirty persisted ابتدا فقط «کاندید بازیابی» است، نه اثبات خطا.

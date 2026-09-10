@@ -22,7 +22,9 @@
 #     + RELEASE + کش‌باستر — هم‌ارزِ گیتِ اثبات‌شدهٔ پروداکشن). ناهمسانیِ محتوایِ
 #     خوانده‌شده همچنان قرمزِ مسدودکننده است (fail-closed واقعی). اگر هاست روزی به
 #     curl/FTP جواب داد، readback خودکار دوباره مسدودکننده می‌شود (بدون تغییر کد).
-#   • هدر no-cache فقط برای استیجینگ به crm/.htaccess تزریق می‌شود (در کامیت نیست)
+#   • هدر no-cache برای js/html آخرِ crm/.htaccess الحاق می‌شود (idempotent). از v34.38.18-02
+#     فایل کامیت‌شدهٔ خودِ آن هم همان قانون را دارد (CACHE-HOTFIX) — الحاقِ تزریقِ استیجینگ با
+#     نگهبان grep در صورت وجودِ قاعده رد می‌شود و کاملاً کناره‌گذار است (تاریخی/ایمنی).
 #   • ⛔ dangerously-clean-slate ممنوع: کانفیگ‌های سرور-تنها پاک می‌شوند
 #
 # سکرت‌ها: FTP_SERVER / FTP_USERNAME / FTP_PASSWORD / FTP_SERVER_DIR
@@ -120,11 +122,16 @@ jobs:
           done
           rm -f _staging-banner.html
 
-      # T0-6: کش استیجینگ — فقط همین‌جا تزریق می‌شود؛ فایل کامیت‌شده پاک است
+      # T0-6: کش CRM — تزریقِ استیجینگ (از v34.38.18-02 فایل کامیت‌شده هم همان قانون را
+      #       دارد: CACHE-HOTFIX). الحاق با نگهبان grep idempotent شد تا بلوک دوتایی نیاید.
       - name: Staging no-cache headers (crm)
         run: |
-          printf '\n# T0-6 (staging-only, injected by CI — do not commit)\n<IfModule mod_headers.c>\n  <FilesMatch "\\.(js|html)$">\n    Header set Cache-Control "no-cache, must-revalidate"\n  </FilesMatch>\n</IfModule>\n' >> crm/.htaccess
-          tail -7 crm/.htaccess
+          if grep -q 'Header set Cache-Control "no-cache, must-revalidate"' crm/.htaccess; then
+            echo 'قاعدهٔ no-cache هم‌اکنون در crm/.htaccess هست (v34.38.18-02 CACHE-HOTFIX) — الحاق رد شد (idempotent).'
+          else
+            printf '\n# T0-6 (staging-only, injected by CI — do not commit)\n<IfModule mod_headers.c>\n  <FilesMatch "\\.(js|html)$">\n    Header set Cache-Control "no-cache, must-revalidate"\n  </FilesMatch>\n</IfModule>\n' >> crm/.htaccess
+          fi
+          tail -9 crm/.htaccess
 
       - name: Write deploy marker
         run: |

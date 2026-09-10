@@ -17,8 +17,8 @@ var sf = read('crm/supplier-finance.js');
 var chq = read('crm/cheques.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.16', ver.crm_version === 'v34.38.16', ver.crm_version);
-T('supplier-finance.js cache-bust 34.38.16', /supplier-finance\.js\?v=34\.38\.16/.test(idx));
+T('VERSION.json = v34.38.19', ver.crm_version === 'v34.38.19', ver.crm_version);
+T('supplier-finance.js cache-bust 34.38.19', /supplier-finance\.js\?v=34\.38\.19/.test(idx));
 
 /* ---------- لاودمشکل ---------- */
 T('_vatDate قبل از html تعریف شده', /var _vatDate = prefill\.date/.test(sf) && sf.indexOf('window.ptfVatRateOf(_vatDate)') > -1);

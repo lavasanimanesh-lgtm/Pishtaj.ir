@@ -2,6 +2,15 @@
  PTF CRM — client-server.js — DB-MIG-001 (فاز B) — v33.21.0
  کلاینت نازک: سرور (MySQL) منبع حقیقت؛ localStorage فقط کش/صف آفلاین.
 
+ v34.38.19 (AUTO-MIGRATE-001 — درخواست کارفرما ۲۰۲۶-۰۹-۱۰): «انتقال یک‌باره
+   و همگرایی با سرور بدون زدن دکمه‌ای». sync.js در ورود، پس از آماده‌شدن
+   snapshot، ptfBAutoMigrate را صدا می‌زند: همان موتور پُرگارد مهاجرت
+   (ACK تک‌کلید، نجات تعارض با نسخهٔ سرور، سپر ضدصفر، نشانگرهای
+   flushed/synced فقط پس از تأیید کامل) اما کاملاً بی‌صدا — بدون confirm،
+   بدون alert و بدون ریلود در حین بوت. شکستِ نیازمند انسان (تعارض/نقش/
+   نشست منقضی) در ptf_b_automig_state ثبت می‌شود تا نوار یادآور در
+   index.html فقط در همان حالت نمایش داده شود.
+
  v33.21.0 (PTF-SCALE-P0 — ارتقای فناوری برای افزایش تعداد کاربران):
  getData قبلاً به‌ازای هر خواندن کلید منقضی‌شده یک پول اسنپ‌شات کامل (~۴MB) می‌زد
  (نه single-flight نه حد نرخ) — بزرگ‌ترین هزینهٔ پنهان این معماری. حالا همهٔ
@@ -955,13 +964,18 @@
     /* هم‌گرایی یک‌باره: دادهٔ محلی → سرور. در حالت خودکار فقط دستگاه تازه
        (بدون payload کسب‌وکاری) مجاز است؛ دادهٔ موجود هرگز بدون تأیید overwrite نمی‌شود. */
     /* v34.36.1 (F1): opts.force = «اجرای دوبارهٔ مهاجرت» بدون پاک‌کردن نشانگرها. */
+    /* v34.38.19 (AUTO-MIGRATE-001): opts.autoBoot = انتقال یک‌بارهٔ «خودکارِ
+       ورود» داده‌دار هم مجاز است (فرمان کارفرما)؛ بدون confirm و بی‌صدا اجرا
+       می‌شود. حفاظت‌های سروری مهاجرت (سپر ضد داده‌صفر، تعارض→نسخهٔ سرور بودنه،
+       ACK تک‌کلید پیش از ثبت نشانگر) عیناً فعال‌اند — داده بی‌صاحب رها نمی‌شود. */
     if (!opts.force && !flushRequired()) {
+      if (opts.cb) { try { opts.cb(null, { idle: true }); } catch (eCbIdle) {} }
       window.ptfBFlushQueue(function () {});
       return;
     }
     /* Keep the automatic path explicitly fail-closed before any asynchronous IDB
        read. Existing local business data always requires a human-reviewed merge. */
-    if (opts.auto && hasLocalBusinessPayload()) return { ok: false, reason: 'local_data_requires_review' };
+    if (opts.auto && !opts.autoBoot && hasLocalBusinessPayload()) return { ok: false, reason: 'local_data_requires_review' };
     var keys = bKeys();
     /* Include the IDB mirror in the convergence payload. Missing keys are ordinary
        absent keys; only the values that exist locally are sent. */
@@ -972,23 +986,33 @@
         /* v34.8.9: مسیر خالی هم (دستگاه بدون دادهٔ محلی) فاز B را فعال می‌کند. */
         try { window.ptfBEnableAfterConvergence(); } catch (eEnableEmpty) {}
         window.ptfBFlushQueue(function () {});
+        if (opts.cb) { try { opts.cb(null, { ok: true, empty: true }); } catch (eCbEmpty) {} }
         return;
       }
-      if (opts.auto) {
+      if (opts.auto && !opts.autoBoot) {
         /* Never push an existing local payload in auto-mode. */
         return { ok: false, reason: 'local_data_requires_review' };
+      }
+      if (opts.autoBoot) {
+        /* v34.38.19: مسیر خودکارِ ورود — بی‌صدا (silent) شروع می‌کند و نتیجه در
+           cb برمی‌گردد (هیچ alert/confirmdi در حین بوت). */
+        convergeMigration(payload, { acked: {}, submitted: {}, seen: {} }, 0, { silent: true, cb: opts.cb });
+        return { ok: true, started: 'autoBoot' };
       }
       var ok = confirm('🌐 هم‌گرایی داده با سرور\n\nدادهٔ محلی مرورگر شما یک‌بار به سرور منتقل می‌شود تا با دیتابیس یکپارچه شود (localStorage پس از آن فقط کش می‌شود).\n\nادامه می‌دهید؟');
       if (!ok) { alert('می‌توانید بعداً از «تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه» این کار را انجام دهید.'); return; }
       /* v34.36.1 (P0-1): معیارِ پایان = تأییدِ تک‌تک کلیدها روی سرور، با همان
          موتور نجات/تلاش‌مجددِ صف. «flushed» فقط پس از ACK کامل ثبت می‌شود. */
-      convergeMigration(payload, { acked: {}, submitted: {}, seen: {} }, 0);
+      convergeMigration(payload, { acked: {}, submitted: {}, seen: {} }, 0, {});
     });
   };
 
   /* یک نوبت همگرایی. acked/submitted بین نوبت‌ها انباشته می‌شود تا کلیدهای
-     تأییدشده هرگز دوباره ارسال نشوند و گزارش نهایی دقیق باشد. */
-  function convergeMigration(payload, st, round) {
+     تأییدشده هرگز دوباره ارسال نشوند و گزارش نهایی دقیق باشد.
+     v34.38.19: ctl = { silent, cb } — مسیر خودکارِ ورود بی‌صدا است و نتیجهٔ
+     پایان (موفق/needLogin/مسدود) از طریق cb گزارش می‌شود. */
+  function convergeMigration(payload, st, round, ctl) {
+    ctl = ctl || {};
     var acked = st.acked, submitted = st.submitted, seen = st.seen;
     Object.keys(payload || {}).forEach(function (k) { submitted[k] = payload[k]; });
     window.ptfBPushBatch(payload, function (d) {
@@ -1019,7 +1043,9 @@
 
       if (d.needLogin) {
         try { if (typeof window.ptfSyncNoteError === 'function') window.ptfSyncNoteError('migration', 'needLogin', 'نشست منقضی — انتقال یک‌باره متوقف شد', 'needLogin:' + unresolved.join('|')); } catch (eNoteLogin) {}
-        alert('⚠️ نشست شما منقضی شده است؛ دوباره وارد شوید، سپس «تکمیل انتقال یک‌باره» را از «تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه» بزنید. دادهٔ محلی شما محفوظ است.');
+        /* v34.38.19: در مسیر خودکارِ ورود alert ممنوع است؛ وضعیت برای نوار یادآور ثبت می‌شود */
+        if (ctl.silent) { if (ctl.cb) { try { ctl.cb({ code: 'needLogin', human: true }); } catch (eCbLogin) {} } }
+        else alert('⚠️ نشست شما منقضی شده است؛ دوباره وارد شوید، سپس «تکمیل انتقال یک‌باره» را از «تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه» بزنید. دادهٔ محلی شما محفوظ است.');
         return;
       }
       if (!unresolved.length) {
@@ -1032,6 +1058,12 @@
           if (typeof audit === 'function') audit('سیستم', '✅ انتقال یک‌باره کامل شد — ' + Object.keys(acked).length + ' کلید روی سرور تأیید شد' +
             (benignRejected.length ? ' (' + benignRejected.map(shortKeyName).join('، ') + ' با کپی محلی خالی از سرور بازخوانی می‌شود)' : ''), 'SYNC');
         } catch (eAuditOk) {}
+        /* v34.38.19: مسیر خودکارِ ورود بدون alert/ریلود تمام می‌شود؛ خودِ
+           بوت در ادامه (finishReady) روانِ خودش را دارد. مسیر دستی مثل قبل. */
+        if (ctl.silent) {
+          if (ctl.cb) { try { ctl.cb(null, { ok: true, migrated: true, acked: Object.keys(acked).length }); } catch (eCbOk) {} }
+          return;
+        }
         alert('✅ هم‌گرایی انجام شد.\nحالت سرور-محور هم خودکار فعال شد: دادهٔ حجیم به IndexedDB منتقل و localStorage از این پس فقط کش سبک است.');
         location.reload();
         return;
@@ -1052,18 +1084,19 @@
       if (retryable.length && round < MIGRATION_ROUNDS) {
         setTimeout(function () {
           readQueuePayload(retryable, function (nextPayload) {
-            if (!Object.keys(nextPayload || {}).length) { reportMigrationBlocked(d, st, round); return; }
-            convergeMigration(nextPayload, st, round + 1);
+            if (!Object.keys(nextPayload || {}).length) { reportMigrationBlocked(d, st, round, ctl); return; }
+            convergeMigration(nextPayload, st, round + 1, ctl);
           });
         }, 900);
         return;
       }
-      reportMigrationBlocked(d, st, round);
+      reportMigrationBlocked(d, st, round, ctl);
     });
   }
 
   /* P0-3: گزارشِ دقیق و عملی به‌جای «network» مبهم + ثبت دائمی برای تشخیص. */
-  function reportMigrationBlocked(d, st, round) {
+  function reportMigrationBlocked(d, st, round, ctl) {
+    ctl = ctl || {};
     var acked = st.acked;
     var unresolved = Object.keys(st.submitted).filter(function (k) { return acked[k] === undefined; });
     var blockers = migrationBlockers(st.seen, unresolved);
@@ -1091,6 +1124,12 @@
     if (blockers.some(function (b) { return b.cls === 'skipped'; })) guide.push('حجم: این کلید از سقف ۸MB بزرگ‌تر است؛ نیاز به تخلیهٔ پیوست/آرشیو دارد — با پشتیبانی هماهنگ کنید.');
     if (blockers.some(function (b) { return b.cls === 'failed'; })) guide.push('ارسال: اتصال پایدار لازم است' + ((d && d.error) ? ' — خطای سرور: ' + d.error : '') + '.');
     if (blockers.some(function (b) { return b.cls === 'blocked'; })) guide.push('فرمان دامنه: تا پایان اجرای فرمان جاری صبر کنید و دوباره تلاش کنید.');
+    /* v34.38.19: در مسیر خودکارِ ورود به‌جای alert، وضعیت برای نوار یادآور
+       و راهنمای تنظیمات ثبت می‌شود و cb پایانِ تلاش را اعلام می‌کند. */
+    if (ctl.silent) {
+      if (ctl.cb) { try { ctl.cb({ code: reasonCode, human: true, ack: ackCount, total: total }); } catch (eCbBlocked) {} }
+      return;
+    }
     alert('⚠️ انتقال یک‌باره کامل نشد — ' + ackCount + ' از ' + total + ' کلید روی سرور تأیید شد.\n\nکلیدهای باقی‌مانده:\n' + (lines.join('\n') || '• نامشخص') +
       '\n\n' + (guide.join('\n') || '') + '\n\nدادهٔ محلی شما محفوظ است و نشانگرهای این دستگاه دست‌نخورده ماندند (دوباره تلاش کنید).');
   }
@@ -1102,6 +1141,68 @@
        پمپ می‌کردند. حالا همان «اجرای دوبارهٔ مهاجرت» با opts.force و بدونِ لمسِ
        نشانگرها انجام می‌شود (نشانگر فقط پس از ACK کامل در convergeMigration ثبت می‌شود). */
     window.ptfBFinalize({ force: true });
+  };
+
+  /* ---- v34.38.19 (AUTO-MIGRATE-001): انتقال یک‌بارهٔ خودکار در ورود ----
+     فرمان کارفرما (۲۰۲۶-۰۹-۱۰): «انتقال یک‌باره و همگرایی با سرور بدون زدن
+     دکمه‌ای اتوماتیک انجام شود». این API در boot (sync.js، پس از snapshot
+     سالم) و در تیکِ نوار یادآور (index.html) صدا زده می‌شود. همهٔ گاردهای
+     داده‌ای مهاجرت دست‌نخورده فعال‌اند: ACK تک‌کلید پیش از ثبت نشانگر،
+     نجاتِ تعارض با نسخهٔ معتبر سرور، سپر ضد داده‌صفر، سقف ۸MB، allowlist
+     نقش. چیزی که حذف شده فقط «پرسِش/دکمه» است، نه هیچ حفاظتی. */
+  var _autoMigRunning = false;
+  function autoMigKey() {
+    var u = '';
+    try { u = (typeof curSession === 'function' ? ((curSession() || {}).user || '') : ''); } catch (e) {}
+    return 'ptf_b_automig_state_' + (u || '_');
+  }
+  function noteAutoMigState(st) { try { localStorage.setItem(autoMigKey(), JSON.stringify(st)); } catch (e) {} }
+  window.ptfBAutoMigState = function () {
+    try { return JSON.parse(localStorage.getItem(autoMigKey()) || 'null'); } catch (e) { return null; }
+  };
+  window.ptfBMigrationNeeded = function () {
+    try {
+      var u = (typeof curSession === 'function' ? curSession() : {}) || {};
+      if (!u.user) return false;
+      return flushRequired() || !isSynced();
+    } catch (e) { return false; }
+  };
+  window.ptfBAutoMigrate = function (opts) {
+    opts = opts || {};
+    var cb = (typeof opts.cb === 'function') ? opts.cb : function () {};
+    try {
+      if (_autoMigRunning) { cb(null, { running: true }); return { ok: true, running: true }; }
+      if (!window.ptfBMigrationNeeded()) {
+        noteAutoMigState({ at: new Date().toISOString(), ok: true, reason: 'none_needed' });
+        cb(null, { ok: true, idle: true });
+        return { ok: true, idle: true };
+      }
+      _autoMigRunning = true;
+      noteAutoMigState({ at: new Date().toISOString(), ok: false, running: true, reason: 'started:' + String(opts.source || 'boot') });
+      try { if (typeof audit === 'function') audit('سیستم', '🔄 انتقال یک‌بارهٔ خودکار در ورود آغاز شد (AUTO-MIGRATE-001)', 'SYNC'); } catch (eAuditStart) {}
+      var verdict = window.ptfBFinalize({
+        autoBoot: true,
+        cb: function (err, info) {
+          _autoMigRunning = false;
+          try {
+            if (err) {
+              noteAutoMigState({ at: new Date().toISOString(), ok: false, human: !!err.human, reason: String(err.code || 'blocked') });
+              try { if (typeof audit === 'function') audit('سیستم', '⚠️ انتقال یک‌بارهٔ خودکار ناتمام ماند (' + String(err.code || 'blocked') + ') — راهنما در «وضعیت دستگاه»', 'SYNC'); } catch (eAuditFail) {}
+            } else {
+              noteAutoMigState({ at: new Date().toISOString(), ok: true, reason: '' });
+            }
+          } catch (eNote) {}
+          try { cb(err, info); } catch (eCb) {}
+        }
+      });
+      if (verdict && verdict.ok === false) { /* ردِ همگامِ fail-closed (بدون async) */
+        _autoMigRunning = false;
+        var rc = String(verdict.reason || 'refused');
+        noteAutoMigState({ at: new Date().toISOString(), ok: false, human: true, reason: rc });
+        cb({ code: rc, human: true });
+      }
+      return verdict || { ok: true, started: 'autoBoot' };
+    } catch (e) { _autoMigRunning = false; try { cb({ code: 'error' }); } catch (e2) {} return { ok: false, reason: 'error' }; }
   };
 
   /* کاربران جدید نباید تنظیمات را بدانند. فقط در دستگاه واقعاً تازه (هیچ key

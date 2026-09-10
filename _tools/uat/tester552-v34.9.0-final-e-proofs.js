@@ -18,7 +18,10 @@ var php = read('api/crm.php');
 
 /* ═══ ۰) MIGRATION-BANNER ═══ */
 T('بنر: تابع ptfMigBannerTick + تیک ۱۵ث تعریف شد', ih.indexOf('function ptfMigBannerTick()') > -1 && ih.indexOf('setInterval(ptfMigBannerTick, 15000)') > -1);
-T('بنر: فقط دستگاه کهربایی یا سبزِ ناتمام — سبزِ کامل/تازه هرگز نمی‌بیند (v34.38.0: synced هم لازم شد)', ih.indexOf('if ((st.enabled && st.synced) || !st.localPayload) { if (bar) bar.remove(); return; }') > -1);
+/* v34.38.19: قرارداد «فقط کهربایی/سبزِ ناتمام، سبزِ کامل/تازه هرگز» حفظ شد؛ پیاده‌سازی
+   از شرطِ خام به ptfBMigrationNeeded + «خودکار اول» مهاجرت کرد (نوار فقط برای
+   موردِ نیازمند-انسان و پس از سکوت بوت). پین روی هر دو قرارداد تازه/پشتیبان. */
+T('بنر: فقط دستگاه کهربایی یا سبزِ ناتمام — سبزِ کامل/تازه هرگز نمی‌بیند (v34.38.0: synced هم لازم شد | v34.38.19: خودکار-اول)', ih.indexOf("? window.ptfBMigrationNeeded()") > -1 && ih.indexOf("(!((st.enabled && st.synced)) && !!st.localPayload)") > -1 && ih.indexOf("am.running || am.ok") > -1);
 T('بنر: دکمهٔ «رفتن به تنظیمات» و «بعداً» (ساکت فقط تا رفرش)', ih.indexOf("goPanelByName(\\'set\\')") > -1 && ih.indexOf('بعداً') > -1 && ih.indexOf('window._ptfMigDismissed=true') > -1);
 T('بنر: وضعیت صف آفلاین شفاف است', ih.indexOf('تغییر در صف آفلاین هم هست') > -1);
 T('بنر: خارج از CRM حذف می‌شود (صفحهٔ ورود تمیز)', /if \(!crmVisible \|\| window\._ptfMigDismissed\) \{ if \(bar\) bar\.remove\(\); return; \}/.test(ih));

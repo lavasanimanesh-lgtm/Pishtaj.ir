@@ -1,14 +1,25 @@
 /* =====================================================================
-   PTF CRM — boot-splash.js — v34.38.17 (BOOT-SPLASH-001)
+   PTF CRM — boot-splash.js — v34.38.19 (LIQUID-RING + AUTO-MIGRATE-AWARE)
    «پردهٔ آماده‌سازی» + «سکوت بوت» — رفع سیل پیام‌های لحظهٔ ورود.
 
-   مسئله (گزارش کارفرما): هنگام ورود به CRM، انبوه پیام‌های گذرا
-   («دریافت کامل انجام نشد»، «لوکال‌استورج…»، «تغییر هنوز نرسیده» و…)
-   نمایش داده می‌شد که بیشترشان فقط در همان لحظهٔ اول صادق بودند و کاربر
-   حس می‌کرد سامانه خراب است.
+   v34.38.19 (2026-09-10 — درخواست کارفرما):
+   الف) حلقهٔ چرخان ساده جای خود را به «حلقهٔ مایع جاذبه‌دار» داد (Canvas):
+        قطره/تودهٔ مایع در کانال باریک حلقه‌ای دور لوگو؛ هنگام فرود از بالا
+        به پایین شتاب می‌گیرد و باز/کشیده می‌شود و هنگام بالارفتن کُند و
+        کم‌حجم می‌شود (مدل انرژی: سرعت ∝ √(۱+k·cosθ)، طول و ضخامت تابع
+        سرعت). برای reduced-motion فقط یک فریم ایستا رسم می‌شود و برای
+        مرورگر بدون Canvas همان حلقهٔ CSS قبلی fallback است.
+   ب) لوگو: کل نشان (چرخ‌دنده+شعله) داخل دایره نمایش داده می‌شود — متن
+        «پی‌تی‌اف» زیر لوگو با سندِ بریده‌شدهٔ ptf-logo-mark.png حذف شده
+        است؛ با خطای بارگذاری، نسخهٔ کامل و سپس ایموجی 🏢 جایگزین است.
+   ج) مرحلهٔ جدید 'migrate' برای «انتقال یک‌بارهٔ خودکار» (AUTO-MIGRATE-001
+        در sync.js/client-server.js): پنجرهٔ مشکل‌واقعی (۴۵ثانیه) هنگام
+        این مرحله از نو مسلح می‌شود تا ورود گیر نکند.
+   د) پایان سکوت بوت رویداد 'ptf:boot-quiet-end' می‌فرستد تا sync.js بنر
+        پایین صفحه را با وضعیت واقعی دوباره رندر کند (BOOT-BAR-QUIET).
 
-   قرارداد این ماژول:
-   ۱) به‌محض ورود به CRM (showCrm) یک پردهٔ تمام‌صفحه با حلقهٔ چرخان دور
+   قرارداد این ماژول (مانند v34.38.17):
+   ۱) به‌محض ورود به CRM (showCrm) یک پردهٔ تمام‌صفحه با حلقهٔ مایعِ دور
       لوگو + مراحل (اتصال ← دریافت ← آماده‌سازی) نمایش داده می‌شود.
    ۲) از همان لحظه «سکوت بوت» فعال است: ptfToast سراسری گیت می‌شود و
       پیام‌های گذرا (warn/info/ok) به‌جای نمایش، در صف کوتاه‌مدت (حداکثر
@@ -20,8 +31,8 @@
    ۴) اگر تا ۱۲ ثانیه آماده نشود، پیام اطمینان‌بخش «کند است، صبر کنید»
       می‌آید (بدون لحن خطا)؛ اگر تا ۴۵ ثانیه snapshot موفق نیاید، پرده
       وارد حالت «مشکل واقعی» می‌شود: یک پیام روشن + [تلاش مجدد]
-      + [ادامه با دادهٔ محلی]. سیگنال‌های ماندگار (نوار زرد/قرمز،
-      بج‌ها، کارتابل، تشخیص همگام‌سازی) دست‌نخورده می‌مانند.
+      + [ادامه با دادهٔ محلی]. سیگنال‌های ماندگار (نشانگر وضعیت،
+      کارتابل، تشخیص همگام‌سازی) دست‌نخورده می‌مانند.
    ۵) fail-open در همه‌جا: نبودِ sync/ptfToast/… هیچ‌وقت ورود را
       نمی‌شکند؛ سکوت حداکثر ۷۵ ثانیه عمر می‌کند.
    ===================================================================== */
@@ -49,6 +60,11 @@
     try { window.ptfBootQuiet = false; } catch (e) {}
     try { window.ptfBootQuietUntil = 0; } catch (e2) {}
     if (discard !== false) { try { window._ptfBootToastQueue = []; } catch (e3) {} }
+    /* v34.38.19 (BOOT-BAR-QUIET): پایان سکوت → sync.js بنر پایین صفحه را با
+       وضعیت واقعی لحظهٔ رفع سکوت دوباره رندر می‌کند (در حین بوت پنهان است). */
+    try {
+      if (typeof window.CustomEvent === 'function' && window.dispatchEvent) window.dispatchEvent(new window.CustomEvent('ptf:boot-quiet-end'));
+    } catch (eEv) {}
   }
   function faReason(r) {
     r = String(r == null ? '' : r);
@@ -101,6 +117,144 @@
     }, 100);
   }
 
+  /* ---------- v34.38.19: موتور حلقهٔ مایع جاذبه‌دار (Canvas) ----------
+     مدل: تودهٔ مایع در کانال حلقه‌ای باریک دور لوگو. θ از پایین حلقه سنجیده
+     می‌شود؛ سرعت طبق انرژی: v(θ)=v₀·√(max(ε، ۱+k·cosθ)) ⇒ شتاب در فرود،
+     کندی در صعود. طولِ قوسِ مایع و ضخامت شعاعی توابعِ افزایش سرعت‌اند ⇒
+     پایین «باز/کشیده» و بالا «کم‌حجم». دنبالهٔ قطره‌ای کوتاه هم هست. */
+  var LIQ = { cv: null, ctx: null, raf: 0, theta: Math.PI, last: 0, ok: false };
+  var LIQ_SIZE = 134;         /* هم‌اندازهٔ .ptf-boot-logo-wrap */
+  var LIQ_R = 56;             /* شعاع کانال مایع */
+  var LIQ_TRACK = 6.5;        /* ضخامت کانال */
+  var LIQ_GRAV_K = 0.82;      // انرژیِ جاذبه (کمی زیر ۱ تا در قله گیر نکند)
+  var LIQ_BASE_W = (Math.PI * 2) / 1900;  /* rad/ms ⇒ دور کامل ≈ ۱.۹ ثانیه در سرعت پایه */
+  function liquidXY(theta, r, out) {
+    out.x = LIQ_SIZE / 2 + r * Math.sin(theta);
+    out.y = LIQ_SIZE / 2 + r * Math.cos(theta);
+    return out;
+  }
+  function liquidSpeedRatio(theta) {
+    var c = Math.cos(theta); /* +۱ پایین، −۱ بالا */
+    return Math.sqrt(Math.max(0.16, 1 + LIQ_GRAV_K * c));
+  }
+  /* قوسِ نوک‌باریک مایع: دو لبهٔ بیرونی/درونی با پروفیلِ پهنای سینوسی */
+  function liquidSlug(ctx, cDeg, halfArc, halfW, color, alpha) {
+    var M = 26, ob = {}, ib = {};
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (var i = 0; i <= M; i++) {
+      var t = -1 + (2 * i) / M;                          /* −۱ دنباله ← +۱ پیشرو */
+      var skew = t < 0 ? 1.22 : 0.92;                    /* دنباله کمی کشیده‌تر (قطره‌ریز) */
+      var a = cDeg + t * halfArc * skew;
+      var w = halfW * Math.pow(Math.max(0.001, 1 - Math.pow(Math.abs(t), 1.5)), 0.8);
+      var po = liquidXY(a, LIQ_R + w, ob);
+      ctx.lineTo(po.x, po.y);
+    }
+    for (var j = M; j >= 0; j--) {
+      var t2 = -1 + (2 * j) / M;
+      var skew2 = t2 < 0 ? 1.22 : 0.92;
+      var a2 = cDeg + t2 * halfArc * skew2;
+      var w2 = halfW * Math.pow(Math.max(0.001, 1 - Math.pow(Math.abs(t2), 1.5)), 0.8);
+      var pi = liquidXY(a2, LIQ_R - Math.max(w2, 0.4), ib);
+      ctx.lineTo(pi.x, pi.y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  function liquidPaint(dt) {
+    var ctx = LIQ.ctx;
+    if (!ctx) return;
+    /* توقف قدرت‌گرفته از دید کاربر: مایعِ ساکن در مکانِ همیشگی (نه دنباله‌دار) */
+    var sr = liquidSpeedRatio(LIQ.theta);
+    if (dt > 0) LIQ.theta += LIQ_BASE_W * sr * dt;
+    LIQ.theta = LIQ.theta % (Math.PI * 2);
+    ctx.clearRect(0, 0, LIQ_SIZE, LIQ_SIZE);
+    /* کانال: ریلِ باریکِ حلقه‌ای که مایع داخل آن است */
+    ctx.save();
+    ctx.lineWidth = LIQ_TRACK;
+    ctx.strokeStyle = 'rgba(148,163,184,.16)';
+    ctx.beginPath();
+    ctx.arc(LIQ_SIZE / 2, LIQ_SIZE / 2, LIQ_R, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(148,163,184,.12)';
+    ctx.beginPath();
+    ctx.arc(LIQ_SIZE / 2, LIQ_SIZE / 2, LIQ_R - LIQ_TRACK / 2 - 1.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(LIQ_SIZE / 2, LIQ_SIZE / 2, LIQ_R + LIQ_TRACK / 2 + 1.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    /* طول و ضخامت تابع سرعت: پایین باز/کشیده و حجیم — بالا کوتاه و کم‌حجم */
+    var halfArc = Math.min(1.15, Math.max(0.15, 0.34 * Math.pow(sr, 1.50)));
+    var halfW = Math.min(LIQ_TRACK * 0.85, Math.max(LIQ_TRACK * 0.36, LIQ_TRACK * 0.33 * Math.pow(sr, 1.40)));
+    /* تودهٔ اصلی + هستهٔ روشن‌تر برای حسِ مایع */
+    liquidSlug(ctx, LIQ.theta, halfArc, halfW, '#ef4b1a', 0.96);
+    liquidSlug(ctx, LIQ.theta + halfArc * 0.10, halfArc * 0.80, halfW * 0.52, '#f79400', 0.92);
+    /* درخشش لبهٔ پیشرو */
+    var hb = liquidXY(LIQ.theta + halfArc * 0.52, LIQ_R - halfW * 0.10, {});
+    ctx.save();
+    ctx.globalAlpha = 0.42;
+    ctx.fillStyle = '#fff7ed';
+    ctx.beginPath();
+    ctx.arc(hb.x, hb.y, Math.max(0.8, halfW * 0.42), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    /* قطرهٔ کوچکِ دنباله */
+    var tr = liquidXY(LIQ.theta - halfArc * 1.38, LIQ_R, {});
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#ef4b1a';
+    ctx.beginPath();
+    ctx.arc(tr.x, tr.y, Math.max(0.7, halfW * 0.30), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  function liquidLoop(ts) {
+    if (!LIQ.ok) return;
+    var dt = 0;
+    if (LIQ.last && ts) { dt = Math.min(90, ts - LIQ.last); }
+    LIQ.last = ts || Date.now();
+    liquidPaint(dt);
+    LIQ.raf = requestAnimationFrame(liquidLoop);
+  }
+  function liquidReduced() {
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+  }
+  function liquidStart() {
+    try {
+      var cv = $('ptfBootLiquid');
+      if (!cv || !cv.getContext) return;                 /* مرورگر قدیمی → fallback حلقهٔ CSS */
+      var ctx = cv.getContext('2d');
+      if (!ctx) return;
+      var dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      cv.width = LIQ_SIZE * dpr;
+      cv.height = LIQ_SIZE * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      LIQ.cv = cv; LIQ.ctx = ctx; LIQ.ok = true;
+      var root = $('ptfBootSplash');
+      if (root) root.setAttribute('data-liquid', '1');  /* CSS: مخفی‌کردن حلقهٔ CSS fallback */
+      if (liquidReduced()) {
+        /* حرکت هیچ؛ یک فریم ایستا از مایعِ نیمه‌راه رسم می‌شود. */
+        LIQ.theta = 0.9;
+        liquidPaint(0);
+        return;
+      }
+      if (LIQ.raf) cancelAnimationFrame(LIQ.raf);
+      LIQ.last = 0;
+      LIQ.raf = requestAnimationFrame(liquidLoop);
+    } catch (e) {}
+  }
+  function liquidStop() {
+    try { if (LIQ.raf) cancelAnimationFrame(LIQ.raf); } catch (e1) {}
+    LIQ.raf = 0;
+    LIQ.ok = false;
+    try { if (LIQ.ctx) LIQ.ctx.clearRect(0, 0, LIQ_SIZE, LIQ_SIZE); } catch (e2) {}
+  }
+
   /* ---------- ظاهر پرده ---------- */
   function injectCss() {
     try {
@@ -112,11 +266,15 @@
         '#ptfBootSplash.ptf-boot-hide{opacity:0;pointer-events:none}' +
         '#ptfBootSplash .ptf-boot-card{width:min(430px,94vw);max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow:auto;background:#fff;border-radius:26px;padding:32px 26px 26px;text-align:center;box-shadow:0 34px 90px rgba(0,0,0,.45);position:relative;box-sizing:border-box}' +
         '#ptfBootSplash .ptf-boot-card::before{content:"";position:absolute;top:0;right:0;left:0;height:5px;background:linear-gradient(90deg,#ef4b1a,#f79400,#ef4b1a);background-size:200% 100%;animation:ptfBootShimmer 2.4s linear infinite}' +
-        '#ptfBootSplash .ptf-boot-logo-wrap{position:relative;width:120px;height:120px;margin:2px auto 12px}' +
-        '#ptfBootSplash .ptf-boot-ring{position:absolute;inset:0;border-radius:50%;border:5px solid #f1f5f9;border-top-color:#ef4b1a;border-left-color:#f79400;animation:ptfBootRing 1.1s linear infinite;box-sizing:border-box}' +
-        '#ptfBootSplash .ptf-boot-ring2{position:absolute;inset:10px;border-radius:50%;border:2px dashed rgba(239,75,26,.28);animation:ptfBootRingRev 7s linear infinite;box-sizing:border-box}' +
-        '#ptfBootSplash .ptf-boot-logo{position:absolute;inset:20px;width:80px;height:80px;object-fit:contain;border-radius:50%;background:#fff;animation:ptfBootPulse 2.4s ease-in-out infinite}' +
-        '#ptfBootSplash .ptf-boot-logo-wrap.no-logo::after{content:"🏢";position:absolute;inset:20px;display:grid;place-items:center;font-size:44px;background:#fff7ed;border-radius:50%}' +
+        '#ptfBootSplash .ptf-boot-logo-wrap{position:relative;width:134px;height:134px;margin:0 auto 12px}' +
+        '#ptfBootSplash .ptf-boot-liquid{position:absolute;inset:0;width:134px;height:134px;display:none;pointer-events:none}' +
+        '#ptfBootSplash[data-liquid="1"] .ptf-boot-liquid{display:block}' +
+        '#ptfBootSplash[data-liquid="1"] .ptf-boot-ring{display:none}' + /* Canvas سالم = حلقهٔ CSS fallback پنهان */
+        '#ptfBootSplash .ptf-boot-ring{position:absolute;inset:14px;border-radius:50%;border:5px solid #f1f5f9;border-top-color:#ef4b1a;border-left-color:#f79400;animation:ptfBootRing 1.1s linear infinite;box-sizing:border-box}' +
+        '#ptfBootSplash .ptf-boot-ring2{position:absolute;inset:26px;border-radius:50%;border:2px dashed rgba(239,75,26,.22);animation:ptfBootRingRev 7s linear infinite;box-sizing:border-box;pointer-events:none}' +
+        '#ptfBootSplash .ptf-boot-logo{position:absolute;inset:22px;width:90px;height:90px;object-fit:contain;border-radius:50%;background:radial-gradient(circle at 50% 42%,#ffffff 58%,#f8fafc 100%);animation:ptfBootPulse 2.4s ease-in-out infinite;box-sizing:border-box}' +
+        '#ptfBootSplash .ptf-boot-logo.fb-full{inset:29px;width:76px;height:76px}' + /* نسخهٔ کامل با متن PTF — کمی کوچک‌تر درج می‌شود */
+        '#ptfBootSplash .ptf-boot-logo-wrap.no-logo::after{content:"🏢";position:absolute;inset:22px;display:grid;place-items:center;font-size:46px;background:#fff7ed;border-radius:50%}' +
         '#ptfBootSplash h2{margin:0 0 4px;font-size:17px;font-weight:900;color:#0f172a;line-height:1.6}' +
         '#ptfBootSplash .ptf-boot-steps{display:flex;gap:6px;justify-content:center;margin:12px 0;flex-wrap:wrap}' +
         '#ptfBootSplash .ptf-boot-steps span{font-size:11px;font-weight:800;color:#94a3b8;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:4px 11px;transition:all .25s}' +
@@ -131,14 +289,15 @@
         '#ptfBootSplash .ptf-boot-btn{font-family:inherit;font-weight:900;font-size:13px;border-radius:13px;padding:11px 18px;cursor:pointer;min-height:46px}' +
         '#ptfBootSplash .ptf-boot-retry{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;border:0}' +
         '#ptfBootSplash .ptf-boot-local{background:#f8fafc;color:#334155;border:1.5px solid #e2e8f0}' +
-        '#ptfBootSplash[data-state="fail"] .ptf-boot-ring{animation-play-state:paused;border-top-color:#f59e0b;border-left-color:#f59e0b;opacity:.55}' +
+        '#ptfBootSplash[data-state="fail"] .ptf-boot-liquid{display:none}' +
+        '#ptfBootSplash[data-state="fail"] .ptf-boot-ring{display:block;animation-play-state:paused;border-top-color:#f59e0b;border-left-color:#f59e0b;opacity:.5}' +
         '#ptfBootSplash[data-state="fail"] .ptf-boot-ring2{animation-play-state:paused;opacity:.4}' +
         '#ptfBootSplash[data-state="fail"] .ptf-boot-bar{display:none}' +
         '#ptfBootSplash[data-state="fail"] .ptf-boot-card::before{background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);background-size:200% 100%}' +
         '#ptfBootSplash[data-state="session"] .ptf-boot-bar{display:none}' +
         '@keyframes ptfBootRing{to{transform:rotate(360deg)}}' +
         '@keyframes ptfBootRingRev{to{transform:rotate(-360deg)}}' +
-        '@keyframes ptfBootPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}' +
+        '@keyframes ptfBootPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}' +
         '@keyframes ptfBootSlide{0%{transform:translateX(185%)}100%{transform:translateX(-185%)}}' +
         '@keyframes ptfBootShimmer{to{background-position:-200% 0}}' +
         '@media(prefers-reduced-motion:reduce){#ptfBootSplash .ptf-boot-ring,#ptfBootSplash .ptf-boot-ring2,#ptfBootSplash .ptf-boot-logo,#ptfBootSplash .ptf-boot-bar i,#ptfBootSplash .ptf-boot-card::before{animation:none}}' +
@@ -184,8 +343,8 @@
     root.setAttribute('data-state', 'loading');
     root.innerHTML =
       '<div class="ptf-boot-card">' +
-        '<div class="ptf-boot-logo-wrap"><div class="ptf-boot-ring"></div><div class="ptf-boot-ring2"></div>' +
-        '<img class="ptf-boot-logo" src="../assets/images/ptf-logo.png" alt="پیشرو تجهیز فرتاک" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'no-logo\');"></div>' +
+        '<div class="ptf-boot-logo-wrap"><canvas class="ptf-boot-liquid" id="ptfBootLiquid" width="134" height="134" aria-hidden="true"></canvas><div class="ptf-boot-ring" aria-hidden="true"></div><div class="ptf-boot-ring2" aria-hidden="true"></div>' +
+        '<img class="ptf-boot-logo" src="../assets/images/ptf-logo-mark.png" alt="پیشرو تجهیز فرتاک" onerror="if(!this._fb){this._fb=1;this.classList.add(\'fb-full\');this.src=\'../assets/images/ptf-logo.png\'}else{this.onerror=null;this.style.display=\'none\';this.parentNode.classList.add(\'no-logo\');}"></div>' +
         '<h2 id="ptfBootSplashTitle">در حال آماده‌سازی سامانه…</h2>' +
         '<div class="ptf-boot-steps" id="ptfBootSplashSteps"><span data-s="connect">۱. اتصال به سرور</span><span data-s="sync">۲. دریافت اطلاعات</span><span data-s="finish">۳. آماده‌سازی محیط کار</span></div>' +
         '<div class="ptf-boot-bar" aria-hidden="true"><i></i></div>' +
@@ -222,7 +381,9 @@
           var root = $('ptfBootSplash');
           if (!root) return;
           var st = root.getAttribute('data-state');
-          if (st === 'fail' || st === 'session' || st === 'done') return;
+          /* v34.38.19: حین انتقال خودکار (migrate) تایمر «مشکل واقعی» ساکت است؛
+             failsafe اختصاصی ۴۰ثانیه‌ای sync.js خودش ready را صدا می‌زند. */
+          if (st === 'fail' || st === 'session' || st === 'done' || st === 'migrate') return;
           goFail('');
         } catch (e) {}
       }, FAIL_AFTER_MS);
@@ -234,6 +395,7 @@
     var root = $('ptfBootSplash');
     if (!root) return;
     clearTimers();
+    liquidStop();
     if (reason) lastReason = String(reason);
     /* سکوت تا تصمیم کاربر تمدید می‌شود تا تلاش‌های پس‌زمینه سیل نسازند. */
     try { window.ptfBootQuiet = true; window.ptfBootQuietUntil = Date.now() + QUIET_CAP_MS; } catch (eQ) {}
@@ -246,6 +408,7 @@
 
   function finishSplash() {
     clearTimers();
+    liquidStop();
     endQuiet(true);
     done = true;
     try {
@@ -267,6 +430,7 @@
       setMsg('تلاش مجدد برای اتصال…');
       setHint('لطفاً چند لحظه صبر کنید');
       paintSteps('sync');
+      liquidStart();
       armTimers();
       try { window.ptfBootQuiet = true; window.ptfBootQuietUntil = Date.now() + QUIET_CAP_MS; } catch (eQ) {}
       var verdict = false;
@@ -311,6 +475,7 @@
       setTitle('در حال آماده‌سازی سامانه…');
       setMsg('در حال اتصال به سرور…');
       setHint('لطفاً چند لحظه صبر کنید');
+      liquidStart();
       armTimers();
     } catch (e) {}
   };
@@ -325,6 +490,16 @@
       info = info || {};
       if (name === 'connect') { paintSteps('connect'); setMsg('در حال اتصال به سرور…'); }
       else if (name === 'sync') { paintSteps('sync'); setMsg('در حال دریافت اطلاعات از سرور…'); }
+      else if (name === 'migrate') {
+        /* v34.38.19 (AUTO-MIGRATE-001): انتقال یک‌بارهٔ خودکار — پنجرهٔ «مشکل
+           واقعی» از نو مسلح می‌شود تا انتقالِ طولانی پرده را خطایی نکند. */
+        var r0 = $('ptfBootSplash');
+        if (r0) r0.setAttribute('data-state', 'migrate');
+        paintSteps('finish');
+        setMsg('در حال انتقال و همگرایی داده‌های این دستگاه با سرور…');
+        setHint('فقط بار اول کمی طول می‌کشد؛ لطفاً تب را نبندید و صفحه را رفرش نکنید');
+        armTimers();
+      }
       else if (name === 'retry') {
         paintSteps('sync');
         lastAttempt = +info.attempt || lastAttempt;
@@ -358,6 +533,7 @@
           if (root) root.classList.add('ptf-boot-hide');
           setTimeout(function () { try { if (root && root.parentNode) root.parentNode.removeChild(root); } catch (eR) {} }, 420);
         } catch (eF) {}
+        liquidStop();
         endQuiet(true);
         /* حداکثر یک پیام پس از آماده‌شدن: خطای err از همه مهم‌تر است،
            وگرنه فقط پیام صریحِ ready (مثل بخش‌های ناخوانای سرور). */
@@ -371,7 +547,7 @@
           }
         } catch (eN) {}
       }, wait);
-    } catch (e) { try { endQuiet(true); } catch (e2) {} }
+    } catch (e) { try { liquidStop(); endQuiet(true); } catch (e2) {} }
   };
 
   window.ptfBootSplashFail = function (reason) {
@@ -384,6 +560,7 @@
       var root = $('ptfBootSplash');
       if (!root) return;
       clearTimers();
+      liquidStop();
       root.setAttribute('data-state', 'session');
       try { $('ptfBootSplashActions').hidden = true; } catch (eA) {}
       setTitle('🔐 نشست منقضی شده');
@@ -396,6 +573,7 @@
   window.ptfBootSplashHide = function () {
     try {
       clearTimers();
+      liquidStop();
       endQuiet(true);
       var root = $('ptfBootSplash');
       if (root && root.parentNode) root.parentNode.removeChild(root);
@@ -409,7 +587,8 @@
         shown: shown, done: done,
         quiet: !!window.ptfBootQuiet,
         queued: (window._ptfBootToastQueue || []).length,
-        attempt: lastAttempt, reason: lastReason
+        attempt: lastAttempt, reason: lastReason,
+        liquid: !!LIQ.ok /* v34.38.19: تشخیص سلامت موتور مایع برای تسترها */
       };
     } catch (e) { return {}; }
   };
