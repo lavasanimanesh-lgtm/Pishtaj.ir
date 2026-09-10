@@ -176,20 +176,28 @@ function gsc_api($cfg, $path, $payload = null, $method = 'GET', $silent = false)
     if ($tok === false) return ['__error' => 'token_failed'];
     $url = 'https://searchconsole.googleapis.com/' . $path;
     $ch = curl_init($url);
+    $headers = [
+        'Authorization: Bearer ' . $tok,
+        'Content-Type: application/json',
+    ];
     $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 30,
-        CURLOPT_HTTPHEADER     => [
-            'Authorization: Bearer ' . $tok,
-            'Content-Type: application/json',
-        ],
     ];
     if ($payload !== null) {
         $opts[CURLOPT_POST] = true;
         $opts[CURLOPT_POSTFIELDS] = json_encode($payload, JSON_UNESCAPED_UNICODE);
         if ($method === 'GET') $method = 'POST';
     }
-    if ($method !== 'POST') $opts[CURLOPT_CUSTOMREQUEST] = $method;
+    if ($method !== 'POST') {
+        $opts[CURLOPT_CUSTOMREQUEST] = $method;
+        /* v34.38.19 (GSC-CONTENT-LENGTH-FIX): PUT/DELETEِ بدونِ بدنه (مثلِ ثبتِ نقشه) بدونِ
+           هدرِ Content-Length فرستاده می‌شد و گوگل با 411 (Length Required) رد می‌کرد.
+           مستندِ رسمیِ sitemaps.submit: «Do not supply a request body» — بدنه عمداً خالی
+           است، پس صریحاً Content-Length: 0 اعلام می‌شود. (تستر 635 این قرارداد را قفل می‌کند.) */
+        if ($payload === null && $method !== 'GET') $headers[] = 'Content-Length: 0';
+    }
+    $opts[CURLOPT_HTTPHEADER] = $headers;
     curl_setopt_array($ch, $opts);
     $res = curl_exec($ch);
     $err = curl_error($ch);
