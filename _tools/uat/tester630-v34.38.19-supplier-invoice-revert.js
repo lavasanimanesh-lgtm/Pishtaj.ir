@@ -17,7 +17,9 @@ console.log('── supplier-invoice amount revert (v34.38.19) ──');
 
 /* قرارداد استاتیک */
 assert.ok(/function sfComparableTs\(r\)/.test(sync), 'sfComparableTs defined in sync merge');
-assert.ok(/return 'G' \+ iso/.test(sync), 'ISO میلادی پیشوند قابل مقایسه می‌گیرد');
+assert.ok(/return '2' \+ iso/.test(sync), 'ISO میلادی بالاترین رتبهٔ مقایسه را می‌گیرد');
+assert.ok(/if \(!raw\) return '0'/.test(sync), 'رکورد بی‌زمان کهنه‌ترین است و هرگز برنده نمی‌شود');
+assert.ok(/return '1' \+ latin/.test(sync), 'fallback غیرقابل تبدیل در رتبهٔ میانی (بازنده در برابر ISO)');
 assert.ok(/replace\(\/\[۰-۹\]\/g/.test(sync), 'ارقام فارسی نرمال می‌شوند');
 assert.ok(/replace\(\/\[٠-٩\]\/g/.test(sync), 'ارقام عربی نرمال می‌شوند');
 assert.ok(/ptfJToISO\(jal\)/.test(sync), 'fallback شمسی→میلادی برای رکورد فقط-t');
@@ -87,17 +89,17 @@ function jToIsoModel(j) {
 function sfComparableTs(r) {
   r = r || {};
   var iso = String(r.updatedAtISO || '');
-  if (iso) return 'G' + iso;
+  if (iso) return '2' + iso;
   var raw = String(r.updatedAt || r.t || r.date || r.iso || '');
-  if (!raw) return 'Z';
+  if (!raw) return '0';
   var latin = faArToLatin(raw);
   var m = latin.match(/((?:13|14)\d{2})\/(\d{1,2})\/(\d{1,2})/);
   if (m) {
     var jal = m[1] + '/' + ('0' + m[2]).slice(-2) + '/' + ('0' + m[3]).slice(-2);
     var conv = jToIsoModel(jal);
-    if (conv) return 'G' + conv + (latin.indexOf(jal) === 0 ? latin.slice(jal.length) : '');
+    if (conv) return '2' + conv + (latin.indexOf(jal) === 0 ? latin.slice(jal.length) : '');
   }
-  return 'H' + latin;
+  return '1' + latin;
 }
 
 /* — ریشهٔ باگ: رکورد کهنهٔ فقط-t نباید از رکورد جدید میلادی برنده شود — */
@@ -116,6 +118,14 @@ assert.ok(sfComparableTs({ t: '۱۴۰۵/۰۶/۲۰' }) > sfComparableTs({ t: '۱�
 
 /* — ارقام فارسی/عربی برابر شمرده می‌شوند — */
 assert.strictEqual(faArToLatin('۱۴۰۵'), faArToLatin('١٤٠٥'), 'نرمال‌سازی فارسی/عربی هم‌ارز است');
+
+/* — سخت‌سازی ترتیب: رکوردِ بی‌زمان و رکوردِ غیرقابل‌تبدیل نباید برنده شوند — */
+assert.ok(sfComparableTs({}) < sfComparableTs({ updatedAtISO: '2026-01-01T00:00:00Z' }),
+  'رکورد بی‌زمان از رکورد ISO جدیدتر بازنده است (نه برنده)');
+assert.ok(sfComparableTs({ t: '2026-09-10' }) < sfComparableTs({ updatedAtISO: '2026-01-01T00:00:00Z' }),
+  'تاریخِ غیرقابل‌تبدیل (fallback) از رکورد ISO بازنده است');
+assert.ok(sfComparableTs({}) < sfComparableTs({ t: '۱۴۰۵/۰۶/۱۰' }),
+  'رکورد بی‌زمان از رکورد شمسیِ تبدیل‌شده هم بازنده است');
 console.log('  ✔ رفتاری: مقایسه‌گر زمان، بازگشت مبلغ فاکتور را خنثی می‌کند');
 
 /* — مدل رفتاری بازوارد خرید واقعی: مبلغ دستی مقدم بر price×qty — */

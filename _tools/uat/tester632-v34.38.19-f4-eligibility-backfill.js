@@ -22,6 +22,10 @@ assert.ok(/shareAction\('backfill'/.test(sh), 'دکمهٔ جبران حقوق د
 /* قرارداد استاتیک — سرور */
 assert.ok(/\$action === 'backfill_shareholder_salaries'/.test(php), 'handler سروری backfill وجود دارد');
 assert.ok(/error'=>'reason_required'/.test(php), 'دلیل خالی ۴۲۲ برمی‌گرداند');
+/* backfill باید در allowlist‌های projection ثبت باشد تا پاسخِ فوریِ envelope (opex دلتا
+   + sharetx برای مدیران) بگیرد، نه یک ptf_crm_opex خالی که فقط به pull دوم وابسته است. */
+assert.ok(php.indexOf("register_shareholder_salary','backfill_shareholder_salaries']") > -1, 'backfill در sd_is_recurring_projection_action ثبت شد');
+assert.ok((php.match(/'backfill_shareholder_salaries'\]/g) || []).length >= 2, 'backfill در allowlist دوم (sharetx projection) هم ثبت شد');
 assert.ok(/function sd_jalali_months_between\(string \$from,string \$to\)/.test(php), 'شمارندهٔ ماه‌های شمسی سروری موجود است');
 assert.ok(/\$anchor=sd_text\(\$sh\['eligibilitySince'\]/.test(php), 'مبدأ جبران از eligibilitySince خوانده می‌شود');
 assert.ok(/if\(sd_is_locked\(\$snaps,\$month\)\)\{\$skippedLocked\+\+;continue;\}/.test(php), 'ماه سال قفل‌شده رد می‌شود');

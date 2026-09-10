@@ -970,15 +970,15 @@ function sd_opex_projection_envelope(array $rows,array $identities,int $revision
     ];
 }
 function sd_is_recurring_projection_action(string $action): bool {
-    return in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','schedule_recurring_opex_cheque','void_recurring_opex','register_shareholder_salary'],true);
+    return in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','schedule_recurring_opex_cheque','void_recurring_opex','register_shareholder_salary','backfill_shareholder_salaries'],true);
 }
 function sd_recurring_sharetx_projection_allowed(string $action): bool {
     global $role;
-    /* schedule فقط لینک چک را عوض می‌کند. reconcile/void ممکن است در همان commit
+    /* schedule فقط لینک چک را عوض می‌کند. reconcile/void/backfill ممکن است در همان commit
        salary claim را بسازد، repair کند یا void کند و باید برای مدیر ارشد بی‌درنگ
        همان projection اتمیک را برگرداند؛ نه این‌که به pull دوم وابسته بماند. */
     return in_array($role,SD_SHAREHOLDER_VIEW_ROLES,true)
-        && in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','void_recurring_opex','register_shareholder_salary'],true);
+        && in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','void_recurring_opex','register_shareholder_salary','backfill_shareholder_salaries'],true);
 }
 function sd_recurring_projection_data(string $action,array $opex,array $identities,int $rev): array {
     $data=['ptf_crm_opex'=>sd_opex_projection_envelope($opex,$identities,$rev)];

@@ -3246,10 +3246,15 @@
            دوباره به سرور push می‌کرد — ویرایش دستی لحظه‌ای درست دیده می‌شد و در sync بعدی برمی‌گشت. */
         function sfComparableTs(r) {
           r = r || {};
+          /* v34.38.19 (SF-INVOICE-REVERT — سخت‌سازی): پیشوندِ رتبه تضمین می‌کند که در merge
+             «زمانِ قابل‌اعتماد» همیشه برنده است: '2'=ISO میلادی یا شمسیِ تبدیل‌شده،
+             '1'=رشتهٔ غیرقابل تبدیل (fallback)، '0'=بی‌زمان. بدون این ترتیب، رکوردِ
+             بدونِ زمان ('Z') یا با تاریخِ غیرقابل تبدیل ('H') به‌اشتباه از رکوردِ ISO
+             جدیدتر برنده می‌شد و همان ریشهٔ «ویرایش شد ولی برگشت» دوباره زنده می‌شد. */
           var iso = String(r.updatedAtISO || '');
-          if (iso) return 'G' + iso; /* ISO میلادی — مستقیم قابل مقایسه */
+          if (iso) return '2' + iso; /* ISO میلادی — مستقیم قابل مقایسه */
           var raw = String(r.updatedAt || r.t || r.date || r.iso || '');
-          if (!raw) return 'Z';
+          if (!raw) return '0'; /* بی‌زمان = کهنه‌ترین؛ هرگز برندهٔ merge نمی‌شود */
           var latin = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
                          .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
           var m = latin.match(/((?:13|14)\d{2})\/(\d{1,2})\/(\d{1,2})/);
@@ -3257,10 +3262,10 @@
             try {
               var jal = m[1] + '/' + ('0' + m[2]).slice(-2) + '/' + ('0' + m[3]).slice(-2);
               var conv = ptfJToISO(jal);
-              if (conv) return 'G' + conv + (latin.indexOf(jal) === 0 ? latin.slice(jal.length) : '');
+              if (conv) return '2' + conv + (latin.indexOf(jal) === 0 ? latin.slice(jal.length) : '');
             } catch (eJ) {}
           }
-          return 'H' + latin; /* fallback: رشتهٔ لاتین نرمال‌شده */
+          return '1' + latin; /* fallback: رشتهٔ لاتین نرمال‌شده — میانهٔ ترتیب */
         }
         try {
           var locO = JSON.parse(localStr||'{}'); var remO = JSON.parse(remoteStr||'{}');
