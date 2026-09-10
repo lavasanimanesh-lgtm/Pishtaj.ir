@@ -1605,8 +1605,12 @@ switch ($action) {
             if ($faqHtml !== '') $faqHtml = '<h2>سوالات متداول</h2>' . $faqHtml;
         }
 
+        /* v34.38.19 (PRODUCT-NO-PRICE-FIX): Product بدونِ offers/price یا review/aggregateRating
+           از نظرِ گوگل «invalid» است. صفحاتِ این CMS فقط وقتی قیمتِ واقعی دارند Product می‌شوند؛
+           وگرنه (استعلام/RFQ بدون قیمت) تایپِ صادقانهٔ «Service» ثبت می‌شود تا خطای
+           «Either offers, review, or aggregateRating should be specified» پیش نیاید. */
         $graph = [
-            ['@type' => 'Product', 'name' => $h1, 'description' => $desc,
+            ['@type' => ($price > 0 ? 'Product' : 'Service'), 'name' => $h1, 'description' => $desc,
              'image' => $imgAbs, 'url' => $url,
              'sku' => $cd !== '' ? $cd : $slug],
         ];
