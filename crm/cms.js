@@ -537,6 +537,7 @@
   };
   var _seo = { q: '', folder: '', issue: '', offset: 0, limit: 60, done: false };
   var _seoMeta = { stats: null, folders: null, matched: 0, scanned: '', writable: false, sitemap: 0 };
+  var _lastDrift = null; /* v34.38.19 (SITEMAP-SYNC): آخرین گزارش انحراف برای دکمهٔ همگام‌سازی */
 
   function seoBadge(code) {
     var d = SEO_ISSUES[code] || [code, 'warn'];
@@ -2010,13 +2011,49 @@
     if (host) host.innerHTML = '<div style="font-size:12px;color:#64748b">⏳ در حال مقایسهٔ نقشه با فایل‌های سایت…</div>';
     api('sitemap_drift', {}, function (d) {
       if (!d.ok) { if (host) host.innerHTML = '⚠️ ' + escP(d.error || ''); return; }
+      _lastDrift = d;
       var h = '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px;margin-top:8px;font-size:12px">';
       h += '<b>🧭 انحراف نقشهٔ سایت:</b> کل نقشه: ' + d.sitemap_total + ' · کل فایل‌ها: ' + d.files_total +
-        ' · <span style="color:#dc2626">روح (در نقشه، فایل ندارد): ' + d.ghost_total + '</span> · <span style="color:#d97706">بدون نقشه: ' + d.missing_total + '</span>';
+        ' · <span style="color:#dc2626">روح (در نقشه، فایل ندارد): ' + d.ghost_total + '</span> · <span style="color:#d97706">خارج از نقشه (باید اضافه شود): ' + d.missing_total + '</span>' +
+        (d.excluded_total ? ' · <span style="color:#64748b">مستثنای عمدی (noindex/ریدایرکت): ' + d.excluded_total + '</span>' : '');
       if (d.ghost_total) { h += '<details style="margin-top:6px"><summary style="cursor:pointer">URLهای روح</summary><div dir="ltr" style="color:#b91c1c;font-size:11px;line-height:1.8">' + d.ghost.map(escP).join('<br>') + '</div></details>'; }
-      if (d.missing_total) { h += '<details style="margin-top:4px"><summary style="cursor:pointer">فایل‌های خارج از نقشه</summary><div dir="ltr" style="color:#92400e;font-size:11px;line-height:1.8">' + d.missing.map(escP).join('<br>') + '</div></details>'; }
+      if (d.missing_total) { h += '<details style="margin-top:4px"><summary style="cursor:pointer">صفحاتِ خارج از نقشه (شایستهٔ افزودن)</summary><div dir="ltr" style="color:#92400e;font-size:11px;line-height:1.8">' + d.missing.map(escP).join('<br>') + '</div></details>'; }
       h += '</div>';
+      /* v34.38.19 (SITEMAP-SYNC): یک‌کلیک — اصلاح نقشه و ثبت در گوگل */
+      if (d.missing_total || d.ghost_total) {
+        h += '<div style="margin-top:8px"><button class="bt" style="padding:7px 14px;font-size:12.5px" onclick="cmsSitemapSync(this)">🔧 همگام‌سازی نقشه (' +
+          (d.missing_total ? '+' + d.missing_total + ' افزودن' : '') + (d.missing_total && d.ghost_total ? '، ' : '') +
+          (d.ghost_total ? '−' + d.ghost_total + ' حذف روح' : '') + ') و ثبت در گوگل</button></div>';
+      } else {
+        h += '<div style="margin-top:8px;color:#059669;font-weight:700">✅ نقشه همگام است — همهٔ صفحاتِ شایستهٔ ایندکس در نقشه‌اند.</div>';
+      }
       if (host) host.innerHTML = h;
+    });
+  };
+  /* v34.38.19 (SITEMAP-SYNC): اصلاحِ نقشه (افزودنِ missing + حذفِ روح با تأیید) و سپس ثبت در گوگل */
+  window.cmsSitemapSync = function (btn) {
+    var d = _lastDrift; if (!d) { cmsSitemapDrift(); return; }
+    var missN = d.missing_total || 0, ghostN = d.ghost_total || 0;
+    if (!missN && !ghostN) { if (typeof ptfToast === 'function') ptfToast('نقشه همگام است', 'ok'); return; }
+    var msg = 'همگام‌سازی نقشهٔ سایت:\n• افزودن ' + missN + ' صفحهٔ خارج از نقشه\n' +
+      (ghostN ? '• حذف ' + ghostN + ' ورودیِ روح (URL بدونِ فایل — فقط از نقشه، نه فایل‌ها)\n' : '') +
+      '\nسپس نقشه در سرچ کنسول ثبت شود؟';
+    if (!confirm(msg)) return;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ در حال همگام‌سازی…'; }
+    api('sitemap_sync', { remove_ghosts: ghostN ? '1' : '0' }, function (r) {
+      var ok = !!(r && r.ok);
+      if (!ok) {
+        if (btn) { btn.disabled = false; btn.textContent = '🔧 همگام‌سازی نقشه و ثبت در گوگل'; }
+        alert('⚠️ همگام‌سازی ناموفق: ' + ((r && r.error) || 'خطا'));
+        return;
+      }
+      var sum = 'افزوده شد: ' + (r.added_total || 0) + ' · حذف شد: ' + (r.removed_total || 0);
+      if ((r.failed_add && r.failed_add.length) || (r.failed_remove && r.failed_remove.length)) {
+        sum += ' · ⚠️ خطای نوشتن: ' + ((r.failed_add || []).length + (r.failed_remove || []).length) + ' (مجوز فایل‌های sitemap-*.xml روی هاست؟)';
+      }
+      cmsSitemapDrift(); /* بازخوانی برای نمایشِ وضعیتِ جدید */
+      if (typeof cmsSeoSitemapPush === 'function') cmsSeoSitemapPush();
+      if (typeof ptfToast === 'function') ptfToast('✅ نقشه همگام شد — ' + sum, 'ok');
     });
   };
 

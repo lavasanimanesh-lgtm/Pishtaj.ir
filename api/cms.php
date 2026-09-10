@@ -311,6 +311,53 @@ function sitemap_file_for($url) {
     return $top === '' ? 'sitemap-core.xml' : 'sitemap-misc.xml';
 }
 
+/* v34.38.19 (SITEMAP-SYNC): نشانیِ کانونیکالِ یک فایلِ عمومیِ سایت.
+   فایلِ index.html نمایندهٔ URLِ پوشه است: «about/index.html» → «https://pishtaj.ir/about/»
+   و ریشهٔ «index.html» → «https://pishtaj.ir/». این همان قاعدهٔ اسکنرِ سئو (expected_url) است
+   و از «خارج از نقشه» کاذب برای پوشه‌ها جلوگیری می‌کند. */
+function cms_page_canonical($rel) {
+    if ($rel === 'index.html') return 'https://pishtaj.ir/';
+    if (substr($rel, -11) === '/index.html') return 'https://pishtaj.ir/' . substr($rel, 0, -11) . '/';
+    return 'https://pishtaj.ir/' . $rel;
+}
+/* برعکسِ بالا: URLِ صفحهٔ نقشه → مسیرِ فایل (برای تشخیصِ «روح» = ورودیِ بدونِ فایل). */
+function cms_url_to_file($url) {
+    $rel = ltrim(preg_replace('#^https?://(www\.)?pishtaj\.ir/?#i', '', (string)$url), '/');
+    if ($rel === '') return 'index.html';
+    if (substr($rel, -1) === '/') return $rel . 'index.html';
+    return $rel;
+}
+/* آیا فایل «شایستهٔ ایندکس» است؟ stubهای ریدایرکت/آرشیو و صفحاتِ noindex نباید واردِ نقشه شوند. */
+function cms_page_indexable($ROOT, $rel) {
+    $h = (string)@file_get_contents($ROOT . '/' . $rel);
+    if ($h === '') return false;
+    if (stripos($h, 'ptf-redirect') !== false) return false;
+    if (stripos($h, 'http-equiv="refresh"') !== false) return false;
+    if (preg_match('#<meta\s+[^>]*name\s*=\s*["\']robots["\'][^>]*>#iu', $h, $m)) {
+        if (stripos($m[0], 'noindex') !== false) return false;
+    }
+    return true;
+}
+/* v34.38.19 (SITEMAP-SYNC): محاسبهٔ مشترکِ انحرافِ نقشه — منبعِ واحد برای گزارش و اصلاح.
+   ghost = ورودیِ نقشه بدونِ فایلِ واقعی؛ missing = فایلِ شایستهٔ ایندکس که در نقشه نیست؛
+   excluded = فایلِ عمداً خارج از نقشه (noindex/ریدایرکت/آرشیو) — فقط اطلاعی. */
+function cms_sitemap_drift_calc($ROOT) {
+    $smapUrls = cms_sitemap_urls($ROOT);
+    $files = cms_public_pages($ROOT);
+    $ghost = array(); $missing = array(); $excluded = array();
+    foreach (array_keys($smapUrls) as $u) {
+        if (!is_file($ROOT . '/' . cms_url_to_file($u))) $ghost[] = $u;
+    }
+    foreach ($files as $rel) {
+        $url = cms_page_canonical($rel);
+        if (isset($smapUrls[$url])) continue;
+        if (cms_page_indexable($ROOT, $rel)) $missing[] = $rel; else $excluded[] = $rel;
+    }
+    sort($ghost); sort($missing); sort($excluded);
+    return array('ghost' => $ghost, 'missing' => $missing, 'excluded' => $excluded,
+                 'sitemap_total' => count($smapUrls), 'files_total' => count($files));
+}
+
 /* ═══ v34.37.5 (SITEMAP-HONEST): «به نقشه اضافه شد» فقط وقتی واقعی باشد ═══
    ریشۀ «ثبت نقشۀ سایت از CRM انجام نمی‌شود» در لایۀ فایل: sitemap_add نتیجۀ نوشتن
    را دور می‌ریخت؛ اگر sitemap-*.xml در ریشۀ هاست برای کاربر PHP قابل‌نوشت نبود
@@ -2202,22 +2249,49 @@ switch ($action) {
 
     /* ═══ v34.10.0 (S1/SITEMAP-DRIFT): انحراف نقشه — URLهای روح (فایل ندارند) و فایل‌های بدون نقشه ═══ */
     case 'sitemap_drift':
-        $smapUrls = array_keys(cms_sitemap_urls($ROOT));
-        $files = array();
-        foreach (cms_public_pages($ROOT) as $rel) $files[$rel] = true;
-        $ghost = array(); $missing = array();
-        foreach ($smapUrls as $u) {
-          $rel = ltrim(preg_replace('#^https://pishtaj\.ir/#i', '', $u), '/');
-          if ($rel === '') $rel = 'index.html';
-          if (!isset($files[$rel])) $ghost[] = $u;
+        /* v34.38.19 (SITEMAP-SYNC): نگاشتِ کانونیکال در هر دو سو — قبلاً «about/index.html»
+           به‌اشتباه «خارج از نقشه» و «https://pishtaj.ir/about/» به‌اشتباه «روح» می‌شد. */
+        $d = cms_sitemap_drift_calc($ROOT);
+        jok(array('ghost' => array_slice($d['ghost'], 0, 100), 'ghost_total' => count($d['ghost']),
+                  'missing' => array_slice($d['missing'], 0, 100), 'missing_total' => count($d['missing']),
+                  'excluded' => array_slice($d['excluded'], 0, 100), 'excluded_total' => count($d['excluded']),
+                  'sitemap_total' => $d['sitemap_total'], 'files_total' => $d['files_total']));
+        break;
+
+    /* ═══ v34.38.19 (SITEMAP-SYNC): اصلاحِ خودکارِ نقشه بر اساسِ اسکنِ فایل‌های واقعی ═══
+       افزودنِ missing (فایلِ شایستهٔ ایندکس که در نقشه نیست) امن و idempotent است؛
+       حذفِ ghost (ورودیِ نقشه بدونِ فایل) فقط با remove_ghosts=1 — یعنی تأییدِ صریحِ انسانی
+       در UI — انجام و در cms_log ثبت می‌شود. هیچ فایلِ صفحه‌ای حذف نمی‌شود؛ فقط نقشه اصلاح
+       می‌شود (و حذفِ ورودی، برگشت‌پذیر است). */
+    case 'sitemap_sync':
+        $removeGhosts = ((int)($_POST['remove_ghosts'] ?? 0)) === 1;
+        $d = cms_sitemap_drift_calc($ROOT);
+        $added = array(); $failedAdd = array();
+        foreach ($d['missing'] as $rel) {
+            $r = sitemap_add(cms_page_canonical($rel));
+            if (is_array($r) && !empty($r['ok'])) $added[] = $rel; else $failedAdd[] = $rel;
+            if (count($added) + count($failedAdd) >= 500) break; /* سقف هر اجرا */
         }
-        foreach (array_keys($files) as $rel) {
-          if (!isset($smapUrls['https://pishtaj.ir/' . $rel]) && !in_array('https://pishtaj.ir/' . $rel, $smapUrls, true)) $missing[] = $rel;
+        $removed = array(); $failedRemove = array();
+        if ($removeGhosts) {
+            foreach ($d['ghost'] as $u) {
+                if (sitemap_remove($u)) $removed[] = $u; else $failedRemove[] = $u;
+                if (count($removed) + count($failedRemove) >= 500) break;
+            }
         }
-        sort($ghost); sort($missing);
-        jok(array('ghost' => array_slice($ghost, 0, 100), 'ghost_total' => count($ghost),
-                  'missing' => array_slice($missing, 0, 100), 'missing_total' => count($missing),
-                  'sitemap_total' => count($smapUrls), 'files_total' => count($files)));
+        if ($added || $removed) {
+            if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
+            cms_log('sitemap_sync', 'added=' . count($added) . ' removed=' . count($removed)
+                . ' failedAdd=' . count($failedAdd) . ' failedRemove=' . count($failedRemove));
+        }
+        jok(array(
+            'added' => array_slice($added, 0, 100), 'added_total' => count($added),
+            'removed' => array_slice($removed, 0, 100), 'removed_total' => count($removed),
+            'failed_add' => array_slice($failedAdd, 0, 100), 'failed_remove' => array_slice($failedRemove, 0, 100),
+            'ghost_total' => count($d['ghost']), 'missing_total' => count($d['missing']),
+            'excluded_total' => count($d['excluded']),
+            'ghosts_kept' => $removeGhosts ? 0 : count($d['ghost']),
+        ));
         break;
 
     case 'status':
