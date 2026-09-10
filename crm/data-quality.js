@@ -62,6 +62,19 @@
         });
       }
     } catch (eOdup) {}
+    /* v34.38.19 (SH-SALARY-MONTH-GAP): گزارش read-only ماه‌های غایب/تکراری حقوق سهامداران
+       موظف — ریشهٔ باگ «یکی ۲ ماه، دو تای دیگر ۳ ماه». فقط افشا می‌کند؛ تعیین‌تکلیف دستی است. */
+    try {
+      if (typeof window.ptfShareholderSalaryGaps === 'function') {
+        window.ptfShareholderSalaryGaps().forEach(function (g) {
+          add(q, 'shareholder-salary-gap', 'سهامدار موظف با ماه حقوق غایب/تکراری', g.shCd, 0, {
+            type: 'salary-gap', shCd: g.shCd,
+            label: (g.name || g.shCd) + ' — از ' + (g.anchor || '؟') + ': غایب [' + (g.missing.join('، ') || '—') + ']' + (g.extra.length ? ' | تکراری [' + g.extra.join('، ') + ']' : ''),
+            missing: g.missing, extra: g.extra
+          });
+        });
+      }
+    } catch (eGap) {}
 
     /* فاز ۲ / گام ۲: فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی */
     try {
@@ -162,6 +175,7 @@
       else if (d.type === 'cheque' && typeof window.ptfChequeEditFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfChequeEditFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح چک</button>';
       else if (d.type === 'treasury' && typeof window.ptfTreasuryOpenFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfTreasuryOpenFromQuality(\'' + ptfOnClickArg(d.kind || 'crm') + '\',\'' + ptfOnClickArg(d.cd) + '\')">🏦 باز کردن همین ردیف در خزانه</button>';
       else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpenProcurementLinkAudit(\'' + ptfOnClickArg(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور و اقلام</button>';
+      else if (d.type === 'salary-gap' && typeof window.finHubSet === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="finHubSet(\'share\')">👥 باز کردن تب سهامداران</button>';
       var invoiceActions = d.type === 'procurement' && (d.relatedInvoices || []).length
         ? '<div style="margin-top:9px;padding-top:7px;border-top:1px solid #e2e8f0"><b style="display:block;color:#475569;font-size:11px">فاکتورهای خرید مرتبط</b>' + d.relatedInvoices.map(function (inv) { return '<div style="margin-top:4px"><span>' + escP(inv.label) + '</span><br><button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:3px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(inv.cd) + '\')">✏️ اصلاح همین فاکتور</button></div>'; }).join('') + '</div>'
         : '';
@@ -172,6 +186,7 @@
         : d.type === 'supplier-amount' ? 'لینک تعهدها برقرار است اما جمع مبلغ تعهدها با مبلغ فاکتور یکی نیست — معمولاً قلم بدون قیمت خرید. می‌توانید اختلاف را در حساب تأمین تأیید و اخطار را بردارید.'
         : d.type === 'cheque' ? 'نوع مالکیت (شرکت/شخصی/وارده) خالی است؛ نام روی دسته چک کافی نیست. از اصلاح چک، «مالکیت چک» را انتخاب کنید.'
         : d.type === 'opex-dup' ? 'دو رکورد هزینه ممکن است یک پرداخت را دوبار در سود سال بشمارند (ردیف دستی در کنار قالب تکرارشونده/حقوق، یا دو قالب مشابه، یا هزینه و خروج تنخواه هم‌مبلغ). این فقط یک هشدار گزارش است؛ تعیین‌تکلیف دستی است — ردیف‌های تکراری واقعی را از فرم هزینه بررسی و در صورت لزوم حذف کنید.'
+        : d.type === 'salary-gap' ? 'این سهامدار موظف برای برخی ماه‌ها ادعای حقوق فعال ندارد (یا ردیف تکراری دارد). ماه‌های غایب را از تب سهامداران با «ثبت حقوق» همان ماه جبران کنید. این گزارش فقط‌خواندنی است و هیچ سندی را خودکار نمی‌سازد.'
         : 'این مورد نیازمند بررسی است.';
       return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + '</div>' + invoiceActions + '</div></details>';
     }).join('');

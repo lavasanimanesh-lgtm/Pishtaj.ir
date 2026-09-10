@@ -381,6 +381,16 @@ function sd_current_jalali_month(): string {
     $now=new DateTimeImmutable('now',new DateTimeZone('Asia/Tehran'));[$jy,$jm]=sd_gregorian_to_jalali((int)$now->format('Y'),(int)$now->format('n'),(int)$now->format('j'));
     return sprintf('%04d/%02d',$jy,$jm);
 }
+/* v34.38.19 (SH-SALARY-MONTH-GAP / F-4): لیست ماه‌های شمسی (YYYY/MM) از from تا to به
+   ترتیب صعودی؛ مبنای جبران کنترل‌شدهٔ ماه‌های غایب حقوق. */
+function sd_jalali_months_between(string $from,string $to): array {
+    $months=[];
+    if(!preg_match('/^(\d{4})\/(0[1-9]|1[0-2])$/',$from,$a)||!preg_match('/^(\d{4})\/(0[1-9]|1[0-2])$/',$to,$b))return$months;
+    $fromIndex=((int)$a[1])*12+((int)$a[2])-1;$toIndex=((int)$b[1])*12+((int)$b[2])-1;
+    if($toIndex<$fromIndex||($toIndex-$fromIndex)>3600)return$months; /* بیش از ۳۰۰ سال منطقی نیست */
+    for($i=$fromIndex;$i<=$toIndex;$i++){$months[]=sprintf('%04d/%02d',intdiv($i,12),($i%12)+1);}
+    return $months;
+}
 /* معادل stableRecurringCode مرورگر. recurringKeyهای حقوق ASCII هستند؛ مسیر UTF-16
    برای شناسه‌های قدیمی Unicode نیز خروجی charCodeAt جاوااسکریپت را حفظ می‌کند. */
 function sd_stable_recurring_code(string $prefix,string $key): string {
@@ -2144,7 +2154,7 @@ try {
 
         $shareholders=sd_read('ptf_crm_shareholders');$sharetx=sd_read('ptf_crm_sharetx');$opex=sd_read('ptf_crm_opex');sd_ensure_recurring_opex_row_identities($opex);
         $settings=sd_read('ptf_crm_settings');$templates=is_array($settings['opexTpl']??null)?$settings['opexTpl']:[];$correctionStart=count($corrections);
-        $now=sd_now();$created=0;$updated=0;$voided=0;$conflicts=0;$suppressed=0;$invalidTemplates=0;$matchedTemplates=0;$projectionRows=[];$eligibleSalaryKeys=[];
+        $now=sd_now();$created=0;$updated=0;$voided=0;$conflicts=0;$suppressed=0;$invalidTemplates=0;$matchedTemplates=0;$projectionRows=[];$eligibleSalaryKeys=[];$possibleDuplicates=[];
 
         if($includeSalaries)foreach($shareholders as $sh){
             if(!is_array($sh)||empty($sh['cd'])||($sh['active']??true)===false||($sh['duty']??false)!==true||sd_num($sh['salary']??0)<=0)continue;
@@ -2233,6 +2243,8 @@ try {
 
         /* Template materialization reads only the server settings snapshot. Invalid or
            absent templates are reported, never interpreted as permission to delete. */
+        /* v34.38.19 (F-3): برای هشدار دوباره‌شماریِ قالب، تنخواهِ دوره یک‌بار خوانده می‌شود. */
+        $pettyRowsForDup = $includeTemplates ? sd_read('ptf_crm_petty') : [];
         if($includeTemplates)foreach($templates as $tpl){
             if(!is_array($tpl)){$invalidTemplates++;continue;}$tplId=sd_text($tpl['id']??'',160);$amount=sd_num($tpl['amt']??0);$cat=sd_text($tpl['cat']??'',160);if($tplId===''||$amount<=0||$cat===''){$invalidTemplates++;continue;}
             if($scopeTemplate!==''&&$tplId!==$scopeTemplate)continue;$matchedTemplates++;
@@ -2247,6 +2259,23 @@ try {
                 if($wasExplicit)$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$opex[$index]['_opexRowId']??$opex[$index]['cd'],'kind'=>'explicit_restore','beforeSnapshot'=>$beforeSnapshot,'afterSnapshot'=>$opex[$index],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
             }
             $projectionRows[]=$opex[$index];if(count($hits)>1)$conflicts++;
+            /* v34.38.19 (F-3 — cross-check سروری): اگر برای همین ماه، ردیفِ دستیِ فعالِ
+               هم‌دسته/هم‌مبلغ یا تنخواهِ هم‌مبلغ/هم‌ماه موجود باشد، فقط هشدار برمی‌گردانیم؛
+               هیچ داده‌ای void/ادغام نمی‌شود تا دوباره‌شماریِ ناخواسته (چندکاربره/چنددستگاه)
+               در لایهٔ سرور هم قابل مشاهده باشد. تعیین‌تکلیف انسانی است. */
+            foreach($opex as $manualOx){
+                if(!is_array($manualOx)||!sd_active($manualOx))continue;
+                if(trim((string)($manualOx['recurringKey']??''))!==''||trim((string)($manualOx['tplId']??''))!==''||!empty($manualOx['shareholderSalary']))continue;
+                if((string)($manualOx['month']??'')!==$month||(string)($manualOx['cat']??'')!==$cat)continue;
+                if(round(sd_num($manualOx['amt']??0))!==round($amount))continue;
+                $possibleDuplicates[]=['kind'=>'manual-opex','cd'=>(string)($manualOx['_opexRowId']??$manualOx['cd']??''),'cat'=>$cat,'amt'=>round($amount),'templateId'=>$tplId];
+            }
+            foreach($pettyRowsForDup as $pr){
+                if(!is_array($pr)||!sd_active($pr)||!empty($pr['dealRef']))continue;
+                if((string)($pr['month']??'')!==$month)continue;
+                if(round(sd_num($pr['amt']??0))!==round($amount))continue;
+                $possibleDuplicates[]=['kind'=>'petty','cd'=>(string)($pr['cd']??''),'amt'=>round($amount),'templateId'=>$tplId];
+            }
             if($explicitTemplate)foreach($hits as $dup)if($dup!==$index){
                 if(sd_active($opex[$dup])||($restore&&sd_recurring_explicit_tombstone($opex[$dup]))){
                     $duplicateBefore=$opex[$dup];sd_recurring_void($opex[$dup],'رکورد تکراری قالب — '.$explicitReason,$user,'eligibility');$voided++;
@@ -2258,7 +2287,47 @@ try {
         if($explicitTemplate&&$scopeTemplate!==''&&$matchedTemplates===0)sd_out(['ok'=>false,'error'=>'opex_template_not_found','templateId'=>$scopeTemplate],404);
         sd_ensure_recurring_opex_row_identities($opex);
         $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];if(count($corrections)>$correctionStart)$changes['ptf_crm_corrections']=$corrections;$responseChanges=['ptf_crm_opex'=>[]];if(sd_recurring_sharetx_projection_allowed($action))$responseChanges['ptf_crm_sharetx']=[];
-        $result=['month'=>$month,'created'=>$created,'updated'=>$updated,'voided'=>$voided,'conflicts'=>$conflicts,'suppressedTombstones'=>$suppressed,'invalidTemplates'=>$invalidTemplates,'includedSalaries'=>$includeSalaries,'includedTemplates'=>$includeTemplates,'scopeTemplate'=>$scopeTemplate,'mode'=>'server-authoritative-upsert','projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
+        $result=['month'=>$month,'created'=>$created,'updated'=>$updated,'voided'=>$voided,'conflicts'=>$conflicts,'suppressedTombstones'=>$suppressed,'invalidTemplates'=>$invalidTemplates,'includedSalaries'=>$includeSalaries,'includedTemplates'=>$includeTemplates,'scopeTemplate'=>$scopeTemplate,'possibleDuplicates'=>$possibleDuplicates,'mode'=>'server-authoritative-upsert','projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
+    }
+    elseif ($action === 'backfill_shareholder_salaries') {
+        /* v34.38.19 (SH-SALARY-MONTH-GAP / F-4): جبران کنترل‌شدهٔ ماه‌های غایب حقوقِ
+           سهامداران موظف از eligibilitySince تا throughMonth. فقط ساخت idempotent با
+           کلید پایدار recurringKey؛ هیچ ردیفی void نمی‌شود، ماهِ سال قفل‌شده رد می‌شود
+           و هویت موجود (active یا tombstone) هرگز دوباره ساخته/زنده نمی‌شود. */
+        sd_require_role(SD_FIN_ROLES);
+        $reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
+        $throughMonth=sd_text($body['throughMonth']??'',20);if(!preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$throughMonth))$throughMonth=sd_current_jalali_month();
+        $shareholders=sd_read('ptf_crm_shareholders');$sharetx=sd_read('ptf_crm_sharetx');$opex=sd_read('ptf_crm_opex');sd_ensure_recurring_opex_row_identities($opex);
+        $now=sd_now();$created=0;$skippedLocked=0;$skippedExisting=0;$noAnchor=0;$projectionRows=[];$correctionStart=count($corrections);
+        foreach($shareholders as $sh){
+            if(!is_array($sh)||empty($sh['cd'])||($sh['active']??true)===false||($sh['duty']??false)!==true||sd_num($sh['salary']??0)<=0)continue;
+            $shCd=sd_text($sh['cd'],160);$salary=(int)round(sd_num($sh['salary']));
+            $anchor=sd_text($sh['eligibilitySince']??'',20);
+            if($anchor===''||!preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$anchor)){
+                /* fallback: اولین ادعای active همان سهامدار */
+                $first='';foreach($sharetx as $tx){if(!is_array($tx)||strtolower(trim((string)($tx['type']??'')))!=='salary'||(string)($tx['shCd']??'')!==$shCd||!sd_active($tx))continue;$m=sd_text($tx['month']??'',20);if(preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$m)&&($first===''||$m<$first))$first=$m;}
+                if($first===''){$noAnchor++;continue;}
+                $anchor=$first;
+            }
+            $months=sd_jalali_months_between($anchor,$throughMonth);
+            foreach($months as $month){
+                if(sd_is_locked($snaps,$month)){$skippedLocked++;continue;}
+                $key='salary:'.$shCd.':'.$month;
+                $txHits=sd_salary_find_indexes($sharetx,$key,$shCd,$month);
+                $oxHits=sd_recurring_find_indexes($opex,$key,[]);$legacyTxCds=[];
+                foreach($txHits as $txIndex){$candidateCd=trim((string)($sharetx[$txIndex]['cd']??''));if($candidateCd===''||in_array($candidateCd,$legacyTxCds,true))continue;$legacyTxCds[]=$candidateCd;$oxHits=array_values(array_unique(array_merge($oxHits,sd_recurring_find_indexes($opex,$key,['shareTx'=>$candidateCd,'shareholderSalary'=>true]))));}
+                if($txHits||$oxHits){$skippedExisting++;continue;} /* هویت موجود (فعال یا سنگ‌قبر) هرگز بازسازی نمی‌شود */
+                $txCd=sd_stable_recurring_code('SHT-SAL',$key);$oxCd=sd_stable_recurring_code('OPX-SAL',$key);$rowId=sd_stable_recurring_code('OPXR-SAL',$key);
+                $sharetx[]=['cd'=>$txCd,'shCd'=>$shCd,'shName'=>(string)($sh['name']??$shCd),'type'=>'salary','amt'=>$salary,'desc'=>'حقوق موظف ماه '.$month.' (جبران)','month'=>$month,'t'=>$month.'/01','recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'backfilled'=>true,'createdT'=>$now,'createdBy'=>$user];
+                $opexSalaryRow=['cd'=>$oxCd,'_opexRowId'=>$rowId,'cat'=>'حقوق و دستمزد','amt'=>$salary,'month'=>$month,'desc'=>'حقوق موظف سهامدار: '.(string)($sh['name']??$shCd).' (جبران)','shareTx'=>$txCd,'shareholderSalary'=>true,'recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'serverMaterialized'=>true,'backfilled'=>true,'t'=>$month.'/01','createdAt'=>$now,'createdBy'=>$user];
+                $salaryOfficialVal=null;if(array_key_exists('salaryOfficial',$sh)&&$sh['salaryOfficial']!==null&&$sh['salaryOfficial']!==''){$salaryOfficialVal=!empty($sh['salaryOfficial']);}if($salaryOfficialVal!==null)$opexSalaryRow['isOfficial']=$salaryOfficialVal;
+                $opex[]=$opexSalaryRow;$projectionRows[]=$opexSalaryRow;$created++;
+            }
+        }
+        sd_ensure_recurring_opex_row_identities($opex);
+        if($created>0)$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'shareholder_salary','entityId'=>'backfill|'.$throughMonth,'kind'=>'backfill_shareholder_salaries','reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>$now,'created'=>$created,'skippedLocked'=>$skippedLocked,'skippedExisting'=>$skippedExisting,'noAnchor'=>$noAnchor];
+        $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];if(count($corrections)>$correctionStart)$changes['ptf_crm_corrections']=$corrections;$responseChanges=['ptf_crm_opex'=>[]];if(sd_recurring_sharetx_projection_allowed($action))$responseChanges['ptf_crm_sharetx']=[];
+        $result=['backfilled'=>true,'throughMonth'=>$throughMonth,'created'=>$created,'skippedLocked'=>$skippedLocked,'skippedExisting'=>$skippedExisting,'noAnchor'=>$noAnchor,'projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
     }
     elseif ($action === 'schedule_recurring_opex_cheque') {
         /* Explicit future-month scheduling keeps cheque UX, but materialization is still

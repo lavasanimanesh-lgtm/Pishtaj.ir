@@ -301,6 +301,28 @@
     if (!rec) return;
     if (!opexSettlementRequired(rec)) { alert('این ردیف هزینه نیازمند تسویهٔ جداگانه نیست.'); return; }
     if (opexSettled(rec)) { alert('این هزینه قبلاً تسویه شده است (سند: ' + (rec.settleDoc || rec.chequeCd || '-') + ').'); return; }
+    /* v34.38.19 (OPEX-DUP-GUARD — گام ۴): تسویهٔ تک‌منبعی — اگر ردیفِ خواهرِ هم‌دسته/
+       هم‌مبلغ/هم‌ماه قبلاً تسویه شده یا تنخواهِ هم‌مبلغ/هم‌ماه تسویه‌شده‌ای هست، ممکن است
+       همین پرداخت دوباره از خزانه کم شود؛ فقط تأیید انسانی (بدون بلوک داده). */
+    var settledSibling = false, settledPettyTwin = false;
+    try {
+      settledSibling = oRows().some(function (x) {
+        return x && opexRowActive(x) && String(x.cd || '') !== String(rec.cd || '') &&
+          String(x.month || '') === String(rec.month || '') &&
+          String(x.cat || '') === String(rec.cat || '') &&
+          Math.round(+x.amt || 0) === Math.round(+rec.amt || 0) &&
+          (x.st === 'settled' || x.chequeCd);
+      });
+    } catch (eSib) {}
+    try {
+      var _pt = getData('ptf_crm_petty') || [];
+      settledPettyTwin = _pt.some(function (p) {
+        return p && String(p.st || '') === 'settled' && !p.dealRef &&
+          String(p.month || '') === String(rec.month || '') &&
+          Math.round(+p.amt || 0) === Math.round(+rec.amt || 0);
+      });
+    } catch (ePs) {}
+    if ((settledSibling || settledPettyTwin) && !confirm('⚠️ برای ' + rec.month + ' هزینه/پرداختِ هم‌دسته و هم‌مبلغِ دیگری (' + fmtT(rec.amt) + ' ریال) قبلاً تسویه شده است.\nتسویهٔ این ردیف ممکن است همان پرداخت را دوباره از خزانه کم کند.\nاگر واقعاً پرداختِ مجزا و جدیدی است ادامه دهید.')) return;
     var isCover = isCoverOpex(rec);
     var settleTitle = isCover ? 'کارمزد فاکتورساز' : 'هزینه تکرارشونده ' + (rec.cat || '');
     if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'تسویه ' + settleTitle }).ok) return;
@@ -367,16 +389,43 @@
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
   }
   /* v34.38.6 (OPEX-DUP-GUARD — گام ۲): قالبِ فعالِ دیگری با همان cat+amt+desc
-     نرمال‌شده (بجز خودش) هست؟ — مبنای هشدار نرم، نه بلوک داده. */
+     نرمال‌شده (بجز خودش) هست؟ — مبنای هشدار نرم، نه بلوک داده.
+     v34.38.19: آستانه به «هم cat + هم amt» نرم شد (بدون نیاز به برابری شرح) تا دو
+     قالب هم‌دسته/هم‌مبلغ با شرح متفاوت هم هشدار بگیرند (شکاف قبلی دوباره‌شماری). */
   function opexTplDuplicateActive(tpl, list) {
     if (!tpl) return null;
-    var norm = function (s) { return String(s || '').replace(/\s+/g, ' ').trim(); };
     for (var i = 0; i < (list || []).length; i++) {
       var t = list[i];
       if (!t || String(t.id || '') === String(tpl.id || '')) continue;
-      if (String(t.cat || '') === String(tpl.cat || '') && Math.round(+t.amt || 0) === Math.round(+tpl.amt || 0) && norm(t.desc) === norm(tpl.desc)) return t;
+      if (String(t.cat || '') === String(tpl.cat || '') && Math.round(+t.amt || 0) === Math.round(+tpl.amt || 0)) return t;
     }
     return null;
+  }
+  /* v34.38.19 (OPEX-DUP-GUARD — گام ۳): آیا برای (ماه، دسته، مبلغ) ردیفِ دستیِ فعال یا
+     تنخواهِ هم‌مبلغ/هم‌ماه وجود دارد؟ — جلوگیری از دوباره‌شماری هنگام ساخت/ویرایش قالب،
+     ثبت دستی و تسویه. فقط تشخیص (read-only)؛ هیچ داده‌ای تغییر نمی‌کند. */
+  function opexManualOrPettyClash(month, cat, amt) {
+    var hits = [];
+    try {
+      oAll().forEach(function (x) {
+        if (!opexRowActive(x)) return;
+        if (String(x.month || '') !== String(month || '')) return;
+        if (String(x.cat || '') !== String(cat || '')) return;
+        if (Math.round(+x.amt || 0) !== Math.round(+amt || 0)) return;
+        if (x.recurringKey || x.tplId || x.shareholderSalary) return; /* فقط ردیف دستی */
+        hits.push({ kind: 'manual', cd: x.cd || '', cat: x.cat || '', amt: Math.round(+x.amt || 0) });
+      });
+    } catch (eO) {}
+    try {
+      var petty = getData('ptf_crm_petty') || [];
+      petty.forEach(function (p) {
+        if (!p || String(p.st || '') === 'void' || p.dealRef) return;
+        if (String(p.month || '') !== String(month || '')) return;
+        if (Math.round(+p.amt || 0) !== Math.round(+amt || 0)) return;
+        hits.push({ kind: 'petty', cd: p.cd || '', cat: p.cat || '', amt: Math.round(+p.amt || 0) });
+      });
+    } catch (eP) {}
+    return hits;
   }
   function recurringKeyForTpl(t, month) { return 'opex-template:' + String((t && t.id) || '') + ':' + String(month || ''); }
   function recurringRowActive(x) { return opexRowActive(x); }
@@ -578,7 +627,11 @@
             tpl = { id: tid, cat: v.cat, amt: amt, desc: v.desc || '', by: curSession().name, t: faDate(), isOfficial: isOfficial };
             /* v34.38.6 (OPEX-DUP-GUARD — گام ۲): هشدار نرم قبل از ساخت قالب تکراری. */
             var dupTpl = opexTplDuplicateActive(tpl, list);
-            if (dupTpl && !confirm('⚠️ قالب تکرارشوندهٔ فعال دیگری با همان دسته/مبلغ/شرح موجود است (' + (dupTpl.cat || '') + ' — ' + fmtT(dupTpl.amt) + ' ریال).\nدو قالب مشابه هر ماه دو ردیف هزینهٔ جدا می‌سازند و ممکن است همان هزینه دوبار شمرده شود.\nادامه می‌دهید؟')) return;
+            if (dupTpl && !confirm('⚠️ قالب تکرارشوندهٔ فعال دیگری با همان دسته/مبلغ موجود است (' + (dupTpl.cat || '') + ' — ' + fmtT(dupTpl.amt) + ' ریال).\nدو قالب مشابه هر ماه دو ردیف هزینهٔ جدا می‌سازند و ممکن است همان هزینه دوبار شمرده شود.\nادامه می‌دهید؟')) return;
+            /* v34.38.19 (OPEX-DUP-GUARD — گام ۳): ساخت قالب در برابر ردیفِ دستی/تنخواهِ
+               هم‌ماه/هم‌دسته/هم‌مبلغ — شکاف قبلی که فقط قالب↔قالب چک می‌شد. */
+            var clashManualTpl = opexManualOrPettyClash(month, v.cat, amt).length > 0;
+            if (clashManualTpl && !confirm('⚠️ برای ' + month + ' هزینهٔ دستی یا تنخواهِ هم‌دسته و هم‌مبلغ (' + (v.cat || '') + ' — ' + fmtT(amt) + ' ریال) از قبل ثبت شده است.\nثبت این قالب، ردیف دومِ همان هزینه را در این ماه می‌سازد و ممکن است دوبار شمرده شود.\nاگر واقعاً دو هزینهٔ مجزا هستند ادامه دهید.')) return;
             list.push(tpl); saveTpls(list);
           }
           /* No local OPEX row is inserted. After ACK, optional document/deal metadata is
@@ -611,6 +664,17 @@
             Math.round(+x.amt || 0) === amt && (x.recurringKey || x.tplId) && !x.coverInvoiceCd;
         });
         if (clashRec && !confirm('⚠️ برای ' + month + ' یک هزینهٔ تکرارشوندهٔ هم‌دسته و هم‌مبلغ (' + (v.cat || '') + ' — ' + fmtT(amt) + ' ریال) وجود دارد.\nثبت این ردیف دستی ممکن است همان هزینه را دوبار در سود سال بشمارد.\nاگر واقعاً دو هزینهٔ مجزا هستند ادامه دهید.')) return;
+        /* v34.38.19 (OPEX-DUP-GUARD — گام ۱ تکمیلی): تنخواهِ هم‌مبلغ/هم‌ماه هم در زمان ثبت
+           هشدار می‌دهد (قبلاً فقط در گزارش read-only کیفیت داده دیده می‌شد). */
+        var clashPetty = false;
+        try {
+          var _petty = getData('ptf_crm_petty') || [];
+          clashPetty = _petty.some(function (p) {
+            return p && String(p.st || '') !== 'void' && !p.dealRef &&
+              String(p.month || '') === month && Math.round(+p.amt || 0) === amt;
+          });
+        } catch (ePt) {}
+        if (clashPetty && !confirm('⚠️ برای ' + month + ' یک خروج تنخواهِ هم‌مبلغ (' + fmtT(amt) + ' ریال) ثبت شده است.\nثبت این هزینهٔ جاری ممکن است همان پرداخت را دوبار از خزانه کم کند.\nاگر واقعاً دو پرداختِ مجزا هستند ادامه دهید.')) return;
         all.unshift(rec);
         oSave(all);
         if (rec.dealRef && typeof window.ptfDealCostSync === 'function') window.ptfDealCostSync({ rec: rec, source: 'opex', dealCd: rec.dealRef, prevDealCd: '', by: curSession().name, addTx: '➕ لینک هزینه جاری به پرونده: ' + fmtT(amt) + ' ریال — ' + (v.desc || v.cat) });
@@ -840,14 +904,18 @@
       onOk: function (v) {
         var amount = +v.amt || 0;
         if (amount <= 0) { alert('⛔ مبلغ نامعتبر'); return; }
+        var month = normMonth(materializeMonth) || ptfFaMonthNow();
         var before = { cat: tpl.cat, amt: tpl.amt, desc: tpl.desc, isOfficial: tpl.isOfficial };
         tpl.cat = v.cat; tpl.amt = amount; tpl.desc = v.desc || ''; tpl.isOfficial = v.isOfficial === 'yes'; tpl.updatedAt = typeof faDateTime === 'function' ? faDateTime() : ''; tpl.updatedBy = (curSession() || {}).name || '';
         /* v34.38.6 (OPEX-DUP-GUARD — گام ۲): ویرایش قالب به مقداری که قالبِ فعالِ
            دیگری را تکرار کند — هشدار نرم. */
         var dupEdit = opexTplDuplicateActive(tpl, list);
-        if (dupEdit && !confirm('⚠️ پس از این تغییر، قالب با قالبِ فعالِ «' + (dupEdit.cat || '') + ' — ' + fmtT(dupEdit.amt) + ' ریال» هم‌دسته/هم‌مبلغ/هم‌شرح می‌شود و هر ماه دو ردیف جدا می‌سازد.\nادامه می‌دهید؟')) return;
+        if (dupEdit && !confirm('⚠️ پس از این تغییر، قالب با قالبِ فعالِ «' + (dupEdit.cat || '') + ' — ' + fmtT(dupEdit.amt) + ' ریال» هم‌دسته/هم‌مبلغ می‌شود و هر ماه دو ردیف جدا می‌سازد.\nادامه می‌دهید؟')) return;
+        /* v34.38.19 (OPEX-DUP-GUARD — گام ۳): تطبیق قالبِ ویرایش‌شده در برابر ردیف
+           دستی/تنخواهِ هم‌ماه/هم‌دسته/هم‌مبلغ — جلوگیری از ردیف دومِ همان هزینه. */
+        var clashEditManual = opexManualOrPettyClash(month, v.cat, amount).length > 0;
+        if (clashEditManual && !confirm('⚠️ برای ' + month + ' هزینهٔ دستی یا تنخواهِ هم‌دسته و هم‌مبلغ (' + (v.cat || '') + ' — ' + fmtT(amount) + ' ریال) از قبل ثبت شده است.\nتطبیق این قالب ردیف دومِ همان هزینه را می‌سازد و ممکن است دوبار شمرده شود.\nادامه می‌دهید؟')) return;
         saveTpls(list);
-        var month = normMonth(materializeMonth) || ptfFaMonthNow();
         materializeTemplateOnServer(tpl, month, { restore: false, reason: 'ویرایش صریح منبع قالب ' + tid }).then(function (state) {
           if (!state || state.state !== 'acked') {
             alert('قالب محلی در صف همگام‌سازی ماند، اما تطبیق سروری انجام نشد: ' + String((state && state.error && state.error.message) || 'نتیجه نامشخص'));
@@ -951,6 +1019,11 @@
     }
     if (local && local.complete && freshChanges > 0) {
       if (typeof ptfToast === 'function') ptfToast('🔁 هزینه‌های تکرارشوندهٔ ماه ' + local.month + ' تطبیق شد (تغییرات سروری: ' + freshChanges + ' — حقوق فعال: ' + local.salaries + ' — قالب‌های فعال: ' + local.tpls + ')', 'ok');
+    }
+    /* v34.38.19 (OPEX-DUP-GUARD — گام ۵): اگر ماه جاری قالبِ ثبت‌نشده دارد، دیگر سکوت
+       نمی‌کنیم — اعلان می‌دهیم تا کاربر از مسیر «ثبت قالب» جبران کند (بدون اجرای خودکار). */
+    if (local && !local.complete && (local.missing || []).length) {
+      if (typeof ptfToast === 'function') ptfToast('⚠️ ' + (local.missing || []).length + ' هزینهٔ تکرارشوندهٔ ماه ' + (local.month || '') + ' هنوز ثبت نشده است؛ از دکمهٔ ثبت قالب جبران کنید.', 'warn');
     }
     return local;
   }

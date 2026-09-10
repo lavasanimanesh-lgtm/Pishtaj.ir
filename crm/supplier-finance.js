@@ -969,6 +969,10 @@
         var iso = typeof ptfJToISO === 'function' ? (ptfJToISO(v.date) || v.date) : v.date, amt = +v.amount || 0;
         if (!v.no || !iso || amt < invPaid(i, d)) { alert('شماره، تاریخ و مبلغ معتبر (حداقل برابر پرداخت تخصیص‌یافته) الزامی است'); return; }
         i.no=v.no; i.dateISO=iso; i.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso; i.amount=amt; i.amountIrr=i.cur==='IRR'?amt:Math.round(amt*(+i.rate||0)); i.note=v.note||'';
+        /* v34.38.19 (SF-INVOICE-REVERT): مبلغِ دستی کاربر مقدم بر بازوارد (re-import) خرید
+           واقعی است. این پرچم ماندگار است تا slImportRealPurchase دیگر مبلغ فاکتور را به
+           price×qty برنگرداند و «ویرایش شد ولی دوباره برگشت» تکرار نشود. */
+        if (Math.round(+initial.amount || 0) !== Math.round(amt)) i.manualAmountEdit = true;
         if(v.isOfficial==='yes') i.isOfficial=true; else if(v.isOfficial==='no') i.isOfficial=false; else delete i.isOfficial;
         i.updatedAtISO = new Date().toISOString(); i.updatedBy = curSession().name;
         if (i.isCover === true) {
@@ -1204,7 +1208,11 @@
         legacyPayableCds: o.payableCd ? [o.payableCd] : [], sourcePurchaseCd: o.purchaseCd, status: 'open', files: (o.files || []).slice(), t: faDateTime(), by: curSession().name };
       d.invoices.unshift(inv);
     } else {
-      inv.supplierCd=o.supplierCd; inv.supName=sup.co||sup.name||o.supName||''; inv.amount=Math.round(+o.amount||0); inv.amountIrr=inv.amount;
+      inv.supplierCd=o.supplierCd; inv.supName=sup.co||sup.name||o.supName||'';
+      /* v34.38.19 (SF-INVOICE-REVERT): اگر کاربر مبلغ فاکتور را دستی اصلاح کرده، بازوارد
+         خرید واقعی دیگر مبلغ فاکتور/پرداخت را به price×qty برنمی‌گرداند؛ فقط متادیتا
+         (قلم/تعداد/قیمت واحد/فایل) به‌روز می‌شود. دستی همیشه بر خودکار مقدم است. */
+      if (!inv.manualAmountEdit) { inv.amount=Math.round(+o.amount||0); inv.amountIrr=inv.amount; }
       inv.item=o.item||inv.item||''; inv.qty=+o.qty||inv.qty||0; inv.unitPrice=+o.unitPrice||inv.unitPrice||0; inv.sourceCurrency=o.sourceCurrency||inv.sourceCurrency||''; inv.sourceUnitPrice=+o.sourceUnitPrice||inv.sourceUnitPrice||0; inv.sourceFxRate=+o.sourceFxRate||inv.sourceFxRate||0; inv.files=inv.files||[]; inv.updatedAtISO=new Date().toISOString();
     }
     var pay = (d.payments || []).filter(function (p) { return p.sourcePurchaseCd === o.purchaseCd && p.status !== 'void'; })[0];
@@ -1216,8 +1224,9 @@
           files: [], t: faDateTime(), by: curSession().name };
         d.payments.unshift(pay);
       } else {
-        pay.amount = inv.amount; pay.amountIrr = inv.amount; pay.supplierCd = o.supplierCd; pay.supName = inv.supName;
-        pay.allocations = [{ invoiceCd: inv.cd, amount: inv.amount }]; pay.unallocated = 0; pay.status = 'posted';
+        pay.supplierCd = o.supplierCd; pay.supName = inv.supName;
+        if (!inv.manualAmountEdit) { pay.amount = inv.amount; pay.amountIrr = inv.amount; pay.allocations = [{ invoiceCd: inv.cd, amount: inv.amount }]; pay.unallocated = 0; }
+        pay.status = 'posted';
       }
     }
     if (save(d) === false) return { ok: false, why: 'save' };
