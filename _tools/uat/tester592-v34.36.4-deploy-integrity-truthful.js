@@ -40,6 +40,14 @@
      دیسکِ سرور == کامیت  → سبز (کشِ HTTP فقط هشدار است)
      دیسکِ سرور != کامیت  → قرمزِ مسدودکننده (fail-closed)
      «نتوانستیم بگیریم»   ≠ «محتوا فرق دارد» — در پیام و در شمارش‌ها جدا هستند.
+
+   ── v34.38.16 (FTP-FALLBACK) ──
+   یافتهٔ annotation ران‌ها: هاست به curl روی FTP هیچ جوابی نمی‌دهد (پروبِ دلتا و
+   LIST همیشه ناموفق)، در حالی که آپلودرِ Node سالم است و بایت‌های زنده == کامیت.
+   پس «readback ناممکن» دیگر fail=1 نمی‌گیرد؛ در این حالت لایهٔ ۲ از «هشدار صرف»
+   به «مسدودکننده» ارتقا می‌یابد (مارکر + بایت‌ها + RELEASE + کش‌باستر از HTTP —
+   هم‌ارزِ گیت پروداکشن) و ناهمسانیِ محتوایِ خوانده‌شده همچنان قرمزِ مسدودکننده
+   است. سناریوهای تازه: ftp-سیاه (کلِ FTP مرده) با http سالم/کهنه/مرده.
    ===================================================================== */
 var fs = require('fs'), os = require('os'), path = require('path');
 var spawnSync = require('child_process').spawnSync;
@@ -110,7 +118,17 @@ fs.writeFileSync(path.join(BIN, 'curl'), [
   'emit() { if [[ -n "$out" ]]; then cat > "$out"; else cat; fi; }',
   'pth="${url#*://}"; pth="${pth#*/}"; pth="${pth%%\\?*}"',
   'case "$pth" in',
-  '  *__deploy__.txt) printf \'{"sha":"%s","ref":"arena/uat","mode":"full"}\' "${SHIM_MARKER_SHA:-x}" | emit; exit 0;;',
+  '  *__deploy__.txt)',
+  '    case \"$url\" in ftp://*|ftps://*)',
+  '      if [[ \"${SHIM_MARKER_DEAD:-}\" == \"1\" ]]; then [[ -n \"$out\" ]] && : > \"$out\"; exit 7; fi',
+  '      printf \'{"sha":"%s","ref":"arena/uat","mode":"full"}\' "${SHIM_MARKER_SHA:-x}" | emit; exit 0;;',
+  '    esac',
+  '    hmode=\"${SHIM_HTTP_MODE:-ok}\"; [[ \"${SHIM_HTTP_MARKER:-}\" == \"fresh\" ]] && hmode=\"ok\"',
+  '    case \"$hmode\" in',
+  '      dead) [[ -n \"$out\" ]] && : > \"$out\"; exit 7;;',
+  '      stale) printf \'{"sha":"%s","ref":"arena/uat","mode":"full"}\' "ffffffffffffffffffffffffffffffffffffffff" | emit; exit 0;;',
+  '      *) printf \'{"sha":"%s","ref":"arena/uat","mode":"full"}\' "${SHIM_MARKER_SHA:-x}" | emit; exit 0;;',
+  '    esac;;',
   'esac',
   'rel="${pth#public_html/}"',
   'case "$url" in',
@@ -166,6 +184,8 @@ function runStep(scriptPath, opts) {
     SHIM_FTP_MODE: o.ftp || 'ok',
     SHIM_HTTP_MODE: o.http || 'ok',
     SHIM_MARKER_SHA: o.markerSha === undefined ? SHA40 : o.markerSha,
+    SHIM_MARKER_DEAD: o.markerDead ? '1' : '',
+    SHIM_HTTP_MARKER: o.httpMarker || '',
     GITHUB_STEP_SUMMARY: path.join(TMP, 'summary.md'),
     GITHUB_ACTIONS: 'true',
     DEPLOY_SHA: SHA40
@@ -229,6 +249,16 @@ function runStep(scriptPath, opts) {
     /for m in 1 2 3; do/.test(stPost) && stPost.indexOf('__deploy__.txt') > -1);
   T('استیجینگ: crm/index.html در فهرستِ هش نیست (بنر تزریق می‌شود) ولی سنجهٔ زندهٔ نسخه را دارد',
     !/(FILES="[^"]*crm\/index\.html)/.test(st) && stPost.indexOf('$BASE/crm/index.html') > -1);
+  T('استیجینگ/FTP-FALLBACK: «readback ناممکن» شمارش می‌شود نه fail (ftp_unavail) و لایهٔ ۲ مسدودکننده می‌شود (BLOCK_HTTP)',
+    /ftp_unavail=\$\(\(ftp_unavail\+1\)\)/.test(stPost) && /BLOCK_HTTP=1/.test(stPost)
+    && /::warning::راستی‌آزمایی FTP در دسترس نیست/.test(stPost));
+  T('استیجینگ/FTP-FALLBACK: مارکرِ خوانده‌نشده از مارکرِ اشتباه جداست (marker_seen_wrong؛ فقط دومی fail است)',
+    /marker_seen_wrong=1/.test(stPost) && /marker_seen_wrong" -eq 1/.test(stPost));
+  T('استیجینگ/FTP-FALLBACK: در حالت fallback مارکر هم از مسیر HTTP سنجیده می‌شود (مسدودکننده)',
+    stPost.indexOf('$BASE/__deploy__.txt') > -1 && /مارکر HTTP == کامیت این ران/.test(stPost)
+    && /::error::مارکر HTTP \(__deploy__\.txt\) با کامیت این ران مطابقت ندارد/.test(stPost));
+  T('استیجینگ/FTP-FALLBACK: لایهٔ ۲ در حالت fallback با HTTP کهنه/مرده قرمزِ مسدودکننده می‌شود (استقرار اثبات نشد)',
+    /::error::راستی‌آزمایی FTP در دسترس نبود و HTTP زنده هم/.test(stPost) && /استقرار اثبات نشد/.test(stPost));
   T('پروداکشن: crm/index.html در فهرستِ هش هست (بنری تزریق نمی‌شود)',
     /FILES="crm\/index\.html/.test(pr));
   T('پروداکشن: انتظارِ اولیهٔ ۱۸۰s برای پیر شدنِ کشِ مسیرمحور حفظ شده', /sleep 180/.test(pr));
@@ -274,6 +304,12 @@ scenario('st-disk-stale', stScript, { ftp: 'stale', http: 'ok' });
 scenario('st-disk-eol', stScript, { ftp: 'eol', http: 'ok' });
 scenario('st-ftp-flaky', stScript, { ftp: 'flaky', http: 'ok' });
 scenario('st-marker-wrong', stScript, { ftp: 'ok', http: 'ok', markerSha: 'ffffffffffffffffffffffffffffffffffffffff' });
+/* v34.38.16 (FTP-FALLBACK): خاموشیِ کاملِ FTP روی curl — همان وضعیتِ واقعیِ هاست */
+scenario('st-ftp-dead', stScript, { ftp: 'dead', http: 'ok', markerDead: true }, true);
+scenario('st-ftp-dead-http-stale', stScript, { ftp: 'dead', http: 'stale', markerDead: true });
+scenario('st-ftp-dead-http-files-stale', stScript, { ftp: 'dead', http: 'stale', markerDead: true, httpMarker: 'fresh' });
+scenario('st-ftp-dead-http-dead', stScript, { ftp: 'dead', http: 'dead', markerDead: true });
+scenario('st-ftp-files-dead', stScript, { ftp: 'dead', http: 'ok' });
 /* چک‌اوتِ ناقص: VERSION.json هست ولی crm/* نه — باید «مشکل داخلی گیت» بگوید */
 var brokenRoot = path.join(TMP, 'broken-checkout');
 fs.mkdirSync(brokenRoot, { recursive: true });
@@ -343,6 +379,54 @@ T('رفتار استیجینگ/مارکر-اشتباه: exit 1 — مارکر و
 T('رفتار استیجینگ/مارکر-اشتباه: محتوای مارکر در لاگ می‌آید تا shaِ سروشده معلوم باشد',
   has('st-marker-wrong', /sha مطابقت ندارد → \{"sha":"f{8,}/));
 
+/* --- استیجینگ/FTP-FALLBACK: کلِ FTP مرده ولی HTTP سالم = همان وضعیتِ واقعیِ هاست --- */
+T('رفتار استیجینگ/FTP-سیاه: exit 0 — دیپلویِ درست به‌خاطرِ ترنسپورتِ راستی‌آزمایی قرمز نمی‌شود',
+  R['st-ftp-dead'].status === 0, 'exit=' + R['st-ftp-dead'].status);
+T('رفتار استیجینگ/FTP-سیاه: هشدارِ صریحِ fallback صادر می‌شود (نه سکوت، نه ::error)',
+  has('st-ftp-dead', /::warning::راستی‌آزمایی FTP در دسترس نیست/) && !has('st-ftp-dead', /::error/),
+  (R['st-ftp-dead'].out.match(/::(warning|error)::[^\n]*/) || []).join(' | '));
+T('رفتار استیجینگ/FTP-سیاه: هر ۵ فایل + مارکر «واگذاری به HTTP» گزارش شدند (۶ مورد)',
+  n('st-ftp-dead', /قضاوت به لایهٔ HTTP واگذار شد/g) === 6,
+  'شمار=' + n('st-ftp-dead', /قضاوت به لایهٔ HTTP واگذار شد/g));
+T('رفتار استیجینگ/FTP-سیاه: مارکر از مسیر HTTP اثبات شد',
+  has('st-ftp-dead', /✅ مارکر HTTP == کامیت این ران/));
+T('رفتار استیجینگ/FTP-سیاه: لایهٔ ۲ (HTTP) سبز اعلام شد',
+  has('st-ftp-dead', /✅ تلاش 1: HTTP زنده == کامیت/));
+T('رفتار استیجینگ/FTP-سیاه: خطِ «لایهٔ ۱ اثبات شد» چاپ نمی‌شود (readback انجام نشد)',
+  !has('st-ftp-dead', /✅ لایهٔ ۱: بایت‌های دیسک سرور == کامیت/));
+T('رفتار استیجینگ/FTP-سیاه: خلاصهٔ گام هشدارِ بی‌موردِ کهنگیِ کش نمی‌گیرد',
+  R['st-ftp-dead'].summary.indexOf('کش HTTP استیجینگ دیر تازه شد') === -1);
+
+/* --- استیجینگ/FTP-FALLBACK: FTP مرده + HTTP کهنه/مرده = قرمزِ مسدودکننده (fail-closed) --- */
+T('رفتار استیجینگ/FTP-سیاه+HTTP-کهنه: exit 1 — بدونِ اثبات، سبز نیست',
+  R['st-ftp-dead-http-stale'].status === 1, 'exit=' + R['st-ftp-dead-http-stale'].status);
+T('رفتار استیجینگ/FTP-سیاه+HTTP-کهنه: عقب‌ماندگیِ کاملِ کش (مارکر هم کهنه) سریع در مارکرِ HTTP می‌ایستد',
+  has('st-ftp-dead-http-stale', /::error::مارکر HTTP /)
+  && has('st-ftp-dead-http-stale', /مارکر HTTP تلاش 1: sha مطابقت ندارد/));
+T('رفتار استیجینگ/FTP-سیاه+HTTP-کهنه: لایهٔ ۲ اجرا نمی‌شود (پیش از آن خارج می‌شویم)',
+  !has('st-ftp-dead-http-stale', /تلاش 1 از ۱۲ ناموفق|HTTP زنده == کامیت/));
+T('رفتار استیجینگ/FTP-سیاه+فایل‌کهنه: exit 1 با ::error صریحِ «استقرار اثبات نشد» (مارکر تازه، فایل‌ها کهنه)',
+  R['st-ftp-dead-http-files-stale'].status === 1
+  && has('st-ftp-dead-http-files-stale', /::error::راستی‌آزمایی FTP در دسترس نبود و HTTP زنده هم/)
+  && has('st-ftp-dead-http-files-stale', /استقرار اثبات نشد/),
+  'exit=' + R['st-ftp-dead-http-files-stale'].status);
+T('رفتار استیجینگ/FTP-سیاه+فایل‌کهنه: هشدارِ fallback هم ثبت شده (مسیرِ طی‌شده معلوم است)',
+  has('st-ftp-dead-http-files-stale', /::warning::راستی‌آزمایی FTP در دسترس نیست/));
+T('رفتار استیجینگ/FTP-سیاه+فایل‌کهنه: پنجرهٔ کاملِ ۱۲ تلاش طی شد (نه fail زودهنگام)',
+  has('st-ftp-dead-http-files-stale', /تلاش 12 از ۱۲ ناموفق/));
+T('رفتار استیجینگ/FTP-سیاه+HTTP-مرده: exit 1 با خطای مارکرِ HTTP (پیش از لایهٔ ۲)',
+  R['st-ftp-dead-http-dead'].status === 1
+  && has('st-ftp-dead-http-dead', /::error::مارکر HTTP \(__deploy__\.txt\) با کامیت این ران مطابقت ندارد/),
+  'exit=' + R['st-ftp-dead-http-dead'].status);
+T('رفتار استیجینگ/FTP-سیاه+HTTP-مرده: لایهٔ ۲ اجرا نمی‌شود (پیش از آن خارج می‌شویم)',
+  !has('st-ftp-dead-http-dead', /تلاش 1 از ۱۲ ناموفق|HTTP زنده == کامیت/));
+
+/* --- استیجینگ/FTP-FALLBACK: فقط فایل‌ها dead ولی مارکرِ FTP سالم (مسیرِ ترکیبی) --- */
+T('رفتار استیجینگ/FTP-فایل‌مرده: exit 0 با fallback (مارکرِ FTP سالم، فایل‌ها از HTTP اثبات شدند)',
+  R['st-ftp-files-dead'].status === 0 && has('st-ftp-files-dead', /✅ مارکر استقرار == کامیت این ران/)
+  && has('st-ftp-files-dead', /✅ تلاش 1: HTTP زنده == کامیت/),
+  'exit=' + R['st-ftp-files-dead'].status);
+
 /* --- استیجینگ: چک‌اوتِ ناقص --- */
 T('رفتار استیجینگ/چک‌اوت-ناقص: exit 1 با پیامِ «مشکل داخلی گیت، نه استقرار»',
   R['st-broken-checkout'].status === 1 && has('st-broken-checkout', /در چک‌اوتِ این ران نیست \(مشکل داخلی گیت، نه استقرار\)/),
@@ -382,7 +466,7 @@ T('رفتار پروداکشن/سکسکهٔ-دوباره: تلاش‌های نا
   has('pr-flaky2', /تلاش 1 از ۱۲ ناموفق/) && has('pr-flaky2', /تلاش 2 از ۱۲ ناموفق/));
 
 /* --- یکسان بودنِ قضاوت زیرِ bash -e (پوستهٔ پیش‌فرضِ رانرِ گیت‌هاب) --- */
-['st-healthy', 'st-http-dead', 'pr-healthy'].forEach(function (key) {
+['st-healthy', 'st-http-dead', 'st-ftp-dead', 'pr-healthy'].forEach(function (key) {
   var withE = R[key + '|-e'];
   T('پوسته: ' + key + ' زیرِ `bash -e` همان قضاوت را می‌دهد (رانر با -e اجرا می‌کند)',
     !!withE && withE.status === R[key].status,

@@ -70,6 +70,7 @@ function contract(st) {
   C('لایهٔ ۱: مقایسهٔ sha1 بایت‌به‌بایت', post.indexOf('sha1sum') > -1 && post.indexOf('want=') > -1);
   C('لایهٔ ۱: مارکر سرور == کامیت این ران', /__deploy__\.txt[\s\S]{0,300}sha[\s\S]{0,80}\$\{\{ github\.sha \}\}/.test(post));
   C('لایهٔ ۱: مسدودکننده — exit $fail روی ناهمخوانی دیسک', /exit \$fail/.test(post) && /::error::فایل‌های روی سرور \(FTP readback\)/.test(post));
+  C('لایهٔ ۱/FTP-FALLBACK (v34.38.16): readback ناممکن شمارش می‌شود (ftp_unavail) و لایهٔ ۲ مسدودکننده می‌شود (BLOCK_HTTP + مارکر HTTP)', post.indexOf('ftp_unavail=$((ftp_unavail+1))') > -1 && post.indexOf('BLOCK_HTTP=1') > -1 && post.indexOf('$BASE/__deploy__.txt') > -1 && /استقرار اثبات نشد/.test(post));
   C('لایهٔ ۲: تازگی HTTP هشداری است (۱۲ تلاش × ۳۰s)', /for i in 1 2 3 4 5 6 7 8 9 10 11 12; do/.test(post) && /sleep 30/.test(post));
   C('لایهٔ ۲: هدرهای Cache-Control + Pragma no-cache', /-H 'Cache-Control: no-cache'/.test(post) && /-H 'Pragma: no-cache'/.test(post));
   C('لایهٔ ۲: دوبل cache-buster (r=RANDOM)', /r=\$\(\(RANDOM\)\)\$RANDOM/.test(post));

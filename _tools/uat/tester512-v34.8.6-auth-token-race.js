@@ -39,14 +39,37 @@ T('revoke توکن منفرد تعریف شده', /function auth_revoke_token/.t
 T('auth_logout فقط همون توکن را باطل می‌کند (دستگاه‌های دیگر نفس می‌کشند)', /case 'auth_logout'/.test(crmphp) && /auth_revoke_token\(\$logoutToken\)/.test(crmphp));
 
 /* ---------- کلاینت: بهداشت 401 ---------- */
+/* v34.38.16 (TESTER512-WINDOW): استخراجِ بدنهٔ تابع با تطبیقِ آکولاد، به‌جای پنجرهٔ
+   کاراکتریِ ثابت. ریشهٔ قرمزیِ گیت CI روی main (و به‌تبع آن هر سه ورک‌فلو): دو خطِ
+   BOOT-SPLASH-001 فاصلهٔ `function doLogout()` تا `removeItem('ptf_crm_session')`
+   را از ~٧٠٠ به ٨٦٩ کاراکتر رساند و regex ثابتِ `{0,700}` — بی‌ربط به رفتار —
+   قرمز شد. پنجرهٔ ثابت با هر رشدِ مشروعِ تابع می‌شکند؛ حالا کلِ بدنهٔ واقعی سنجیده می‌شود. */
+function fnBody(src, sig) {
+  var i = src.indexOf(sig);
+  if (i < 0) return '';
+  var j = src.indexOf('{', i);
+  if (j < 0) return '';
+  var depth = 0;
+  for (var k = j; k < src.length; k++) {
+    if (src[k] === '{') depth++;
+    else if (src[k] === '}') { depth--; if (depth === 0) return src.slice(j, k + 1); }
+  }
+  return '';
+}
 T('isNeedLogin فقط نشانه‌های قطعی auth (بدون regex عام token)', !/\/token\|unauthorized\|401\/i/.test(cs) && /authentication_required/.test(cs) && /invalid or expired token/.test(cs));
 T('sync.js: هیچ regex عام token باقی نماند', !/\/token\|unauthorized\|401\/i/.test(sync));
-T('retryPullAfterAuth دیگر خودش توکن را پاک نمی‌کند (تک‌نقطهٔ invalidate)', !/function retryPullAfterAuth[\s\S]{0,600}?removeItem\('ptf_crm_token'\)/.test(sync));
+T('retryPullAfterAuth دیگر خودش توکن را پاک نمی‌کند (تک‌نقطهٔ invalidate)', (function () {
+  var b = fnBody(sync, 'function retryPullAfterAuth');
+  return b.length > 0 && b.indexOf("removeItem('ptf_crm_token')") === -1;
+})());
 T('refreshAuthToken هر سه کلید نشست را هم‌زمان پاک می‌کند', /removeItem\('ptf_crm_token'\)[\s\S]{0,200}removeItem\('ptf_crm_token_role'\)[\s\S]{0,200}removeItem\('ptf_crm_session'\)/.test(sync));
 
 /* ---------- خروج ---------- */
 T('doLogout توکن را روی سرور revoke می‌کند (auth_logout، best-effort)', /action=auth_logout/.test(idx) && /keepalive: true/.test(idx));
-T('doLogout همچنان نشست محلی را پاک می‌کند', /function doLogout\(\)[\s\S]{0,700}?removeItem\('ptf_crm_session'\)/.test(idx));
+T('doLogout همچنان نشست محلی را پاک می‌کند', (function () {
+  var b = fnBody(idx, 'function doLogout()');
+  return b.length > 0 && b.indexOf("removeItem('ptf_crm_session')") > -1;
+})());
 
 /* ---------- شبیه‌سازی رفتاری: رقابت دو ورود هم‌زمان (الگوی JS از چرخهٔ PHP) ---------- */
 (function behaviorRace() {
