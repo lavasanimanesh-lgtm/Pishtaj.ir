@@ -228,8 +228,8 @@ T('C/بدونِ مارکر: لاگ «مارکر قبلی: <نبود>» می‌گ
 /* ───────────────── سناریو D: FTP در دسترس نیست ───────────────── */
 var repoD = makeRepo(path.join(TMP, 'repoD')); repoD.dir = path.join(TMP, 'repoD');
 var D = runDelta(repoD, { ftpDown: true });
-T('D/FTP مرده: exit 1 با proto=none و ::error::اتصال FTP برقرار نشد',
-  D.status === 1 && D.proto === 'none' && /::error::اتصال FTP برقرار نشد/.test(D.out),
+T('D/FTP مرده: exit 1 با proto=none و ::warning::اتصال FTP (curl) (v34.38.16: سطح هشدار — این حالت پایاست و full اثبات‌شده ادامه می‌دهد؛ مسیریابی با exit/outcome عوض نشده)',
+  D.status === 1 && D.proto === 'none' && /::warning::اتصال FTP \(curl\) برقرار نشد/.test(D.out) && !/::error::اتصال FTP/.test(D.out),
   'exit=' + D.status + ' proto=' + D.proto);
 T('D/FTP مرده: این شکست با continue-on-error تحمل می‌شود و مسیرِ full را برمی‌گرداند',
   /id: delta[\s\S]{0,600}continue-on-error: true/.test(st)

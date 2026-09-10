@@ -15,6 +15,13 @@
 #         اگر فقط لایهٔ ۲ عقب بماند → ::warning (نه قرمزی)، چون دیسک اثبات‌شده است.
 #   • بنر استیجینگ فقط به crm/*.html + index.html ریشه تزریق می‌شود (۸ فایل
 #     به‌جای ۶۶۵ — آپلود افزایشی را چند ثانیه‌ای می‌کند)
+#   • v34.38.16 (FTP-FALLBACK): هاست به curl روی FTP جواب نمی‌دهد (شواهد: annotation
+#     ران‌ها — پروبِ دلتا و LIST همیشه ناموفق‌اند، در حالی که آپلودرِ Node سالم است
+#     و بایت‌های زنده == کامیت). پس «readback ناممکن» دیگر fail=1 نمی‌گیرد؛ در این
+#     حالت لایهٔ ۲ (HTTP) از «هشدار صرف» به «مسدودکننده» ارتقا می‌یابد (مارکر + بایت‌ها
+#     + RELEASE + کش‌باستر — هم‌ارزِ گیتِ اثبات‌شدهٔ پروداکشن). ناهمسانیِ محتوایِ
+#     خوانده‌شده همچنان قرمزِ مسدودکننده است (fail-closed واقعی). اگر هاست روزی به
+#     curl/FTP جواب داد، readback خودکار دوباره مسدودکننده می‌شود (بدون تغییر کد).
 #   • هدر no-cache فقط برای استیجینگ به crm/.htaccess تزریق می‌شود (در کامیت نیست)
 #   • ⛔ dangerously-clean-slate ممنوع: کانفیگ‌های سرور-تنها پاک می‌شوند
 #
@@ -146,7 +153,7 @@ jobs:
                  -u "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" \
                  --list-only "$M://$HOST/${DIR%/}/" >/dev/null 2>&1; then PROTO="$M"; break; fi
           done
-          [ -n "$PROTO" ] || { echo "proto=none" >> "$GITHUB_OUTPUT"; echo "::error::اتصال FTP برقرار نشد"; exit 1; }
+          [ -n "$PROTO" ] || { echo "proto=none" >> "$GITHUB_OUTPUT"; echo "::warning::اتصال FTP (curl) برقرار نشد — ادامه با همگام‌سازی کامل (مسیر اثبات‌شده)"; exit 1; }
           echo "proto=$PROTO" >> "$GITHUB_OUTPUT"
 
           # مارکر رانِ قبلی → SHA پایه
@@ -361,6 +368,7 @@ jobs:
           #       (انتقال ASCII سمت سرور) هشدار است نه شکست؛ همان منطق verdict در
           #       _tools/ci/verify-deploy.sh که آنجا فقط تشخیصی بود و اینجا تعیین‌کننده است.
           fail=0
+          ftp_unavail=0
           rb_fetch() {   # $1=مسیر نسبی، $2=فایل مقصد؛ کد خروج = کد خروج curl
             curl -sS "${A[@]}" "${AUTH[@]}" --connect-timeout 15 --max-time 60 \
                  "$PROTO://$HOST/${DIR%/}/$1" -o "$2" 2>/dev/null
@@ -392,7 +400,15 @@ jobs:
               if [ "$tries" -lt 3 ]; then sleep 5; fi
             done
             if [ "$got_it" -ne 1 ]; then
-              echo "   ≠ $f (پس از $tries تلاش، readback از FTP ممکن نشد — قابل راستی‌آزمایی نیست)"; fail=1; continue
+              # v34.38.16 (FTP-FALLBACK): «نتوانستیم بخوانیم» ≠ «خواندیم و فرق داشت».
+              # هاستِ فعلی به curl روی FTP جواب نمی‌دهد (پروبِ دلتا + LIST هم همین‌طور؛
+              # آپلودرِ Node سالم است و بایت‌های زنده درست‌اند) — پس شکستِ انتقال،
+              # fail=1 نمی‌گیرد؛ شمارش می‌شود تا لایهٔ HTTP به‌جای «هشدار صرف»،
+              # مسدودکننده شود (هم‌ارزِ گیتِ اثبات‌شدهٔ پروداکشن). ناهمسانیِ محتوایِ
+              # خوانده‌شده همچنان پایین‌تر fail=1 می‌گیرد (fail-closed واقعی).
+              ftp_unavail=$((ftp_unavail+1))
+              echo "   ⚠ $f: readback از FTP ممکن نشد (پس از $tries تلاش) — قضاوت به لایهٔ HTTP واگذار شد"
+              continue
             fi
             got="$(sha1sum "$tmp" | cut -d' ' -f1)"
             gsize="$(wc -c < "$tmp" | tr -d ' ')"
@@ -411,6 +427,7 @@ jobs:
           # v34.36.4: چکِ مارکر هم تلاش مجدد می‌گیرد — پیش‌تر یک سکسکهٔ FTP روی همین
           # یک فایل، لایهٔ مسدودکننده را قرمز می‌کرد (بی‌آنکه فایلی واقعاً فرق داشته باشد).
           marker_ok=0
+          marker_seen_wrong=0
           for m in 1 2 3; do
             marker_body="$(curl -sS "${A[@]}" "${AUTH[@]}" --connect-timeout 15 --max-time 40 \
                  "$PROTO://$HOST/${DIR%/}/__deploy__.txt" 2>/dev/null || true)"
@@ -420,18 +437,51 @@ jobs:
             if [ -z "$marker_body" ]; then
               echo "   … مارکر __deploy__.txt تلاش $m: بدنهٔ تهی (انتقال FTP ناموفق)"
             else
+              marker_seen_wrong=1
               echo "   … مارکر __deploy__.txt تلاش $m: sha مطابقت ندارد → $(printf '%s' "$marker_body" | head -c 140)"
             fi
             if [ "$m" -lt 3 ]; then sleep 5; fi
           done
           if [ "$marker_ok" -ne 1 ]; then
-            echo "   ≠ مارکر __deploy__.txt با کامیت این ران مطابقت ندارد"; fail=1
+            if [ "$marker_seen_wrong" -eq 1 ]; then
+              echo "   ≠ مارکر __deploy__.txt با کامیت این ران مطابقت ندارد"; fail=1
+            else
+              ftp_unavail=$((ftp_unavail+1))
+              echo "   ⚠ مارکر __deploy__.txt از FTP خوانده نشد (پس از ۳ تلاش) — قضاوت به لایهٔ HTTP واگذار شد"
+            fi
           fi
           if [ "$fail" -ne 0 ]; then
             echo "::error::فایل‌های روی سرور (FTP readback) با کامیت یکی نیست — استقرار واقعاً ناقص است"
             exit $fail
           fi
-          echo "✅ لایهٔ ۱: بایت‌های دیسک سرور == کامیت (readback FTP)"
+          # v34.38.16 (FTP-FALLBACK): اگر readback در دسترس نبود، لایهٔ ۲ از «هشدار
+          # صرف» به «مسدودکننده» ارتقا می‌یابد و مارکر هم از مسیر HTTP سنجیده می‌شود —
+          # دقیقاً همان rigor گیت پروداکشن (بایت‌به‌بایت + RELEASE + کش‌باستر + مارکر).
+          BLOCK_HTTP=0
+          if [ "$ftp_unavail" -gt 0 ]; then
+            BLOCK_HTTP=1
+            echo "::warning::راستی‌آزمایی FTP در دسترس نیست ($ftp_unavail مورد بدون readback) — اثبات از مسیر HTTP انجام می‌شود (هم‌ارز گیت پروداکشن)"
+            echo "── حالت fallback: مارکر + بایت‌ها از HTTP زنده سنجیده می‌شوند ──"
+            m_ok=0
+            for m in 1 2 3; do
+              m_body="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/__deploy__.txt?v=$((RANDOM))$RANDOM" 2>/dev/null || true)"
+              if printf '%s' "$m_body" | grep -q "\"sha\":\"${{ github.sha }}\""; then
+                m_ok=1; echo "   ✅ مارکر HTTP == کامیت این ران"; break
+              fi
+              if [ -z "$m_body" ]; then
+                echo "   … مارکر HTTP تلاش $m: بدنهٔ تهی (HTTP در دسترس نیست)"
+              else
+                echo "   … مارکر HTTP تلاش $m: sha مطابقت ندارد → $(printf '%s' "$m_body" | head -c 140)"
+              fi
+              if [ "$m" -lt 3 ]; then sleep 5; fi
+            done
+            if [ "$m_ok" -ne 1 ]; then
+              echo "::error::مارکر HTTP (__deploy__.txt) با کامیت این ران مطابقت ندارد — استقرار اثبات نشد"
+              exit 1
+            fi
+          else
+            echo "✅ لایهٔ ۱: بایت‌های دیسک سرور == کامیت (readback FTP)"
+          fi
 
           # ── لایهٔ ۲: تازگی HTTP زنده (هشداری — دیسک اثبات‌شده؛ کش هاست خودش تازه می‌شود)
           #    v34.36.4: این لایه هم «بدنهٔ تهی/بدون پاسخ» را از «محتوای کهنه» جدا می‌کند و
@@ -501,6 +551,10 @@ jobs:
             sleep 30
           done
           if [ "$http_ok" -ne 1 ]; then
+            if [ "$BLOCK_HTTP" -eq 1 ]; then
+              echo "::error::راستی‌آزمایی FTP در دسترس نبود و HTTP زنده هم در پنجرهٔ ۱۲×۳۰s با کامیت یکی نشد (کهنه=$http_stale · بی‌پاسخ/تهی=$http_dead · فقط-پایان‌خط=$http_eol) — استقرار اثبات نشد"
+              exit 1
+            fi
             echo "::warning::کش HTTP استیجینگ هنوز نسخهٔ تازه نمی‌دهد (کهنه=$http_stale · بی‌پاسخ/تهی=$http_dead · فقط-پایان‌خط=$http_eol)؛ فایل‌ها روی سرور درست‌اند (readback ✅) و کش ظرف چند دقیقه خودش تازه می‌شود. این ران سبز اعلام می‌شود."
             echo "### ⚠️ کش HTTP استیجینگ دیر تازه شد" >> $GITHUB_STEP_SUMMARY
             echo "فایل‌ها روی سرور == کامیت (readback FTP ✅)؛ لایهٔ HTTP در پنجرهٔ ۱۲×۳۰s تازه نشد — کش هاست خودش به‌روز می‌شود." >> $GITHUB_STEP_SUMMARY
