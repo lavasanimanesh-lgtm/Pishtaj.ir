@@ -1316,11 +1316,12 @@ function sd_migration_report(): array {
             if(sd_case_offer_linked($c,$o)) $matchingCases[]=$c;
         }
         if(($o['st']??'')==='won'&&!$matchingCases) {
-            /* اگر پیشنهاد برنده به یک پروندهٔ بایگانی/مختومهٔ salesfile متصل باشد،
-               orphan نیست؛ به‌جای orphan_wonِ بحرانی یک مورد اطلاعی صادر می‌کنیم. */
-            $archived=sd_archived_case_for_offer($o,$projects);
-            if($archived!==null)$issues[]=['type'=>'orphan_won_archived','severity'=>'info','ref'=>$no,'projectNo'=>trim((string)($archived['no']??$archived['cd']??''))];
-            else $issues[]=['type'=>'orphan_won','severity'=>'critical','ref'=>$no];
+            /* v34.38.18 (ORPHAN-ARCHIVED-DISPLAY — گزارش کارفرما): پیشنهاد برندهٔ متصل به
+               پروندهٔ بایگانی/مختومهٔ salesfile دادهٔ سالم است و «یافته» محسوب نمی‌شود — نه در
+               کادر بالای فهرست پیشنهادها نمایش داده می‌شود و نه در issues/fin_findings ثبت می‌شود.
+               اثبات پیوند فقط orphan_wonِ بحرانیِ کاذب را سرکوب می‌کند (هم‌راستا با
+               crm/sales-domain-v2.js — قانون A11). */
+            if(sd_archived_case_for_offer($o,$projects)===null)$issues[]=['type'=>'orphan_won','severity'=>'critical','ref'=>$no];
         }
         if(count($matchingCases)>1) $issues[]=['type'=>'duplicate_case','severity'=>'critical','ref'=>$no,'count'=>count($matchingCases)];
         $pays=is_array($o['advance']['payments']??null)?$o['advance']['payments']:[];
