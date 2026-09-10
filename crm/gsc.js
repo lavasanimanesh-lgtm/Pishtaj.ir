@@ -169,10 +169,21 @@
       '<span style="font-size:11px;color:#94a3b8">صفحاتِ نقشهٔ سایت که در این بازه هیچ نمایش/کلیک نداشته‌اند</span></div>' +
       '<div id="gscCov" style="margin-top:8px"></div></div>';
 
+    /* --- ردیابِ ایندکسِ افزایشی (v34.38.19) --- */
+    h += '<div style="margin-top:14px;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px 14px">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+      '<b>🕵️ ردیابِ ایندکس (افزایشی)</b>' +
+      '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscIndexTrackerLoad(25)">بررسی دستهٔ بعد (۲۵ صفحه)</button>' +
+      '<button class="bt bt-o" style="padding:5px 11px;font-size:12px;color:#7c3aed" onclick="gscIndexTrackerRunAll()">اجرا تا اتمام</button>' +
+      '<button class="bt bt-o" style="padding:5px 11px;font-size:12px;color:#b91c1c" onclick="gscIndexTrackerReset()">شروع مجدد</button>' +
+      '<span style="font-size:11px;color:#94a3b8">ایندکس‌شده‌ها کنار گذاشته می‌شوند؛ هر بار فقط ایندکس‌نشده‌ها + صفحاتِ جدید بررسی می‌شوند</span></div>' +
+      '<div id="gscIdx" style="margin-top:8px"></div></div>';
+
     el.innerHTML = h;
     gscTrendLoad(); /* v34.12.0 (S3) */
     gscWatchLoad(); /* v34.16.0 (S3-id) */
     gscAiLoad(); /* v34.17.0 (S3-id) */
+    gscIndexTrackerLoad(0); /* v34.38.19 (INDEX-TRACKER): فقط گزارش (بدون مصرفِ سهمیه) */
   }
 
   /* پوششِ ایندکس — verify>0 یعنی تأییدِ قطعیِ چند مورد با URL Inspection (سهمیهٔ روزانه محدود است) */
@@ -228,6 +239,92 @@
         if (vb) vb.innerHTML = vh;
       }
     });
+  };
+
+  /* ═══ v34.38.19 (INDEX-TRACKER): ردیابِ ایندکسِ افزایشی ═══
+     batch=0 → فقط گزارش؛ batch>0 → بررسیِ دسته از صف (فقط ایندکس‌نشده + جدید).
+     «اجرا تا اتمام» دسته‌به‌دسته ادامه می‌دهد تا صف خالی شود (سقف ۷۰۰ بررسی). */
+  window.gscIndexTrackerRender = function (d, extra) {
+    var box = document.getElementById('gscIdx'); if (!box) return;
+    if (!d || !d.ok) {
+      box.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px;color:#b91c1c;font-size:12px">⚠️ ' + escP((d && d.error) || 'خطا') + '</div>';
+      return;
+    }
+    var pctDone = d.total ? Math.round((d.indexed / d.total) * 100) : 0;
+    var h = '<div style="font-size:12px;line-height:2;color:#475569">' +
+      'کلِ صفحاتِ ایندکس‌پذیر: <b>' + n(d.total) + '</b> · ' +
+      'ایندکس‌شده: <b style="color:#059669">' + n(d.indexed) + '</b> · ' +
+      'ایندکس‌نشده: <b style="color:#dc2626">' + n(d.not_indexed) + '</b>' +
+      (d.error ? ' · خطا در بررسی: <b style="color:#b91c1c">' + n(d.error) + '</b>' : '') +
+      (d.remaining > 0 ? ' · <b>در صف: ' + n(d.remaining) + '</b>' : '') +
+      (d.checked_this_run ? ' · بررسی‌شدهٔ این بار: <b>' + n(d.checked_this_run) + '</b>' : '') +
+      (extra && extra.note ? ' · <span style="color:#7c3aed">' + escP(extra.note) + '</span>' : '') +
+      '</div>' +
+      '<div style="height:8px;background:#f1f5f9;border-radius:6px;overflow:hidden;margin:6px 0 2px"><div style="height:100%;width:' + pctDone + '%;background:linear-gradient(90deg,#10b981,#059669);border-radius:6px"></div></div>' +
+      '<div style="font-size:11px;color:#94a3b8">' + pctDone + '٪ ایندکس شده</div>';
+
+    if ((d.newly_indexed || []).length) {
+      h += '<div style="margin-top:8px;font-size:12px;color:#059669"><b>✅ این بار ایندکس شد (' + (d.newly_indexed || []).length + '):</b></div>' +
+        '<div style="max-height:120px;overflow:auto;direction:ltr;text-align:left;font-size:11px;color:#065f46;line-height:1.9">' +
+        (d.newly_indexed || []).map(function (u) { return '• ' + escP(u.replace('https://pishtaj.ir/', '')); }).join('<br>') + '</div>';
+    }
+    if ((d.errors || []).length) {
+      h += '<div style="margin-top:8px;font-size:12px;color:#b91c1c"><b>⚠️ خطای بررسی:</b></div>' +
+        '<div style="direction:ltr;text-align:left;font-size:11px;color:#b91c1c;line-height:1.8">' +
+        (d.errors || []).map(function (r) { return '• ' + escP(r.url) + ' — ' + escP(r.error); }).join('<br>') + '</div>';
+    }
+
+    var pl = d.pending_list || [];
+    if (pl.length) {
+      h += '<div style="margin-top:8px;font-size:12px;color:#b45309"><b>⏳ هنوز ایندکس نشده / جدید (' + pl.length + (pl.length >= 300 ? '+، فقط ۳۰۰ نخست' : '') + '):</b></div>' +
+        '<div style="max-height:260px;overflow:auto;margin-top:4px"><table class="cms-tbl"><thead><tr><th>صفحه</th><th>وضعیت</th><th>گوگل می‌گوید</th></tr></thead><tbody>';
+      pl.forEach(function (r) {
+        var st = r.state === 'new' ? '<span style="color:#64748b">جدید (بررسی‌نشده)</span>'
+          : (r.state === 'error' ? '<span style="color:#b91c1c">خطا</span>'
+          : '<span style="color:#b45309">ایندکس‌نشده</span>');
+        var said = r.coverage ? escP(r.coverage) : (r.error ? escP(r.error) : '—');
+        var vd = r.verdict && r.verdict !== 'UNKNOWN' ? ' · ' + escP(r.verdict) : '';
+        h += '<tr><td style="direction:ltr;font-size:11px">' + escP(r.url.replace('https://pishtaj.ir/', '')) + '</td>' +
+          '<td style="font-size:11.5px;white-space:nowrap">' + st + '</td>' +
+          '<td style="font-size:11px;color:#475569">' + said + vd + '</td></tr>';
+      });
+      h += '</tbody></table></div>';
+    } else if (!d.remaining && d.total) {
+      h += '<div style="margin-top:8px;color:#059669;font-size:12.5px"><b>✅ همهٔ صفحاتِ موجود ایندکس شده‌اند.</b></div>';
+    }
+    box.innerHTML = h;
+  };
+  window.gscIndexTrackerLoad = function (batch) {
+    var box = document.getElementById('gscIdx'); if (!box) return;
+    if (batch) box.innerHTML = '<div style="color:#94a3b8;font-size:12px">⏳ در حال بررسیِ ' + n(batch) + ' صفحه با URL Inspection گوگل…</div>';
+    api('index_tracker', { batch: batch || 0 }, function (d) {
+      window.gscIndexTrackerRender(d, batch ? { note: 'بررسی دسته انجام شد' } : null);
+    });
+  };
+  window.gscIndexTrackerReset = function () {
+    if (!confirm('شروع مجددِ ردیاب ایندکس؟\nهمهٔ وضعیت‌های ذخیره‌شده پاک می‌شود و همهٔ صفحات از نو بررسی می‌شوند.')) return;
+    var box = document.getElementById('gscIdx'); if (box) box.innerHTML = '<div style="color:#94a3b8;font-size:12px">⏳ بازنشانی ردیاب…</div>';
+    api('index_tracker', { batch: 0, reset: 1 }, function (d) {
+      window.gscIndexTrackerRender(d, { note: 'ردیاب بازنشانی شد — همهٔ صفحات «جدید» هستند' });
+    });
+  };
+  window.gscIndexTrackerRunAll = function () {
+    var cap = 700, done = 0;
+    var box = document.getElementById('gscIdx');
+    (function step() {
+      if (done >= cap) { if (box) box.innerHTML = '<div style="color:#b45309;font-size:12px">به سقف ' + n(cap) + ' بررسی رسید؛ در اجرای بعد ادامه دهید.</div>'; return; }
+      if (box) box.innerHTML = '<div style="color:#7c3aed;font-size:12px">⏳ اجرای خودکار دسته‌ها… بررسی‌شده تاکنون: ' + n(done) + '</div>';
+      api('index_tracker', { batch: 25 }, function (d) {
+        if (!d || !d.ok) { window.gscIndexTrackerRender(d); return; }
+        done += (d.checked_this_run || 0);
+        if (d.remaining > 0 && done < cap) {
+          window.gscIndexTrackerRender(d, { note: 'اجرای خودکار — در صف: ' + n(d.remaining) + ' (بررسی‌شده: ' + n(done) + ')' });
+          setTimeout(step, 1200);
+        } else {
+          window.gscIndexTrackerRender(d, { note: done >= cap ? 'به سقف رسید' : (d.remaining === 0 ? 'پایان — صف خالی شد' : 'ادامه در اجرای بعد') });
+        }
+      });
+    })();
   };
 
   function loadData() {
