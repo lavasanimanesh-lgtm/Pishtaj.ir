@@ -387,7 +387,7 @@
       if (cashInRange(iso, start, end)) receipts += amt;
     });
     /* خروجی‌های دوره (بدون دوباره‌شماری) */
-    var out = { supplierInvoices: 0, unallocatedPayments: 0, independentCheques: 0, opex: d.opexCashTotal != null ? (+d.opexCashTotal || 0) : (+d.opexTotal || 0), salaryClaims: +d.opexSalaryTotal || 0, petty: +d.pettyStandaloneTotal || 0, coverCommission: 0, coverVat: 0, coverNetBenefit: 0, coverCount: 0 };
+    var out = { supplierInvoices: 0, unallocatedPayments: 0, independentCheques: 0, opex: d.opexCashTotal != null ? (+d.opexCashTotal || 0) : (+d.opexTotal || 0), salaryClaims: +d.opexSalaryTotal || 0, salaryPaid: 0, salaryUnpaid: 0, petty: +d.pettyStandaloneTotal || 0, coverCommission: 0, coverVat: 0, coverNetBenefit: 0, coverCount: 0 };
     try {
       var sf = {};
       try { sf = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); if (!sf || Array.isArray(sf)) sf = {}; } catch (eS) {}
@@ -480,10 +480,29 @@
       });
     } catch (eCh) {}
     out.chairRepay = chairRepay;
-    var outflowsTotal = out.supplierInvoices + out.unallocatedPayments + out.independentCheques + out.opex + out.petty + out.coverCommission + chairRepay;
+    /* v34.38.19 (SH-SALARY-CASH-OUTFLOW — B2/B3): پرداخت واقعی حقوق (draw با paymentFor:'salary'
+       یا salaryMonth) خروج نقدیِ واقعی است. پیش از این، حقوقِ پرداخت‌شده هیچ‌جا در خروجی نقدی
+       نمی‌آمد (تعهد opex از totalCash کنار گذاشته شده و draw هم شمرده نمی‌شد) ⇒ موجودی نقد پایان
+       سال بیش از واقع گزارش می‌شد و «قابل تقسیم» گمراه‌کننده بود. فقط drawِ حقوق اینجا شمرده می‌شود؛
+       برداشتِ علی‌الحساب (advance/debit) همچنان در advYear/ستون «مانده قابل تسویهٔ امسال» است و
+       خروج نقدی دوره شمرده نمی‌شود (تصمیم محصول). دوباره‌شماری هم رخ نمی‌دهد چون ردیف تعهدی حقوق
+       از out.opex (opexCashTotal) کنار است. */
+    var salaryPaid = 0;
+    try {
+      (getData('ptf_crm_sharetx') || []).forEach(function (x) {
+        if (!x || x.status === 'void' || x.voided) return;
+        if (!(x.type === 'draw' && (x.paymentFor === 'salary' || !!x.salaryMonth))) return;
+        var iso = cashIsoOf(x.t || x.month || '');
+        if (!iso && fiscalYearOf(x.t || x.month || '') === String(year)) salaryPaid += (+x.amt || 0);
+        else if (cashInRange(iso, start, end)) salaryPaid += (+x.amt || 0);
+      });
+    } catch (eSalPay) {}
+    out.salaryPaid = Math.round(salaryPaid);
+    out.salaryUnpaid = Math.max(0, (+d.opexSalaryTotal || 0) - out.salaryPaid);
+    var outflowsTotal = out.supplierInvoices + out.unallocatedPayments + out.independentCheques + out.opex + out.petty + out.coverCommission + chairRepay + out.salaryPaid;
     var netCash = receipts + shareholderInject - outflowsTotal;
     var cashEnd = openingCash + netCash;
-    return { year: year, openingCash: openingCash, receipts: receipts, shareholderInject: shareholderInject, pendingCheques: chqPending, outflows: out, outflowsTotal: outflowsTotal, salaryClaims: out.salaryClaims, outflowsAccrual: (+d.opexAccrualTotal || 0) + (+d.pettyStandaloneTotal || 0), netCash: netCash, cashEnd: cashEnd, floor: window.ptfFiscalCashFloor(year), coverCount: out.coverCount, coverCommission: out.coverCommission, coverVat: out.coverVat, coverNetBenefit: out.coverNetBenefit };
+    return { year: year, openingCash: openingCash, receipts: receipts, shareholderInject: shareholderInject, pendingCheques: chqPending, outflows: out, outflowsTotal: outflowsTotal, salaryClaims: out.salaryClaims, salaryPaid: out.salaryPaid, salaryUnpaid: out.salaryUnpaid, outflowsAccrual: (+d.opexAccrualTotal || 0) + (+d.pettyStandaloneTotal || 0), netCash: netCash, cashEnd: cashEnd, floor: window.ptfFiscalCashFloor(year), coverCount: out.coverCount, coverCommission: out.coverCommission, coverVat: out.coverVat, coverNetBenefit: out.coverNetBenefit };
   };
   /* توزیع نقدی: مازاد بر کف → تقسیم (٪ توافقی) + بازگشت به کف */
   window.ptfFiscalCashDistribution = function (year, distPct) {
@@ -497,7 +516,15 @@
     var advRows = [];
     try {
       advRows = (getData('ptf_crm_sharetx') || []).filter(function (x) {
-        return x && !x.voided && x.status !== 'void' && (x.type === 'draw' || x.type === 'advance' || x.type === 'debit') && fiscalYearOf(x.t || x.month || '') === String(year);
+        /* v34.38.19 (SH-SALARY-SETTLEYEAR-FIX): پرداخت حقوق با draw (paymentFor:'salary' /
+           salaryMonth) یک «هزینهٔ پرداخت‌شده» است نه علی‌الحسابِ سود؛ نباید در advYear/
+           ستون «ماندهٔ قابل تسویهٔ امسال» بیاید (هم‌راستا با قصد مستند v34.0.8-alpha فاز ۲
+           که قبلاً فقط نوع legacy «salary_payment» را کنار می‌گذاشت ولی مسیر draw جاری را
+           جا انداخته بود). ثبت واقعی سود همچنان از s.gross است؛ این تغییر فقط نمایش/ستون است. */
+        return x && !x.voided && x.status !== 'void' &&
+          (x.type === 'draw' || x.type === 'advance' || x.type === 'debit') &&
+          !(x.type === 'draw' && (x.paymentFor === 'salary' || !!x.salaryMonth)) &&
+          fiscalYearOf(x.t || x.month || '') === String(year);
       });
     } catch (eAdv) {}
     distPct = Math.max(0, Math.min(100, n(distPct == null ? 60 : distPct)));
@@ -600,7 +627,7 @@
       '<div class="ptf-fiscal-cash-block" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:12px 14px;margin-top:12px">' +
       '<div class="ptf-fiscal-cash-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">' +
       '<div class="ptf-fiscal-cash-copy"><b style="font-size:13.5px;color:#065f46">💵 سود نقدی و تقسیم (منطق نقدی — مصوب کارفرما)</b><br>' +
-      '<small style="color:#64748b">درآمد واقعی = وصولی‌ها (نقد + چک وصول‌شده)؛ خروجی نقدی = فاکتورهای خرید + پرداخت‌های بدون تخصیص + چک‌های صادرهٔ مستقل + هزینه‌های جاری نقدی + تنخواه. حقوق ثبت‌شده تا زمان draw فقط هزینه/مطالبه است و خروج نقدی محسوب نمی‌شود.</small></div>' +
+      '<small style="color:#64748b">درآمد واقعی = وصولی‌ها (نقد + چک وصول‌شده)؛ خروجی نقدی = فاکتورهای خرید + پرداخت‌های بدون تخصیص + چک‌های صادرهٔ مستقل + هزینه‌های جاری نقدی + تنخواه + حقوق پرداخت‌شده (draw). حقوق ثبت‌شده تا زمان draw فقط هزینه/مطالبه است و خروج نقدی محسوب نمی‌شود؛ با ثبت پرداخت حقوق (draw) به‌عنوان خروج نقدی دوره شمرده می‌شود.</small></div>' +
       '<span class="ptf-fiscal-cash-actions" style="display:flex;gap:6px;flex-wrap:wrap">' +
       '<button class="bt bt-o" type="button" title="تنظیم کف نقدینگی" aria-label="تنظیم کف نقدینگی" style="font-size:12px" onclick="ptfFiscalCashFloorOpen()">⚙️ کف نقدینگی (' + money(c.floor) + ')</button>' +
       '<button class="bt" type="button" title="ثبت تقسیم سود در دفاتر سهامداران" aria-label="ثبت تقسیم سود در دفاتر سهامداران" style="font-size:12px;background:#059669" onclick="ptfFiscalDividendApply(\'' + ptfOnClickArg(String(year)) + '\',' + distPct + ')">💰 ثبت تقسیم سود در دفاتر سهامداران</button>' +
@@ -612,7 +639,9 @@
       ((c.fundCreditTotal) ? '<div class="sc ptf-fiscal-kpi"><b style="color:#b45309">' + money(c.fundCreditTotal) + '</b><span>طلب سهامداران از صندوق (کنار گذاشته از تقسیم)</span></div>' : '') +
       '<div class="sc ptf-fiscal-kpi"><b>' + money(c.pendingCheques) + '</b><span>چک وارده وصول‌نشده (درآمد نیست)</span></div>' +
       '<div class="sc ptf-fiscal-kpi"><b style="color:#b45309">' + money(c.outflowsTotal) + '</b><span>خروجی‌های نقدی سال</span></div>' +
-      ((c.salaryClaims) ? '<div class="sc ptf-fiscal-kpi"><b style="color:#7c3aed">' + money(c.salaryClaims) + '</b><span>حقوق تعهدی (بدون خروج نقدی)</span></div>' : '') +
+      ((c.salaryClaims) ? '<div class="sc ptf-fiscal-kpi"><b style="color:#7c3aed">' + money(c.salaryClaims) + '</b><span>حقوق تعهدی سال (مطالبه)</span></div>' : '') +
+      ((c.salaryPaid) ? '<div class="sc ptf-fiscal-kpi"><b style="color:#b45309">' + money(c.salaryPaid) + '</b><span>حقوق پرداخت‌شده با draw (خروج نقدی)</span></div>' : '') +
+      ((c.salaryUnpaid) ? '<div class="sc ptf-fiscal-kpi"><b style="color:#7c3aed">' + money(c.salaryUnpaid) + '</b><span>حقوق تعهدیِ پرداخت‌نشده (بدون خروج نقدی)</span></div>' : '') +
       '<div class="sc ptf-fiscal-kpi"><b>' + money(c.netCash) + '</b><span>سود نقدی دوره</span></div>' +
       '<div class="sc ptf-fiscal-kpi"><b>' + money(c.openingCash) + '</b><span>نقد/بانک ابتدای سال (افتتاحیه)</span></div>' +
       '<div class="sc ptf-fiscal-kpi"><b style="color:' + (lowCash ? '#dc2626' : '#0369a1') + '">' + money(c.cashEnd) + '</b><span>موجودی نقد پایان سال</span></div>' +
@@ -621,7 +650,7 @@
       '<div class="sc ptf-fiscal-kpi"><b style="color:#059669">' + money(c.distributable) + '</b><span>قابل تقسیم (' + c.distPct + '٪)</span></div>' +
       '<div class="sc ptf-fiscal-kpi"><b style="color:#7c3aed">' + money(c.backToFloor) + '</b><span>بازگشت به کف (' + (100 - c.distPct) + '٪)</span></div>' +
       '</div>' +
-      '<div style="margin-top:8px;font-size:11.5px;color:#64748b;line-height:1.8">تفکیک خروجی نقدی: فاکتورهای خرید ' + money(c.outflows.supplierInvoices) + ' | کارمزد پوششی ' + money(c.outflows.coverCommission || 0) + ' | پرداخت بدون تخصیص ' + money(c.outflows.unallocatedPayments) + ' | چک صادرهٔ مستقل ' + money(c.outflows.independentCheques) + ' | هزینه‌های جاری نقدی ' + money(c.outflows.opex) + ' | تنخواه مستقل ' + money(c.outflows.petty) + (c.salaryClaims ? ' | حقوق تعهدیِ بدون خروج نقدی: ' + money(c.salaryClaims) : '') + (c.outflows.coverVat ? ' | اعتبار ارزش‌افزودهٔ پوششی (منفعت): ' + money(c.outflows.coverVat) : '') + '</div>' +
+      '<div style="margin-top:8px;font-size:11.5px;color:#64748b;line-height:1.8">تفکیک خروجی نقدی: فاکتورهای خرید ' + money(c.outflows.supplierInvoices) + ' | کارمزد پوششی ' + money(c.outflows.coverCommission || 0) + ' | پرداخت بدون تخصیص ' + money(c.outflows.unallocatedPayments) + ' | چک صادرهٔ مستقل ' + money(c.outflows.independentCheques) + ' | هزینه‌های جاری نقدی ' + money(c.outflows.opex) + ' | تنخواه مستقل ' + money(c.outflows.petty) + (c.salaryPaid ? ' | حقوق پرداخت‌شده (draw): ' + money(c.salaryPaid) : '') + (c.salaryUnpaid ? ' | حقوق تعهدیِ پرداخت‌نشده: ' + money(c.salaryUnpaid) : '') + (c.outflows.coverVat ? ' | اعتبار ارزش‌افزودهٔ پوششی (منفعت): ' + money(c.outflows.coverVat) : '') + '</div>' +
       '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>سهامدار</th><th>درصد</th><th>سهم ناخالص</th><th>علی‌الحساب/بدهی سال</th><th>مانده قابل تسویهٔ امسال</th><th>طلب صندوق</th><th>بدهی فراخوان</th><th>مانده جاری</th><th>نتیجه پس از تقسیم</th></tr></thead><tbody>' + (cashShRows || '<tr><td colspan="9">سهامداری ثبت نشده</td></tr>') + '</tbody></table></div>' +
       (c.advYearTotal ? '<div style="margin-top:6px;font-size:11.5px;color:#7c3aed">ℹ️ جمع برداشت‌های علی‌الحساب/بدهیِ سال ' + escP(String(year)) + ': ' + money(c.advYearTotal) + ' — هنگام تسویه از سهم ناخالص هر سهامدار کسر می‌شود (ستون «مانده قابل تسویهٔ امسال»).</div>' : '') +
       (c.fundCreditTotal ? '<div style="margin-top:6px;font-size:11.5px;color:#b45309">ℹ️ طلب باز از صندوق (' + money(c.fundCreditTotal) + ') بدهی شرکت به سهامدار است؛ نقدش در موجودی هست ولی از مازاد قابل‌تقسیم کنار گذاشته می‌شود تا دوباره به‌عنوان سود تقسیم نشود.</div>' : '') +
@@ -782,7 +811,7 @@
     var inc = (d.incomplete || []).map(function (x) { return tr([escP(x.no || ''), escP(x.buyerCo || ''), escP((x.warnings || []).join(' | '))]); }).join('') + (d.undated || []).map(function (x) { return tr([escP(x.no || ''), escP(x.buyerCo || ''), escP(x.reason || '')]); }).join('');
     var amendRows = (d.amendments || []).map(function (a) { return tr([escP(a.cd), escP(a.refYear), (a.amt >= 0 ? '+' : '−') + money(Math.abs(a.amt)), escP(a.desc || '')]); }).join('');
     return '<div style="direction:rtl;font-family:Tahoma,Vazirmatn,sans-serif;color:#0f172a"><h2>گزارش رسمی سال مالی ' + escP(d.year) + ' (منطق نقدی)</h2>' +
-      '<p>درآمد نقدی (وصولی‌ها): <b>' + money(d.receipts) + '</b> | تأمین نقد سهامدار: <b>' + money(d.shareholderInject || 0) + '</b> | خروجی نقدی: <b>' + money(d.outflowsTotal) + '</b> | حقوق تعهدی بدون خروج نقدی: <b>' + money(d.salaryClaims || 0) + '</b> | سود نقدی دوره: <b>' + money(d.netCash) + '</b> | موجودی نقد پایان: <b>' + money(d.cashEnd) + '</b><br>' +
+      '<p>درآمد نقدی (وصولی‌ها): <b>' + money(d.receipts) + '</b> | تأمین نقد سهامدار: <b>' + money(d.shareholderInject || 0) + '</b> | خروجی نقدی: <b>' + money(d.outflowsTotal) + '</b> | حقوق تعهدی سال: <b>' + money(d.salaryClaims || 0) + '</b> | حقوق پرداخت‌شده (draw): <b>' + money(d.salaryPaid || 0) + '</b> | حقوق پرداخت‌نشده: <b>' + money(d.salaryUnpaid || 0) + '</b> | سود نقدی دوره: <b>' + money(d.netCash) + '</b> | موجودی نقد پایان: <b>' + money(d.cashEnd) + '</b><br>' +
       'کف نقدینگی: <b>' + money(d.floor) + '</b> | طلب صندوق (کنار از تقسیم): <b>' + money(d.fundCreditTotal || 0) + '</b> | مازاد بر کف: <b>' + money(d.overFloor) + '</b> | قابل تقسیم (' + d.distPct + '٪): <b>' + money(d.distributable) + '</b> | بازگشت به کف (' + (100 - d.distPct) + '٪): <b>' + money(d.backToFloor) + '</b></p>' +
       '<h3>درآمد و خروجی نقدی سال</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>بخش</th><th>مبلغ (ریال)</th></tr></thead><tbody>' +
       tr(['درآمد نقدی (وصولی‌ها — نقد + چک وصول‌شده)', d.receipts]) +
@@ -795,7 +824,9 @@
       tr(['پرداخت بدون تخصیص (مسائل دیگر)', d.outflows.unallocatedPayments]) +
       tr(['چک صادرهٔ مستقل (بابت مسائل دیگر)', d.outflows.independentCheques]) +
       tr(['هزینه‌های جاری نقدی سال', d.outflows.opex]) +
-      tr(['حقوق تعهدی سهامداران (بدون خروج نقدی)', d.salaryClaims || 0]) +
+      tr(['حقوق تعهدی سهامداران (مطالبه سال)', d.salaryClaims || 0]) +
+      tr(['حقوق پرداخت‌شده با draw (خروج نقدی)', d.salaryPaid || 0]) +
+      tr(['حقوق پرداخت‌نشده (تعهد باقی‌مانده)', d.salaryUnpaid || 0]) +
       tr(['تنخواه مستقل سال', d.outflows.petty]) +
       '</tbody></table>' +
       '<h3>سندهای اصلاحی موثر بر سال</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>سند</th><th>سال مرجع</th><th>مبلغ</th><th>شرح</th></tr></thead><tbody>' + (amendRows || '<tr><td colspan="4">موردی نیست</td></tr>') + '</tbody></table>' +
@@ -905,7 +936,9 @@
     rows.push(['پرداخت بدون تخصیص (مسائل دیگر)', d.outflows.unallocatedPayments]);
     rows.push(['چک صادرهٔ مستقل (بابت مسائل دیگر)', d.outflows.independentCheques]);
     rows.push(['هزینه‌های جاری نقدی سال', d.outflows.opex]);
-    rows.push(['حقوق تعهدی سهامداران (بدون خروج نقدی)', d.salaryClaims || 0]);
+    rows.push(['حقوق تعهدی سهامداران (مطالبه سال)', d.salaryClaims || 0]);
+    rows.push(['حقوق پرداخت‌شده با draw (خروج نقدی)', d.salaryPaid || 0]);
+    rows.push(['حقوق پرداخت‌نشده (تعهد باقی‌مانده)', d.salaryUnpaid || 0]);
     rows.push(['تنخواه مستقل سال', d.outflows.petty]);
     rows.push(['خروجی کل نقدی', d.outflowsTotal]);
     rows.push(['سود نقدی دوره', d.netCash]);

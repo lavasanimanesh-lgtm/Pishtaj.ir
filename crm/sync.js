@@ -3239,6 +3239,34 @@
       }
 
       if (key === 'ptf_crm_supplier_finance') {
+        /* v34.38.19 (SF-INVOICE-REVERT — گزارش کارفرما: «فاکتور تأمین کم شد؛ ویرایش کردم درست شد ولی دوباره برگشت»):
+           ریشه: در merge زیر، برندهٔ هر رکورد با مقایسهٔ رشته‌ای خامِ updatedAtISO (میلادی "2026-…")
+           با t (شمسی "۱۴۰۵/…") انتخاب می‌شد. ارقام فارسی از نظر کد یونیکد از ارقام لاتین بزرگ‌ترند،
+           پس نسخهٔ کهنهٔ فقط-t (با مقدار قدیمی/کم‌شده) همیشه برندهٔ merge می‌شد و مقدار قدیمی را
+           دوباره به سرور push می‌کرد — ویرایش دستی لحظه‌ای درست دیده می‌شد و در sync بعدی برمی‌گشت. */
+        function sfComparableTs(r) {
+          r = r || {};
+          /* v34.38.19 (SF-INVOICE-REVERT — سخت‌سازی): پیشوندِ رتبه تضمین می‌کند که در merge
+             «زمانِ قابل‌اعتماد» همیشه برنده است: '2'=ISO میلادی یا شمسیِ تبدیل‌شده،
+             '1'=رشتهٔ غیرقابل تبدیل (fallback)، '0'=بی‌زمان. بدون این ترتیب، رکوردِ
+             بدونِ زمان ('Z') یا با تاریخِ غیرقابل تبدیل ('H') به‌اشتباه از رکوردِ ISO
+             جدیدتر برنده می‌شد و همان ریشهٔ «ویرایش شد ولی برگشت» دوباره زنده می‌شد. */
+          var iso = String(r.updatedAtISO || '');
+          if (iso) return '2' + iso; /* ISO میلادی — مستقیم قابل مقایسه */
+          var raw = String(r.updatedAt || r.t || r.date || r.iso || '');
+          if (!raw) return '0'; /* بی‌زمان = کهنه‌ترین؛ هرگز برندهٔ merge نمی‌شود */
+          var latin = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+                         .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+          var m = latin.match(/((?:13|14)\d{2})\/(\d{1,2})\/(\d{1,2})/);
+          if (m && typeof ptfJToISO === 'function') {
+            try {
+              var jal = m[1] + '/' + ('0' + m[2]).slice(-2) + '/' + ('0' + m[3]).slice(-2);
+              var conv = ptfJToISO(jal);
+              if (conv) return '2' + conv + (latin.indexOf(jal) === 0 ? latin.slice(jal.length) : '');
+            } catch (eJ) {}
+          }
+          return '1' + latin; /* fallback: رشتهٔ لاتین نرمال‌شده — میانهٔ ترتیب */
+        }
         try {
           var locO = JSON.parse(localStr||'{}'); var remO = JSON.parse(remoteStr||'{}');
           if(typeof locO!=='object' || typeof remO!=='object' || Array.isArray(locO) || Array.isArray(remO)) return remoteStr;
@@ -3261,8 +3289,7 @@
                 } else {
                   var remoteRec=mm[it.cd];
                   var voidW = typeof window.ptfFinanceVoidWins === 'function' ? window.ptfFinanceVoidWins(it, remoteRec) : null;
-                  var lt=it.updatedAtISO||it.updatedAt||it.iso||it.t||it.date||'';
-                  var rt=remoteRec.updatedAtISO||remoteRec.updatedAt||remoteRec.iso||remoteRec.t||remoteRec.date||'';
+                  var lt=sfComparableTs(it), rt=sfComparableTs(remoteRec);
                   var winner=voidW || (lt>=rt?it:remoteRec);
                   var loser=winner===it?remoteRec:it;
                   var rec=ptfMergeAttachmentFields(ptfObjClone(winner),winner,loser);

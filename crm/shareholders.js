@@ -171,6 +171,33 @@
     });
   };
 
+  /* v34.38.19 (SH-SALARY-MONTH-GAP / F-4): جبران کنترل‌شدهٔ ماه‌های غایب حقوق از
+     eligibilitySince تا ماه جاری. فقط ساخت idempotent؛ هیچ ردیفی void نمی‌شود و ماه‌های
+     قفل‌شده رد می‌شوند. نیازمند دلیل صریح و تأیید انسانی است. */
+  window.ptfShareBackfillSalaries = function () {
+    if (!canShare()) { alert('⛔ فقط مدیران ارشد'); return Promise.resolve({ state: 'rejected', error: new Error('role') }); }
+    var reason = '';
+    try { reason = (prompt('دلیل جبران ماه‌های غایب حقوق را وارد کنید (برای ردپای حسابرسی الزامی است):', '') || '').trim(); } catch (eP) {}
+    if (!reason) { alert('ثبت دلیل جبران الزامی است.'); return Promise.resolve({ state: 'rejected', error: new Error('reason_required') }); }
+    if (!confirm('ماه‌های غایب حقوقِ سهامداران موظف (از ابتدای احراز تا ماه جاری) به‌صورت idempotent ساخته شوند؟\nهیچ ردیفی حذف/ابطال نمی‌شود و ماه‌های سال قفل‌شده رد می‌شوند.')) {
+      return Promise.resolve({ state: 'rejected', error: new Error('cancelled') });
+    }
+    return shareDomainCommand('backfill_shareholder_salaries', {
+      throughMonth: faMonthNow(),
+      reason: reason,
+      idempotencyKey: 'SH-BACKFILL|' + String(faMonthNow()) + '|' + Date.now()
+    }, ['ptf_crm_sharetx', 'ptf_crm_opex']).then(function (state) {
+      if (state && state.state === 'acked') {
+        var r = state.response && state.response.result || {};
+        if (typeof ptfToast === 'function') ptfToast('جبران حقوق: ' + (+r.created || 0) + ' ماه ساخته شد' + (+r.skippedLocked || 0 ? ' — ' + r.skippedLocked + ' ماه قفل رد شد' : ''), 'ok');
+        shareCommandRender();
+      } else if (state && state.state === 'rejected' && typeof ptfToast === 'function') {
+        ptfToast('⛔ جبران حقوق انجام نشد: ' + shareCommandErrorText(state), 'warn');
+      }
+      return state;
+    });
+  };
+
   window.ptfShareholderBalance = function (cd) {
     var s = shAll().filter(function (x) { return x.cd === cd; })[0];
     var ledger = txAll().filter(function (x) { return x && x.shCd === cd && shareTxActive(x); }).reduce(function (a, x) {
@@ -193,6 +220,43 @@
     ledger.opsNet = ledger.credit + petty - ledger.debit;
     ledger.net = ledger.opsNet + ledger.callCredit - ledger.callRemain;
     return ledger;
+  };
+
+  /* v34.38.19 (SH-SALARY-MONTH-GAP — read-only): فهرست ماه‌های غایب/تکراری حقوق هر سهامدارِ
+     موظف. مبنای شروع = eligibilitySince (اگر موجود باشد) وگرنه اولین ادعای active؛ تا ماه جاری.
+     فقط گزارش می‌دهد؛ هیچ داده‌ای نمی‌سازد/void نمی‌کند — تعیین‌تکلیف دستی یا فرمان backfill است
+     (ریشهٔ باگ «یکی ۲ ماه، دو تای دیگر ۳ ماه»). */
+  window.ptfShareholderSalaryGaps = function (throughMonth) {
+    var out = [];
+    try {
+      var to = normMonth(throughMonth) || faMonthNow();
+      if (!to) return out;
+      function mIdx(m) { var p = String(m || '').split('/'); var y = +p[0], mo = +p[1]; return (y && mo) ? y * 12 + (mo - 1) : NaN; }
+      function mFromIdx(i) { return Math.floor(i / 12) + '/' + ('0' + ((i % 12) + 1)).slice(-2); }
+      var txs = txAll().filter(function (x) { return x && shareTxActive(x) && x.type === 'salary'; });
+      activeShares().filter(function (s) { return s && s.duty && (+s.salary || 0) > 0; }).forEach(function (s) {
+        var mine = txs.filter(function (x) { return x.shCd === s.cd; });
+        var anchor = (typeof s.eligibilitySince === 'string' && normMonth(s.eligibilitySince)) || '';
+        if (!anchor) {
+          anchor = normMonth(mine.map(function (x) { return x.month || ''; }).sort()[0] || '');
+        }
+        if (!anchor) return; /* بدون مبنای شروع — در گزارش نیاور */
+        var start = mIdx(anchor), end = mIdx(to);
+        if (isNaN(start) || isNaN(end) || start > end) return;
+        var have = {};
+        mine.forEach(function (x) { if (x.month) have[String(x.month)] = (have[String(x.month)] || 0) + 1; });
+        var missing = [], extra = [];
+        for (var i = start; i <= end && (i - start) < 60; i++) {
+          var mm = mFromIdx(i);
+          if (!have[mm]) missing.push(mm);
+          else if (have[mm] > 1) extra.push(mm + '×' + have[mm]);
+        }
+        if (missing.length || extra.length) {
+          out.push({ shCd: s.cd, name: s.name || s.cd, anchor: anchor, missing: missing, extra: extra });
+        }
+      });
+    } catch (e) {}
+    return out;
   };
 
   function addTx(type, sh, amt, desc, extra) {
@@ -295,6 +359,7 @@
     var warn = Math.round(totalPct * 100) / 100 === 100 ? '<span style="color:#059669">جمع سهام فعال: ۱۰۰٪ ✅</span>' : '<span style="color:#dc2626">جمع سهام فعال: ' + totalPct + '٪ — باید به ۱۰۰٪ برسد</span>';
     el.innerHTML = '<div class="shareholder-box">' +
       '<div class="shareholder-box-head"><div><b>👥 سهامداران، حقوق موظف و علی‌الحساب</b><br><small>' + warn + '</small></div><div class="shareholder-head-tools"><div class="shareholder-month" style="min-width:190px">' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('shareholderMonth', month) : '<input id="shareholderMonth" value="' + escP(month) + '">') + '</div><div class="shareholder-head-actions" role="group" aria-label="عملیات سهامداران">' +
+      shareAction('backfill', '🔁', 'جبران حقوق', 'جبران ماه‌های غایب حقوق سهامداران موظف (idempotent، بدون ابطال)', 'ptfShareBackfillSalaries()', false) +
       shareAction('add', '➕', 'سهامدار', 'ثبت سهامدار جدید', 'ptfShareEdit()', true) +
       '</div></div></div>' +
       '<div class="shareholder-list">' + (rows || '<div style="text-align:center;color:#94a3b8;padding:18px">سهامداری ثبت نشده</div>') + '</div></div>';
@@ -326,7 +391,13 @@
         var a = shAll();
         var rec = old || { cd: genCode('SHR'), createdBy: nm(), createdT: faDateTime() };
         var prevSalary = +rec.salary || 0;
+        var wasDuty = !!(old && old.duty);
         rec.name = v.name; rec.pct = pct; rec.duty = v.duty === 'yes'; rec.salary = rec.duty ? n(v.salary) : 0; rec.active = v.active !== 'no'; rec.updatedBy = nm(); rec.updatedT = faDateTime();
+        /* v34.38.19 (SH-SALARY-MONTH-GAP / F-4): نقطهٔ شروع احراز حقوق ثبت می‌شود تا
+           جبران ماه‌های غایب (backfill) و گزارش کیفیت داده مبنای درست داشته باشند. فقط
+           هنگام «فعال‌شدن موظفی» مقداردهی می‌شود و تا وقتی کاربر صریح تغییرش ندهد ثابت
+           می‌ماند. */
+        if (rec.duty && !wasDuty && !rec.eligibilitySince) rec.eligibilitySince = month;
         /* v34.38.5 (DATA-QUALITY SH-SALARY): نوع سند حقوق (رسمی/غیررسمی/تعیین‌نشده) — همان
            الگوی ptfOpexEdit؛ «تعیین نشده» یعنی کلید حذف می‌شود تا هزینه حقوق unclassified بماند. */
         var salaryOfficial = v.salaryOfficial === 'yes' ? true : (v.salaryOfficial === 'no' ? false : undefined);

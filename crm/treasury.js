@@ -313,6 +313,10 @@
       if (t !== 'draw' && t !== 'advance' && t !== 'salary_payment') return;
       var amt = num(x.amt || x.amount);
       if (!amt) return;
+      /* v34.38.19 (SH-SALARY-TREASURY-LABEL): پرداخت واقعی حقوق امروز با draw ثبت می‌شود
+         (paymentFor:'salary' / salaryMonth)؛ برچسب خزانه باید «پرداخت حقوق» باشد نه «برداشت» —
+         هم‌راستا با دفتر سهامداران (ptfShareLedger) که این ردیف را «پرداخت حقوق (draw)» نشان می‌دهد. */
+      var isSalaryPay = t === 'salary_payment' || (t === 'draw' && (x.paymentFor === 'salary' || !!x.salaryMonth));
       pushMove(out, {
         key: 'share:' + (x.cd || ''),
         cd: x.cd || '',
@@ -320,8 +324,8 @@
         amount: amt,
         dateISO: isoOf(x),
         dateFa: faOf(x),
-        src: t === 'salary_payment' ? 'پرداخت حقوق سهامدار' : 'برداشت سهامدار',
-        label: (t === 'salary_payment' ? 'پرداخت حقوق ' : 'برداشت ') + (x.shName || '')
+        src: isSalaryPay ? 'پرداخت حقوق سهامدار' : 'برداشت سهامدار',
+        label: (isSalaryPay ? 'پرداخت حقوق ' : 'برداشت ') + (x.shName || '')
       });
     });
 

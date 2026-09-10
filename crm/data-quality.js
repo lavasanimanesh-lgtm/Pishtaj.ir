@@ -18,8 +18,42 @@
      این تابع فقط از official-ledger.js می‌خواند؛ هیچ پیش‌فرضی حدس نمی‌زند
      و هیچ رکوردی را تغییر نمی‌دهد — صرفاً فهرست برای بررسی دستی کارفرما/حسابدار. */
   function ledgerOfOpexSafe(o) {
-    try { return typeof window.ptfLedgerOfOpex === 'function' ? window.ptfLedgerOfOpex(o) : (o && o.isOfficial === true ? 'official' : (o && o.isOfficial === false ? 'unofficial' : 'unclassified')); }
+    try {
+      var cls = typeof window.ptfLedgerOfOpex === 'function' ? window.ptfLedgerOfOpex(o) : (o && o.isOfficial === true ? 'official' : (o && o.isOfficial === false ? 'unofficial' : 'unclassified'));
+      /* v34.38.19 (DATA-QUALITY SH-SALARY-FIX): ردیف حقوق سهامدار که هنوز isOfficial
+         ندارد، نوع سند را از پروفایل سهامدار (salaryOfficial) می‌خواند تا پس از تعیینِ
+         «رسمی/غیررسمی» در تب سهامداران، یافتهٔ «بدون تعیین نوع» فوراً رفع شود — حتی برای
+         ماه‌های سالِ قفل‌شده که سرور مجاز به نوشتن نیست. فقط‌خواندنی است؛ هیچ رکوردی
+         تغییر نمی‌کند. */
+      if (cls === 'unclassified') {
+        var so = shareholderSalaryOfficialOf(o);
+        if (so === true) cls = 'official';
+        else if (so === false) cls = 'unofficial';
+      }
+      return cls;
+    }
     catch (e) { return 'unclassified'; }
+  }
+  function shareholderSalaryOfficialOf(o) {
+    try {
+      if (!o) return null;
+      var shCd = '';
+      var m = String(o.recurringKey || '').match(/^salary:(.+):(?:13|14)\d{2}\/\d{2}$/);
+      if (m) shCd = m[1];
+      if (!shCd) {
+        var txCd = String(o.shareTx || '');
+        if (txCd) {
+          var tx = arr('ptf_crm_sharetx').filter(function (x) { return x && x.cd === txCd; })[0];
+          if (tx && tx.shCd) shCd = String(tx.shCd);
+        }
+      }
+      if (!shCd) return null;
+      var sh = arr('ptf_crm_shareholders').filter(function (x) { return x && x.cd === shCd; })[0];
+      if (!sh) return null;
+      if (sh.salaryOfficial === true) return true;
+      if (sh.salaryOfficial === false) return false;
+      return null;
+    } catch (e) { return null; }
   }
   function ledgerOfSupplierInvoiceSafe(inv) {
     try { return typeof window.ptfLedgerOfSupplierInvoice === 'function' ? window.ptfLedgerOfSupplierInvoice(inv) : (inv && inv.isOfficial === true ? 'official' : (inv && inv.isOfficial === false ? 'unofficial' : 'unclassified')); }
@@ -62,6 +96,19 @@
         });
       }
     } catch (eOdup) {}
+    /* v34.38.19 (SH-SALARY-MONTH-GAP): گزارش read-only ماه‌های غایب/تکراری حقوق سهامداران
+       موظف — ریشهٔ باگ «یکی ۲ ماه، دو تای دیگر ۳ ماه». فقط افشا می‌کند؛ تعیین‌تکلیف دستی است. */
+    try {
+      if (typeof window.ptfShareholderSalaryGaps === 'function') {
+        window.ptfShareholderSalaryGaps().forEach(function (g) {
+          add(q, 'shareholder-salary-gap', 'سهامدار موظف با ماه حقوق غایب/تکراری', g.shCd, 0, {
+            type: 'salary-gap', shCd: g.shCd,
+            label: (g.name || g.shCd) + ' — از ' + (g.anchor || '؟') + ': غایب [' + (g.missing.join('، ') || '—') + ']' + (g.extra.length ? ' | تکراری [' + g.extra.join('، ') + ']' : ''),
+            missing: g.missing, extra: g.extra
+          });
+        });
+      }
+    } catch (eGap) {}
 
     /* فاز ۲ / گام ۲: فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی */
     try {
@@ -162,6 +209,7 @@
       else if (d.type === 'cheque' && typeof window.ptfChequeEditFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfChequeEditFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح چک</button>';
       else if (d.type === 'treasury' && typeof window.ptfTreasuryOpenFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfTreasuryOpenFromQuality(\'' + ptfOnClickArg(d.kind || 'crm') + '\',\'' + ptfOnClickArg(d.cd) + '\')">🏦 باز کردن همین ردیف در خزانه</button>';
       else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpenProcurementLinkAudit(\'' + ptfOnClickArg(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور و اقلام</button>';
+      else if (d.type === 'salary-gap' && typeof window.finHubSet === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="finHubSet(\'share\')">👥 باز کردن تب سهامداران</button>';
       var invoiceActions = d.type === 'procurement' && (d.relatedInvoices || []).length
         ? '<div style="margin-top:9px;padding-top:7px;border-top:1px solid #e2e8f0"><b style="display:block;color:#475569;font-size:11px">فاکتورهای خرید مرتبط</b>' + d.relatedInvoices.map(function (inv) { return '<div style="margin-top:4px"><span>' + escP(inv.label) + '</span><br><button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:3px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(inv.cd) + '\')">✏️ اصلاح همین فاکتور</button></div>'; }).join('') + '</div>'
         : '';
@@ -172,6 +220,7 @@
         : d.type === 'supplier-amount' ? 'لینک تعهدها برقرار است اما جمع مبلغ تعهدها با مبلغ فاکتور یکی نیست — معمولاً قلم بدون قیمت خرید. می‌توانید اختلاف را در حساب تأمین تأیید و اخطار را بردارید.'
         : d.type === 'cheque' ? 'نوع مالکیت (شرکت/شخصی/وارده) خالی است؛ نام روی دسته چک کافی نیست. از اصلاح چک، «مالکیت چک» را انتخاب کنید.'
         : d.type === 'opex-dup' ? 'دو رکورد هزینه ممکن است یک پرداخت را دوبار در سود سال بشمارند (ردیف دستی در کنار قالب تکرارشونده/حقوق، یا دو قالب مشابه، یا هزینه و خروج تنخواه هم‌مبلغ). این فقط یک هشدار گزارش است؛ تعیین‌تکلیف دستی است — ردیف‌های تکراری واقعی را از فرم هزینه بررسی و در صورت لزوم حذف کنید.'
+        : d.type === 'salary-gap' ? 'این سهامدار موظف برای برخی ماه‌ها ادعای حقوق فعال ندارد (یا ردیف تکراری دارد). ماه‌های غایب را از تب سهامداران با «ثبت حقوق» همان ماه جبران کنید. این گزارش فقط‌خواندنی است و هیچ سندی را خودکار نمی‌سازد.'
         : 'این مورد نیازمند بررسی است.';
       return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + '</div>' + invoiceActions + '</div></details>';
     }).join('');
