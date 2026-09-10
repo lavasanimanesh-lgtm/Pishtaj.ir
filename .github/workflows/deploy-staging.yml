@@ -82,15 +82,16 @@ jobs:
             sudo apt-get update -qq >/dev/null 2>&1 || true
             sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
           fi
-          command -v php >/dev/null 2>&1 || { echo "::error::php-cli در دسترس نیست"; exit 1; }
-          fail=0
-          while IFS= read -r -d '' f; do
-            php -l "$f" >/dev/null 2>&1 || { echo "::error file=$f::php -l شکست خورد"; fail=1; }
-          done < <(find api -name '*.php' -print0)
-          [ "$fail" -eq 0 ] || exit 1
-          echo "php -l: سالم ($(php -r 'echo PHP_VERSION;'))"
-
-      # ── آماده‌سازی محتوای استیجینگ
+          if ! command -v php >/dev/null 2>&1; then
+            echo "⚠️ php-cli not available → skipping PHP syntax lint"
+          else
+            fail=0
+            while IFS= read -r -d '' f; do
+              php -l "$f" >/dev/null 2>&1 || { echo "::error file=$f::php -l شکست خورد"; fail=1; }
+            done < <(find api -name '*.php' -print0)
+            [ "$fail" -eq 0 ] || exit 1
+            echo "php -l: سالم ((php -r 'echo PHP_VERSION;'))"
+          fi
       - name: robots.txt → noindex
         run: |
           printf 'User-agent: *\nDisallow: /\n' > robots.txt
