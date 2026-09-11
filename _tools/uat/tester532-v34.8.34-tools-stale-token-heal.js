@@ -21,8 +21,8 @@ T('نقش واقعاً غیرادمین → 403 admin_required باقی است',
 });
 
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.38.19', ver.crm_version === 'v34.38.19', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.38.19', /window\.PTF_CRM_RELEASE = 'v34\.38\.19'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.19'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.38.20', ver.crm_version === 'v34.38.20', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.38.20', /window\.PTF_CRM_RELEASE = 'v34\.38\.20'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.38\.20'/.test(read('crm/sw.js')));
 
 console.log('\n— tester532 (v34.38.0: STALE-TOKEN-HEAL) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

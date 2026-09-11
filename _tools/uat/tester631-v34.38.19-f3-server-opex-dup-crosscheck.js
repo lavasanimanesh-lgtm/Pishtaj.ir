@@ -1,4 +1,4 @@
-/* tester631 — v34.38.19 (F-3 — cross-check سروری قالب‌های OPEX تکرارشونده): در لایهٔ
+/* tester631 — v34.38.20 (F-3 — cross-check سروری قالب‌های OPEX تکرارشونده): در لایهٔ
    سرور reconcile_recurring_opex، پیش از متریالایز قالب، ردیفِ دستیِ فعالِ هم‌دسته/هم‌مبلغ
    و تنخواهِ هم‌مبلغ/هم‌ماه همان دوره جمع‌آوری می‌شود و در فیلد possibleDuplicates برمی‌گردد.
    شرط: فقط هشدار — هیچ void/ادغام/حذف خودکاری انجام نمی‌شود؛ تعیین‌تکلیف انسانی است. */
@@ -7,7 +7,7 @@ var fs = require('fs');
 var assert = require('assert');
 var php = fs.readFileSync('api/sales-domain.php', 'utf8');
 
-console.log('── F-3 server-side recurring-OPEX duplicate cross-check (v34.38.19) ──');
+console.log('── F-3 server-side recurring-OPEX duplicate cross-check (v34.38.20) ──');
 
 /* قرارداد استاتیک */
 assert.ok(/\$possibleDuplicates=\[\];/.test(php), 'آرایهٔ جمع‌آوری دوباره‌شماری مقداردهی می‌شود');
@@ -75,4 +75,4 @@ var reconcileBlock = php.slice(php.indexOf("$action === 'reconcile_recurring_ope
 assert.ok(!/foreach\(\$possibleDuplicates[^)]*\)\s*\{[^}]*sd_out/.test(reconcileBlock.replace(/\s+/g, ' ')), 'هیچ عملیات void/حذف خودکار روی یافته‌های دوباره‌شماری نیست');
 console.log('  ✔ رفتاری: cross-check فقط گزارش‌دهنده است (بدون void/ادغام خودکار)');
 
-console.log('PASS tester631 v34.38.19 F-3 server duplicate cross-check');
+console.log('PASS tester631 v34.38.20 F-3 server duplicate cross-check');

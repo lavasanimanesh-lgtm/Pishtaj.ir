@@ -25,7 +25,7 @@ T('S2: case product_create با اعتبارسنجی (عنوان/نامک/۲۰۰
 T('S2: پاکسازی بدنه همان لیست سفید kc (حذف on* و javascript:)', PC.indexOf("strip_tags($body, '<h2><h3><h4><p><ul><ol><li>") > -1 && /javascript\s*:/i.test(PC) === false && /on\\w+\\s*=/.test(PC) === false);
 T('S2: قالب از اسکلت مرکز دانش (هدر/فوتر هم‌شکل)', /case 'product_create'[\s\S]{0,2600}cms_product_skeleton\(\$ROOT\)/.test(cmsPhp)); /* v34.38.0: هِلپر قالب محصولات با بازگشت به اسکلت مرکز دانش */
 T('S2-R2: کارت صفحهٔ تازه در صفحهٔ اصلی همان بخش درج می‌شود', cmsPhp.indexOf('function cms_section_cards_inject') > -1 && cmsPhp.indexOf("cms_section_cards_inject($ROOT, $r['folder']") > -1);
-T('S2: اسکیمای Product + Offer فقط با قیمت مثبت', /case 'product_create'[\s\S]{0,9000}'@type' => 'Product'[\s\S]{0,500}if \(\$price > 0\)[\s\S]{0,200}'offers'/.test(cmsPhp));
+T('S2: اسکیمای Service بدون قیمت / Product + Offer فقط با قیمت مثبت (v34.38.20: Product بدون قیمت از نظر گوگل invalid است)', /case 'product_create'[\s\S]{0,9000}'@type' => \(\$price > 0 \? 'Product' : 'Service'\)[\s\S]{0,500}if \(\$price > 0\)[\s\S]{0,200}'offers'/.test(cmsPhp));
 T('S2: FAQPage فقط با faq غیرخالی', /if \(\$faqGraph\) \$graph\[\] = \['@type' => 'FAQPage'/.test(cmsPhp));
 T('S2: BreadcrumbList سه‌سطحی (خانه/محصولات/عنوان)', PC.indexOf("'name' => 'محصولات', 'item' => 'https://pishtaj.ir/products/'") > -1);
 T('S2: نشانهٔ cd محصول در متا (برای اتصال دوطرفه)', cmsPhp.indexOf('ptf-product-cd') > -1);

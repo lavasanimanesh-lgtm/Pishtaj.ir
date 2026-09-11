@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester627 — v34.38.19 (SILENT-LOGIN + AUTO-MIGRATE-001 + LIQUID-RING)
+/* tester627 — v34.38.20 (SILENT-LOGIN + AUTO-MIGRATE-001 + LIQUID-RING)
    گزارش کارفرما (۲۰۲۶-۰۹-۱۰): «بعد از رفتن پردهٔ بوت، هشدارها در نوار زرد و
    سفید پایین باقی می‌مانند و با هر رفرش/هارد‌رفرش دوباره می‌آیند.
    ۱) هشدارها در زمان ورود نمایش داده نشوند؛
@@ -29,7 +29,7 @@
      و fallback زنجیره‌ای به نسخهٔ کامل و سپس ایموجی؛ مرحلهٔ «migrate» از
      تایمر «مشکل واقعی» مستثناست (failsafe خود sync.js)؛
    ⑥ نسخه‌ها هماهنگ‌اند (VERSION.json / manifest / sw.js / RELEASE / همهٔ
-     queryهای ?v=34.38.19 در index.html) و داراییِ برش لوگو موجود است. */
+     queryهای ?v=34.38.20 در index.html) و داراییِ برش لوگو موجود است. */
 var fs = require('fs'), path = require('path'), assert = require('assert');
 var ROOT = path.resolve(__dirname, '../..');
 function read(p) { return fs.readFileSync(path.join(ROOT, p), 'utf8'); }
@@ -64,8 +64,8 @@ assert.ok(tick.indexOf('window.ptfBootQuiet === true') > -1,
   'index: نوار یادآورِ نیازمند-انسان حین سکوت بوت مخفی است');
 assert.ok(tick.indexOf("ptfBConfirmFlush") > -1,
   'index: دکمهٔ دستی «تکمیل انتقال» برای موردِ نیازمند-انسان حفظ شده است');
-assert.ok(idx.indexOf('window.PTF_CRM_RELEASE = \'v34.38.19\'') > -1, 'index: نسخهٔ ریلیز v34.38.19 است');
-assert.ok(idx.indexOf('SILENT-LOGIN') > -1, 'index: یادداشت تغییرِ v34.38.19 آمده است');
+assert.ok(idx.indexOf('window.PTF_CRM_RELEASE = \'v34.38.20\'') > -1, 'index: نسخهٔ ریلیز v34.38.20 است');
+assert.ok(idx.indexOf('SILENT-LOGIN') > -1, 'index: یادداشت تغییرِ v34.38.20 آمده است');
 
 /* ══ ③ مهاجرت خودکار در client-server.js — بی‌صدا ولی پُرگارد ══ */
 assert.ok(cs.indexOf('AUTO-MIGRATE-001') > -1, 'client-server: مهر AUTO-MIGRATE-001 موجود است');
@@ -148,14 +148,14 @@ assert.ok(boot.indexOf('liquid: !!LIQ.ok') > -1,
 
 /* ══ ⑥ هماهنگی نسخه‌ها + داراییِ لوگو ══ */
 var vj = JSON.parse(read('VERSION.json'));
-assert.ok(vj.crm_version === 'v34.38.19', 'VERSION.json با v34.38.19 هماهنگ است');
-assert.ok(read('crm/manifest.json').indexOf('"version": "34.38.19"') > -1, 'manifest.json با نسخهٔ جدید هماهنگ است');
-assert.ok(sw.indexOf("var RELEASE = 'v34.38.19';") > -1 && sw.indexOf("var ASSET_VERSION = '34.38.19';")
-  > -1 && sw.indexOf("var CACHE = 'ptf-crm-v34.38.19';") > -1,
-  'sw.js: RELEASE/ASSET_VERSION/CACHE هر سه v34.38.19 هستند');
+assert.ok(vj.crm_version === 'v34.38.20', 'VERSION.json با v34.38.20 هماهنگ است');
+assert.ok(read('crm/manifest.json').indexOf('"version": "34.38.20"') > -1, 'manifest.json با نسخهٔ جدید هماهنگ است');
+assert.ok(sw.indexOf("var RELEASE = 'v34.38.20';") > -1 && sw.indexOf("var ASSET_VERSION = '34.38.20';")
+  > -1 && sw.indexOf("var CACHE = 'ptf-crm-v34.38.20';") > -1,
+  'sw.js: RELEASE/ASSET_VERSION/CACHE هر سه v34.38.20 هستند');
 assert.ok(idx.indexOf('?v=34.38.16') === -1, 'index: هیچ query نسخهٔ قدیمی باقی نمانده است');
-assert.ok(idx.indexOf('boot-splash.js?v=34.38.19') > -1 && idx.indexOf('sync.js?v=34.38.19') > -1
-  && idx.indexOf('client-server.js?v=34.38.19') > -1,
+assert.ok(idx.indexOf('boot-splash.js?v=34.38.20') > -1 && idx.indexOf('sync.js?v=34.38.20') > -1
+  && idx.indexOf('client-server.js?v=34.38.20') > -1,
   'index: هر سه فایلِ تغییرکرده با query نسخهٔ جدید بارگذاری می‌شوند (شکستن کش کهنه)');
 /* داراییِ بریده‌شدهٔ لوگو: PNG واقعی و کوچک‌تر از نسخهٔ کامل (برش متن PTF) */
 var mark = fs.readFileSync(path.join(ROOT, 'assets/images/ptf-logo-mark.png'));
@@ -170,4 +170,4 @@ assert.ok(dm.h < df.h, 'دارایی: ptf-logo-mark.png کوتاه‌تر از �
 assert.ok(dm.h >= df.h * 0.72 && dm.h <= df.h * 0.78,
   'دارایی: برش دقیقاً در ناحیهٔ انتظار است (نشان کامل + بدون کپشن PTF، ~%۷۵ ارتفاع اصلی)');
 
-console.log('PASS tester627-v34.38.19 SILENT-LOGIN + AUTO-MIGRATE-001 + LIQUID-RING');
+console.log('PASS tester627-v34.38.20 SILENT-LOGIN + AUTO-MIGRATE-001 + LIQUID-RING');

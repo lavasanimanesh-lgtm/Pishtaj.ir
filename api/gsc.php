@@ -176,20 +176,28 @@ function gsc_api($cfg, $path, $payload = null, $method = 'GET', $silent = false)
     if ($tok === false) return ['__error' => 'token_failed'];
     $url = 'https://searchconsole.googleapis.com/' . $path;
     $ch = curl_init($url);
+    $headers = [
+        'Authorization: Bearer ' . $tok,
+        'Content-Type: application/json',
+    ];
     $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 30,
-        CURLOPT_HTTPHEADER     => [
-            'Authorization: Bearer ' . $tok,
-            'Content-Type: application/json',
-        ],
     ];
     if ($payload !== null) {
         $opts[CURLOPT_POST] = true;
         $opts[CURLOPT_POSTFIELDS] = json_encode($payload, JSON_UNESCAPED_UNICODE);
         if ($method === 'GET') $method = 'POST';
     }
-    if ($method !== 'POST') $opts[CURLOPT_CUSTOMREQUEST] = $method;
+    if ($method !== 'POST') {
+        $opts[CURLOPT_CUSTOMREQUEST] = $method;
+        /* v34.38.19 (GSC-CONTENT-LENGTH-FIX): PUT/DELETEِ بدونِ بدنه (مثلِ ثبتِ نقشه) بدونِ
+           هدرِ Content-Length فرستاده می‌شد و گوگل با 411 (Length Required) رد می‌کرد.
+           مستندِ رسمیِ sitemaps.submit: «Do not supply a request body» — بدنه عمداً خالی
+           است، پس صریحاً Content-Length: 0 اعلام می‌شود. (تستر 635 این قرارداد را قفل می‌کند.) */
+        if ($payload === null && $method !== 'GET') $headers[] = 'Content-Length: 0';
+    }
+    $opts[CURLOPT_HTTPHEADER] = $headers;
     curl_setopt_array($ch, $opts);
     $res = curl_exec($ch);
     $err = curl_error($ch);
@@ -437,6 +445,74 @@ function gsc_summarize($rowsQ, $rowsP) {
     }
     usort($out['queries'], function ($a, $b) { return $b['impressions'] <=> $a['impressions']; });
     usort($out['pages'], function ($a, $b) { return $b['impressions'] <=> $a['impressions']; });
+    return $out;
+}
+
+/* ═══ v34.38.19 (INDEX-TRACKER): ردیابِ ایندکسِ افزایشی ═══
+   درخواستِ کارفرما: همهٔ صفحاتِ موجود یک‌بار بررسی شوند؛ کدام ایندکس است و کدام نه؛
+   نمایش داده شوند؛ و در دفعاتِ بعد فقط صفحاتِ ایندکس‌نشده + جدید دوباره پرسیده شوند و
+   ایندکس‌شده‌ها از صفِ بعدی کنار گذاشته شوند — تا وقتی همه ایندکس شوند. */
+$GSC_TRACKER = $DATA . '/gsc-index-tracker.json';
+
+function gsc_tracker_load($file) {
+    $j = is_file($file) ? json_decode((string)@file_get_contents($file), true) : null;
+    if (!is_array($j) || !is_array($j['byUrl'] ?? null)) $j = ['byUrl' => [], 'meta' => []];
+    return $j;
+}
+function gsc_tracker_save($file, $t) {
+    @file_put_contents($file, json_encode($t, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/* نشانیِ کانونیکالِ فایلِ عمومی — هم‌قاعده با cms_page_canonical (index.html → آدرسِ پوشه) */
+function gsc_page_canonical($rel) {
+    if ($rel === 'index.html') return 'https://pishtaj.ir/';
+    if (substr($rel, -11) === '/index.html') return 'https://pishtaj.ir/' . substr($rel, 0, -11) . '/';
+    return 'https://pishtaj.ir/' . $rel;
+}
+
+/* آیا گوگل صفحه را «ایندکس‌شده» گزارش کرده؟ — محافظه‌کارانه: فقط وقتی coverageState
+   با «Indexed» شروع شود (مثل «Indexed, submitted in sitemap»). verdict=PASS به‌تنهایی
+   کافی نیست (برای «Discovered – currently not indexed» هم ممکن است PASS بیاید)؛ پس تا
+   وقتی گوگل صریحاً «Indexed» نگوید، صفحه در صفِ بررسی می‌ماند. */
+function gsc_idx_indexed($idx) {
+    $cov = (string)($idx['coverageState'] ?? '');
+    return strpos($cov, 'Indexed') === 0;
+}
+
+/* فهرستِ همهٔ صفحاتِ عمومیِ «شایستهٔ ایندکس» (بدون noindex/ریدایرکت/آرشیو) —
+   منبعِ «کلیهٔ صفحاتِ موجود»، نه فقط نقشه؛ پس صفحاتِ جدید هم دیده می‌شوند. */
+function gsc_public_indexable($ROOT) {
+    $skip = array('.git', 'node_modules', 'crm', 'api', '_tools', '_audit',
+        '_human_test', '_personas', 'docs-deploy', 'docs', 'assets', 'ptf-snapshots',
+        'ptf-all-photos', 'service-photos', '.github', '.well-known', 'snapshots');
+    $out = array();
+    $stack = array('');
+    while ($stack) {
+        $dir = array_pop($stack);
+        $abs = $dir === '' ? $ROOT : $ROOT . '/' . $dir;
+        $dh = @opendir($abs);
+        if (!$dh) continue;
+        while (($e = readdir($dh)) !== false) {
+            if ($e === '.' || $e === '..') continue;
+            $rel = $dir === '' ? $e : $dir . '/' . $e;
+            if (is_dir($abs . '/' . $e)) {
+                if (!in_array($e, $skip, true) && (isset($e[0]) && $e[0] !== '.')) $stack[] = $rel;
+                continue;
+            }
+            if (substr($e, -5) !== '.html') continue;
+            if ($e === '404.html' || $e === 'sitemap.html') continue;
+            $h = (string)@file_get_contents($abs . '/' . $e);
+            if ($h === '') continue;
+            if (stripos($h, 'ptf-redirect') !== false) continue;
+            if (stripos($h, 'http-equiv="refresh"') !== false) continue;
+            if (preg_match('#<meta\s+[^>]*name\s*=\s*["\']robots["\'][^>]*>#iu', $h, $m)) {
+                if (stripos($m[0], 'noindex') !== false) continue;
+            }
+            $out[gsc_page_canonical($rel)] = $rel;
+        }
+        closedir($dh);
+    }
+    ksort($out);
     return $out;
 }
 
@@ -876,6 +952,121 @@ switch ($action) {
         ];
         @file_put_contents($COV_FILE, json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
         jok($out);
+        break;
+
+    /* ═══ v34.38.19 (INDEX-TRACKER): ردیابِ ایندکسِ افزایشی ═══
+       batch=0 → فقط گزارشِ وضعیت (بدون مصرفِ سهمیهٔ گوگل) + ثبتِ صفحاتِ جدید؛
+       batch>0 → بررسیِ تا batch مورد از صف (فقط ایندکس‌نشده‌ها + جدید) با URL Inspection.
+       reset=1 → پاک‌کردنِ ردیاب و شروع از نو (بررسیِ کاملِ همه). */
+    case 'index_tracker':
+        $cfg = gsc_cfg_or_jerr();
+        $batch = min(100, max(0, (int)($_REQUEST['batch'] ?? 20)));
+        $reset = !empty($_REQUEST['reset']);
+
+        $tracker = gsc_tracker_load($GSC_TRACKER);
+        if ($reset) $tracker = array('byUrl' => array(), 'meta' => array());
+
+        /* ۱) دنیای صفحاتِ ایندکس‌پذیرِ فعلی + ثبتِ جدیدها + حذفِ صفحاتِ رفته */
+        $universe = gsc_public_indexable($ROOT);
+        $newRegistered = 0;
+        foreach ($universe as $url => $rel) {
+            if (!isset($tracker['byUrl'][$url])) {
+                $tracker['byUrl'][$url] = array('state' => 'new', 'addedAt' => date('c'));
+                $newRegistered++;
+            }
+        }
+        foreach (array_keys($tracker['byUrl']) as $u) {
+            if (!isset($universe[$u])) unset($tracker['byUrl'][$u]);
+        }
+
+        /* ۲) صفِ بررسی = همهٔ غیرِ «indexed» (جدید اول، بعد ایندکس‌نشده/خطا بر اساسِ افزوده‌شدن) */
+        $queue = array();
+        foreach ($tracker['byUrl'] as $url => $st) {
+            if (($st['state'] ?? '') === 'indexed') continue;
+            $queue[] = $url;
+        }
+        usort($queue, function ($a, $b) use ($tracker) {
+            $sa = (string)($tracker['byUrl'][$a]['state'] ?? '');
+            $sb = (string)($tracker['byUrl'][$b]['state'] ?? '');
+            $ra = ($sa === 'new') ? 0 : 1;   /* جدیدها اول */
+            $rb = ($sb === 'new') ? 0 : 1;
+            if ($ra !== $rb) return $ra <=> $rb;
+            return strcmp((string)($tracker['byUrl'][$a]['addedAt'] ?? ''), (string)($tracker['byUrl'][$b]['addedAt'] ?? ''));
+        });
+
+        /* ۳) بررسیِ دستهٔ فعلی (با silent — خطای یک صفحه نباید کل دسته را بکُشد) */
+        $checked = 0;
+        $newlyIndexed = array(); $stillPending = array(); $errs = array();
+        if ($batch > 0) {
+            foreach (array_slice($queue, 0, $batch) as $url) {
+                $r = gsc_api($cfg, 'v1/urlInspection/index:inspect', array(
+                    'inspectionUrl' => $url,
+                    'siteUrl'       => $cfg['site_url'],
+                ), 'POST', true);
+                $checked++;
+                if (isset($r['__error'])) {
+                    $tracker['byUrl'][$url] = array('state' => 'error', 'error' => $r['__error'], 'checkedAt' => date('c'));
+                    $errs[] = array('url' => $url, 'error' => $r['__error']);
+                    continue;
+                }
+                $idx = ($r['inspectionResult'] ?? array())['indexStatusResult'] ?? array();
+                $isIdx = gsc_idx_indexed($idx);
+                $tracker['byUrl'][$url] = array(
+                    'state'    => $isIdx ? 'indexed' : 'pending',
+                    'verdict'  => (string)($idx['verdict'] ?? 'UNKNOWN'),
+                    'coverage' => (string)($idx['coverageState'] ?? ''),
+                    'indexing' => (string)($idx['indexingState'] ?? ''),
+                    'crawled'  => (string)($idx['lastCrawlTime'] ?? ''),
+                    'checkedAt'=> date('c'),
+                );
+                if ($isIdx) $newlyIndexed[] = $url; else $stillPending[] = $url;
+            }
+        }
+
+        $tracker['meta'] = array('lastRun' => date('c'), 'totalIndexable' => count($universe), 'lastBatch' => $batch);
+        gsc_tracker_save($GSC_TRACKER, $tracker);
+
+        /* ۴) شمارش + فهرست‌های نمایش */
+        $indexedCount = 0; $pendingCount = 0; $newCount = 0; $errorCount = 0;
+        $pendingEntries = array();
+        foreach ($tracker['byUrl'] as $url => $st) {
+            $state = (string)($st['state'] ?? '');
+            if ($state === 'indexed') { $indexedCount++; continue; }
+            if ($state === 'new') { $newCount++; continue; }
+            if ($state === 'error') { $errorCount++; }
+            else { $pendingCount++; }
+            $pendingEntries[] = array(
+                'url'      => $url,
+                'state'    => $state,
+                'verdict'  => (string)($st['verdict'] ?? ''),
+                'coverage' => (string)($st['coverage'] ?? ''),
+                'crawled'  => (string)($st['crawled'] ?? ''),
+                'error'    => (string)($st['error'] ?? ''),
+                'checkedAt'=> (string)($st['checkedAt'] ?? ''),
+            );
+        }
+        usort($pendingEntries, function ($a, $b) {
+            if ($a['state'] !== $b['state']) { return ($a['state'] === 'new') ? 1 : (($b['state'] === 'new') ? -1 : 0); }
+            return strcmp($b['checkedAt'], $a['checkedAt']);
+        });
+
+        jok(array(
+            'total'            => count($universe),
+            'indexed'          => $indexedCount,
+            'not_indexed'      => $pendingCount + $newCount + $errorCount,
+            'pending'          => $pendingCount,
+            'error'            => $errorCount,
+            'new'              => $newCount,
+            'new_registered'   => $newRegistered,
+            'checked_this_run' => $checked,
+            'remaining'        => max(0, count($queue) - $checked),
+            'batch'            => $batch,
+            'reset'            => $reset,
+            'newly_indexed'    => $newlyIndexed,
+            'still_pending'    => $stillPending,
+            'errors'           => $errs,
+            'pending_list'     => array_slice($pendingEntries, 0, 300),
+        ));
         break;
 
     default:

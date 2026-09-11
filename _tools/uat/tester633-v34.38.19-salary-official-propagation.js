@@ -1,4 +1,4 @@
-/* tester633 — v34.38.19 (DATA-QUALITY SH-SALARY-FIX — گزارش کارفرما: «تب کیفیت داده
+/* tester633 — v34.38.20 (DATA-QUALITY SH-SALARY-FIX — گزارش کارفرما: «تب کیفیت داده
    حقوق سهامدار موظف را بدون نوع رسمی/غیررسمی نشان می‌دهد ولی بعد از تعیین هم از بین
    نمی‌رود»).
    ریشه: reconcile_shareholder_salaries فقط ردیفِ ماهِ جاریِ reconcile را isOfficial
@@ -16,7 +16,7 @@ var assert = require('assert');
 var php = fs.readFileSync('api/sales-domain.php', 'utf8');
 var dq = fs.readFileSync('crm/data-quality.js', 'utf8');
 
-console.log('── salary-official cross-month propagation (v34.38.19) ──');
+console.log('── salary-official cross-month propagation (v34.38.20) ──');
 
 /* قرارداد استاتیک — سرور */
 assert.ok(/\$salaryOfficialPropagated=0;\$salaryOfficialLockedSkipped=0;/.test(php), 'شمارنده‌های انتشار نوع سند سروری موجودند');
@@ -117,4 +117,4 @@ assert.strictEqual(classify({ recurringKey: 'salary:SHR-Z:1405/03' }, shList, sh
 assert.strictEqual(classify({ recurringKey: 'salary:SHR-B:1405/03', isOfficial: false }, shList, sharetxList), 'unofficial', 'isOfficial صریح مقدم بر پروفایل است');
 console.log('  ✔ رفتاری: fallback فقط برای ردیفِ نامشخص و بدون حدس');
 
-console.log('PASS tester633 v34.38.19 salary-official cross-month propagation');
+console.log('PASS tester633 v34.38.20 salary-official cross-month propagation');
