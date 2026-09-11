@@ -151,6 +151,18 @@
     return out;
   }
   function openIrr(i) {
+    /* v34.38.19 (INV-OPEN-CANONICAL): «مطالبه باز» در پنل فاکتورها باید از منبع واحد
+       PTF.ar.invoiceState بیاید تا با پنل مطالبات/حساب مشتریان/پرونده یک عدد بدهد.
+       فرمول قدیمی فقط تخصیص Receipt روی خودِ فاکتور (openAmountIRR یا allocatedBase/
+       allocatedVat) را می‌دید و وصولی میراثی (invoice.payments/pays)، مرجوعی فروش و
+       بازسازی محلی FIFO را نادیده می‌گرفت؛ نتیجه: فاکتورِ تسویه‌شده در «فاکتورها»
+       مطالبهٔ باز نشان می‌داد در حالی که «مطالبات» آن را تسویه‌شده می‌شمرد. */
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
+      try {
+        var st = window.PTF.ar.invoiceState(i);
+        if (st && st.open != null) return +st.open || 0;
+      } catch (eAr) {}
+    }
     return i.openAmountIRR != null ? +i.openAmountIRR : Math.max(0, (+i.amount || 0) - (+i.allocatedBase || 0) - (+i.allocatedVat || 0));
   }
   function invDateDesc(a, b) { return String(b.invDate || b.t || '').localeCompare(String(a.invDate || a.t || '')); }
