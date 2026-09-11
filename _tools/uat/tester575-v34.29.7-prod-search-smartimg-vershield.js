@@ -65,7 +65,7 @@ T('SHIELD: دکمهٔ بارگذاری مجدد دارد', idx.indexOf('بارگ
   T('PAGE: products/' + sl + ' در قالب استاندارد (هیرو با عکس + اسکیما + بدون مسیرعمیق)', ok &&
     s.indexOf('ptf-product-hero') > -1 && s.indexOf('ptf-hero-card') > -1 &&
     s.indexOf('assets/images/products/generated/') > -1 &&
-    s.indexOf('"@type": "Product"') > -1 && s.indexOf('"@type": "FAQPage"') > -1 &&
+    s.indexOf('"@type":"Service"') > -1 && s.indexOf('"@type":"FAQPage"') > -1 &&
     s.indexOf('../../') === -1);
 });
 

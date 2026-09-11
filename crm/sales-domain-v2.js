@@ -1309,7 +1309,7 @@
       acts+='<button class="bt bt-o" style="font-size:11px" onclick="ptfFinAttachOpen(\'receipt\',\''+arg(receiptId(r))+'\')">📎 اسناد</button>';
       return '<tr><td>'+esc(r.receivedAt||r.dateISO||'')+'</td><td>'+esc(r.method||r.how||'')+'</td><td>'+money(r.amountIRR||r.amt)+'</td><td>'+money(r.creditRemainIRR||0)+'</td><td>'+acts+'</td></tr>';
     }).join('')||'<tr><td colspan="5">دریافتی قطعی ثبت نشده است.</td></tr>';
-    var invoices=t.invoices.map(function(i){return '<tr><td>'+esc(i.no||i.cd)+'</td><td>'+esc(i.invDate||'')+'</td><td>'+money(i.base||0)+'</td><td>'+money(i.vat||0)+'</td><td>'+money(i.openAmountIRR!=null?i.openAmountIRR:i.amount||0)+'</td></tr>';}).join('')||'<tr><td colspan="5">فاکتور فعالی ثبت نشده است.</td></tr>';
+    var invoices=t.invoices.map(function(i){var _open=(arCore&&typeof arCore.invoiceState==='function')?(function(){try{return arCore.invoiceState(i).open;}catch(eO){return null;}})():null;return '<tr><td>'+esc(i.no||i.cd)+'</td><td>'+esc(i.invDate||'')+'</td><td>'+money(i.base||0)+'</td><td>'+money(i.vat||0)+'</td><td>'+money(_open!=null?_open:(i.openAmountIRR!=null?i.openAmountIRR:i.amount||0))+'</td></tr>';}).join('')||'<tr><td colspan="5">فاکتور فعالی ثبت نشده است.</td></tr>';
     document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});
     var html='<div class="md-b" id="ptfCaseFinanceDlg" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:980px;max-height:92vh;overflow:auto">'+
       '<h3>💳 دریافت و حساب پرونده — '+esc(c.inqNo||c.wonOffer||cid)+'</h3><div style="font-size:12px;color:#64748b">مشتری: <b>'+esc(c.buyerCo||'')+'</b> | مبنای مطالبات و تمام دریافت‌ها: <b>مبلغ ریالی فاکتور</b>.</div>'+

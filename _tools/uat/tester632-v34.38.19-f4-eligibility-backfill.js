@@ -1,4 +1,4 @@
-/* tester632 — v34.38.19 (F-4 — eligibilitySince + جبران کنترل‌شدهٔ ماه‌های غایب حقوق):
+/* tester632 — v34.38.20 (F-4 — eligibilitySince + جبران کنترل‌شدهٔ ماه‌های غایب حقوق):
    نقطهٔ شروع احراز حقوق سهامدار موظف (eligibilitySince) فقط هنگام «فعال‌شدن موظفی» ثبت
    می‌شود و مبنای جبران ماه‌های غایب قرار می‌گیرد. جبران سروری فقط ساخت idempotent است:
    بدون void، بدون بازسازی هویت موجود (active یا سنگ‌قبر)، ردِ ماهِ سال قفل‌شده، دلیل صریح
@@ -9,10 +9,12 @@ var assert = require('assert');
 var php = fs.readFileSync('api/sales-domain.php', 'utf8');
 var sh = fs.readFileSync('crm/shareholders.js', 'utf8');
 
-console.log('── F-4 eligibilitySince + controlled salary backfill (v34.38.19) ──');
+console.log('── F-4 eligibilitySince + controlled salary backfill (v34.38.20) ──');
 
 /* قرارداد استاتیک — کلاینت */
-assert.ok(/if \(rec\.duty && !wasDuty && !rec\.eligibilitySince\) rec\.eligibilitySince = month;/.test(sh), 'eligibilitySince فقط هنگام فعال‌شدن موظفی و یک‌بار ثبت می‌شود');
+assert.ok(/rec\.duty && !wasDuty && !rec\.eligibilitySince\) rec\.eligibilitySince = month;/.test(sh), 'eligibilitySince هنگام فعال‌شدن موظفی و فقط یک‌بار fallback می‌شود');
+assert.ok(/id: 'eligibilitySince'/.test(sh), 'ماه شروع احراز در فرم ویرایش سهامدار صریح و قابل اصلاح است');
+assert.ok(/var eligSince = normMonth\(v\.eligibilitySince\);/.test(sh), 'مقدار صریح ماه شروع از فرم نرمال و اعتبارسنجی می‌شود');
 assert.ok(/window\.ptfShareBackfillSalaries = function/.test(sh), 'عملیات جبران حقوق در UI تعریف شده است');
 assert.ok(/prompt\('دلیل جبران ماه‌های غایب حقوق/.test(sh), 'دلیل صریح پیش از جبران الزامی است');
 assert.ok(/confirm\('ماه‌های غایب حقوق/.test(sh), 'تأیید انسانی پیش از جبران الزامی است');
@@ -27,7 +29,7 @@ assert.ok(/error'=>'reason_required'/.test(php), 'دلیل خالی ۴۲۲ بر�
 assert.ok(php.indexOf("register_shareholder_salary','backfill_shareholder_salaries']") > -1, 'backfill در sd_is_recurring_projection_action ثبت شد');
 assert.ok((php.match(/'backfill_shareholder_salaries'\]/g) || []).length >= 2, 'backfill در allowlist دوم (sharetx projection) هم ثبت شد');
 assert.ok(/function sd_jalali_months_between\(string \$from,string \$to\)/.test(php), 'شمارندهٔ ماه‌های شمسی سروری موجود است');
-assert.ok(/\$anchor=sd_text\(\$sh\['eligibilitySince'\]/.test(php), 'مبدأ جبران از eligibilitySince خوانده می‌شود');
+assert.ok(/\$anchor=sd_norm_month\(\$sh\['eligibilitySince'\]/.test(php), 'مبدأ جبران از eligibilitySince (نرمال‌شده) خوانده می‌شود');
 assert.ok(/if\(sd_is_locked\(\$snaps,\$month\)\)\{\$skippedLocked\+\+;continue;\}/.test(php), 'ماه سال قفل‌شده رد می‌شود');
 assert.ok(/if\(\$txHits\|\|\$oxHits\)\{\$skippedExisting\+\+;continue;\}/.test(php), 'هویت موجود (فعال/سنگ‌قبر) بازسازی نمی‌شود');
 assert.ok(/kind'=>'backfill_shareholder_salaries'/.test(php), 'جبران در ردپای corrections ثبت می‌شود');
@@ -80,4 +82,4 @@ var c = applyEdit({ duty: false }, { duty: false, salary: 0, month: '1405/05' })
 assert.strictEqual(c.eligibilitySince, undefined, 'غیرموظف مبدأ ندارد');
 console.log('  ✔ رفتاری: eligibilitySince فقط هنگام فعال‌شدن موظفی و یک‌بار ثبت می‌شود');
 
-console.log('PASS tester632 v34.38.19 F-4 eligibilitySince + controlled backfill');
+console.log('PASS tester632 v34.38.20 F-4 eligibilitySince + controlled backfill');

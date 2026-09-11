@@ -150,7 +150,52 @@
     });
     return out;
   }
+  /* ═══ v34.38.20 (INV-ARCHIVED-SETTLED — گزارش کارفرما) ═══
+     فاکتور تسویه‌شده‌ای که پروندهٔ فروش مرتبطش مختومه/بایگانی شده است، نباید در
+     پنل فاکتورها با «⛔ پرونده فروش یافت نشد» نمایش داده شود؛ پرونده پیدا شده، فقط
+     بایگانی است. ریشهٔ باگ: findCaseForOffer فقط ptf_crm_dealsِ فعال را می‌بیند و
+     salesfiles.js در sfArchive پرونده را از ptf_crm_deals حذف و به ptf_crm_projects
+     (state:'archived', origin:'salesfile') منتقل می‌کند؛ پس c همیشه null می‌شد.
+     این helper (خودکفا، هم‌قاعده با archivedCaseForOffer در sales-domain-v2.js) پیوند
+     پیشنهاد به پروندهٔ بایگانی را اثبات می‌کند — صرفاً برای نمایش، بدون هیچ نوشتنی. */
+  function findArchivedCaseForOffer(o) {
+    if (!o) return null;
+    var no = String(o.no || '');
+    if (!no) return null;
+    var hit = null;
+    var probes = data('ptf_crm_projects');
+    for (var i = 0; i < probes.length; i++) {
+      var p = probes[i];
+      if (!p || p.origin !== 'salesfile') continue;
+      if (String(p.state || '').toLowerCase() !== 'archived') continue;
+      var linked = String(p.wonOffer || p.offerNo || '') === no;
+      if (!linked && Array.isArray(p.offerNos)) {
+        for (var j = 0; j < p.offerNos.length; j++) {
+          if (p.offerNos[j] != null && String(p.offerNos[j]) === no) { linked = true; break; }
+        }
+      }
+      if (!linked) continue;
+      /* سازگاری هویت: شمارهٔ پیشنهادِ یکتا به‌تنهایی اثبات پیوند است؛ فقط تطبیقِ
+         نادرستِ میان پرونده‌های هم‌نامِ متفاوت را رد می‌کند. */
+      var pi = normRef(p.inqNo), oi = normRef(o.inqNo);
+      if (pi && oi && pi !== oi) continue;
+      if (!hit) hit = p;
+    }
+    return hit || null;
+  }
   function openIrr(i) {
+    /* v34.38.19 (INV-OPEN-CANONICAL): «مطالبه باز» در پنل فاکتورها باید از منبع واحد
+       PTF.ar.invoiceState بیاید تا با پنل مطالبات/حساب مشتریان/پرونده یک عدد بدهد.
+       فرمول قدیمی فقط تخصیص Receipt روی خودِ فاکتور (openAmountIRR یا allocatedBase/
+       allocatedVat) را می‌دید و وصولی میراثی (invoice.payments/pays)، مرجوعی فروش و
+       بازسازی محلی FIFO را نادیده می‌گرفت؛ نتیجه: فاکتورِ تسویه‌شده در «فاکتورها»
+       مطالبهٔ باز نشان می‌داد در حالی که «مطالبات» آن را تسویه‌شده می‌شمرد. */
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
+      try {
+        var st = window.PTF.ar.invoiceState(i);
+        if (st && st.open != null) return +st.open || 0;
+      } catch (eAr) {}
+    }
     return i.openAmountIRR != null ? +i.openAmountIRR : Math.max(0, (+i.amount || 0) - (+i.allocatedBase || 0) - (+i.allocatedVat || 0));
   }
   function invDateDesc(a, b) { return String(b.invDate || b.t || '').localeCompare(String(a.invDate || a.t || '')); }
@@ -222,6 +267,7 @@
       });
     });
     var byRow = {}, orphan = [], rescuedIds = {};
+    var archivedRows = []; /* v34.38.20 (INV-ARCHIVED-SETTLED): ردیف‌های تسویه‌شده با پروندهٔ مختومه — جدا از ردیف‌های فعال */
     invs.forEach(function (i) {
       if (!i) return;
       var k = normRef(i.offerNo);
@@ -251,9 +297,13 @@
       var billed = live.reduce(function (s, i) { return s + (+i.amount || 0); }, 0);
       var isOpen = !!window._ptfInvOpenRows[key];
 
+      /* v34.38.20 (INV-ARCHIVED-SETTLED): پروندهٔ مختومه/بایگانی */
+      var arch = c ? null : findArchivedCaseForOffer(o);
+      var settledArchived = !!arch && live.length > 0 && openSum <= 0.5;
+
       var pair = (typeof ptfCustNamePair === 'function') ? ptfCustNamePair(o.buyerCd, o.buyerCo) : { fa: o.buyerCo || '', en: '' };
       /* جستجو (v34.9.2 — در پنل زنده گم شده بود): شماره سند/پرونده/مشتری/فاکتور/مودیان */
-      if (q && hay([o.no, o.buyerCo, o.inqNo, comp && comp.no, c && (c.cd || c.inqNo), pair.fa, pair.en].concat(list.map(invHay))).indexOf(q) < 0) return '';
+      if (q && hay([o.no, o.buyerCo, o.inqNo, comp && comp.no, c && (c.cd || c.inqNo), arch && (arch.inqNo || arch.cd || arch.wonOffer), pair.fa, pair.en].concat(list.map(invHay))).indexOf(q) < 0) return '';
 
       /* ── وضعیت ردیف ── */
       var status;
@@ -266,7 +316,8 @@
          غیرقابل‌کلیک می‌دهد؛ مسیر باز شدن دوبارهٔ مودالِ ثبت کاملاً بسته است.
          اصلاح/ابطال همچنان از داخل کشو در دسترس است. */
       var mainBtn;
-      if (!c) mainBtn = '<span style="color:#b91c1c;font-size:11.5px">⛔ پرونده فروش یافت نشد</span>';
+      if (!c && !arch) mainBtn = '<span style="color:#b91c1c;font-size:11.5px">⛔ پرونده فروش یافت نشد</span>';
+      else if (!c && arch) mainBtn = '<span class="bd" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;cursor:default;font-size:11.5px" title="پروندهٔ فروش این ارجاع مختومه/بایگانی شده است">📁 پرونده مختومه شده است</span>';
       else if (activeInv) mainBtn = '<span class="bd" data-inv-registered="1" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;cursor:default" title="برای اصلاح یا ابطال، ردیف را باز کنید">✅ فاکتور ثبت شده است</span>';
       else if (can()) mainBtn = '<button class="bt" style="padding:5px 11px;font-size:11.5px" onclick="event.stopPropagation();showInvModal(\'' + arg(o.no) + '\')">+ ثبت فاکتور رسمی صادرشده</button>';
       else mainBtn = '';
@@ -304,7 +355,7 @@
         (pair.en && pair.en !== pair.fa ? '<br><span dir="ltr" style="color:#64748b">' + esc(pair.en) + '</span>' : '') +
         '</div>';
 
-      return '<div data-inv-row="' + key + '" style="border:1px solid var(--brd);border-radius:12px;background:#fff;margin-bottom:7px;overflow:hidden">' +
+      var rowHtml = '<div data-inv-row="' + key + '" style="border:1px solid var(--brd);border-radius:12px;background:#fff;margin-bottom:7px;overflow:hidden">' +
         /* ردیف فشرده — کل ردیف کلیک‌پذیر است، فلش هم برای دسترس‌پذیری دکمهٔ مستقل دارد */
         '<div style="display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer" onclick="ptfInvRowToggle(\'' + key + '\')">' +
         '<span style="' + invCol('arrow') + ';display:flex;align-items:center"><button type="button" id="invA_' + key + '" class="bt bt-o" aria-expanded="' + (isOpen ? 'true' : 'false') + '" title="نمایش/پنهان‌کردن جزئیات" style="padding:1px 8px;font-size:13px;line-height:1.6;width:30px" onclick="event.stopPropagation();ptfInvRowToggle(\'' + key + '\')">' + (isOpen ? '▾' : '◀') + '</button></span>' +
@@ -321,6 +372,11 @@
         '<span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + docBtns + undoBtn + '</span></div>' +
         (cards || '<div style="margin-top:8px;font-size:12px;color:#94a3b8">هنوز فاکتوری برای این ارجاع ثبت نشده است.</div>') +
         '</div></div>';
+      /* v34.38.20 (INV-ARCHIVED-SETTLED): ردیفِ تسویه‌شده با پروندهٔ مختومه به بخشِ
+         جداگانه می‌رود؛ ردیف‌های دیگر (از جمله پروندهٔ مختومهٔ غیرِ تسویه‌شده) سرِ جایشان
+         می‌مانند ولی دیگر «پرونده یافت نشد» نمی‌گیرند. */
+      if (settledArchived) { archivedRows.push(rowHtml); return ''; }
+      return rowHtml;
     }).filter(function (x) { return !!x; }).join('');
 
     /* ── ② بخش یتیم‌ها: فاکتور رسمیِ فعالی که هیچ ردیف ارجاعی آن را نمی‌شناسد ──
@@ -351,6 +407,9 @@
     }).join('');
     if (orphans.length > ORPHAN_CAP) orphanHtml += '<div style="font-size:11.5px;color:#64748b;margin-top:6px">… و ' + (orphans.length - ORPHAN_CAP) + ' مورد دیگر (با فیلتر یا «💰 مطالبات» ببینید).</div>';
 
+    /* v34.38.20 (INV-ARCHIVED-SETTLED): HTML بخش فاکتورهای تسویه‌شده با پروندهٔ مختومه */
+    var archivedHtml = archivedRows.join('');
+
     /* ── ③ سربرگ تشخیصی ── */
     var statReg = 0, statOpen = 0, statRows = 0;
     offers.forEach(function (o) {
@@ -365,12 +424,13 @@
       '<span title="پیشنهادهایی که برای صدور فاکتور رسمی به حسابدار ارجاع شده‌اند">📤 ارجاع‌شده: <b>' + offers.length + '</b></span>' +
       '<span style="color:#065f46" title="ارجاع‌هایی که حداقل یک فاکتور فعال دارند">✅ ثبت‌شده: <b>' + statReg + '</b></span>' +
       (orphans.length ? '<span style="color:#9a3412" title="فاکتور رسمی فعالی که ردیف ارجاع ندارد — از همین‌جا قابل دسترسی است">⚠️ بدون ردیف ارجاع: <b>' + orphans.length + '</b></span>' : '') +
+      (archivedRows.length ? '<span style="color:#475569" title="فاکتورهای تسویه‌شده‌ای که پروندهٔ فروش‌شان مختومه/بایگانی شده است">🗂 مختومه: <b>' + archivedRows.length + '</b></span>' : '') +
       '<span title="جمع ماندهٔ فاکتورهای فعال">💰 مطالبه باز: <b>' + money(statOpen) + '</b></span>' +
       '<span style="color:#64748b" title="تعداد رکوردی که این دستگاه از دو مجموعهٔ لازم برای این پنل دارد">دادهٔ این دستگاه: ' + invs.length + ' فاکتور · ' + data('ptf_crm_offers').length + ' پیشنهاد</span>' +
       '<button class="bt bt-o" style="font-size:11px;margin-inline-start:auto" title="یک همگام‌سازی فوری با سرور و سپس بازسازی فهرست" onclick="ptfInvoicesRefresh()">↻ بازخوانی از سرور</button>' +
       '</div>';
 
-    if (!rows && !orphanHtml) {
+    if (!rows && !orphanHtml && !archivedHtml) {
       el.innerHTML = summary +
         '<div style="text-align:center;color:#94a3b8;padding:24px">' +
         (q ? 'هیچ ردیفی با جستجوی «' + esc(((document.getElementById('invSrch') || {}).value || '')) + '» پیدا نشد. ' : '') +
@@ -387,6 +447,13 @@
       '<button class="bt bt-o" style="font-size:11px" onclick="ptfInvRowsToggleAll(false)">بستن همه</button></div>' +
       '<div style="display:flex;align-items:center;gap:9px;padding:4px 11px;font-size:11px;color:#64748b;font-weight:700;background:#f1f5f9;border:1px solid var(--brd);border-radius:12px;margin:0 0 3px">' +
       invHeaderHtml() + '</div>' + rows +
+      (archivedHtml
+        ? '<div style="margin-top:10px;border-top:2px dashed #94a3b8;padding-top:8px">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#475569;font-weight:700">' +
+          '<span>🧾 فاکتورهای تسویه‌شده با پروندهٔ مختومه (' + archivedRows.length + ')</span>' +
+          '<small style="color:#64748b;font-weight:400">پروندهٔ فروش این اسناد بایگانی شده و مطالبه‌شان تسویه است؛ فقط برای سوابق نمایش داده می‌شوند.</small>' +
+          '</div>' + archivedHtml + '</div>'
+        : '') +
       (orphanHtml
         ? '<div style="margin-top:10px;border-top:2px dashed #fdba74;padding-top:8px">' +
           '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#9a3412;font-weight:700">' +
@@ -394,7 +461,7 @@
           (orphanVoidLeft ? '<small style="color:#64748b;font-weight:400">' + orphanVoidLeft + ' سند ابطال‌شدهٔ مرتبط هم در بایگانی همین بخش است</small>' : '') +
           '</div>' + orphanHtml + '</div>'
         : '');
-    if (q && !rows && !orphans.length) autoCatchupOnce();
+    if (q && !rows && !orphans.length && !archivedRows.length) autoCatchupOnce();
   };
 
   /* فاکتور فعالِ ثبت‌شده روی یک پیشنهاد (پایهٔ قفلِ «ثبت دوباره ممنوع»)

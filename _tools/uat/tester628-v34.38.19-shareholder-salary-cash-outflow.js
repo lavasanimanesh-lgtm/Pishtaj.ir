@@ -1,4 +1,4 @@
-/* tester628 — v34.38.19 (SH-SALARY-CASH-OUTFLOW): پرداخت واقعی حقوق (draw با
+/* tester628 — v34.38.20 (SH-SALARY-CASH-OUTFLOW): پرداخت واقعی حقوق (draw با
    paymentFor:'salary'/salaryMonth) خروج نقدی دوره است؛ تعهد حقوق فقط سود را کم می‌کند.
    قراردادها:
    ۱) drawِ حقوق از advRows/ستون «مانده قابل تسویهٔ امسال» خارج است (B1).
@@ -10,7 +10,7 @@ var fs = require('fs');
 var assert = require('assert');
 var fiscal = fs.readFileSync('crm/fiscal.js', 'utf8');
 
-console.log('── salary cash-outflow contract (v34.38.19) ──');
+console.log('── salary cash-outflow contract (v34.38.20) ──');
 /* قرارداد استاتیک کد */
 assert.ok(/out\.salaryPaid = Math\.round\(salaryPaid\)/.test(fiscal), 'salaryPaid computed from salary draws');
 assert.ok(/out\.salaryUnpaid = Math\.max\(0, \(\+d\.opexSalaryTotal \|\| 0\) - out\.salaryPaid\)/.test(fiscal), 'salaryUnpaid = claims - paid');
@@ -79,4 +79,4 @@ assert.strictEqual(advOnly.salaryPaid, 0, 'plain draw (no salary marker) is not 
 assert.strictEqual(advOnly.advYear, 70000000, 'plain draw remains advYear');
 console.log('  ✔ draw بدون نشان حقوق = علی‌الحساب (نه خروج حقوق)');
 
-console.log('PASS tester628 v34.38.19 shareholder salary cash outflow');
+console.log('PASS tester628 v34.38.20 shareholder salary cash outflow');
