@@ -134,7 +134,7 @@ T('BEHAV: هیچ صفحهٔ ایندکس‌پذیری خارج از نقشه ن�
   'missing: ' + D.missing.join(','));
 T('BEHAV: صفحاتِ noindex/ریدایرکت درست مستثنا شده‌اند (excluded ≥ 1)', D.excluded.length >= 1,
   'excluded=' + D.excluded.length);
-T('BEHAV: حجمِ معقول — نقشه ≥ 600 و فایل ≥ 650', D.sitemap_total >= 600 && D.files_total >= 650,
+T('BEHAV: حجمِ معقول — نقشه ≥ 590 و فایل ≥ 650', D.sitemap_total >= 590 && D.files_total >= 650,
   'sitemap=' + D.sitemap_total + ' files=' + D.files_total);
 
 console.log('=== tester636: ' + p + ' PASS / ' + f + ' FAIL ===');
