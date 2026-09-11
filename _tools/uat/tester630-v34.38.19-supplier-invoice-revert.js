@@ -1,4 +1,4 @@
-/* tester630 — v34.38.19 (SF-INVOICE-REVERT — گزارش کارفرما: «فاکتور تأمین کم شد؛ ویرایش
+/* tester630 — v34.38.20 (SF-INVOICE-REVERT — گزارش کارفرما: «فاکتور تأمین کم شد؛ ویرایش
    کردم درست شد ولی دوباره برگشت»). دو ریشه بسته شد:
    ۱) merge در crm/sync.js برای ptf_crm_supplier_finance برندهٔ هر رکورد را با مقایسهٔ
       رشته‌ای خامِ updatedAtISO (میلادی "2026-…") با t (شمسی "۱۴۰۵/…") انتخاب می‌کرد؛
@@ -13,7 +13,7 @@ var assert = require('assert');
 var sync = fs.readFileSync('crm/sync.js', 'utf8');
 var sf = fs.readFileSync('crm/supplier-finance.js', 'utf8');
 
-console.log('── supplier-invoice amount revert (v34.38.19) ──');
+console.log('── supplier-invoice amount revert (v34.38.20) ──');
 
 /* قرارداد استاتیک */
 assert.ok(/function sfComparableTs\(r\)/.test(sync), 'sfComparableTs defined in sync merge');
@@ -145,4 +145,4 @@ var auto = importInvoice({ cd: 'SFINV-2', amount: 1 }, { supplierCd: 'SUP-9', am
 assert.strictEqual(auto.amount, 50000000, 'فاکتور بدون ویرایش دستی همچنان با بازوارد همگام می‌شود');
 console.log('  ✔ رفتاری: اولویت مبلغ دستی فقط برای فاکتورِ دست‌خورده، نه همه');
 
-console.log('PASS tester630 v34.38.19 supplier-invoice amount revert');
+console.log('PASS tester630 v34.38.20 supplier-invoice amount revert');

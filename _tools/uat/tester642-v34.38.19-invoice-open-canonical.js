@@ -1,4 +1,4 @@
-/* tester642 — v34.38.19 (INV-OPEN-CANONICAL): رفع باگ «فاکتورِ تسویه‌شده در «مطالبات»
+/* tester642 — v34.38.20 (INV-OPEN-CANONICAL): رفع باگ «فاکتورِ تسویه‌شده در «مطالبات»
    تسویه‌شده نشان داده می‌شد ولی در پنل «فاکتورها» مطالبهٔ باز داشت».
    ریشه: پنل فاکتورها (official-invoice-v2.js) مانده را با فرمول خصوصی خودش حساب می‌کرد
    (openAmountIRR یا amount−allocatedBase−allocatedVat) و وصولی میراثی (invoice.payments/

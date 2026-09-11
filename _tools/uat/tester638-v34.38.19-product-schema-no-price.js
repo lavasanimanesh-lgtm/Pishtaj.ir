@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester638 — v34.38.19 (PRODUCT-NO-PRICE-FIX): قفلِ «1 invalid item detected» در بررسیِ ایندکس.
+/* tester638 — v34.38.20 (PRODUCT-NO-PRICE-FIX): قفلِ «1 invalid item detected» در بررسیِ ایندکس.
    ریشه: اسکیمای «Product» بدونِ offers(price) یا review/aggregateRating از نظر گوگل invalid است
    («Either offers, review, or aggregateRating should be specified»). صفحاتِ تأمین/RFQ این سایت
    قیمتِ واقعی ندارند، پس تایپ باید «Service» باشد (نه Product) تا خطا از بین برود — جعلِ قیمت

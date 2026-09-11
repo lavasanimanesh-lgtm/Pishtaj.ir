@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester634 — v34.38.19 (GSC-SITEENTRY-FIX): قفلِ قراردادِ فیلدِ پاسخِ sites.list.
+/* tester634 — v34.38.20 (GSC-SITEENTRY-FIX): قفلِ قراردادِ فیلدِ پاسخِ sites.list.
    ریشهٔ «آزمون اتصال GSC همیشه خالی است با وجودِ تنظیمات درست»: پاسخِ
    webmasters/v3/sites فهرست را زیر کلیدِ «siteEntry» برمی‌گرداند (مطابق
    SitesListResponse: SiteEntry []*WmxSite `json:"siteEntry,omitempty"`)،

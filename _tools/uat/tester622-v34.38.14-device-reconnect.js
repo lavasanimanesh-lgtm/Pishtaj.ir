@@ -90,7 +90,7 @@ T('C3 پروب نشست با data_pull سبک (since بزرگ) انجام می�
 /* ─────────── D) مسیر پایانی و پین‌ها ─────────── */
 head('D) مسیر اتصال + کشف‌پذیری + پین‌ها');
 T('D1 مقصد ورود مجدد ./index.html با cache-buster است',
-  /window\.location\.href='[^']*index\.html\?v=34\.38\.19'/.test(src));
+  /window\.location\.href='[^']*index\.html\?v=34\.38\.20'/.test(src));
 {
   const vj = JSON.parse(fs.readFileSync(path.join(root, 'VERSION.json'), 'utf8'));
   const m = src.match(/var VER = '([^']+)';/);

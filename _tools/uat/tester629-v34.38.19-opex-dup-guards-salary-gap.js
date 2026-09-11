@@ -1,4 +1,4 @@
-/* tester629 — v34.38.19 (OPEX-DUP-GUARD گام ۳/۴/۵ + SH-SALARY-MONTH-GAP): بستن دو شکافِ
+/* tester629 — v34.38.20 (OPEX-DUP-GUARD گام ۳/۴/۵ + SH-SALARY-MONTH-GAP): بستن دو شکافِ
    گزارش‌شدهٔ کارفرما:
    A) «یکی ۲ ماه حقوق، دو تای دیگر ۳ ماه» → آشکارساز read-only ماه‌های غایب/تکراری حقوق
       (ptfShareholderSalaryGaps) + نمایش در کیفیت داده — بدون تغییر داده.
@@ -12,7 +12,7 @@ var opex = fs.readFileSync('crm/opex.js', 'utf8');
 var shareholders = fs.readFileSync('crm/shareholders.js', 'utf8');
 var dq = fs.readFileSync('crm/data-quality.js', 'utf8');
 
-console.log('── OPEX double-count guards + salary month-gap (v34.38.19) ──');
+console.log('── OPEX double-count guards + salary month-gap (v34.38.20) ──');
 /* قرارداد استاتیک */
 assert.ok(/function opexManualOrPettyClash\(month, cat, amt\)/.test(opex), 'cross-channel clash helper');
 assert.ok(/clashManualTpl && !confirm/.test(opex), 'template creation warns vs manual/petty row');
@@ -66,4 +66,4 @@ var d2 = tplDup({ id: 'TPL-X', cat: 'اجاره', amt: 50000000, desc: 'اجار
 assert.strictEqual(d2, null, 'different cat+amt is not a duplicate');
 console.log('  ✔ رفتاری: قالب هم‌دسته/هم‌مبلغ با شرح متفاوت هم هشدار می‌گیرد');
 
-console.log('PASS tester629 v34.38.19 opex duplicate guards + salary month-gap');
+console.log('PASS tester629 v34.38.20 opex duplicate guards + salary month-gap');

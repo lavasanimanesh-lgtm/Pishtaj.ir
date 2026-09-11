@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester635 — v34.38.19 (GSC-CONTENT-LENGTH-FIX): قفلِ قراردادِ Content-Length برای
+/* tester635 — v34.38.20 (GSC-CONTENT-LENGTH-FIX): قفلِ قراردادِ Content-Length برای
    PUT/DELETEِ بدونِ بدنه. ریشهٔ «ثبت نقشه ناموفق: api_error_411 (Length Required)»:
    curl درخواستِ PUTِ «ثبت نقشه» را (که طبق مستندِ گوگل بدنه نباید داشته باشد) بدونِ
    هدرِ Content-Length می‌فرستاد و گوگل 411 برمی‌گرداند. حالا برای PUT/DELETEِ بدونِ

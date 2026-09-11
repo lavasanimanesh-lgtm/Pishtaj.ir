@@ -1,4 +1,4 @@
-/* tester632 — v34.38.19 (F-4 — eligibilitySince + جبران کنترل‌شدهٔ ماه‌های غایب حقوق):
+/* tester632 — v34.38.20 (F-4 — eligibilitySince + جبران کنترل‌شدهٔ ماه‌های غایب حقوق):
    نقطهٔ شروع احراز حقوق سهامدار موظف (eligibilitySince) فقط هنگام «فعال‌شدن موظفی» ثبت
    می‌شود و مبنای جبران ماه‌های غایب قرار می‌گیرد. جبران سروری فقط ساخت idempotent است:
    بدون void، بدون بازسازی هویت موجود (active یا سنگ‌قبر)، ردِ ماهِ سال قفل‌شده، دلیل صریح
@@ -9,7 +9,7 @@ var assert = require('assert');
 var php = fs.readFileSync('api/sales-domain.php', 'utf8');
 var sh = fs.readFileSync('crm/shareholders.js', 'utf8');
 
-console.log('── F-4 eligibilitySince + controlled salary backfill (v34.38.19) ──');
+console.log('── F-4 eligibilitySince + controlled salary backfill (v34.38.20) ──');
 
 /* قرارداد استاتیک — کلاینت */
 assert.ok(/rec\.duty && !wasDuty && !rec\.eligibilitySince\) rec\.eligibilitySince = month;/.test(sh), 'eligibilitySince هنگام فعال‌شدن موظفی و فقط یک‌بار fallback می‌شود');
@@ -82,4 +82,4 @@ var c = applyEdit({ duty: false }, { duty: false, salary: 0, month: '1405/05' })
 assert.strictEqual(c.eligibilitySince, undefined, 'غیرموظف مبدأ ندارد');
 console.log('  ✔ رفتاری: eligibilitySince فقط هنگام فعال‌شدن موظفی و یک‌بار ثبت می‌شود');
 
-console.log('PASS tester632 v34.38.19 F-4 eligibilitySince + controlled backfill');
+console.log('PASS tester632 v34.38.20 F-4 eligibilitySince + controlled backfill');

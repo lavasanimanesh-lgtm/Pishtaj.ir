@@ -13,13 +13,13 @@ SECTION('Release v34.38.16: پین‌های رسمی');
 (function releasePins() {
   var ver = JSON.parse(read('VERSION.json'));
   var idx = read('crm/index.html'), sw = read('crm/sw.js');
-  T('VERSION.json = v34.38.19', ver.crm_version === 'v34.38.19', ver.crm_version);
-  T('index release و cache-bust روی 34.38.19 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.19'") > -1 && idx.indexOf('?v=34.7.96') === -1);
-  T('service worker release/cache/assets روی 34.38.19 است', sw.indexOf("RELEASE = 'v34.38.19'") > -1 && sw.indexOf("ASSET_VERSION = '34.38.19'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.38.19'") > -1);
-  T('manifest.version = 34.38.19', JSON.parse(read('crm/manifest.json')).version === '34.38.19');
-  T('clear-cache روی v34.38.19 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.38.19'") > -1);
-  T('shell fallback روی v34.38.19 است', read('crm/shell.js').indexOf("'v34.38.19'") > -1);
-  T('sales-domain service روی 34.38.19 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.38.19'") > -1);
+  T('VERSION.json = v34.38.20', ver.crm_version === 'v34.38.20', ver.crm_version);
+  T('index release و cache-bust روی 34.38.20 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.20'") > -1 && idx.indexOf('?v=34.7.96') === -1);
+  T('service worker release/cache/assets روی 34.38.20 است', sw.indexOf("RELEASE = 'v34.38.20'") > -1 && sw.indexOf("ASSET_VERSION = '34.38.20'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.38.20'") > -1);
+  T('manifest.version = 34.38.20', JSON.parse(read('crm/manifest.json')).version === '34.38.20');
+  T('clear-cache روی v34.38.20 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.38.20'") > -1);
+  T('shell fallback روی v34.38.20 است', read('crm/shell.js').indexOf("'v34.38.20'") > -1);
+  T('sales-domain service روی 34.38.20 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.38.20'") > -1);
 })();
 
 SECTION('AR: یک Receipt، یک قرارداد عددی در خزانه و حساب مشتری');

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester637 — v34.38.19 (INDEX-TRACKER): قفلِ ردیابِ ایندکسِ افزایشی.
+/* tester637 — v34.38.20 (INDEX-TRACKER): قفلِ ردیابِ ایندکسِ افزایشی.
    قراردادها:
      ۱) همهٔ صفحاتِ عمومیِ ایندکس‌پذیر یک‌بار فهرست می‌شوند (نه فقط نقشه)؛
      ۲) بررسی فقط با URL Inspection API و «ایندکس‌شده» فقط وقتی coverageState با «Indexed»

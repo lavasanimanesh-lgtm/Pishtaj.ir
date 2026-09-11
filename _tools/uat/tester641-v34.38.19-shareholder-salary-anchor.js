@@ -1,4 +1,4 @@
-/* tester641 — v34.38.19 (SH-SALARY-ANCHOR): رفع باگ «جبران حقوق برای یک سهامدار به‌جای ۳ ماه،
+/* tester641 — v34.38.20 (SH-SALARY-ANCHOR): رفع باگ «جبران حقوق برای یک سهامدار به‌جای ۳ ماه،
    ۴ ماه ساخت». ریشه: مبدأ احراز (eligibilitySince) بی‌صدا از ماهِ انتخابی پنل پر می‌شد و اگر
    یک ماه زودتر از شروع واقعی بود، جبرانِ ماه‌های غایب بازهٔ [مبدأ..ماه جاری] را کامل می‌کرد و
    یک ماه اضافه می‌ساخت؛ ضمناً ماه‌های legacy با قالب غیرکانونیک («۱۴۰۵/۴» یا «1405-06») در
@@ -12,7 +12,7 @@ var assert = require('assert');
 var php = fs.readFileSync('api/sales-domain.php', 'utf8');
 var sh = fs.readFileSync('crm/shareholders.js', 'utf8');
 
-console.log('── SH-SALARY-ANCHOR: مبدأ احراز صریح + نرمال‌سازی ماه در جبران حقوق (v34.38.19) ──');
+console.log('── SH-SALARY-ANCHOR: مبدأ احراز صریح + نرمال‌سازی ماه در جبران حقوق (v34.38.20) ──');
 
 /* ── قرارداد استاتیک — کلاینت ── */
 assert.ok(/id: 'eligibilitySince'/.test(sh), 'فرم سهامدار فیلد صریح ماه شروع احراز دارد');
@@ -84,4 +84,4 @@ var r3 = backfillModel('1405/01', '1405/02', [], 'S3', ['1405']);
 assert.deepStrictEqual(r3, { created: 0, skippedExisting: 0, skippedLocked: 2 }, 'ماه‌های سال قفل‌شده رد می‌شوند');
 console.log('  ✔ رفتاری: جبران از مبدأ درست، بدون دوباره‌سازی و بدون void');
 
-console.log('PASS tester641 v34.38.19 SH-SALARY-ANCHOR explicit anchor + month normalization');
+console.log('PASS tester641 v34.38.20 SH-SALARY-ANCHOR explicit anchor + month normalization');

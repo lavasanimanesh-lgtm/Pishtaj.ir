@@ -390,7 +390,7 @@ function pullAtomic(options) {
     syncSrc.indexOf('بخش روی سرور قابل خواندن نبود و نسخهٔ محلی همان‌ها حفظ شد') > -1);
   test('عبور به مسیر دلتا پس از دو شکست پیاپی در کد ثبت است',
     syncSrc.indexOf('state.atomicFailStreak >= 2') > -1);
-  test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.19');
+  test('نسخهٔ انتشار هم‌تراز است', version === 'v34.38.20');
 
   console.log('');
   if (failures) {
