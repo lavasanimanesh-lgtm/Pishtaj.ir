@@ -95,5 +95,28 @@ ORPHANS.forEach(function (o) {
     blog.indexOf('u:"electrical-equipment-epc/"') > -1 && blog.indexOf('u:"piping-equipment-procurement/"') > -1);
 })();
 
+/* ۶) صفحات کم‌حجمِ واقعی (index) بالای ۳۵۰ واژه غنی شدند — مدل مستقلِ شمارش واژه */
+function visibleWords(rel) {
+  var text = read(rel)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ');
+  return (text.match(/[\u0600-\u06FF\uFB8A\u067E\u0686\u06AF\u06A9\u06BE\u200c]+|[A-Za-z][A-Za-z\-]{1,}/g) || []).length;
+}
+['about/certificates/index.html', 'careers/index.html', 'comparisons/index.html',
+ 'en/services.html', 'tools/rfq-checklist/index.html'].forEach(function (rel) {
+  var w = visibleWords(rel);
+  T('CRAWL: ' + rel + ' — محتوای ≥۳۵۰ واژه', w >= 350, 'words=' + w);
+});
+
+/* ۷) استاب‌های ریدایرکت باید noindex بمانند (عمدی — نباید بدون محتوا ایندکس شوند) */
+['en/careers.html', 'search/index.html', 'services/electrical-equipment/index.html',
+ 'services/instrumentation-equipment/index.html', 'services/piping-equipment/index.html',
+ 'suppliers/valve-supplier.html'].forEach(function (rel) {
+  T('CRAWL: ' + rel + ' — استاب ریدایرکت noindex مانده است',
+    /<meta\s+name=["\']robots["\']\s+content=["\'][^"\']*noindex/i.test(read(rel)));
+});
+
 console.log('=== tester648: ' + p + ' PASS / ' + f + ' FAIL ===');
 process.exit(f ? 1 : 0);
