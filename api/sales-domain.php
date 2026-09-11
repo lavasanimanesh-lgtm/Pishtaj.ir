@@ -381,6 +381,16 @@ function sd_current_jalali_month(): string {
     $now=new DateTimeImmutable('now',new DateTimeZone('Asia/Tehran'));[$jy,$jm]=sd_gregorian_to_jalali((int)$now->format('Y'),(int)$now->format('n'),(int)$now->format('j'));
     return sprintf('%04d/%02d',$jy,$jm);
 }
+/* v34.38.19 (SH-SALARY-ANCHOR): نرمال‌سازی ماه شمسی برای تطبیقِ ردیف‌های قدیمی حقوق.
+   ارقام فارسی/عربی → لاتین، «-» → «/» و ماه تک‌رقمی → دو رقمی؛ تا ردیف‌های legacy با
+   ماهِ غیرکانونیک (مثل «۱۴۰۵/۴») در جبران ماه‌های غایب «موجود» شمرده شوند و دوباره
+   ساخته نشوند (ریشهٔ باگ «به‌جای ۳ ماه ۴ ماه»). */
+function sd_norm_month($value): string {
+    $s=sd_identity($value);
+    $s=str_replace('-','/',$s);
+    if(preg_match('#^(\d{4})/(\d)$#',$s,$m))$s=$m[1].'/0'.$m[2];
+    return $s;
+}
 /* v34.38.19 (SH-SALARY-MONTH-GAP / F-4): لیست ماه‌های شمسی (YYYY/MM) از from تا to به
    ترتیب صعودی؛ مبنای جبران کنترل‌شدهٔ ماه‌های غایب حقوق. */
 function sd_jalali_months_between(string $from,string $to): array {
@@ -1029,7 +1039,7 @@ function sd_salary_find_indexes(array $rows,string $key,string $shCd,string $mon
     foreach($rows as $index=>$row){
         if(!is_array($row)||strtolower(trim((string)($row['type']??'')))!=='salary')continue;
         if($key!==''&&(string)($row['recurringKey']??'')===$key){$hits[]=(int)$index;continue;}
-        if((string)($row['shCd']??'')===$shCd&&(string)($row['month']??'')===$month)$hits[]=(int)$index;
+        if((string)($row['shCd']??'')===$shCd&&sd_norm_month($row['month']??'')===$month)$hits[]=(int)$index;
     }
     return array_values(array_unique($hits));
 }
@@ -2103,7 +2113,7 @@ try {
            به هزینهٔ حقوق انتشار می‌یابد — تعیین‌نشده یعنی کلید isOfficial اصلاً نوشته نمی‌شود. */
         $salaryOfficialVal=null;if(array_key_exists('salaryOfficial',$shareholder)&&$shareholder['salaryOfficial']!==null&&$shareholder['salaryOfficial']!==''){$salaryOfficialVal=!empty($shareholder['salaryOfficial']);}
         $txHits=sd_salary_find_indexes($sharetx,$key,$shCd,$month);$txCds=[];foreach($txHits as $txIndex)if(trim((string)($sharetx[$txIndex]['cd']??''))!=='')$txCds[]=trim((string)$sharetx[$txIndex]['cd']);
-        $oxHits=[];foreach($opex as $oxIndex=>$ox){if(!is_array($ox)||(string)($ox['month']??'')!==$month)continue;$sameKey=(string)($ox['recurringKey']??'')===$key;$sameTx=in_array(trim((string)($ox['shareTx']??'')),$txCds,true)&&!empty($ox['shareholderSalary']);if($sameKey||$sameTx)$oxHits[]=(int)$oxIndex;}
+        $oxHits=[];foreach($opex as $oxIndex=>$ox){if(!is_array($ox)||sd_norm_month($ox['month']??'')!==$month)continue;$sameKey=(string)($ox['recurringKey']??'')===$key;$sameTx=in_array(trim((string)($ox['shareTx']??'')),$txCds,true)&&!empty($ox['shareholderSalary']);if($sameKey||$sameTx)$oxHits[]=(int)$oxIndex;}
         if($txHits||$oxHits){
             $rev=sd_current_rev();$projectionIdentities=[];foreach($oxHits as $oxIndex)$projectionIdentities[]=$opex[$oxIndex];
             $result=['registered'=>false,'alreadyRegistered'=>true,'month'=>$month,'shareholderCd'=>$shCd,'recurringKey'=>$key,'amount'=>$salary,'existingSalaryRows'=>count($txHits),'existingOpexRows'=>count($oxHits),'projectionMode'=>'no-op-existing-identity'];
@@ -2325,10 +2335,10 @@ try {
         foreach($shareholders as $sh){
             if(!is_array($sh)||empty($sh['cd'])||($sh['active']??true)===false||($sh['duty']??false)!==true||sd_num($sh['salary']??0)<=0)continue;
             $shCd=sd_text($sh['cd'],160);$salary=(int)round(sd_num($sh['salary']));
-            $anchor=sd_text($sh['eligibilitySince']??'',20);
+            $anchor=sd_norm_month($sh['eligibilitySince']??'');
             if($anchor===''||!preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$anchor)){
-                /* fallback: اولین ادعای active همان سهامدار */
-                $first='';foreach($sharetx as $tx){if(!is_array($tx)||strtolower(trim((string)($tx['type']??'')))!=='salary'||(string)($tx['shCd']??'')!==$shCd||!sd_active($tx))continue;$m=sd_text($tx['month']??'',20);if(preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$m)&&($first===''||$m<$first))$first=$m;}
+                /* fallback: اولین ادعای active همان سهامدار (با نرمال‌سازی ماه legacy) */
+                $first='';foreach($sharetx as $tx){if(!is_array($tx)||strtolower(trim((string)($tx['type']??'')))!=='salary'||(string)($tx['shCd']??'')!==$shCd||!sd_active($tx))continue;$m=sd_norm_month($tx['month']??'');if(preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$m)&&($first===''||$m<$first))$first=$m;}
                 if($first===''){$noAnchor++;continue;}
                 $anchor=$first;
             }

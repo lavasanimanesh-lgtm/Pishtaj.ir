@@ -244,7 +244,7 @@
         var start = mIdx(anchor), end = mIdx(to);
         if (isNaN(start) || isNaN(end) || start > end) return;
         var have = {};
-        mine.forEach(function (x) { if (x.month) have[String(x.month)] = (have[String(x.month)] || 0) + 1; });
+        mine.forEach(function (x) { var m = normMonth(x.month); if (m) have[m] = (have[m] || 0) + 1; });
         var missing = [], extra = [];
         for (var i = start; i <= end && (i - start) < 60; i++) {
           var mm = mFromIdx(i);
@@ -374,6 +374,11 @@
         { id: 'name', label: 'نام سهامدار', value: old ? old.name : '', required: true },
         { id: 'pct', label: 'درصد سهام', type: 'number', value: old ? old.pct : '', required: true, dir: 'ltr', nohint: true },
         { id: 'duty', label: 'سهامدار موظف؟', type: 'select', value: old && old.duty ? 'yes' : 'no', options: [{ v: 'no', lb: 'خیر' }, { v: 'yes', lb: 'بله' }] },
+        /* v34.38.19 (SH-SALARY-ANCHOR): ماه شروع احراز حقوق صریح و قابل اصلاح شد. قبلاً
+           این مبنا بی‌صدا از ماه انتخابی پنل (یا ماه جاری) پر می‌شد و اگر کاربر هنگام
+           فعال‌کردن موظفی روی ماه گذشته‌ای بود، جبران (backfill) یک ماه اضافه می‌ساخت
+           (باگ «به‌جای ۳ ماه ۴ ماه»). حالا کاربر خودش مبدأ را می‌بیند و اصلاح می‌کند. */
+        { id: 'eligibilitySince', label: 'ماه شروع احراز حقوق (YYYY/MM — خالی = ماه جاری هنگام فعال‌شدن موظفی)', type: 'text', value: old && old.eligibilitySince ? old.eligibilitySince : '', placeholder: 'مثلا 1405/04', dir: 'ltr' },
         { id: 'salary', label: 'حقوق ماهانه موظف (ریال)', type: 'number', value: old && old.salary ? (+old.salary).toLocaleString('en-US') : '', placeholder: 'مثلا 200,000,000', dir: 'ltr', nohint: true } /* v21.10: type:number → data-money + nohint (درصد/حقوق نیازی به حروف ندارند) */,
         /* v34.38.5 (DATA-QUALITY SH-SALARY): گزارش کارفرما — «تب کیفیت داده حقوق سهامدار را
            بدون نوع رسمی/غیررسمی نشان می‌دهد ولی ویرایش سهامدار گزینه‌ای برای تعیین آن ندارد».
@@ -393,11 +398,14 @@
         var prevSalary = +rec.salary || 0;
         var wasDuty = !!(old && old.duty);
         rec.name = v.name; rec.pct = pct; rec.duty = v.duty === 'yes'; rec.salary = rec.duty ? n(v.salary) : 0; rec.active = v.active !== 'no'; rec.updatedBy = nm(); rec.updatedT = faDateTime();
-        /* v34.38.19 (SH-SALARY-MONTH-GAP / F-4): نقطهٔ شروع احراز حقوق ثبت می‌شود تا
-           جبران ماه‌های غایب (backfill) و گزارش کیفیت داده مبنای درست داشته باشند. فقط
-           هنگام «فعال‌شدن موظفی» مقداردهی می‌شود و تا وقتی کاربر صریح تغییرش ندهد ثابت
-           می‌ماند. */
-        if (rec.duty && !wasDuty && !rec.eligibilitySince) rec.eligibilitySince = month;
+        /* v34.38.19 (SH-SALARY-ANCHOR): مبدأ احراز صریح و قابل اصلاح است. اگر کاربر ماهِ
+           معتبری وارد کند همان مبنا می‌شود؛ وگرنه هنگام اولین «فعال‌شدن موظفی» ماه جاری/پنل
+           به‌عنوان fallback ثبت می‌شود. اصلاحِ مبدأ توسط کاربر، جبران ماه‌های غایب را از
+           ماه درست شروع می‌کند (رفع باگ «به‌جای ۳ ماه ۴ ماه»). */
+        var eligSince = normMonth(v.eligibilitySince);
+        if (eligSince && !/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/.test(eligSince)) { alert('ماه شروع احراز نامعتبر است؛ نمونه: 1405/04'); return; }
+        if (rec.duty && eligSince) rec.eligibilitySince = eligSince;
+        else if (rec.duty && !wasDuty && !rec.eligibilitySince) rec.eligibilitySince = month;
         /* v34.38.5 (DATA-QUALITY SH-SALARY): نوع سند حقوق (رسمی/غیررسمی/تعیین‌نشده) — همان
            الگوی ptfOpexEdit؛ «تعیین نشده» یعنی کلید حذف می‌شود تا هزینه حقوق unclassified بماند. */
         var salaryOfficial = v.salaryOfficial === 'yes' ? true : (v.salaryOfficial === 'no' ? false : undefined);
