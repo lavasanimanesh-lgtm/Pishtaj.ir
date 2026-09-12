@@ -277,16 +277,24 @@
     var pl = d.pending_list || [];
     if (pl.length) {
       h += '<div style="margin-top:8px;font-size:12px;color:#b45309"><b>⏳ هنوز ایندکس نشده / جدید (' + pl.length + (pl.length >= 300 ? '+، فقط ۳۰۰ نخست' : '') + '):</b></div>' +
-        '<div style="max-height:260px;overflow:auto;margin-top:4px"><table class="cms-tbl"><thead><tr><th>صفحه</th><th>وضعیت</th><th>گوگل می‌گوید</th></tr></thead><tbody>';
+        '<div style="max-height:260px;overflow:auto;margin-top:4px"><table class="cms-tbl"><thead><tr><th>صفحه</th><th>وضعیت</th><th>گوگل می‌گوید</th><th>عملیات</th></tr></thead><tbody>';
       pl.forEach(function (r) {
         var st = r.state === 'new' ? '<span style="color:#64748b">جدید (بررسی‌نشده)</span>'
           : (r.state === 'error' ? '<span style="color:#b91c1c">خطا</span>'
           : '<span style="color:#b45309">ایندکس‌نشده</span>');
         var said = r.coverage ? escP(r.coverage) : (r.error ? escP(r.error) : '—');
         var vd = r.verdict && r.verdict !== 'UNKNOWN' ? ' · ' + escP(r.verdict) : '';
+        /* v34.38.20 (INDEX-TRACKER-REQUEST-LINK): برای هر ردیفِ ایندکس‌نشده یک دکمهٔ
+           مستقیمِ «درخواست ایندکس» — همان پیوندِ بازرسیِ سرچ کنسول (Indexing API عمومی
+           وجود ندارد؛ کاربر با این پیوند یک‌راست به Request Indexing می‌رسد). */
+        var actions = '<button class="bt bt-o" style="padding:2px 8px;font-size:11px" onclick="gscInspect(\'' + escP(r.url).replace(/'/g, '') + '\')">🔎 بررسی</button> ';
+        if (r.inspectLink) {
+          actions += '<a class="bt bt-o" style="padding:2px 8px;font-size:11px;text-decoration:none;color:#b45309" target="_blank" rel="noopener" href="' + escP(r.inspectLink) + '">درخواست ایندکس ↗</a>';
+        }
         h += '<tr><td style="direction:ltr;font-size:11px">' + escP(r.url.replace('https://pishtaj.ir/', '')) + '</td>' +
           '<td style="font-size:11.5px;white-space:nowrap">' + st + '</td>' +
-          '<td style="font-size:11px;color:#475569">' + said + vd + '</td></tr>';
+          '<td style="font-size:11px;color:#475569">' + said + vd + '</td>' +
+          '<td style="white-space:nowrap">' + actions + '</td></tr>';
       });
       h += '</tbody></table></div>';
     } else if (!d.remaining && d.total) {
