@@ -352,6 +352,7 @@
         '<div class="shareholder-actions" role="group" aria-label="عملیات سهامدار ' + escP(s.name) + '">' +
         shareAction('edit', '✏️', 'ویرایش', 'ویرایش مشخصات سهامدار', 'ptfShareEdit(\'' + s.cd + '\')', false) +
         (s.duty && (+s.salary || 0) > 0 ? shareAction('salary', '📅', 'ثبت حقوق', 'ثبت حقوق ماهانه به‌عنوان هزینه و مطالبه', 'ptfShareRegisterSalary(\'' + s.cd + '\')', true) : '') +
+        (s.duty && (+s.salary || 0) > 0 ? shareAction('dedupe', '🧹', 'رفع تکراری', 'ابطال ردیف‌های حقوقِ تکراری این سهامدار (در هر ماه یک ردیف زنده می‌ماند)', 'ptfShareDedupe(\'' + s.cd + '\')', false) : '') +
         shareAction('draw', '💸', 'علی‌الحساب', 'ثبت برداشت یا علی‌الحساب سهامدار', 'ptfShareDraw(\'' + s.cd + '\')', true) +
         shareAction('ledger', '📖', 'گردش', 'مشاهده گردش حساب سهامدار', 'ptfShareLedger(\'' + s.cd + '\')', false) +
         '</div></div></div>';
@@ -513,13 +514,76 @@
       if (!active) typeLb += ' (باطل‌شده)';
       var nFiles = (x.files || []).length;
       var docs = '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();ptfShareTxAttachOpen(\'' + ptfOnClickArg(x.cd) + '\')">📎 ' + (nFiles ? (nFiles + ' سند') : 'افزودن سند') + '</button>';
-      return '<tr' + (!active ? ' style="opacity:.65"' : '') + '><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr;' + (!active ? 'text-decoration:line-through' : '') + '">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td><td>' + docs + '</td></tr>';
+      /* v34.38.20 (SHARE-TX-MANUAL-VOID): ابطال دستیِ یک ردیف گردش — اصلاح دستی که
+         کاربر برای «حقوق دوبار ثبت‌شده» نیاز دارد. حذف فیزیکی نیست؛ سند ابطال پایدار
+         سروری است (tombstone + corrections + دلیل صریح). */
+      var voidBtn = active ? '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" title="ابطال این ردیف گردش (حسابرسی‌پذیر)" onclick="event.stopPropagation();ptfShareTxVoid(\'' + ptfOnClickArg(x.cd) + '\')">ابطال</button>' : '';
+      return '<tr' + (!active ? ' style="opacity:.65"' : '') + '><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr;' + (!active ? 'text-decoration:line-through' : '') + '">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td><td>' + docs + '</td><td>' + voidBtn + '</td></tr>';
     }).join('');
     var b = ptfShareholderBalance(cd);
     var oldLed = document.getElementById('shareLedgerDlg');
     if (oldLed) oldLed.remove();
-    var html = '<div class="md-b" id="shareLedgerDlg" style="display:grid" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px"><h3>گردش سهامدار — ' + escP(s.name) + '</h3><p style="font-size:13px;color:#475569">مانده لحظه‌ای: <b>' + money(Math.abs(b.net)) + ' ' + (b.net >= 0 ? 'بستانکار' : 'بدهکار') + '</b> | مطالبات تنخواه باز: ' + money(b.petty) + '</p><div class="tb2"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>شرح</th><th>سند</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">گردشی ثبت نشده</td></tr>') + '</tbody></table></div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    var html = '<div class="md-b" id="shareLedgerDlg" style="display:grid" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px"><h3>گردش سهامدار — ' + escP(s.name) + '</h3><p style="font-size:13px;color:#475569">مانده لحظه‌ای: <b>' + money(Math.abs(b.net)) + ' ' + (b.net >= 0 ? 'بستانکار' : 'بدهکار') + '</b> | مطالبات تنخواه باز: ' + money(b.petty) + '</p><div class="tb2"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>شرح</th><th>سند</th><th>عملیات</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6">گردشی ثبت نشده</td></tr>') + '</tbody></table></div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+  };
+
+  /* v34.38.20 (SHARE-TX-MANUAL-VOID): ابطال دستیِ یک ردیف گردش سهامدار. کاربر برای
+     «حقوقِ دوبار ثبت‌شده در یک ماه» به یک اهرم اصلاح دستی نیاز داشت که پیش از این وجود
+     نداشت. ابطال، حذف فیزیکی نیست: فرمان سروری void_shareholder_tx ردیف را با دلیل صریح
+     tombstone می‌کند و برای نوع salary هزینهٔ حقوقِ پیوندخورده را هم می‌بندد. */
+  window.ptfShareTxVoid = function (cd) {
+    if (!canShare()) { alert('⛔ فقط مدیران ارشد'); return; }
+    var tx = txAll().filter(function (x) { return x && x.cd === cd; })[0];
+    if (!tx) { alert('ردیف گردش یافت نشد'); return; }
+    if (!shareTxActive(tx)) { alert('این ردیف قبلاً باطل شده است'); return; }
+    var reason = '';
+    try { reason = (prompt('دلیل ابطال این ردیف گردش را وارد کنید (برای ردپای حسابرسی الزامی است):', '') || '').trim(); } catch (eP) {}
+    if (!reason) { alert('ثبت دلیل ابطال الزامی است.'); return; }
+    if (!confirm('این ردیف حذف فیزیکی نمی‌شود؛ به‌صورت سند ابطال پایدار و حسابرسی‌پذیر ثبت می‌شود.' + (tx.type === 'salary' ? '\nهزینهٔ حقوقِ پیوندخورده با همین ردیف نیز باطل می‌شود.' : '') + '\nادامه می‌دهید؟')) return;
+    return shareDomainCommand('void_shareholder_tx', {
+      txCd: tx.cd,
+      reason: reason,
+      idempotencyKey: 'SH-VOID-TX|' + String(tx.cd) + '|' + Date.now()
+    }, ['ptf_crm_sharetx', 'ptf_crm_opex']).then(function (state) {
+      if (state && state.state === 'acked') {
+        if (typeof ptfToast === 'function') ptfToast('✅ ردیف گردش باطل شد', 'ok');
+        shareCommandRender();
+        try { ptfShareLedger(tx.shCd); } catch (eLed) {}
+      } else if (state && state.state === 'uncertain') {
+        if (typeof ptfToast === 'function') ptfToast('⚠️ نتیجه ابطال نامشخص است؛ از مسیر دیگری دوباره ثبت نکنید.', 'warn');
+      } else if (state && state.state === 'rejected' && typeof ptfToast === 'function') {
+        ptfToast('⛔ ابطال انجام نشد: ' + shareCommandErrorText(state), 'warn');
+      }
+      return state;
+    });
+  };
+
+  /* v34.38.20 (SHARE-SALARY-DEDUPE): رفع دستیِ «حقوق دوبار ثبت‌شده در یک ماه». ریشهٔ
+     «خودکار درست نشد»: reconcile فقط ماهِ پنل/جاری را پاک می‌کرد. این فرمان همهٔ ماه‌های
+     سهامدار را می‌پیماید و برای هر ماهِ دارای بیش از یک ردیف active حقوق، اضافه‌ها را (با
+     هزینهٔ پیوندخورده) void می‌کند و یک ردیف زنده نگه می‌دارد. */
+  window.ptfShareDedupe = function (cd) {
+    if (!canShare()) { alert('⛔ فقط مدیران ارشد'); return; }
+    var s = shAll().filter(function (x) { return x && x.cd === cd; })[0];
+    if (!s) { alert('سهامدار یافت نشد'); return; }
+    var reason = '';
+    try { reason = (prompt('دلیل رفع تکراری حقوق این سهامدار را وارد کنید (برای ردپای حسابرسی الزامی است):', '') || '').trim(); } catch (eP) {}
+    if (!reason) { alert('ثبت دلیل رفع تکراری الزامی است.'); return; }
+    if (!confirm('برای «' + s.name + '» ماه‌هایی که حقوقشان بیش از یک ردیف فعال دارد بررسی می‌شود و ردیف‌های اضافه (با هزینهٔ پیوندخورده) باطل می‌شوند؛ در هر ماه یک ردیف زنده می‌ماند.\nماه‌های سال قفل‌شده دست‌نخورده می‌مانند. ادامه می‌دهید؟')) return;
+    return shareDomainCommand('dedupe_shareholder_salaries', {
+      shareholderCd: s.cd,
+      reason: reason,
+      idempotencyKey: 'SH-DEDUPE|' + String(s.cd) + '|' + Date.now()
+    }, ['ptf_crm_sharetx', 'ptf_crm_opex']).then(function (state) {
+      if (state && state.state === 'acked') {
+        var r = state.response && state.response.result || {};
+        if (typeof ptfToast === 'function') ptfToast('✅ رفع تکراری: ' + (+r.voidedSalaryRows || 0) + ' ردیف حقوق و ' + (+r.voidedOpexRows || 0) + ' ردیف هزینه باطل شد' + (+r.skippedLocked || 0 ? ' — ' + r.skippedLocked + ' ماه قفل رد شد' : ''), 'ok');
+        shareCommandRender();
+      } else if (state && state.state === 'rejected' && typeof ptfToast === 'function') {
+        ptfToast('⛔ رفع تکراری انجام نشد: ' + shareCommandErrorText(state), 'warn');
+      }
+      return state;
+    });
   };
 
   /* hook روی پنل تنخواه؛ بعد از opex لود می‌شود، پس خروجی opex هم حفظ می‌شود. */

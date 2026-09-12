@@ -1014,10 +1014,45 @@
       var pending = typeof window.ptfSyncPendingKeys==='function' ? window.ptfSyncPendingKeys() : [];
       var blockers = pending.filter(function(k){return OFFER_COMMAND_KEYS.indexOf(k)>-1;});
       if (blockers.length) {
+        /* v34.38.20 (OFFER-SAVE-DEADLOCK): اگر فقط کلید پیشنهادها dirty است و علت،
+           پیش‌نویسِ ثبت‌نشده روی همین دستگاه باشد، «ذخیره» همان پیش‌نویس باید بتواند
+           آن را رسماً ثبت کند (register_offer) به‌جای قفل پشت صف — وگرنه بن‌بست می‌شود:
+           push به‌خاطر پیش‌نویسِ ثبت‌نشده رد می‌شود و ذخیره هم به‌خاطر dirty قفل. */
+        var _softBlock = blockers.length === 1 && blockers[0] === 'ptf_crm_offers' &&
+          typeof window.ptfSyncOfferServerNos === 'function';
+        if (_softBlock) {
+          window.ptfSyncOfferServerNos(function (nos) {
+            var _st = window._offState || {};
+            var _curNo = _st && _st.no != null ? String(_st.no).trim() : '';
+            var _unreg = (typeof window.ptfSyncOfferUnregisteredNos === 'function') ? window.ptfSyncOfferUnregisteredNos(nos) : [];
+            var _msg = 'ابتدا همگام‌سازی تغییرات قبلی کامل شود؛ سپس دوباره ذخیره را بزنید.';
+            var _proceed = false;
+            if (nos && _curNo && _unreg.indexOf(_curNo) >= 0) {
+              _proceed = true;
+            } else if (nos && _unreg.length === 0) {
+              /* dirty علت دیگری دارد؛ همان رفتار قبلی حفظ می‌شود */
+            } else if (nos) {
+              var _names = _unreg.slice(0, 4).join('، ') + (_unreg.length > 4 ? ' …' : '');
+              _msg = '⛔ پیشنهادهای ثبت‌نشده مانع ارسال هستند: ' + _names + ' — هرکدام را باز و ذخیره، یا حذف کنید.';
+            }
+            if (!_proceed) {
+              toast(_msg, 'warn');
+              if(typeof window.ptfSyncFlushNow==='function')window.ptfSyncFlushNow(function(){});
+              return;
+            }
+            if (typeof ptfToast === 'function') ptfToast('این پیشنهاد هنوز روی سرور ثبت نشده؛ در حال ثبت رسمی…', 'info');
+            offerSaveBody();
+          });
+          return {ok:true, pendingServer:true, checkingRegistration:true};
+        }
         toast('ابتدا همگام‌سازی تغییرات قبلی کامل شود؛ سپس دوباره ذخیره را بزنید.', 'warn');
         if(typeof window.ptfSyncFlushNow==='function')window.ptfSyncFlushNow(function(){});
         return {ok:false,pendingSync:true};
       }
+      return offerSaveBody();
+    };
+
+    function offerSaveBody() {
       var before={}; OFFER_COMMAND_KEYS.forEach(function(k){before[k]=keySnapshot(k);});
       var st=window._offState||{}, previousOpId=st._serverOpId||'';
       st._serverState='sending'; st._serverOpId=previousOpId||nowId('OFFER-SAVE');
@@ -1097,7 +1132,7 @@
       /* inline handler Promise را مصرف نمی‌کند؛ catch نهایی مانع unhandled rejection است. */
       command.catch(function(){});
       return {ok:true,pendingServer:true,offerNo:payloadOffer.no,promise:command};
-    };
+    }
   }
 
   function findOffer(no) { return data('ptf_crm_offers').filter(function (o) { return o && o.no === no; })[0] || null; }

@@ -1,0 +1,105 @@
+{
+  "updated": "2026-09-11",
+  "keywords": {
+    "تامین تجهیزات پایپینگ": {
+      "page": "services/piping-supply.html",
+      "history": [
+        {
+          "date": "2026-09-11",
+          "impressions": 0.0,
+          "clicks": 0.0,
+          "position": null
+        }
+      ]
+    },
+    "تامین تجهیزات ابزار دقیق": {
+      "page": "services/instrumentation-supply.html",
+      "history": [
+        {
+          "date": "2026-09-11",
+          "impressions": 0.0,
+          "clicks": 0.0,
+          "position": null
+        }
+      ]
+    },
+    "ترانسمیتر فشار روزمونت 3051": {
+      "page": "knowledge-center/rosemount-pressure-transmitter-family.html",
+      "history": [
+        {
+          "date": "2026-09-11",
+          "impressions": 53.0,
+          "clicks": 0.0,
+          "position": 19.4
+        }
+      ]
+    },
+    "لول ترانسمیتر دیسپلیسر": {
+      "page": "services/products/displacer-level-transmitter.html",
+      "history": [
+        {
+          "date": "2026-09-11",
+          "impressions": 11.0,
+          "clicks": 0.0,
+          "position": 26.0
+        }
+      ]
+    },
+    "کنترل ولو بخار": {
+      "page": "knowledge-center/steam-control-valve-sizing-guide.html",
+      "history": [
+        {
+          "date": "2026-09-11",
+          "impressions": 6.0,
+          "clicks": 0.0,
+          "position": 18.0
+        }
+      ]
+    },
+    "ترانسمیتر فشار روزمونت": {
+      "page": "knowledge-center/rosemount-pressure-transmitter-family.html",
+      "history": [
+        {
+          "date": "2026-09-11",
+          "impressions": 37.0,
+          "clicks": 0.0,
+          "position": 72.4
+        }
+      ]
+    },
+    "لوله x42": {
+      "page": "knowledge-center/api-5l-x42.html",
+      "history": [
+        {
+          "date": "2026-09-11",
+          "impressions": 23.0,
+          "clicks": 0.0,
+          "position": 54.7
+        }
+      ]
+    },
+    "قیمت لوله a106": {
+      "page": "knowledge-center/kc-astm-a106-gr.html",
+      "history": [
+        {
+          "date": "2026-09-11",
+          "impressions": 8.0,
+          "clicks": 0.0,
+          "position": 67.4
+        }
+      ]
+    },
+    "نمایندگی روزمونت": {
+      "page": "brands/emerson-rosemount.html",
+      "history": [
+        {
+          "date": "2026-09-11",
+          "impressions": 6.0,
+          "clicks": 0.0,
+          "position": 82.0
+        }
+      ]
+    }
+  },
+  "source": "GSC-SNAPSHOT-2026-08-30.csv"
+}

@@ -8,7 +8,10 @@ import json, re, sys, os, importlib.util, html
 
 BASE = 'https://pishtaj.ir/knowledge-center/'
 DATE_PUB = '2026-07-01'
-DATE_MOD = '2026-09-02'
+DATE_MOD = '2026-09-11'
+DATE_PUB_FA = '۱۰ تیر ۱۴۰۵'
+DATE_MOD_FA = '۲۰ شهریور ۱۴۰۵'
+BYLINE_ORG = 'تیم مهندسی و تامین پیشرو تجهیز فرتاک'
 
 CSS = """
 .article-hero{background:radial-gradient(circle at 18% 20%,rgba(247,148,0,.22),transparent 30%),linear-gradient(135deg,#111827,#17233a 62%,#263858);color:#fff;padding:135px 0 55px}.article-hero h1{font-size:clamp(27px,4vw,45px);line-height:1.35;margin:8px 0 12px;color:#fff}.article-hero p{color:#dbeafe;line-height:2;max-width:900px}.article-wrap{max-width:980px;margin:34px auto;padding:0 20px}.article{background:#fff;border:1px solid #e2e8f0;border-radius:28px;padding:34px;line-height:2.15;color:#334155;box-shadow:0 16px 42px rgba(15,23,42,.06)}.article h2{font-size:24px;color:#0f172a;margin:26px 0 10px}.article h3{font-size:18px;color:#ef4b1a;margin:20px 0 8px}.article p,.article li{font-size:15px;color:#475569}.article a{color:#ef4b1a;font-weight:900}.article table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}.article th,.article td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top}.article th{background:#f1f5f9;color:#334155}.article figure{margin:20px 0}.article figure img{width:100%;height:auto;border-radius:16px;border:1px solid #e2e8f0}.article figcaption{font-size:12.5px;color:#64748b;margin-top:8px;text-align:center}.note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:13px 15px;margin:16px 0}.formula{direction:ltr;text-align:left;background:#0f172a;color:#e5e7eb;border-radius:16px;padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow:auto}.cta{background:linear-gradient(135deg,#0f172a,#17233a);color:#fff;border-radius:22px;padding:22px;margin:28px 0}.cta h2{color:#fff;margin-top:0}.cta p{color:#dbeafe}.cta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.cta-row a,.cta-row button{border:0;border-radius:12px;padding:10px 15px;font-weight:900;text-decoration:none;cursor:pointer}.primary{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff}.light{background:#fff;color:#334155}.toc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:14px 18px;margin:16px 0}.toc a{display:block;margin:4px 0;color:#334155;text-decoration:none}.faq details{border:1px solid #e2e8f0;border-radius:16px;padding:12px 14px;margin:8px 0;background:#fff}.faq summary{cursor:pointer;color:#0f172a;font-weight:900}@media(max-width:760px){.article{padding:22px}.article table{font-size:12px}.article-hero{padding-top:100px}}
@@ -105,6 +108,20 @@ def build(a):
     body += f'<nav class="ptf-bc" aria-label="مسیر صفحه" data-ptf-bc="yes"><div class="container"><ol><li><a href="/">خانه</a></li><li><a href="/knowledge-center/">مرکز دانش</a></li><li><span aria-current="page">{a["title"]}</span></li></ol></div></nav>\n'
     body += f'<section class="article-hero"><div class="container"><div class="breadcrumb"><a href="../" style="color:#bfdbfe">خانه</a> / <a href="../knowledge-center/" style="color:#bfdbfe">مرکز دانش</a> / {a["h1"]}</div><h1>{a["h1"]}</h1><p>{a["lede"]}</p></div></section>\n'
     body += '<main id="main-content"><div class="article-wrap"><article class="article">\n'
+    # بایلاین مرئی + فهرست مطالب (ساختار فاز ۱ — قفل tester608)
+    toc = [(b[1], b[2]) for b in a['blocks'] if b[0] == 'h2']
+    toc.append(('faq', 'سوالات رایج'))
+    toc.append(('kc-related', 'مطالب مرتبط'))
+    toc.append(('kc-sec-1', 'تامین این تجهیزات را به پیشرو تجهیز فرتاک بسپارید'))
+    plain = re.sub(r'<[^>]+>', ' ', blocks_html(a['blocks']))
+    read_min = max(2, round(len(plain.split()) / 200))
+    body += (f'<div class="kc-byline" style="display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:10px 16px;margin:0 0 18px">'
+             f'<span>نویسنده: <b style="color:#334155">{BYLINE_ORG}</b></span>'
+             f'<span>منتشرشده: <time datetime="{DATE_PUB}">{DATE_PUB_FA}</time></span>'
+             f'<span>به‌روزرسانی: <time datetime="{DATE_MOD}">{DATE_MOD_FA}</time></span>'
+             f'<span>زمان مطالعه: {read_min} دقیقه</span></div>\n')
+    toc_html = ''.join(f'<li><a href="#{i}" style="color:#0e7490;text-decoration:none">{t}</a></li>' for i, t in toc)
+    body += f'<nav class="kc-toc" aria-label="فهرست مطالب" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px 18px;margin:0 0 20px;font-size:14px"><b style="display:block;margin-bottom:6px;color:#0f172a">فهرست مطالب</b><ul style="margin:0;padding-right:18px;display:grid;gap:4px;color:#334155">{toc_html}</ul></nav>\n'
     body += blocks_html(a['blocks']) + '\n'
     # FAQ
     body += '<h2 id="faq">سوالات رایج</h2><div class="faq">\n'
@@ -113,7 +130,7 @@ def build(a):
         body += f'<details{op}><summary>{q}</summary><p>{ans}</p></details>\n'
     body += '</div>\n'
     # related
-    body += '<h2>مطالب مرتبط</h2><ul>' + ''.join(f'<li><a href="{h}">{t}</a></li>' for t, h in a['related']) + '</ul>\n'
+    body += '<h2 id="kc-related">مطالب مرتبط</h2><ul>' + ''.join(f'<li><a href="{h}">{t}</a></li>' for t, h in a['related']) + '</ul>\n'
     # product linkbox
     p = a['prod']
     body += f'''<div class="ptf-product-linkbox" data-ptf-product-link="{p['key']}">
@@ -125,7 +142,7 @@ def build(a):
     # supply CTA
     items = ''.join(f'<li style="margin:0"><a href="{h}" style="color:#0f2744;font-weight:800;text-decoration:none">{t}</a><span style="display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:2px">{s}</span></li>' for t, s, h in a['supply'])
     body += f'''<section class="kc-supply-cta" style="margin:38px 0 6px;padding:26px 28px;border:1px solid #e2e8f0;border-left:4px solid #ef4b1a;border-radius:18px;background:linear-gradient(135deg,#f8fafc,#fff)">
-<h2 style="margin:0 0 8px;font-size:19px;color:#0f2744">تامین این تجهیزات را به پیشرو تجهیز فرتاک بسپارید</h2>
+<h2 id="kc-sec-1" style="margin:0 0 8px;font-size:19px;color:#0f2744">تامین این تجهیزات را به پیشرو تجهیز فرتاک بسپارید</h2>
 <p style="margin:0 0 16px;font-size:14.5px;color:#475569;line-height:1.9">شرکت پیشرو تجهیز فرتاک <strong>تامین‌کننده تخصصی تجهیزات صنعتی</strong> برای پروژه‌های نفت، گاز، پتروشیمی، فولاد و نیروگاهی است. برای دریافت پیشنهاد فنی و قیمت، استعلام (RFQ) خود را ثبت کنید تا کارشناسان مهندسی فروش در کوتاه‌ترین زمان پاسخ دهند.</p>
 <ul style="list-style:none;padding:0;margin:0 0 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
 {items}

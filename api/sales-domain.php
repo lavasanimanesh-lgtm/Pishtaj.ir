@@ -980,7 +980,7 @@ function sd_opex_projection_envelope(array $rows,array $identities,int $revision
     ];
 }
 function sd_is_recurring_projection_action(string $action): bool {
-    return in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','schedule_recurring_opex_cheque','void_recurring_opex','register_shareholder_salary','backfill_shareholder_salaries'],true);
+    return in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','schedule_recurring_opex_cheque','void_recurring_opex','void_shareholder_tx','dedupe_shareholder_salaries','register_shareholder_salary','backfill_shareholder_salaries'],true);
 }
 function sd_recurring_sharetx_projection_allowed(string $action): bool {
     global $role;
@@ -988,7 +988,7 @@ function sd_recurring_sharetx_projection_allowed(string $action): bool {
        salary claim را بسازد، repair کند یا void کند و باید برای مدیر ارشد بی‌درنگ
        همان projection اتمیک را برگرداند؛ نه این‌که به pull دوم وابسته بماند. */
     return in_array($role,SD_SHAREHOLDER_VIEW_ROLES,true)
-        && in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','void_recurring_opex','register_shareholder_salary','backfill_shareholder_salaries'],true);
+        && in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','void_recurring_opex','void_shareholder_tx','dedupe_shareholder_salaries','register_shareholder_salary','backfill_shareholder_salaries'],true);
 }
 function sd_recurring_projection_data(string $action,array $opex,array $identities,int $rev): array {
     $data=['ptf_crm_opex'=>sd_opex_projection_envelope($opex,$identities,$rev)];
@@ -2361,6 +2361,99 @@ try {
         if($created>0)$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'shareholder_salary','entityId'=>'backfill|'.$throughMonth,'kind'=>'backfill_shareholder_salaries','reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>$now,'created'=>$created,'skippedLocked'=>$skippedLocked,'skippedExisting'=>$skippedExisting,'noAnchor'=>$noAnchor];
         $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];if(count($corrections)>$correctionStart)$changes['ptf_crm_corrections']=$corrections;$responseChanges=['ptf_crm_opex'=>[]];if(sd_recurring_sharetx_projection_allowed($action))$responseChanges['ptf_crm_sharetx']=[];
         $result=['backfilled'=>true,'throughMonth'=>$throughMonth,'created'=>$created,'skippedLocked'=>$skippedLocked,'skippedExisting'=>$skippedExisting,'noAnchor'=>$noAnchor,'projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
+    }
+    elseif ($action === 'void_shareholder_tx') {
+        /* v34.38.20 (SHARE-TX-MANUAL-VOID): ابطال دستیِ یک ردیفِ گردش سهامدار (حقوق/برداشت/
+           فراخوان/…) با دلیل صریح. برخلاف void_recurring_opex که از هویت OPEX وارد می‌شود و کل
+           موجودیت تکرارشونده را می‌بندد، این فرمان از cd ردیفِ گردش وارد می‌شود و فقط همان
+           ردیف را ابطال می‌کند؛ برای نوع salary، هزینهٔ حقوقِ پیوندخورده با shareTx همان ردیف
+           هم بسته می‌شود تا سود سال دوبار نشمارد. ماهِ سال قفل‌شده رد و ردپای corrections ثبت
+           می‌شود. */
+        sd_require_role(SD_SHAREHOLDER_VIEW_ROLES);
+        $txCd=sd_text($body['txCd']??$body['cd']??'',160);$reason=sd_text($body['reason']??'',500);
+        if($txCd==='')sd_out(['ok'=>false,'error'=>'sharetx_required'],422);
+        if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
+        $sharetx=sd_read('ptf_crm_sharetx');$opex=sd_read('ptf_crm_opex');sd_ensure_recurring_opex_row_identities($opex);
+        $txIndex=-1;foreach($sharetx as $i=>$tx){if(is_array($tx)&&(string)($tx['cd']??'')===$txCd){$txIndex=(int)$i;break;}}
+        if($txIndex<0)sd_out(['ok'=>false,'error'=>'sharetx_not_found'],404);
+        $target=$sharetx[$txIndex];
+        if(!sd_active($target))sd_out(['ok'=>false,'error'=>'already_void'],409);
+        $txMonth=sd_norm_month((string)($target['month']??''));
+        if($txMonth!==''&&sd_is_locked($snaps,$txMonth))sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>sd_year($txMonth)],409);
+        $txType=strtolower(trim((string)($target['type']??'')));$projectionRows=[];$beforeTx=$target;
+        sd_recurring_void($sharetx[$txIndex],$reason,$user,'explicit');
+        $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'shareholder_tx','entityId'=>$txCd,'kind'=>'explicit_void','beforeSnapshot'=>$beforeTx,'afterSnapshot'=>$sharetx[$txIndex],'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
+        $voidedOpex=0;
+        if($txType==='salary'){
+            /* فقط هزینهٔ حقوقِ همین ردیف (shareTx=txCd؛ یا recurringKey یکسان در نبود shareTx
+               روی ردیف‌های legacy) بسته می‌شود — نه هزینه‌های سایر ردیف‌های هم‌کلید. */
+            $recurringKey=trim((string)($target['recurringKey']??''));$shCd=trim((string)($target['shCd']??''));
+            if($recurringKey===''&&$shCd!==''&&$txMonth!=='')$recurringKey='salary:'.$shCd.':'.$txMonth;
+            foreach($opex as $oxIdx=>$ox){
+                if(!is_array($ox)||!sd_active($ox))continue;
+                if(empty($ox['shareholderSalary']))continue;
+                $linked=false;
+                if((string)($ox['shareTx']??'')===$txCd)$linked=true;
+                elseif(trim((string)($ox['shareTx']??''))===''&&$recurringKey!==''&&(string)($ox['recurringKey']??'')===$recurringKey)$linked=true;
+                if(!$linked)continue;
+                $beforeOx=$ox;sd_recurring_void($opex[$oxIdx],$reason,$user,'explicit');
+                $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>(string)($ox['_opexRowId']??$ox['cd']??''),'kind'=>'explicit_void','beforeSnapshot'=>$beforeOx,'afterSnapshot'=>$opex[$oxIdx],'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
+                $projectionRows[]=$opex[$oxIdx];$voidedOpex++;
+            }
+        }
+        $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex,'ptf_crm_corrections'=>$corrections];$responseChanges=['ptf_crm_opex'=>[]];if(sd_recurring_sharetx_projection_allowed($action))$responseChanges['ptf_crm_sharetx']=[];
+        $result=['voided'=>true,'transactionCd'=>$txCd,'type'=>$txType,'voidedOpexRows'=>$voidedOpex,'projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
+    }
+    elseif ($action === 'dedupe_shareholder_salaries') {
+        /* v34.38.20 (SHARE-SALARY-DEDUPE): رفع دستیِ «حقوقِ دوبار ثبت‌شده در یک ماه». ریشهٔ
+           «خودکار درست نشد»: reconcile_shareholder_salaries فقط ماهِ ارسال‌شده (ماه پنل/جاری)
+           را پاک می‌کرد و ردیفِ تکراریِ ماه‌های گذشته هرگز لمس نمی‌شد. این فرمان برای یک سهامدار
+           همهٔ ماه‌ها را می‌پیماید و برای هر ماهِ دارای بیش از یک ردیفِ active حقوق، اضافه‌ها را
+           void می‌کند (یک ردیف زنده می‌ماند)؛ هزینهٔ OPEXِ پیوندخوردهٔ همان ردیف‌ها هم بسته می‌شود.
+           ماهِ سال قفل‌شده دست‌نخورده می‌ماند. */
+        sd_require_role(SD_SHAREHOLDER_VIEW_ROLES);
+        $shCd=sd_text($body['shareholderCd']??$body['scopeShareholder']??'',160);$reason=sd_text($body['reason']??'',500);
+        if($shCd==='')sd_out(['ok'=>false,'error'=>'shareholder_required'],422);
+        if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
+        $shareholders=sd_read('ptf_crm_shareholders');$sharetx=sd_read('ptf_crm_sharetx');$opex=sd_read('ptf_crm_opex');sd_ensure_recurring_opex_row_identities($opex);
+        $shareholder=null;foreach($shareholders as $candidate)if(is_array($candidate)&&(string)($candidate['cd']??'')===$shCd){$shareholder=$candidate;break;}
+        if(!$shareholder)sd_out(['ok'=>false,'error'=>'shareholder_not_found'],404);
+        $now=sd_now();$voidedTx=0;$voidedOx=0;$skippedLocked=0;$projectionRows=[];
+        /* گروه‌بندی ردیف‌های active حقوق این سهامدار بر اساس ماه نرمال‌شده. */
+        $byMonth=[];
+        foreach($sharetx as $index=>$tx){
+            if(!is_array($tx)||strtolower(trim((string)($tx['type']??'')))!=='salary')continue;
+            if((string)($tx['shCd']??'')!==$shCd)continue;
+            if(!sd_active($tx))continue;
+            $m=sd_norm_month((string)($tx['month']??''));if($m==='')continue;
+            $byMonth[$m][]=(int)$index;
+        }
+        foreach($byMonth as $month=>$indexes){
+            if(count($indexes)<=1)continue;
+            if(sd_is_locked($snaps,$month)){$skippedLocked++;continue;}
+            for($k=1;$k<count($indexes);$k++){
+                $idx=(int)$indexes[$k];
+                if(!sd_active($sharetx[$idx]))continue;
+                $dup=$sharetx[$idx];$dupCd=trim((string)($dup['cd']??''));$dupKey=trim((string)($dup['recurringKey']??''));$beforeTx=$dup;
+                sd_recurring_void($sharetx[$idx],'رکورد تکراری حقوق — '.$reason,$user,'eligibility');
+                $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'shareholder_salary','entityId'=>$dupCd,'kind'=>'duplicate_recurring_void','beforeSnapshot'=>$beforeTx,'afterSnapshot'=>$sharetx[$idx],'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>$now];
+                $voidedTx++;
+                /* هزینهٔ OPEXِ پیوندخورده با همین ردیفِ voidشده بسته می‌شود (نه هزینهٔ ردیفِ زنده). */
+                foreach($opex as $oxIdx=>$ox){
+                    if(!is_array($ox)||!sd_active($ox))continue;
+                    if(empty($ox['shareholderSalary']))continue;
+                    $linked=false;
+                    if($dupCd!==''&&(string)($ox['shareTx']??'')===$dupCd)$linked=true;
+                    elseif($dupCd===''&&trim((string)($ox['shareTx']??''))===''&&$dupKey!==''&&(string)($ox['recurringKey']??'')===$dupKey)$linked=true;
+                    if(!$linked)continue;
+                    $beforeOx=$ox;sd_recurring_void($opex[$oxIdx],'هزینهٔ تکراری حقوق — '.$reason,$user,'eligibility');
+                    $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>(string)($ox['_opexRowId']??$ox['cd']??''),'kind'=>'duplicate_recurring_void','beforeSnapshot'=>$beforeOx,'afterSnapshot'=>$opex[$oxIdx],'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>$now];
+                    $projectionRows[]=$opex[$oxIdx];$voidedOx++;
+                }
+            }
+        }
+        $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex,'ptf_crm_corrections'=>$corrections];$responseChanges=['ptf_crm_opex'=>[]];if(sd_recurring_sharetx_projection_allowed($action))$responseChanges['ptf_crm_sharetx']=[];
+        $result=['deduped'=>true,'shareholderCd'=>$shCd,'voidedSalaryRows'=>$voidedTx,'voidedOpexRows'=>$voidedOx,'skippedLocked'=>$skippedLocked,'projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
     }
     elseif ($action === 'schedule_recurring_opex_cheque') {
         /* Explicit future-month scheduling keeps cheque UX, but materialization is still
