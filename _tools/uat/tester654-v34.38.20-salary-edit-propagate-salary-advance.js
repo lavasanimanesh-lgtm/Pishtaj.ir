@@ -43,6 +43,7 @@ assert.ok(/lb: 'علی‌الحساب حقوق \(کسر از حقوق تعهدی
 assert.ok(/var salaryMonth = \(v\.salaryAdv === 'yes'\) \? month : '';/.test(sh), 'علی‌الحساب حقوق با salaryMonth ثبت می‌شود');
 assert.ok(/shareDrawOnServer\(s, amt, v\.desc, v\.files \|\| \[\], month, salaryMonth, draftCd\)/.test(sh), 'salaryMonth به ثبت برداشت می‌رسد');
 assert.ok(/if \(x\.type === 'draw' && \(x\.paymentFor === 'salary' \|\| !!x\.salaryMonth\)\) typeLb = 'پرداخت حقوق \(draw\)';/.test(sh), 'برچسب گردش برای علی‌الحساب حقوق هم درست است');
+assert.ok(sh.indexOf("shareAction('paysalary', '💳', 'پرداخت حقوق'") > -1, 'دکمهٔ «پرداخت حقوق» در کارت سهامدار به ptfSharePaySalary وصل است');
 console.log('  ✔ استاتیک: پرچم کلاینت + دیالوگ علی‌الحساب حقوق');
 
 /* ── مدل رفتاری مستقل — انتشار مبلغ ── */

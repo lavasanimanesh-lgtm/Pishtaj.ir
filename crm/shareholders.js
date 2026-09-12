@@ -353,6 +353,12 @@
         '<div class="shareholder-actions" role="group" aria-label="عملیات سهامدار ' + escP(s.name) + '">' +
         shareAction('edit', '✏️', 'ویرایش', 'ویرایش مشخصات سهامدار', 'ptfShareEdit(\'' + s.cd + '\')', false) +
         (s.duty && (+s.salary || 0) > 0 ? shareAction('salary', '📅', 'ثبت حقوق', 'ثبت حقوق ماهانه به‌عنوان هزینه و مطالبه', 'ptfShareRegisterSalary(\'' + s.cd + '\')', true) : '') +
+        /* v34.38.20 (SH-SALARY-PAY-UI): دکمهٔ «پرداخت حقوق» (ptfSharePaySalary) در کد و در
+           قرارداد قفل‌شدهٔ tester304 تعریف شده بود ولی هیچ دکمه‌ای آن را صدا نمی‌زد؛ پرداختِ
+           واقعی حقوقِ موظف فقط از مسیر «علی‌الحساب» در دسترس بود (که قبلاً از حقوق تعهدی کم
+           نمی‌شد). این دکمه پرداخت را با draw + salaryMonth ثبت می‌کند ⇒ خروج نقدی واقعی و
+           کسر از «حقوق تعهدیِ پرداخت‌نشده». */
+        (s.duty && (+s.salary || 0) > 0 ? shareAction('paysalary', '💳', 'پرداخت حقوق', 'پرداخت حقوق موظف با draw (خروج نقدی واقعی؛ از «حقوق تعهدیِ پرداخت‌نشده» کم می‌شود)', 'ptfSharePaySalary(\'' + s.cd + '\')', true) : '') +
         (s.duty && (+s.salary || 0) > 0 ? shareAction('dedupe', '🧹', 'رفع تکراری', 'ابطال ردیف‌های حقوقِ تکراری این سهامدار (در هر ماه یک ردیف زنده می‌ماند)', 'ptfShareDedupe(\'' + s.cd + '\')', false) : '') +
         shareAction('draw', '💸', 'علی‌الحساب', 'ثبت برداشت یا علی‌الحساب سهامدار', 'ptfShareDraw(\'' + s.cd + '\')', true) +
         shareAction('ledger', '📖', 'گردش', 'مشاهده گردش حساب سهامدار', 'ptfShareLedger(\'' + s.cd + '\')', false) +
