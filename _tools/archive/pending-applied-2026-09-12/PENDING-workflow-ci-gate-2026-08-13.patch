@@ -1,0 +1,57 @@
+diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
+index 6817d26..fbdfb98 100644
+--- a/.github/workflows/deploy-production.yml
++++ b/.github/workflows/deploy-production.yml
+@@ -81,6 +81,15 @@ jobs:
+           fi
+           echo "no staging banner"
+ 
++      # ── گیت CI قبل از FTP پروداکشن ──
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++
++      - name: CI gate (sync / finance / notifications / security)
++        run: node _tools/uat/run-ci-gate.js
++
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
+@@ -105,6 +114,8 @@ jobs:
+             docs-deploy/**
+             tester*.js
+             FILES-CHANGED-*.txt
++            api/migrate.php
++            api/data-health-check.php
+ 
+       # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
+       # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+index df419b5..63cc70f 100644
+--- a/.github/workflows/deploy-staging.yml
++++ b/.github/workflows/deploy-staging.yml
+@@ -34,6 +34,15 @@ jobs:
+       - name: Checkout
+         uses: actions/checkout@v4
+ 
++      # ── گیت CI قبل از FTP: کد خراب روی استیجینگ نمی‌رود (دیپلوی خودکار حفظ می‌شود) ──
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++
++      - name: CI gate (sync / finance / notifications / security)
++        run: node _tools/uat/run-ci-gate.js
++
+       # جلوگیری از ایندکس شدن استیجینگ توسط گوگل
+       - name: Block search engines on staging
+         run: |
+@@ -86,6 +95,7 @@ jobs:
+             docs-deploy/**
+             tester*.js
+             FILES-CHANGED-*.txt
++            api/data-health-check.php
+ 
+       - name: Summary
+         run: |
