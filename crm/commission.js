@@ -107,6 +107,15 @@
     var offersByNo = {};
     data('ptf_crm_offers').forEach(function (o) { if (o && o.no) offersByNo[o.no] = o; });
     var deals = data('ptf_crm_deals');
+    /* فیکس پورسانت پرونده‌های مختومه (v35): پروندهٔ مختومه/بایگانی‌شده از ptf_crm_deals
+       حذف و به ptf_crm_projects (state='archived', origin='salesfile') منتقل می‌شود.
+       پورسانت باید برای این پرونده‌ها هم — تا زمان پرداخت — محاسبه و نمایش داده شود؛
+       بنابراین فاکتورها علاوه بر پرونده‌های زنده، به پرونده‌های بایگانی نیز متصل می‌شوند. */
+    function isArchivedSalesCase(p) {
+      return !!(p && String(p.state || '').toLowerCase() === 'archived' &&
+        (p.origin === 'salesfile' || p.dealCd || p.wonOffer || p.offerNo || (Array.isArray(p.offerNos) && p.offerNos.length)));
+    }
+    var archivedCases = data('ptf_crm_projects').filter(isArchivedSalesCase);
     /* v35: دریافت پرونده و تخصیص FIFO خارج از payments[] فاکتور نگهداری می‌شود. */
     var caseReceiptsById = {}, invoiceAllocations = {};
     data('ptf_crm_case_receipts').forEach(function (r) { if (r && r.status === 'posted' && !r.voided) caseReceiptsById[String(r._id || r.cd || '')] = r; });
@@ -118,14 +127,35 @@
 
     function dealOf(inv) {
       var o = offersByNo[inv.offerNo] || {};
-      var d = deals.filter(function (x) {
-        return x && ((o.no && (x.wonOffer === o.no || x.offerNo === o.no)) || (o.inqNo && x.inqNo === o.inqNo));
-      })[0];
-      if (d) return d;
-      d = deals.filter(function (x) { return x && x.cd && (inv.dealCd === x.cd || inv.dealRef === x.cd || inv.projectCd === x.cd); })[0];
-      if (d) return d;
-      if (inv.inqNo) d = deals.filter(function (x) { return x && x.inqNo === inv.inqNo; })[0];
-      return d || null;
+      var invNo = String(inv.offerNo || '');
+      /* تطبیق پرونده از روی شمارهٔ پیشنهاد (برنده/متصل) یا شمارهٔ درخواست */
+      function byOffer(arr) {
+        return arr.filter(function (x) {
+          if (!x) return false;
+          if (o.no && (x.wonOffer === o.no || x.offerNo === o.no)) return true;
+          if (invNo && (x.offerNos || []).indexOf(invNo) > -1) return true;
+          if (o.inqNo && x.inqNo === o.inqNo) return true;
+          return false;
+        })[0] || null;
+      }
+      /* تطبیق پرونده از روی ارجاع مستقیم (dealCd/dealRef/projectCd/caseId)؛
+         در پروندهٔ بایگانی cd اصلی در فیلد dealCd نگهداری می‌شود. */
+      function byRef(arr) {
+        return arr.filter(function (x) {
+          if (!x) return false;
+          var ids = [x.cd, x.dealCd, x._id];
+          return (inv.dealCd && ids.indexOf(inv.dealCd) > -1) ||
+                 (inv.dealRef && ids.indexOf(inv.dealRef) > -1) ||
+                 (inv.projectCd && ids.indexOf(inv.projectCd) > -1) ||
+                 (inv.caseId && ids.indexOf(inv.caseId) > -1);
+        })[0] || null;
+      }
+      function byInq(arr) {
+        if (!inv.inqNo) return null;
+        return arr.filter(function (x) { return x && x.inqNo === inv.inqNo; })[0] || null;
+      }
+      return byOffer(deals) || byRef(deals) || byInq(deals) ||
+             byOffer(archivedCases) || byRef(archivedCases) || byInq(archivedCases) || null;
     }
 
     var groups = {};
@@ -140,7 +170,10 @@
       var d = dealOf(inv);
       if (!d) return; /* فاکتور بدون پرونده = از محاسبه حذف */
       var o = offersByNo[inv.offerNo] || {};
-      var g = groups[d.cd] || (groups[d.cd] = { deal: d, owner: ownerOf(o), invoices: [] });
+      /* کلید گروه = شناسهٔ متعارف پرونده: در بایگانی cd اصلی در dealCd است تا اگر
+         هم‌زمان نسخهٔ زنده و بایگانی وجود داشت، در یک گروه یکسان جمع شوند (بدون دوباره‌شماری). */
+      var gkey = d.dealCd || d.cd || d._id || d.inqNo || inv.offerNo;
+      var g = groups[gkey] || (groups[gkey] = { deal: d, owner: ownerOf(o), invoices: [] });
       g.invoices.push(inv);
     });
 
