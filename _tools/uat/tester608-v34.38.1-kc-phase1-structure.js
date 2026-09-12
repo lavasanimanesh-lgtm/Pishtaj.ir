@@ -4,7 +4,7 @@
    tester608-v34.38.1-kc-phase1-structure.js
 
    قفل یکپارچه‌سازی ساختاری مرکز دانش (فاز ۱) — ۲۰۲۶-۰۹-۰۷:
-   ۱) STRUCTURE — هر ۴۱۰ مقالهٔ ایندکس‌پذیر دقیقاً یک <main id="main-content">
+   ۱) STRUCTURE — هر ۴۲۰ مقالهٔ ایندکس‌پذیر (پس از بچ ۱۴ +۱۰) دقیقاً یک <main id="main-content">
       + دست‌کم یک <article> + بردکرامب ptf-bc دارند (۳۱۶ اسکیپ‌لینک شکسته
       با ساخت main ترمیم شد؛ ۲۱۳ بازنامی قالب A + ۵۹ قالب B + ۱ nace).
    ۲) BYLINE-TOC — بایلاین مرئی (نویسنده/تاریخ‌های شمسی/زمان مطالعه) + فهرست
@@ -217,7 +217,7 @@ var manMiss = scope.filter(function (r) {
 });
 T('۶.۱ تراز lastmod نقشه و مانیفست', manMiss.length === 0, show(manMiss));
 
-T('۶.۲ دامنهٔ تستر همان ۴۱۰ مقالهٔ ایندکس‌پذیر است', scope.length === 410, String(scope.length));
+T('۶.۲ دامنهٔ تستر همان ۴۲۰ مقالهٔ ایندکس‌پذیر است', scope.length === 420, String(scope.length));
 
 console.log('\n' + p + ' PASS / ' + f + ' FAIL');
 process.exit(f ? 1 : 0);

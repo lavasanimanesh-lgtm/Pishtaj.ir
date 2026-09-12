@@ -594,6 +594,64 @@
       writeFailures: writeFail, hasToken: hasSyncToken()
     };
   }
+  /* v34.38.20 (OFFER-INTEGRITY-DIAG): وقتی کلید پیشنهادها با «ردِ سپر یکپارچگی»
+     (rejected+conflicts) در صف می‌ماند، علت تقریباً همیشه یک پیشنهادِ ثبت‌نشده روی
+     همین دستگاه است (data_push عمومی حق ایجاد پیشنهاد تازه را ندارد — فقط
+     register_offer). این توابع شماره‌های روی سرور را می‌گیرند و پیشنهادهای محلیِ
+     غایب از سرور را پیدا می‌کنند تا پنل، مقصر را به نام نشان دهد و دکمهٔ ذخیره
+     بن‌بست نشود. */
+  window.ptfSyncOfferServerNos = function (cb) {
+    try {
+      if (typeof window.ptfCollectionQuery !== 'function') { cb(null); return; }
+      var nos = {}, page = 1;
+      (function next() {
+        window.ptfCollectionQuery('ptf_crm_offers', { page: page, pageSize: 100, fields: 'no' }, function (r) {
+          if (!r || !r.ok) { cb(null); return; }
+          (r.rows || []).forEach(function (row) {
+            var n = row && row.no != null ? String(row.no).trim() : '';
+            if (n) nos[n] = 1;
+          });
+          if (page < (r.pages || 1)) { page++; next(); }
+          else cb(nos);
+        });
+      })();
+    } catch (e) { cb(null); }
+  };
+  window.ptfSyncOfferUnregisteredNos = function (serverNos) {
+    var out = [];
+    try {
+      var raw = rd('ptf_crm_offers');
+      var arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) arr = [];
+      arr.forEach(function (o) {
+        if (!o || o.no == null) return;
+        var n = String(o.no).trim();
+        if (!n) return;
+        if (serverNos && serverNos[n]) return;
+        if (out.indexOf(n) < 0) out.push(n);
+      });
+    } catch (e) {}
+    return out;
+  };
+  window.ptfSyncOfferIntegrityScan = function () {
+    var el = document.getElementById('ptfSyncDiagBody');
+    if (el) el.insertAdjacentHTML('afterbegin', '<div style="margin:0 0 6px;color:#0e7490">در حال بررسی شماره‌های پیشنهاد روی سرور…</div>');
+    window.ptfSyncOfferServerNos(function (nos) {
+      if (!el) return;
+      if (!nos) {
+        el.insertAdjacentHTML('afterbegin', '<div style="color:#b91c1c">بررسی ناموفق بود — نقش/اتصال/نشست را بررسی کنید.</div>');
+        return;
+      }
+      var unregistered = window.ptfSyncOfferUnregisteredNos(nos);
+      if (!unregistered.length) {
+        el.insertAdjacentHTML('afterbegin', '<div style="color:#047857">✅ همهٔ پیشنهادهای این دستگاه روی سرور ثبت شده‌اند؛ یک‌بار «⬆ تلاش مجدد ارسال» بزنید.</div>');
+      } else {
+        var list = unregistered.slice(0, 6).join('، ') + (unregistered.length > 6 ? ' …' : '');
+        el.insertAdjacentHTML('afterbegin', '<div style="color:#b45309">🔴 ' + unregistered.length + ' پیشنهادِ ثبت‌نشده پیدا شد: ' + escP(list) +
+          '<br><small>هرکدام را در ماژول پیشنهادها باز و «ذخیره» کنید (ثبت رسمی)، یا اگر زائد است حذف کنید. پس از آن وضعیت خودکار سبز می‌شود.</small></div>');
+      }
+    });
+  };
   window.ptfSyncDiagnosticsHtml = function () {
     return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
       '<h4 style="margin:0 0 8px">🔎 تشخیص همگام‌سازی</h4>' +
@@ -642,19 +700,35 @@
     if ((state.lastUnavailableKeys || []).length) {
       boot += '<br><span style="color:#b45309">⚠️ کلیدهای ناخوانا روی سرور (نسخهٔ محلی حفظ شد): ' + escP(state.lastUnavailableKeys.slice(0, 8).join('، ')) + '</span>';
     }
+    /* v34.38.20 (OFFER-INTEGRITY-DIAG): اگر کلید پیشنهادها با «ردِ سپر یکپارچگی»
+       سرور در صف مانده، به‌جای زردِ بی‌توضیح، علت و دکمهٔ تشخیص نشان داده می‌شود. */
+    var offerLine = '';
+    try {
+      var _lp = state.lastPushResult || {};
+      var _offerInQ = c.dirty.indexOf('ptf_crm_offers') >= 0 || c.queue.indexOf('ptf_crm_offers') >= 0;
+      var _offerRej = Array.isArray(_lp.rejected) && _lp.rejected.indexOf('ptf_crm_offers') >= 0;
+      var _offerCnf = Array.isArray(_lp.conflicts) && _lp.conflicts.indexOf('ptf_crm_offers') >= 0;
+      if (_offerInQ && (_offerRej || _offerCnf)) {
+        offerLine = '<div style="color:#b45309">⚠️ پیشنهادها توسط «سپر یکپارچگی» سرور رد شده — معمولاً یک پیش‌نویس روی این دستگاه است که روی سرور ثبت نشده.' +
+          '<br><button class="bt bt-o" style="margin-top:4px" onclick="ptfSyncOfferIntegrityScan()">🔍 بررسی پیشنهادهای ثبت‌نشده</button></div>';
+      }
+    } catch (eOfferLine) {}
     el.innerHTML = '<div>' + tokenLine + '</div>' +
       '<div>' + boot + '</div>' +
       '<div>' + dirtyLine + '</div>' +
       '<div>' + queueLine + '</div>' +
       '<div>' + writeLine + '</div>' +
+      offerLine +
       '<div style="border-top:1px dashed var(--brd);margin-top:6px;padding-top:6px">' + statusLine + '</div>';
   };
   window.ptfSyncRunDiagnostics = function () {
     var el = document.getElementById('ptfSyncDiagBody');
     if (el) el.innerHTML = '<div style="color:#0e7490">در حال بررسی اتصال و نشست…</div>';
     window.ptfSyncServerStatus(function (r) {
-      if (r.status === 'online') noteSyncError('diag', 'ok', '', { error: '' });
-      else noteSyncError('diag', r.status || 'error', r.error || '', r);
+      /* v34.38.20 (OFFER-INTEGRITY-DIAG): «بررسی اتصال» نباید خطای واقعی push/pull/
+         migration را با یک diag-ok بازنویسی کند؛ نتیجهٔ «اتصال اوکی» فقط در بنر موقتِ
+         همین کادر نمایش داده می‌شود و آخرین خطای واقعی دست‌نخورده می‌ماند. */
+      if (r.status !== 'online') noteSyncError('diag', r.status || 'error', r.error || '', r);
       /* اول وضعیت پایه را بازنویسی کن، سپس خط «نتیجهٔ بررسی» را بالای آن بگذار تا پاک نشود. */
       if (el) window.ptfSyncDiagnosticsRefresh();
       if (el) el.insertAdjacentHTML('afterbegin', '<div style="margin:0 0 6px;padding:6px 8px;border-radius:8px;background:' +

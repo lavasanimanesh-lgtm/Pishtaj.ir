@@ -657,5 +657,15 @@
   "tools/control-valve-sizing/index.html": "2026-08-30",
   "tools/index.html": "2026-08-30",
   "tools/rfq-checklist/index.html": "2026-09-07",
-  "tracking/index.html": "2026-08-30"
+  "tracking/index.html": "2026-08-30",
+  "knowledge-center/control-valve-positioner-calibration.html": "2026-09-11",
+  "knowledge-center/dcs-vs-plc-difference.html": "2026-09-11",
+  "knowledge-center/dp-transmitter-level-flow.html": "2026-09-11",
+  "knowledge-center/erw-saw-lsaw-pipe-difference.html": "2026-09-11",
+  "knowledge-center/flowmeter-calibration-procedure.html": "2026-09-11",
+  "knowledge-center/kc-a335-p11-p22-p91-pipe.html": "2026-09-11",
+  "knowledge-center/kc-flange-pressure-class-150-600.html": "2026-09-11",
+  "knowledge-center/kc-gasket-spiralwound-rtj-selection.html": "2026-09-11",
+  "knowledge-center/magmeter-installation-earthing.html": "2026-09-11",
+  "knowledge-center/pipe-hydrotest-procedure.html": "2026-09-11"
 }
