@@ -10,12 +10,19 @@ _audit/SEO-WATCHLIST.json نگه می‌دارد و یک گزارش هفتگی m
   - تازه‌ترین _audit/GSC-SNAPSHOT-<date>.csv  (پیش‌فرض — خودکار پیدا می‌شود)
   - یا هر CSV دیگری با:  python3 _tools/seo_weekly_watchlist.py --csv مسیر.csv
     (خروجی gsc_import.py یا CSV سادهٔ «Top queries,Clicks,Impressions,CTR,Position»)
+  - یا مستقیم از API زندهٔ CRM (از وقتی GSC وصل است، دیگر اکسپورت CSV لازم نیست):
+      python3 _tools/seo_weekly_watchlist.py --live
+    (توکن نشست CRM را با --token بدهید، یا متغیر PTF_CRM_TOKEN، یا فایل _tools/.ptf-crm-token)
 
 خروجی:
   - _audit/SEO-WATCHLIST.json        وضعیت تجمعی (history هر کلمه)
   - _audit/SEO-WEEKLY-<date>.md      گزارش «گیت پیشرفت» هفته
 
 کلمه‌ای که در اسنپ‌شات نباشد یعنی سایت در ۱۰۰ نتیجهٔ اول نیست → «بدون نمایش».
+
+حالت --live داده را از action=overview در api/gsc.php می‌گیرد (همان داده‌ای که پنل
+CRM نشان می‌دهد) و بدون نوشتن CSV جدید فقط state و گزارش هفتگی را به‌روز می‌کند؛
+بنابراین اسنپ‌شات‌های آرشیوی _audit و قراردادهای tester647 دست‌نخورده می‌مانند.
 """
 from __future__ import annotations
 
@@ -25,6 +32,9 @@ import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import date
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -122,30 +132,134 @@ def load_state():
     return {'updated': None, 'keywords': {}}
 
 
+# ── حالت زنده (action=overview در api/gsc.php) ────────────────────────────────
+TOKEN_FILE = os.path.join(ROOT, '_tools', '.ptf-crm-token')
+
+
+def resolve_token(cli_token, env=None):
+    """ترتیب اولویت توکن نشست CRM: --token > PTF_CRM_TOKEN > _tools/.ptf-crm-token"""
+    if cli_token:
+        return cli_token.strip()
+    if env is None:
+        env = os.environ
+    v = (env.get('PTF_CRM_TOKEN') or '').strip()
+    if v:
+        return v
+    if os.path.exists(TOKEN_FILE):
+        try:
+            with open(TOKEN_FILE, encoding='utf-8') as f:
+                t = f.read().strip()
+                if t:
+                    return t.splitlines()[0].strip()
+        except OSError:
+            pass
+    return None
+
+
+def overview_rows(overview):
+    """تبدیل خروجی overview (فهرست queries) به همان قالب rows خوانده‌شده از CSV."""
+    rows = {}
+    for r in (overview or {}).get('queries') or []:
+        if not isinstance(r, dict):
+            continue
+        q = norm_query(r.get('q'))
+        if not q:
+            continue
+        rows[q] = {
+            'clicks': to_num(r.get('clicks')),
+            'impressions': to_num(r.get('impressions')),
+            'position': to_num(r.get('position')),
+        }
+    return rows
+
+
+def fetch_live(base, token, days=90):
+    """گرفتن دادهٔ زنده از api/gsc.php (action=overview) با توکن نشست CRM.
+    برمی‌گرداند (rows, err) — در موفقیت err=None؛ در خطا rows=None و err متن فارسی."""
+    url = base.rstrip('/') + '/api/gsc.php?' + urllib.parse.urlencode(
+        {'action': 'overview', 'days': days})
+    req = urllib.request.Request(url, headers={
+        'X-CRM-Token': token,
+        'User-Agent': 'ptf-seo-weekly-watchlist/1.0',
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            raw = resp.read().decode('utf-8')
+    except urllib.error.HTTPError as e:
+        body = ''
+        try:
+            body = e.read().decode('utf-8', 'replace')
+        except Exception:  # noqa: BLE001
+            pass
+        # اگر بدنه JSON با کلید error باشد، پیام تمیزتر بده
+        try:
+            j = json.loads(body)
+            if isinstance(j, dict) and j.get('error'):
+                return None, f'API: {j["error"]} (HTTP {e.code})'
+        except json.JSONDecodeError:
+            pass
+        return None, f'HTTP {e.code}: {body[:300]}'
+    except (urllib.error.URLError, OSError) as e:
+        return None, f'خطای شبکه: {e}'
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None, 'پاسخ سرور JSON نبود (احتمالاً 500 — فایل تنظیمات GSC روی هاست را چک کنید).'
+    if not isinstance(data, dict) or not data.get('ok'):
+        err = data.get('error', 'ok=false') if isinstance(data, dict) else 'پاسخ نامعتبر'
+        return None, f'API: {err}'
+    return overview_rows(data), None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--csv', help='مسیر CSV ورودی (پیش‌فرض: تازه‌ترین اسنپ‌شات)')
+    ap.add_argument('--live', action='store_true', help='گرفتن مستقیم از API زندهٔ CRM (action=overview)')
+    ap.add_argument('--base', default='https://pishtaj.ir', help='آدرس پایهٔ سایت برای --live')
+    ap.add_argument('--token', help='توکن نشست CRM (یا PTF_CRM_TOKEN یا _tools/.ptf-crm-token)')
+    ap.add_argument('--days', type=int, default=90, help='بازهٔ روز برای --live (سرور در ۷–۱۸۰ می‌گیرد)')
     ap.add_argument('--date', help='برچسب تاریخ (پیش‌فرض: امروز)')
     args = ap.parse_args()
 
-    csv_path = args.csv or latest_snapshot()
-    if not csv_path:
-        print('❌ هیچ اسنپ‌شات GSC-SNAPSHOT-*.csv در _audit نیست؛ خروجی CSV سرچ کنسول را بدهید.')
-        sys.exit(1)
-    if not os.path.exists(csv_path):
-        print(f'❌ فایل یافت نشد: {csv_path}')
-        sys.exit(1)
-
     today = args.date or date.today().isoformat()
-    rows = read_rows(csv_path)
+
+    if args.live:
+        token = resolve_token(args.token)
+        if not token:
+            print('❌ برای حالت زنده، توکن نشست CRM لازم است (عمر نشست ۲۴ ساعت).')
+            print('   یکی از این‌ها را بدهید:')
+            print('     --token <توکن>')
+            print('     متغیر محیطی PTF_CRM_TOKEN')
+            print('     فایل _tools/.ptf-crm-token (خط اول = توکن)')
+            print('   گرفتن توکن: در CRM وارد شوید → DevTools → Network → درخواست api/gsc.php → هدر X-CRM-Token.')
+            print('   یا بدون توکن از CSV استفاده کنید:  python3 _tools/seo_weekly_watchlist.py --csv مسیر.csv')
+            sys.exit(1)
+        rows, err = fetch_live(args.base, token, args.days)
+        if err is not None:
+            print('❌ گرفتن دادهٔ زنده ناموفق بود: ' + err)
+            print('   اگر توکن منقضی شده، دوباره از مرورگر بردارید (عمر ۲۴ ساعت) یا از CSV استفاده کنید.')
+            sys.exit(1)
+        source_label = f'live overview از {args.base} ({args.days} روز)'
+        print(f'📡 دادهٔ زنده از {args.base} دریافت شد ({len(rows)} کوئری).')
+    else:
+        csv_path = args.csv or latest_snapshot()
+        if not csv_path:
+            print('❌ هیچ اسنپ‌شات GSC-SNAPSHOT-*.csv در _audit نیست؛ خروجی CSV سرچ کنسول را بدهید یا --live بزنید.')
+            sys.exit(1)
+        if not os.path.exists(csv_path):
+            print(f'❌ فایل یافت نشد: {csv_path}')
+            sys.exit(1)
+        rows = read_rows(csv_path)
+        source_label = '_audit/' + os.path.basename(csv_path)
+
     state = load_state()
     state['updated'] = today
-    state['source'] = os.path.basename(csv_path)
+    state['source'] = source_label
 
     lines = []
     lines.append('# گیت پیشرفت سئو — ' + today)
     lines.append('')
-    lines.append(f'**منبع داده:** `_audit/{os.path.basename(csv_path)}`')
+    lines.append('**منبع داده:** ' + source_label)
     lines.append('')
     lines.append('| کلمهٔ هدف | صفحه | نمایش | کلیک | جایگاه | روند نسبت به قبل |')
     lines.append('|---|---|---|---|---|---|')

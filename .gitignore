@@ -34,4 +34,7 @@ sms-config.php
 api/gsc-config.php
 crm/data/gsc-token.json
 crm/data/gsc-cache.json
+
+# توکن نشست CRM برای ابزارهای آفلاین (--live در seo_weekly_watchlist.py)
+_tools/.ptf-crm-token
 node_modules/
