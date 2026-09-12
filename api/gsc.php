@@ -1043,6 +1043,11 @@ switch ($action) {
                 'crawled'  => (string)($st['crawled'] ?? ''),
                 'error'    => (string)($st['error'] ?? ''),
                 'checkedAt'=> (string)($st['checkedAt'] ?? ''),
+                /* v34.38.20 (INDEX-TRACKER-REQUEST-LINK): پیوندِ مستقیمِ «درخواست ایندکس»
+                   همان نشانی در سرچ کنسول — تا برای هر ردیفِ ایندکس‌نشده دکمهٔ مستقیم در
+                   UI باشد (Indexing API عمومی برای این صفحات وجود ندارد؛ این پیوند کاربر را
+                   دقیقاً به صفحهٔ بازرسی می‌برد تا Request Indexing را بزند). */
+                'inspectLink' => gsc_inspect_link((string)$cfg['site_url'], $url),
             );
         }
         usort($pendingEntries, function ($a, $b) {
