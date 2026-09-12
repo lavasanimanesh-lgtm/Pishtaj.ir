@@ -1566,26 +1566,53 @@
   window.renderRfqPending = function () {
     var el = document.getElementById('rfqPendWrap');
     if (!el) return;
-    var pend = siteRfqs().filter(function (r) { return r.status === 'pending'; });
-    if (!pend.length) { el.innerHTML = ''; return; }
-    var h = '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:14px;padding:14px;margin-bottom:16px">' +
-      '<h4 style="margin:0 0 10px;font-size:13.5px;color:#1d4ed8">🌐 استعلام‌های ثبت‌شده از سایت — در انتظار تایید مدیران (' + pend.length + ')</h4>' +
-      '<div class="tb2"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>تماس</th><th>حوزه</th><th>شرح</th><th>تاریخ</th><th>عملیات</th></tr></thead><tbody>';
-    pend.forEach(function (r) {
-      var pendingAtt = typeof window.ptfRfqAttachmentCount === 'function' ? window.ptfRfqAttachmentCount(r) : (r.attachment ? 1 : 0);
-      var pendingAttBadge = pendingAtt ? '<span class="bd" style="background:#ede9fe;color:#6d28d9">📎 ' + pendingAtt + ' ضمیمه</span>' : '<span class="bd" style="background:#f1f5f9;color:#94a3b8">📎 بدون ضمیمه</span>';
-      h += '<tr><td><b>' + escP(r.code) + '</b> ' + pendingAttBadge + '</td><td>' + escP(r.company) + '<br><small style="color:#94a3b8">' + escP(r.contact || '') + '</small></td>' +
-        '<td style="direction:ltr;font-size:12px">' + escP(r.phone || '-') + '</td><td style="font-size:11px">' + escP(r.category || '-') + '</td>' +
-        '<td style="font-size:11px;max-width:220px">' + escP((r.message || '').slice(0, 120)) + '</td><td style="font-size:11px">' + escP(r.date || '-') + '</td><td>' +
-        /* v14.7 (US-380 AC1): جزئیات کامل — همه فیلدهای فرم سایت + پیوست */
-        '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#0e7490" onclick="rfqSiteDetail(\'' + ptfOnClickArg(r.code) + '\')">👁 جزئیات کامل</button> ' +
-        (isSenior()
-          ? '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="rfqApprove(\'' + ptfOnClickArg(r.code) + '\')">✅ تایید و ورود</button> ' +
-            '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="rfqReject(\'' + ptfOnClickArg(r.code) + '\')">✖ رد</button>'
-          : '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>') +
-        '</td></tr>';
-    });
-    el.innerHTML = h + '</tbody></table></div></div>';
+    var site = siteRfqs();
+    var pend = site.filter(function (r) { return r.status === 'pending'; });
+    /* v34.38.20 (RFQ-APPROVE-VANISH): درخواست‌هایی که در سایت approve شده‌اند ولی رکوردشان
+       هرگز وارد ptf_crm_rfqs نشده (شکست فرمان درج در نسخه‌های قبلی) نباید برای همیشه
+       ناپیدا بمانند. آنها جدا با دکمهٔ «ورود به چرخه» نمایش داده می‌شوند تا قابل بازیابی باشند. */
+    var imported = getData('ptf_crm_rfqs').map(function (x) { return x && x.cd; });
+    var orphan = site.filter(function (r) { return r.status !== 'pending' && imported.indexOf(r.code) < 0; });
+    if (!pend.length && !orphan.length) { el.innerHTML = ''; return; }
+    var h = '';
+    if (pend.length) {
+      h += '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:14px;padding:14px;margin-bottom:16px">' +
+        '<h4 style="margin:0 0 10px;font-size:13.5px;color:#1d4ed8">🌐 استعلام‌های ثبت‌شده از سایت — در انتظار تایید مدیران (' + pend.length + ')</h4>' +
+        '<div class="tb2"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>تماس</th><th>حوزه</th><th>شرح</th><th>تاریخ</th><th>عملیات</th></tr></thead><tbody>';
+      pend.forEach(function (r) {
+        var pendingAtt = typeof window.ptfRfqAttachmentCount === 'function' ? window.ptfRfqAttachmentCount(r) : (r.attachment ? 1 : 0);
+        var pendingAttBadge = pendingAtt ? '<span class="bd" style="background:#ede9fe;color:#6d28d9">📎 ' + pendingAtt + ' ضمیمه</span>' : '<span class="bd" style="background:#f1f5f9;color:#94a3b8">📎 بدون ضمیمه</span>';
+        h += '<tr><td><b>' + escP(r.code) + '</b> ' + pendingAttBadge + '</td><td>' + escP(r.company) + '<br><small style="color:#94a3b8">' + escP(r.contact || '') + '</small></td>' +
+          '<td style="direction:ltr;font-size:12px">' + escP(r.phone || '-') + '</td><td style="font-size:11px">' + escP(r.category || '-') + '</td>' +
+          '<td style="font-size:11px;max-width:220px">' + escP((r.message || '').slice(0, 120)) + '</td><td style="font-size:11px">' + escP(r.date || '-') + '</td><td>' +
+          /* v14.7 (US-380 AC1): جزئیات کامل — همه فیلدهای فرم سایت + پیوست */
+          '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#0e7490" onclick="rfqSiteDetail(\'' + ptfOnClickArg(r.code) + '\')">👁 جزئیات کامل</button> ' +
+          (isSenior()
+            ? '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="rfqApprove(\'' + ptfOnClickArg(r.code) + '\')">✅ تایید و ورود</button> ' +
+              '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="rfqReject(\'' + ptfOnClickArg(r.code) + '\')">✖ رد</button>'
+            : '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>') +
+          '</td></tr>';
+      });
+      h += '</tbody></table></div></div>';
+    }
+    if (orphan.length) {
+      h += '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:14px;padding:14px;margin-bottom:16px">' +
+        '<h4 style="margin:0 0 10px;font-size:13.5px;color:#92400e">⚠️ استعلام‌های تاییدشدهٔ سایت که هنوز وارد چرخه نشده‌اند (' + orphan.length + ')</h4>' +
+        '<div style="font-size:11.5px;color:#92400e;margin:0 0 10px">این درخواست‌ها قبلاً تایید شده‌اند اما رکوردشان در فهرست درخواست‌ها ثبت نشده است. با «ورود به چرخه» آنها را بازیابی کنید.</div>' +
+        '<div class="tb2"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>تماس</th><th>حوزه</th><th>تاریخ</th><th>عملیات</th></tr></thead><tbody>';
+      orphan.forEach(function (r) {
+        h += '<tr><td><b>' + escP(r.code) + '</b></td><td>' + escP(r.company) + '</td>' +
+          '<td style="direction:ltr;font-size:12px">' + escP(r.phone || '-') + '</td><td style="font-size:11px">' + escP(r.category || '-') + '</td>' +
+          '<td style="font-size:11px">' + escP(r.date || '-') + '</td><td>' +
+          '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#0e7490" onclick="rfqSiteDetail(\'' + ptfOnClickArg(r.code) + '\')">👁 جزئیات کامل</button> ' +
+          (isSenior()
+            ? '<button class="bt" style="padding:4px 10px;font-size:12px;background:#b45309" onclick="rfqApprove(\'' + ptfOnClickArg(r.code) + '\')">↩ ورود به چرخه</button>'
+            : '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>') +
+          '</td></tr>';
+      });
+      h += '</tbody></table></div></div>';
+    }
+    el.innerHTML = h;
   };
 
   /* ===== v14.7 (US-380 AC1): مودال جزئیات کامل درخواست سایت — همه فیلدهای ثبت‌شده + پیوست ===== */
@@ -1723,37 +1750,65 @@
     var cust = null;
     try { cust = rfqSiteEnsureCustomer(r); } catch (eC) {}
     var rfqs = getData('ptf_crm_rfqs');
-    if (!rfqs.some(function (x) { return x.cd === code; })) {
-      var siteAtt = siteAttachmentMeta(r.attachment);
-      var importedFiles = {};
-      if (siteAtt && siteAtt.cloud) importedFiles.oth = [{ key: siteAtt.key, name: siteAtt.name, size: siteAtt.size, mode: 'arvan', t: faDateTime(), source: 'site' }];
-      rfqs.unshift({
-        cd: code, co: r.company, custCd: cust ? cust.cd : '', con: r.contact || '', ph: r.phone || '', ca: r.category || 'سایر',
-        st: 'st1', stxt: 'مرحله ۱: دریافت اولیه', dt: new Date().toLocaleDateString('fa-IR'),
-        src: 'site', siteSubmittedAt: r.date || r.createdAt || '', siteSourceCode: r.code || code,
-        /* v14.7 + Sprint 283: metadata is preserved and a cloud object is added to normal CRM attachments. */
-        subj: r.subject || '', inqText: r.message || '', email: r.email || '',
-        msg: r.message || '', std: r.standard || '', vnd: r.vendors || '',
-        siteAttachment: r.attachment || '', files: importedFiles
+    /* v34.38.20 (RFQ-APPROVE-VANISH — گزارش کارفرما: «تایید زده ولی هیچ چیزی از درخواست
+       یافت نمی‌شود»): پیش از این، وضعیت سایت فوراً approved می‌شد و درخواست از صندوقِ
+       «در انتظار تایید» ناپدید می‌شد، در حالی که درج رکورد CRM (entity_upsert) هنوز
+       قطعی نشده بود. اگر آن فرمان رد می‌شد، رکورد فقط در نوشتنِ بی‌صدای محلی می‌ماند
+       و اولین pull سرور (که رکورد را نداشت) آن را می‌شست — «ثبت شد ولی نیست».
+       اکنون approve واقعی فقط پس از موفقیت درج رکورد اجرا می‌شود؛ در صورت شکست،
+       درخواست در صندوق می‌ماند و خطای دقیق نمایش داده می‌شود (نه ناپدید شدن بی‌صدا). */
+    var finishApprove = function () {
+      api('set_status', { type: 'rfq', code: code, status: 'approved', statusText: 'تایید شد — در حال بررسی فنی و تامین', by: curSession().name }, function () { syncServerInbox(); });
+      try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR4) {} /* v34.29.6: استعلام سایت تعیین‌وضع شد — کارت site_req بسته شود */
+      if (typeof audit === 'function') audit('استعلامات', 'تایید استعلام سایت: ' + r.company + (cust ? ' → مشتری ' + cust.cd : ''), code);
+      /* v14.7 (US-380 AC5): اعلان با لینک درخواست + اشاره به مشتری ساخته‌شده */
+      notify({ toRoles: SALES_ROLES, title: '📋 استعلام سایت «' + code + '» (' + r.company + ') تایید و وارد چرخه شد' + (cust ? ' — مشتری: ' + cust.cd : ''), kind: 'rfq_ok', channels: ['cart'], link: { panel: 'rfq' } });
+      renderRfq();
+      updateInboxBadge();
+      /* v34.0.20-alpha (فاز ۱۷): اطلاع‌رسانی پیامکی «ثبت درخواست» به مشتری — با ذکر شمارهٔ درخواست */
+      try {
+        var _rfqMob = (typeof normMob === 'function') ? normMob(r.phone || '') : String(r.phone || '').replace(/\D/g, '');
+        if (_rfqMob && typeof smsSendSingle === 'function') {
+          smsSendSingle(_rfqMob, 'پیشرو تجهیز فرتاک\nدرخواست شما با شمارهٔ ' + (code || '') + ' ثبت و در حال بررسی فنی و تامین است.\n021-46087679', null);
+          if (typeof addLog === 'function') try { addLog('📱 پیامک ثبت درخواست به ' + (r.company || '') + ' (' + _rfqMob + ') ارسال شد'); } catch (eS2) {}
+        }
+      } catch (eSms) {}
+      if (cust) alert('✅ درخواست تایید شد.\n\n🏢 مشتری «' + cust.co + '» (' + cust.cd + ')' + (cust.srcSite === code ? ' به‌صورت خودکار ساخته' : ' متصل') + ' شد — همه اطلاعات فرم سایت (رابط/تلفن/ایمیل/شرح/استاندارد/برندها' + (r.attachment ? '/پیوست' : '') + ') روی رکوردها نشست.');
+    };
+    /* رکورد قبلاً وارد چرخه شده (مثلاً تلاش دوبارهٔ تایید) — فقط وضعیت/اعلان‌ها قطعی شود. */
+    if (rfqs.some(function (x) { return x.cd === code; })) { finishApprove(); return; }
+    var siteAtt = siteAttachmentMeta(r.attachment);
+    var importedFiles = {};
+    if (siteAtt && siteAtt.cloud) importedFiles.oth = [{ key: siteAtt.key, name: siteAtt.name, size: siteAtt.size, mode: 'arvan', t: faDateTime(), source: 'site' }];
+    rfqs.unshift({
+      cd: code, co: r.company, custCd: cust ? cust.cd : '', con: r.contact || '', ph: r.phone || '', ca: r.category || 'سایر',
+      st: 'st1', stxt: 'مرحله ۱: دریافت اولیه', dt: new Date().toLocaleDateString('fa-IR'),
+      src: 'site', siteSubmittedAt: r.date || r.createdAt || '', siteSourceCode: r.code || code,
+      /* v14.7 + Sprint 283: metadata is preserved and a cloud object is added to normal CRM attachments. */
+      subj: r.subject || '', inqText: r.message || '', email: r.email || '',
+      msg: r.message || '', std: r.standard || '', vnd: r.vendors || '',
+      siteAttachment: r.attachment || '', files: importedFiles
+    });
+    var doneOnce = false;
+    var onImported = function (ok, errInfo) {
+      if (doneOnce) return;
+      doneOnce = true;
+      if (ok) { finishApprove(); return; }
+      /* درج رکورد قطعی نشد؛ درخواست را در صندوق نگه دار تا کاربر دوباره اقدام کند. */
+      if (typeof ptfToast === 'function') ptfToast('⛔ درخواست سایت هنوز وارد چرخه نشد — ' + (errInfo || 'درج رکورد روی سرور تأیید نشد') + '. دوباره «تایید و ورود» را بزنید.', 'warn');
+      renderRfq();
+    };
+    if (window.ptfEntitySaveCollection) {
+      var saveRes = window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, {
+        reason: 'site-approve',
+        cb: function (st) {
+          if (st && st.state === 'acked') onImported(true);
+          else onImported(false, (typeof window.ptfEntityCommandMessage === 'function') ? window.ptfEntityCommandMessage(st, 'ثبت درخواست سایت') : null);
+        }
       });
-      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
-    }
-    api('set_status', { type: 'rfq', code: code, status: 'approved', statusText: 'تایید شد — در حال بررسی فنی و تامین', by: curSession().name }, function () { syncServerInbox(); });
-    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR4) {} /* v34.29.6: استعلام سایت تعیین‌وضع شد — کارت site_req بسته شود */
-    if (typeof audit === 'function') audit('استعلامات', 'تایید استعلام سایت: ' + r.company + (cust ? ' → مشتری ' + cust.cd : ''), code);
-    /* v14.7 (US-380 AC5): اعلان با لینک درخواست + اشاره به مشتری ساخته‌شده */
-    notify({ toRoles: SALES_ROLES, title: '📋 استعلام سایت «' + code + '» (' + r.company + ') تایید و وارد چرخه شد' + (cust ? ' — مشتری: ' + cust.cd : ''), kind: 'rfq_ok', channels: ['cart'], link: { panel: 'rfq' } });
-    renderRfq();
-    updateInboxBadge();
-    /* v34.0.20-alpha (فاز ۱۷): اطلاع‌رسانی پیامکی «ثبت درخواست» به مشتری — با ذکر شمارهٔ درخواست */
-    try {
-      var _rfqMob = (typeof normMob === 'function') ? normMob(r.phone || '') : String(r.phone || '').replace(/\D/g, '');
-      if (_rfqMob && typeof smsSendSingle === 'function') {
-        smsSendSingle(_rfqMob, 'پیشرو تجهیز فرتاک\nدرخواست شما با شمارهٔ ' + (code || '') + ' ثبت و در حال بررسی فنی و تامین است.\n021-46087679', null);
-        if (typeof addLog === 'function') try { addLog('📱 پیامک ثبت درخواست به ' + (r.company || '') + ' (' + _rfqMob + ') ارسال شد'); } catch (eS2) {}
-      }
-    } catch (eSms) {}
-    if (cust) alert('✅ درخواست تایید شد.\n\n🏢 مشتری «' + cust.co + '» (' + cust.cd + ')' + (cust.srcSite === code ? ' به‌صورت خودکار ساخته' : ' متصل') + ' شد — همه اطلاعات فرم سایت (رابط/تلفن/ایمیل/شرح/استاندارد/برندها' + (r.attachment ? '/پیوست' : '') + ') روی رکوردها نشست.');
+      /* مسیر legacy (setData) هم یک نوشتن ماندگار + صف push است؛ approve می‌تواند ادامه یابد. */
+      if (saveRes && saveRes.mode === 'legacy') onImported(true);
+    } else setData('ptf_crm_rfqs', rfqs), onImported(true);
   };
 
   window.rfqReject = function (code) {
