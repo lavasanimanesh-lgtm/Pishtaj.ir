@@ -1572,7 +1572,11 @@
        هرگز وارد ptf_crm_rfqs نشده (شکست فرمان درج در نسخه‌های قبلی) نباید برای همیشه
        ناپیدا بمانند. آنها جدا با دکمهٔ «ورود به چرخه» نمایش داده می‌شوند تا قابل بازیابی باشند. */
     var imported = getData('ptf_crm_rfqs').map(function (x) { return x && x.cd; });
-    var orphan = site.filter(function (r) { return r.status !== 'pending' && imported.indexOf(r.code) < 0; });
+    /* v34.38.20 (ORPHAN-SCOPE-FIX): بخش orphan فقط مخصوص رکوردهای «تاییدشدهٔ سایت
+       ولی واردچرخه‌نشده» است. استعلام‌هایی که «رد/مختومه» شده‌اند به‌طور طراحی در
+       ptf_crm_rfqs قرار نمی‌گیرند، پس شرط status!=='pending' باعث می‌شد آنها برای
+       همیشه (با دکمهٔ دوباره‌تایید) در این بخش نمایش یابند. شرط درست: approved. */
+    var orphan = site.filter(function (r) { return r.status === 'approved' && imported.indexOf(r.code) < 0; });
     if (!pend.length && !orphan.length) { el.innerHTML = ''; return; }
     var h = '';
     if (pend.length) {

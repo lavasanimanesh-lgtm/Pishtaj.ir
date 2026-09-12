@@ -51,7 +51,9 @@ T('APPROVE: مسیر بدون ptfEntitySaveCollection همچنان setData + ا�
 
 /* ── ۲) صندوق: بازیابی تاییدشدهٔ واردچرخه‌نشده ── */
 T('PENDING: درخواست‌های approve‌شده‌ای که در ptf_crm_rfqs نیستند جدا تشخیص داده می‌شوند (orphan)',
-  PENDING.indexOf("r.status !== 'pending' && imported.indexOf(r.code) < 0") > -1 && PENDING.indexOf('var orphan =') > -1);
+  PENDING.indexOf("r.status === 'approved' && imported.indexOf(r.code) < 0") > -1 && PENDING.indexOf('var orphan =') > -1);
+T('PENDING (ORPHAN-SCOPE-FIX): استعلام‌های rejected (مختومه) در بخش orphan نمایش داده نمی‌شوند — شرط status!=="pending" دیگر استفاده نمی‌شود',
+  PENDING.indexOf("r.status !== 'pending' && imported.indexOf(r.code) < 0") < 0);
 T('PENDING: بخش بازیابی با عنوان تاییدشده-ولی-واردچرخه‌نشده و دکمهٔ «ورود به چرخه» دارد',
   PENDING.indexOf('استعلام‌های تاییدشدهٔ سایت که هنوز وارد چرخه نشده‌اند') > -1 && PENDING.indexOf('↩ ورود به چرخه') > -1 && PENDING.indexOf("onclick=\"rfqApprove(") > -1);
 T('PENDING: بخش قدیمی «در انتظار تایید» و دکمهٔ «تایید و ورود» دست‌نخورده است',
