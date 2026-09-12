@@ -2318,9 +2318,53 @@ try {
                 }
             }
         }
+        /* v34.38.20 (SH-SALARY-EDIT-PROPAGATE): ویرایش «مبلغ حقوق» سهامدار باید «حقوق تعهدیِ
+           سال مالی» را در همهٔ ماه‌های بازِ همان سهامدار به‌روز کند — نه فقط ماهِ جاریِ
+           reconcile (گزارش کارفرما: «حقوق را اصلاح کردم ولی حقوق تعهدی سال تغییر نکرد»).
+           فقط ردیف‌های فعالِ حقوق (sharetx نوع salary + هزینهٔ پیوندخورده) همان سهامدارِ
+           محدوده به مبلغ جدید پروفایل تغییر می‌کنند؛ ماهِ سال قفل‌شده رد می‌شود، هیچ
+           void/ساخت/حذفی رخ نمی‌دهد و هر تغییر در corrections ثبت می‌شود. */
+        $salaryAmountPropagated=0;$salaryAmountLockedSkipped=0;
+        if($includeSalaries&&$explicitEligibility&&!empty($body['applySalaryAmountAllMonths'])&&$scopeShareholder!==''){
+            $salaryAmountTarget=null;
+            foreach($shareholders as $sh){if(is_array($sh)&&(string)($sh['cd']??'')===$scopeShareholder){if(($sh['duty']??false)===true)$salaryAmountTarget=(int)round(sd_num($sh['salary']??0));break;}}
+            if($salaryAmountTarget!==null&&$salaryAmountTarget>0){
+                $txShByCd=[];foreach($sharetx as $tx){if(is_array($tx)){$txCd=trim((string)($tx['cd']??''));$txSh=trim((string)($tx['shCd']??''));if($txCd!==''&&$txSh!=='')$txShByCd[$txCd]=$txSh;}}
+                foreach($sharetx as $txIndex=>$tx){
+                    if(!is_array($tx)||strtolower(trim((string)($tx['type']??'')))!=='salary')continue;
+                    if((string)($tx['shCd']??'')!==$scopeShareholder)continue;
+                    if(!sd_active($tx))continue;
+                    $rowMonth=sd_norm_month($tx['month']??'');
+                    if($rowMonth!==''&&sd_is_locked($snaps,$rowMonth)){$salaryAmountLockedSkipped++;continue;}
+                    if((int)round(sd_num($tx['amt']??0))!==$salaryAmountTarget){
+                        $before=$tx;
+                        $sharetx[$txIndex]['amt']=$salaryAmountTarget;
+                        $sharetx[$txIndex]['updatedT']=$now;$sharetx[$txIndex]['updatedBy']=$user;
+                        $salaryAmountPropagated++;
+                        $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'shareholder_salary','entityId'=>$tx['cd']??'','kind'=>'salary_amount_propagate','beforeSnapshot'=>$before,'afterSnapshot'=>$sharetx[$txIndex],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
+                    }
+                }
+                foreach($opex as $oxIndex=>$ox){
+                    if(!is_array($ox)||empty($ox['shareholderSalary'])||!sd_active($ox))continue;
+                    $rowShCd='';
+                    if(preg_match('/^salary:(.+):(?:13|14)\d{2}\/\d{2}$/',trim((string)($ox['recurringKey']??'')),$mKey))$rowShCd=$mKey[1];
+                    if($rowShCd===''){$txCd=trim((string)($ox['shareTx']??''));if($txCd!==''&&isset($txShByCd[$txCd]))$rowShCd=$txShByCd[$txCd];}
+                    if($rowShCd!==$scopeShareholder)continue;
+                    $rowMonth=trim((string)($ox['month']??''));
+                    if($rowMonth!==''&&sd_is_locked($snaps,$rowMonth)){$salaryAmountLockedSkipped++;continue;}
+                    if((int)round(sd_num($ox['amt']??0))!==$salaryAmountTarget){
+                        $before=$ox;
+                        $opex[$oxIndex]['amt']=$salaryAmountTarget;
+                        $opex[$oxIndex]['updatedAtISO']=$now;$opex[$oxIndex]['updatedBy']=$user;
+                        $salaryAmountPropagated++;
+                        $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$ox['_opexRowId']??$ox['cd']??'','kind'=>'salary_amount_propagate','beforeSnapshot'=>$before,'afterSnapshot'=>$opex[$oxIndex],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
+                    }
+                }
+            }
+        }
         sd_ensure_recurring_opex_row_identities($opex);
         $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];if(count($corrections)>$correctionStart)$changes['ptf_crm_corrections']=$corrections;$responseChanges=['ptf_crm_opex'=>[]];if(sd_recurring_sharetx_projection_allowed($action))$responseChanges['ptf_crm_sharetx']=[];
-        $result=['month'=>$month,'created'=>$created,'updated'=>$updated,'voided'=>$voided,'conflicts'=>$conflicts,'suppressedTombstones'=>$suppressed,'invalidTemplates'=>$invalidTemplates,'includedSalaries'=>$includeSalaries,'includedTemplates'=>$includeTemplates,'scopeTemplate'=>$scopeTemplate,'possibleDuplicates'=>$possibleDuplicates,'salaryOfficialPropagated'=>$salaryOfficialPropagated,'salaryOfficialLockedSkipped'=>$salaryOfficialLockedSkipped,'mode'=>'server-authoritative-upsert','projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
+        $result=['month'=>$month,'created'=>$created,'updated'=>$updated,'voided'=>$voided,'conflicts'=>$conflicts,'suppressedTombstones'=>$suppressed,'invalidTemplates'=>$invalidTemplates,'includedSalaries'=>$includeSalaries,'includedTemplates'=>$includeTemplates,'scopeTemplate'=>$scopeTemplate,'possibleDuplicates'=>$possibleDuplicates,'salaryOfficialPropagated'=>$salaryOfficialPropagated,'salaryOfficialLockedSkipped'=>$salaryOfficialLockedSkipped,'salaryAmountPropagated'=>$salaryAmountPropagated,'salaryAmountLockedSkipped'=>$salaryAmountLockedSkipped,'mode'=>'server-authoritative-upsert','projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
     }
     elseif ($action === 'backfill_shareholder_salaries') {
         /* v34.38.19 (SH-SALARY-MONTH-GAP / F-4): جبران کنترل‌شدهٔ ماه‌های غایب حقوقِ

@@ -53,6 +53,7 @@
       month: month,
       explicitEligibility: options.explicitEligibility === true,
       scopeShareholder: options.scopeShareholder || '',
+      applySalaryAmountAllMonths: options.applySalaryAmountAllMonths === true,
       restoreKeys: restoreKeys,
       reason: options.reason || 'تطبیق صریح حقوق سهامداران از رابط کاربری',
       idempotencyKey: 'SH-SALARY|' + month + '|' + String(options.scopeShareholder || 'all') + '|' + Date.now()
@@ -418,6 +419,10 @@
         reconcileSalaryOnServer(month, {
           explicitEligibility: true,
           scopeShareholder: rec.cd,
+          /* v34.38.20 (SH-SALARY-EDIT-PROPAGATE): وقتی مبلغ حقوق تغییر کرده، مبلغ جدید باید
+             روی همهٔ ماه‌های بازِ حقوقِ این سهامدار منتشر شود تا «حقوق تعهدی سال مالی» یکجا
+             اصلاح شود (نه فقط ماه انتخابی پنل). */
+          applySalaryAmountAllMonths: prevSalary !== rec.salary,
           reason: 'تغییر صریح وضعیت/حقوق سهامدار ' + rec.cd
         }).then(function (state) {
           if (state && state.state === 'acked') {
@@ -465,15 +470,17 @@
     if (!canShare()) return;
     var s = shAll().filter(function (x) { return x && x.cd === cd; })[0]; if (!s) return;
     var draftCd = genCode('SHT');
-    ptfDialog({ title: 'برداشت / علی‌الحساب — ' + s.name, fields: [
+    ptfDialog({ title: 'برداشت / علی‌الحساب — ' + s.name, body: 'علی‌الحسابِ عادی از سهم سود کسر می‌شود؛ اگر این مبلغ علی‌الحسابِ <b>حقوق</b> است گزینهٔ «علی‌الحساب حقوق» را انتخاب کنید تا از «حقوق تعهدیِ پرداخت‌نشده» کسر شود.', fields: [
       { id: 'amt', label: 'مبلغ برداشت', type: 'number', required: true, dir: 'ltr' },
+      { id: 'salaryAdv', label: 'نوع برداشت', type: 'select', value: 'no', options: [{ v: 'no', lb: 'علی‌الحساب عادی (کسر از سهم سود)' }, { v: 'yes', lb: 'علی‌الحساب حقوق (کسر از حقوق تعهدی)' }] },
       { id: 'desc', label: 'شرح/شماره سند', required: true },
       { id: 'files', label: 'پیوست سند پرداخت (فیش، چک، رسید)', type: 'upload', uploadFolder: 'sharetx/' + draftCd }
     ], okText: 'ثبت برداشت', onOk: function (v) {
       var month = normMonth(window._shareMonth || faMonthNow()) || faMonthNow();
       if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ ثبت برداشت در آن سال مجاز نیست.'); return; }
       var amt = n(v.amt); if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
-      shareDrawOnServer(s, amt, v.desc, v.files || [], month, '', draftCd);
+      var salaryMonth = (v.salaryAdv === 'yes') ? month : '';
+      shareDrawOnServer(s, amt, v.desc, v.files || [], month, salaryMonth, draftCd);
     } });
   };
 
@@ -510,7 +517,7 @@
       var active = shareTxActive(x);
       var sign = !active ? '' : ((x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment' || x.type === 'call_due' || x.type === 'call_credit_use') ? '-' : '+');
       var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق legacy', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود', call_due: 'سهم فراخوان نقدینگی', call_pay: 'تأمین سهم فراخوان', call_over: 'مازاد تأمین (طلب از صندوق)', call_credit_use: 'تهاتر طلب با فراخوان', chair_in: 'تزریق شخصی رییس به صندوق', chair_out: 'تسویه طلب رییس از صندوق' }[x.type] || x.type;
-      if (x.type === 'draw' && x.paymentFor === 'salary') typeLb = 'پرداخت حقوق (draw)';
+      if (x.type === 'draw' && (x.paymentFor === 'salary' || !!x.salaryMonth)) typeLb = 'پرداخت حقوق (draw)';
       if (!active) typeLb += ' (باطل‌شده)';
       var nFiles = (x.files || []).length;
       var docs = '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();ptfShareTxAttachOpen(\'' + ptfOnClickArg(x.cd) + '\')">📎 ' + (nFiles ? (nFiles + ' سند') : 'افزودن سند') + '</button>';
