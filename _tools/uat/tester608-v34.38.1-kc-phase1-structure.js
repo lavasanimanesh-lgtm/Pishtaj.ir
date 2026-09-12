@@ -217,7 +217,7 @@ var manMiss = scope.filter(function (r) {
 });
 T('۶.۱ تراز lastmod نقشه و مانیفست', manMiss.length === 0, show(manMiss));
 
-T('۶.۲ دامنهٔ تستر همان ۳۹۲ مقالهٔ ایندکس‌پذیر است', scope.length === 392, String(scope.length));
+T('۶.۲ دامنهٔ تستر همان ۴۲۰ مقالهٔ ایندکس‌پذیر است', scope.length === 420, String(scope.length));
 
 console.log('\n' + p + ' PASS / ' + f + ' FAIL');
 process.exit(f ? 1 : 0);

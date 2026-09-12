@@ -110,7 +110,7 @@ T('BEHAV: پس از ایندکس‌شدن، از صفِ بعدی حذف می‌�
 })());
 
 var U = publicIndexable(ROOT);
-T('BEHAV: دنیای صفحاتِ ایندکس‌پذیر معقول است (≥ 590 و < 2000)', Object.keys(U).length >= 590 && Object.keys(U).length < 2000,
+T('BEHAV: دنیای صفحاتِ ایندکس‌پذیر معقول است (≥ 600 و < 2000)', Object.keys(U).length >= 600 && Object.keys(U).length < 2000,
   'count=' + Object.keys(U).length);
 T('BEHAV: صفحهٔ ایندکس‌پذیرِ نمونه در دنیا هست (about/)', Object.prototype.hasOwnProperty.call(U, 'https://pishtaj.ir/about/'));
 T('BEHAV: صفحهٔ noindex (search/) در دنیا نیست', !Object.prototype.hasOwnProperty.call(U, 'https://pishtaj.ir/search/'));

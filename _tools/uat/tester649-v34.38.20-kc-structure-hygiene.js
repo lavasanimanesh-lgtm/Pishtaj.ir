@@ -4,12 +4,12 @@
    ممیزیِ ۴۶۳ مقالهٔ مرکز دانش نشان داد ۵۹ مقالهٔ ایندکس‌پذیر «الگویی» بودند (مقدمهٔ قالبی +
    بخش‌های بایت‌به‌بایت تکراری: انواع و دسته‌بندی / نکات فنی و استانداردها / نتیجه‌گیری /
    راهنمای انتخاب تامین‌کننده / اهمیت مستندات فنی / اهمیت دانش فنی). اصلاح در سه دسته:
-   ۱) ۲۸ صفحه که خواهرِ غنیِ همان موضوع داشتند → noindex + canonical به صفحهٔ غنی (تجمیع)
-   ۲) ۶ صفحهٔ ترکیبی (الگو + محتوای واقعی) → حذفِ بخش‌های الگویی، حفظِ محتوای واقعی
-   ۳) ۲۵ صفحهٔ کاملاً الگوییِ بدونِ خواهرِ غنی → بازنویسی با محتوای تخصصیِ یکتا
-   این تستر قفل می‌کند: (الف) هیچ صفحهٔ ایندکس‌پذیرِ KC بخشِ الگویی نداشته باشد،
-   (ب) ۲۸ صفحهٔ تجمیع‌شده noindex و canonicalِ درست داشته و از سایت‌مپ حذف شده باشند،
-   (ج) ۳۱ صفحهٔ بازنویسی/پاکسازی‌شده ایندکس‌پذیر، بدونِ بخشِ الگویی، ≥۵۰۰ واژه و در سایت‌مپ باشند. */
+   ۱) ۶ صفحهٔ ترکیبی (الگو + محتوای واقعی) → حذفِ بخش‌های الگویی، حفظِ محتوای واقعی
+   ۲) ۲۵ صفحهٔ کاملاً الگوییِ بدونِ خواهرِ غنی → بازنویسی با محتوای تخصصیِ یکتا
+   ۳) ۲۸ صفحهٔ دیگر (که خواهرِ غنی داشتند) → بازنویسی با محتوای مستقلِ متمایز (نه تجمیع)
+   این تستر قفل می‌کند: (الف) هیچ مقالهٔ ایندکس‌پذیرِ KC بخشِ الگویی نداشته باشد،
+   (ب) هر ۵۹ صفحهٔ بازنویسی/پاکسازی‌شده ایندکس‌پذیر، canonical خود، بدونِ بخشِ الگویی،
+   ≥۵۰۰ واژه و در سایت‌مپ باشند. */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
 var KC = path.join(ROOT, 'knowledge-center');
@@ -66,51 +66,9 @@ function visibleWords(rel) {
   T('KC-GLOBAL: هیچ مقالهٔ ایندکس‌پذیر بخشِ الگویی ندارد', bad.length === 0, bad.join('؛ '));
 })();
 
-/* ── (ب) ۲۸ صفحهٔ تجمیع‌شده ── */
-var CONSOLIDATED = {
-  'asme-b31-3-process-piping-guide.html': 'asme-b31-3.html',
-  'cement-industry-supply-guide.html': 'kc-cement-industry-equipment.html',
-  'contactor-bimetal-guide.html': 'article-059.html',
-  'dpt.html': 'differential-pressure-transmitter-guide.html',
-  'gas-analyzer-industry-guide.html': 'o2-co2-h2s.html',
-  'hydrostatic-level-transmitter.html': 'article-006.html',
-  'incoterms-industrial-trade-guide.html': 'kc-incoterms-2024.html',
-  'industrial-cable-selection-guide.html': 'kc-industrial-power-cable-sizing.html',
-  'international-supply-contract-guide.html': 'kc-international-supply-contracts.html',
-  'petrochemical-industry-supply-guide.html': 'article-011.html',
-  'plc-types-industrial-guide.html': 'kc-plc.html',
-  'plug-valve-guide.html': 'plug-valve-lubricated-non-lubricated.html',
-  'pmi-testing-guide.html': 'pmi-positive-material-identification.html',
-  'power-distribution-transformer-guide.html': 'distribution-transformer.html',
-  'power-plant-industry-supply-guide.html': 'article-013.html',
-  'pressure-gauge-complete-guide.html': 'kc-pressure-gauge.html',
-  'protective-relay-guide.html': 'kc-ansi-50-51-87-21.html',
-  'safety-relief-valve-guide.html': 'psv-prv-api-520-api-526.html',
-  'sil-certification-instrument-guide.html': 'sil-iec-61508-iec-61511.html',
-  'sour-service-equipment-guide.html': 'nace-mr0175-sour-service-guide.html',
-  'steam-system-equipment-guide.html': 'article-016.html',
-  'steel-industry-supply-guide.html': 'kc-steel-industry-equipment.html',
-  'valve-actuator-types-guide.html': 'kc-actuator.html',
-  'valve-brands-comparison-guide.html': 'article-031.html',
-  'valve-sealing-guide.html': 'article-004.html',
-  'valve-seat-material-guide.html': 'kc-ball-valve-seat-material-selection.html',
-  'valve-testing-guide.html': 'shell-seat-closure.html',
-  'vfd-variable-frequency-drive-guide.html': 'kc-vfd.html'
-};
-var sitemap = read('sitemap-knowledge-center.xml');
-Object.keys(CONSOLIDATED).forEach(function (thin) {
-  var html = read('knowledge-center/' + thin);
-  var target = CONSOLIDATED[thin];
-  T('KC-CONSOLIDATE: ' + thin + ' — noindex', isNoindex(html));
-  var can = canonicalTarget(html) || '';
-  T('KC-CONSOLIDATE: ' + thin + ' — canonical → ' + target,
-    can.indexOf('/knowledge-center/' + target) > -1, can);
-  T('KC-CONSOLIDATE: ' + thin + ' — از سایت‌مپ حذف شد',
-    sitemap.indexOf('/knowledge-center/' + thin + '</loc>') === -1);
-});
-
-/* ── (ج) ۳۱ صفحهٔ بازنویسی/پاکسازی‌شده ── */
+/* ── (ب) ۵۹ صفحهٔ بازنویسی/پاکسازی‌شده (۲۵ بازنویسی + ۶ پاکسازی + ۲۸ محتوای مستقل) ── */
 var REWRITTEN = [
+  /* ۲۵ صفحهٔ بازنویسی‌شده (بدونِ خواهرِ غنی) */
   'api-602-small-gate-valve.html', 'astm-a105-vs-a234.html', 'astm-piping-standards-guide.html',
   'atex-iecex-hazardous-area-guide.html', 'control-valve-complete-guide.html',
   'corrosion-resistant-equipment-guide.html', 'diaphragm-seal-guide.html',
@@ -123,13 +81,30 @@ var REWRITTEN = [
   'rtd-vs-thermocouple-comparison.html', 'scada-rtu-system-guide.html',
   'shutdown-turnaround-industrial-guide.html', 'soft-starter-guide.html',
   'thermowell-guide.html', 'valve-body-material-selection.html',
+  /* ۶ صفحهٔ ترکیبیِ پاکسازی‌شده */
   'a53-pipe-specifications.html', 'flange-bolting-guide.html', 'flange-types-complete-guide.html',
-  'hydrostatic-test-pipe-guide.html', 'nde-inspection-pipe-flange.html', 'stainless-steel-pipe-guide.html'
+  'hydrostatic-test-pipe-guide.html', 'nde-inspection-pipe-flange.html', 'stainless-steel-pipe-guide.html',
+  /* ۲۸ صفحهٔ دارایِ خواهرِ غنی — حالا با محتوای مستقل */
+  'asme-b31-3-process-piping-guide.html', 'cement-industry-supply-guide.html', 'contactor-bimetal-guide.html',
+  'dpt.html', 'gas-analyzer-industry-guide.html', 'hydrostatic-level-transmitter.html',
+  'incoterms-industrial-trade-guide.html', 'industrial-cable-selection-guide.html',
+  'international-supply-contract-guide.html', 'petrochemical-industry-supply-guide.html',
+  'plc-types-industrial-guide.html', 'plug-valve-guide.html', 'pmi-testing-guide.html',
+  'power-distribution-transformer-guide.html', 'power-plant-industry-supply-guide.html',
+  'pressure-gauge-complete-guide.html', 'protective-relay-guide.html', 'safety-relief-valve-guide.html',
+  'sil-certification-instrument-guide.html', 'sour-service-equipment-guide.html',
+  'steam-system-equipment-guide.html', 'steel-industry-supply-guide.html',
+  'valve-actuator-types-guide.html', 'valve-brands-comparison-guide.html', 'valve-sealing-guide.html',
+  'valve-seat-material-guide.html', 'valve-testing-guide.html', 'vfd-variable-frequency-drive-guide.html'
 ];
+var sitemap = read('sitemap-knowledge-center.xml');
 REWRITTEN.forEach(function (rel) {
   var html = read('knowledge-center/' + rel);
   var w = visibleWords('knowledge-center/' + rel);
+  var can = canonicalTarget(html) || '';
   T('KC-REWRITE: ' + rel + ' — ایندکس‌پذیر است', !isNoindex(html));
+  T('KC-REWRITE: ' + rel + ' — canonical خود است',
+    can.indexOf('/knowledge-center/' + rel) > -1, can);
   T('KC-REWRITE: ' + rel + ' — بدونِ بخشِ الگویی', hasTemplateH2(html) === null, hasTemplateH2(html));
   T('KC-REWRITE: ' + rel + ' — محتوای ≥۵۰۰ واژه', w >= 500, 'words=' + w);
   T('KC-REWRITE: ' + rel + ' — در سایت‌مپ', sitemap.indexOf('/knowledge-center/' + rel + '</loc>') > -1);
