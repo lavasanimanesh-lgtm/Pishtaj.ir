@@ -170,9 +170,12 @@
       var d = dealOf(inv);
       if (!d) return; /* فاکتور بدون پرونده = از محاسبه حذف */
       var o = offersByNo[inv.offerNo] || {};
-      /* کلید گروه = شناسهٔ متعارف پرونده: در بایگانی cd اصلی در dealCd است تا اگر
-         هم‌زمان نسخهٔ زنده و بایگانی وجود داشت، در یک گروه یکسان جمع شوند (بدون دوباره‌شماری). */
-      var gkey = d.dealCd || d.cd || d._id || d.inqNo || inv.offerNo;
+      /* کلید گروه = شناسهٔ کسب‌وکاری پرونده (cd): در بایگانی cd اصلی در dealCd است تا اگر
+         هم‌زمان نسخهٔ زنده و بایگانی وجود داشت، در یک گروه یکسان جمع شوند (بدون دوباره‌شماری).
+         آگاهانه cd بر _id مقدم است — برخلاف قرارداد عمومی PTF.id (_id || cd) — چون مرجع
+         بایگانی (dealCd) فقط cd را نگه می‌دارد؛ بنابراین دو شاخه فقط با cd به هم می‌رسند. */
+      var gkey = d.dealCd || d.cd;
+      if (!gkey) gkey = d._id || d.inqNo || inv.offerNo;
       var g = groups[gkey] || (groups[gkey] = { deal: d, owner: ownerOf(o), invoices: [] });
       g.invoices.push(inv);
     });
