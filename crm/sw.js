@@ -98,6 +98,7 @@ var SHELL = [
   './ledger-report.js' + ASSET_QUERY,
   './data-quality.js' + ASSET_QUERY,
   './commission.js' + ASSET_QUERY,
+  './personnel.js' + ASSET_QUERY,
   './my-customers-filter.js' + ASSET_QUERY,
   './insights.js' + ASSET_QUERY,
   './myday.js' + ASSET_QUERY,

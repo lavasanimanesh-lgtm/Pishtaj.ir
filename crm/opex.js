@@ -180,22 +180,29 @@
     return !!(x && (x.shareholderSalary === true || x.shareTx || String(x.recurringKey || '').indexOf('salary:') === 0));
   }
   window.ptfIsShareholderSalaryOpex = isShareholderSalaryOpex;
+  /* v34.38.x (PERSONNEL-SALARY): حقوق پرسنل مانند حقوق سهامدار «تعهدی تا پرداخت» است —
+     هزینه در OPEX ثبت می‌شود ولی خروج نقدی واقعی فقط با پرداخت (ptf_crm_personnel_tx) است. */
+  function isPersonnelSalaryOpex(x) {
+    return !!(x && (x.personnelSalary === true || String(x.recurringKey || '').indexOf('psalary:') === 0));
+  }
+  window.ptfIsPersonnelSalaryOpex = isPersonnelSalaryOpex;
   // v30.2 FIN-WF-008: برای جلوگیری از دوباره‌شماری، fiscal فقط unlinked را می‌خواهد.
   // کارمزد فاکتور پوششی در پنل هزینه جاری دیده می‌شود ولی در سود سال از روی خود فاکتور
   // (coverCommission / coverNetBenefit) لحاظ می‌شود تا دوباره‌شماری نشود.
   window.ptfOpexSumFiscal = function(monthOrYear){
     var pre = String(monthOrYear || '');
-    var out = { total: 0, byCat: {}, totalLinked: 0, totalUnlinked: 0, totalSalary: 0, totalCash: 0 };
+    var out = { total: 0, byCat: {}, totalLinked: 0, totalUnlinked: 0, totalSalary: 0, totalPersonnelSalary: 0, totalCash: 0 };
     oAll().forEach(function (x) {
       if (!opexRowActive(x) || isCoverOpex(x)) return;
       if (pre && String(x.month || '').indexOf(pre) !== 0) return;
-      var amt = (+x.amt || 0), salary = isShareholderSalaryOpex(x);
+      var amt = (+x.amt || 0), salary = isShareholderSalaryOpex(x), psalary = isPersonnelSalaryOpex(x);
       out.byCat[x.cat] = (out.byCat[x.cat] || 0) + amt;
       if (salary) out.totalSalary += amt;
+      if (psalary) out.totalPersonnelSalary += amt;
       if (x.dealRef) out.totalLinked += amt;
       else {
         out.totalUnlinked += amt;
-        if (!salary) out.totalCash += amt;
+        if (!salary && !psalary) out.totalCash += amt;
       }
     });
     out.total = out.totalUnlinked;
@@ -696,6 +703,10 @@
       return;
     }
     if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'حذف هزینه جاری' }).ok) return;
+    if (rec.personnelSalary || String(rec.recurringKey || '').indexOf('psalary:') === 0) {
+      alert('این ردیف حقوق پرسنل است؛ برای حذف از تب «پرسنل» (گردش → ابطال) اقدام کنید.');
+      return;
+    }
     var recurring = !!(rec.recurringKey || rec.serverMaterialized || rec.shareholderSalary || rec.autoApplied || rec.tplId);
     if (recurring) {
       if (typeof window.ptfSalesDomainCommand !== 'function') { alert('⚠️ سرویس ابطال حسابرسی‌پذیر آماده نیست؛ برای جلوگیری از حذف ناامن، عملیات انجام نشد.'); return; }
@@ -763,6 +774,10 @@
     if (!rec || !opexRowActive(rec)) return;
     if (rec.fromCoverInvoice || rec.coverInvoiceCd) {
       alert('این ردیف از فاکتور خرید پوششی ساخته شده است. مبلغ کارمزد را از همان فاکتور ویرایش کنید.');
+      return;
+    }
+    if (rec.personnelSalary || String(rec.recurringKey || '').indexOf('psalary:') === 0) {
+      alert('این ردیف حقوق پرسنل است؛ مبلغ/وضعیت را از تب «پرسنل» اصلاح کنید.');
       return;
     }
     if (rec.shareholderSalary || String(rec.recurringKey || '').indexOf('salary:') === 0) {
@@ -1204,6 +1219,7 @@
       var fileCount = (x.files || []).length;
       return '<div class="opex-row" data-opex-row-id="' + escP(x[OPEX_ROW_ID]) + '">' +
         '<span class="opex-row-copy"><b>' + fmtT(x.amt) + ' ریال</b> — ' + escP(x.cat) + (x.tplId ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;font-size:10px">🔁</span>' : '') +
+        (isPersonnelSalaryOpex(x) ? ' <span class="bd" style="background:#eef2ff;color:#3730a3;font-size:10px">حقوق پرسنل</span>' : '') +
         (x.dealRef ? ' <span class="bd" style="background:#ecfdf5;color:#166534;font-size:10px">📁 پرونده فروش</span>' : '') +
         (x.autoApplied ? ' <span class="bd" style="background:#e0f2fe;color:#0369a1;font-size:10px">🤖 خودکار</span>' : '') +
         (isCoverOpex(x) ? ' <span class="bd" style="background:#fff7ed;color:#c2410c;font-size:10px">از فاکتور پوششی</span>' : '') +
