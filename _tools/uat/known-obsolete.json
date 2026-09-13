@@ -2,6 +2,21 @@
  "note": "فهرست قرنطینهٔ بدهی تست — این تسترها حذف یا سبز اعلام نمی‌شوند؛ فقط از گیت قرمز جدا می‌شوند تا شکست واقعی گم نشود. هر ورودی باید دلیل و تاریخ داشته باشد و با اصلاح تستر از این فهرست خارج شود.",
  "contract": "run-all.js: هر شکست خارج از این فهرست ⇒ خروجی ۱ (گیت قرمز). هر ورودی این فهرست که سبز شود، هشدار خروج می‌گیرد.",
  "quarantined": {
+  "_tools/uat/tester10-sprint73.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester100-v182.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester101-v184.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
   "_tools/uat/tester103-v186.js": {
    "category": "flow-changed",
    "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
@@ -72,10 +87,20 @@
    "reason": "پین شمارهٔ نسخه/کش که در نسخه‌های بعد عمداً تغییر کرده است",
    "since": "2026-08-17"
   },
+  "_tools/uat/tester13-sprint76.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
   "_tools/uat/tester132-v216.js": {
    "category": "policy-changed",
    "reason": "قرارداد کسب‌وکاری بعداً با تصویب تغییر کرده (مثلاً مبنای پورسانت v34.5.35 و سود v34.5.38)",
    "since": "2026-08-17"
+  },
+  "_tools/uat/tester137-v220.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   },
   "_tools/uat/tester139-v258-llm.js": {
    "category": "ui-string-pin",
@@ -92,30 +117,95 @@
    "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
    "since": "2026-08-17"
   },
+  "_tools/uat/tester15-sprint78.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester173-v318-backup-coverage.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester179-v324-sync-auth-race.js": {
+   "category": "flow-changed",
+   "reason": "گردش احراز هویت/نشست در v34.8.45 بازطراحی شده (خروج نشست از localStorage + لایهٔ ptfAuth*) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester184-v329-startup-local-merge.js": {
+   "category": "flow-changed",
+   "reason": "گردش احراز هویت/نشست در v34.8.45 بازطراحی شده (خروج نشست از localStorage + لایهٔ ptfAuth*) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester186-avatar-delete-sync.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester187-offer-refprice.js": {
+   "category": "flow-changed",
+   "reason": "یکپارچگی ذخیره/بازنویسی offer در v34.38.x بازطراحی شده (2e800504)؛ تستر رفتار پیش از بازطراحی را پین کرده — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester190-dup-nag-bot-spam.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester197-letter-img-font.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester200-sms-auth-token.js": {
+   "category": "flow-changed",
+   "reason": "گردش احراز هویت/نشست در v34.8.45 بازطراحی شده (خروج نشست از localStorage + لایهٔ ptfAuth*) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester207-home-rfq-real-chain.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester208-sitemap-public-clean.js": {
+   "category": "flow-changed",
+   "reason": "crash: فایل/مسیر منسوخ (بازسازی sitemap 2026-08-31) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
   "_tools/uat/tester209-v3301-petty-combined-pdf.js": {
    "category": "ui-string-pin",
    "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
    "since": "2026-08-17"
+  },
+  "_tools/uat/tester209-web-metrics-foundation.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester211-seo-meta-foundation.js": {
+   "category": "ui-string-pin",
+   "reason": "پین meta/JSON-LD دوران پیش از بازسازی محتوا v34.38.20؛ وضعیت فعلی با _audit/seo_health_scan پوشش داده می‌شود — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester212-content-authority-schema.js": {
+   "category": "ui-string-pin",
+   "reason": "پین meta/JSON-LD دوران پیش از بازسازی محتوا v34.38.20؛ وضعیت فعلی با _audit/seo_health_scan پوشش داده می‌شود — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   },
   "_tools/uat/tester215-v3305-cheque-module.js": {
    "category": "flow-changed",
    "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
    "since": "2026-08-17"
   },
-  "_tools/uat/tester254-advanced-cv-finalization-backlog-doc.js": {
-   "category": "version-pin",
-   "reason": "پین شمارهٔ نسخه/کش که در نسخه‌های بعد عمداً تغییر کرده است",
-   "since": "2026-08-17"
+  "_tools/uat/tester220-public-interactions-operational.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   },
-  "_tools/uat/tester261-advanced-cv-gtm-sales-plan.js": {
-   "category": "version-pin",
-   "reason": "پین شمارهٔ نسخه/کش که در نسخه‌های بعد عمداً تغییر کرده است",
-   "since": "2026-08-17"
-  },
-  "_tools/uat/tester262-control-valve-dedicated-seo-landing.js": {
-   "category": "ui-string-pin",
-   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
-   "since": "2026-08-17"
+  "_tools/uat/tester273-finance-supplier-consistency-ui.js": {
+   "category": "flow-changed",
+   "reason": "ماژول حقوق/سهامدار در v34.38.14-20 بازطراحی شده (انتشار ماه‌به‌ماه + علی‌الحساب)؛ تستر رفتار پیش از بازطراحی را پین کرده — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   },
   "_tools/uat/tester275-fiscal-profit-and-minimal-icons.js": {
    "category": "ui-string-pin",
@@ -127,30 +217,215 @@
    "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
    "since": "2026-08-17"
   },
+  "_tools/uat/tester277-auth-token-session-stabilization.js": {
+   "category": "flow-changed",
+   "reason": "گردش احراز هویت/نشست در v34.8.45 بازطراحی شده (خروج نشست از localStorage + لایهٔ ptfAuth*) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester287-chqprint-module.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester288-cheque-party-recurring.js": {
+   "category": "flow-changed",
+   "reason": "ماژول حقوق/سهامدار در v34.38.14-20 بازطراحی شده (انتشار ماه‌به‌ماه + علی‌الحساب)؛ تستر رفتار پیش از بازطراحی را پین کرده — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
   "_tools/uat/tester291-hub-clean.js": {
    "category": "flow-changed",
    "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
    "since": "2026-08-17"
+  },
+  "_tools/uat/tester298-phase-b.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester299-idb-mirror.js": {
+   "category": "flow-changed",
+   "reason": "گردش احراز هویت/نشست در v34.8.45 بازطراحی شده (خروج نشست از localStorage + لایهٔ ptfAuth*) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester300-v34.0.4-alpha-phase1-fixes.js": {
+   "category": "flow-changed",
+   "reason": "یکپارچگی ذخیره/بازنویسی offer در v34.38.x بازطراحی شده (2e800504)؛ تستر رفتار پیش از بازطراحی را پین کرده — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester301-mysql-sync-wire.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester301-v34.0.5-alpha-fiscal-phase2.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester302-v34.0.6-alpha-deploy-hygiene.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester304-v34.0.8-alpha-profit-cover-salary.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester315-v34.0.20-alpha-customer-sms.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester317-v34.4.13-letter-rich-editor-signature-sync.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester329-v34.4.35-staging-rca.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester330-v34.4.36-inline-attachment-view.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester331-v34.4.37-entity-messenger-quick-links.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester332-v34.4.38-supplier-ledger-attachment-persistence.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester333-v34.4.39-whatsapp-native-deep-link.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester334-v34.4.40-iranian-messenger-web-phone-fallback.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester335-v34.4.41-semantic-pdf-default-filenames.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester336-v34.4.42-sync-false-unsaved-banner.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester337-v34.4.43-supplier-rfq-search-duplicate-guard.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester338-v34.4.44-inline-pdf-single-ledger-rfq-card.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester344-v34.4.50-dark-module-css.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester346-v34.4.52-opex-month-select.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester348-v34.4.54-finance-workflow-p0p2.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester349-v34.4.55-finance-workflow-p3.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   },
   "_tools/uat/tester35-sprint122.js": {
    "category": "policy-changed",
    "reason": "قرارداد کسب‌وکاری بعداً با تصویب تغییر کرده (مثلاً مبنای پورسانت v34.5.35 و سود v34.5.38)",
    "since": "2026-08-17"
   },
+  "_tools/uat/tester350-v34.4.56-finance-workflow-p4.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester355-v34.4.61-petty-report-sort-files.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester371-v34.4.77-nav-focus.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester372-v34.4.78-rfq-view-salesfile.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester375-v34.4.81-treasury-full-cash.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester378-v34.4.84-treasury-print.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester383-v34.4.89-chair-cash.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester385-v34.4.91-opex-future-cheque.js": {
+   "category": "flow-changed",
+   "reason": "crash روی قرارداد منسوخ (رفتار/مسیر در نسخه‌های بعد تغییر کرده) — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
   "_tools/uat/tester40-v1225.js": {
    "category": "ui-string-pin",
    "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
    "since": "2026-08-17"
+  },
+  "_tools/uat/tester41-golden-prompt.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   },
   "_tools/uat/tester41-v1230.js": {
    "category": "version-pin",
    "reason": "پین شمارهٔ نسخه/کش که در نسخه‌های بعد عمداً تغییر کرده است",
    "since": "2026-08-17"
   },
-  "_tools/uat/tester415-v34.7.10-mobile-customer-integrity.js": {
-   "category": "known-open",
-   "reason": "یافتهٔ باز واقعی: تطبیق پرونده با rootOfferId پس از fallback نسخهٔ v34.7.15 — در فاز G بازبینی می‌شود",
-   "since": "2026-08-13"
+  "_tools/uat/tester44-v124.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester46-v126.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester48-v128.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   },
   "_tools/uat/tester51-v131.js": {
    "category": "ui-string-pin",
@@ -181,6 +456,21 @@
    "category": "flow-changed",
    "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
    "since": "2026-08-17"
+  },
+  "_tools/uat/tester575-v34.29.3-prod-search-smartimg-vershield.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester577-v34.29.3-seo-guide.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
+  },
+  "_tools/uat/tester578-v34.29.3-cms-css-visibility.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   },
   "_tools/uat/tester58-v138.js": {
    "category": "ui-string-pin",
@@ -221,6 +511,11 @@
    "category": "flow-changed",
    "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
    "since": "2026-08-17"
+  },
+  "_tools/uat/tester69-v149.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   },
   "_tools/uat/tester7-sprint70.js": {
    "category": "flow-changed",
@@ -277,11 +572,6 @@
    "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
    "since": "2026-08-17"
   },
-  "_tools/uat/tester95-v177.js": {
-   "category": "flow-changed",
-   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
-   "since": "2026-08-17"
-  },
   "_tools/uat/tester96-v178.js": {
    "category": "flow-changed",
    "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
@@ -292,10 +582,10 @@
    "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
    "since": "2026-08-17"
   },
-  "_tools/uat/tester403-v35-sales-to-cash.js": {
-   "category": "known-open",
-   "reason": "ادعای قدیمی معماری v35؛ نیازمند بازنویسی در فاز G",
-   "since": "2026-08-13"
+  "_tools/uat/tester99-v181.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است — نیازمند بازنویسی در فاز G",
+   "since": "2026-09-12"
   }
  }
 }
