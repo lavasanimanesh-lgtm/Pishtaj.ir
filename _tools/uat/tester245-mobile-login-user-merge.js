@@ -19,9 +19,11 @@ T('users_sync برای بازیابی هش، existing users را از همه م�
 
 SECTION('Client mobile login fallback');
 T('doLogin وقتی users_get کاربر را نشان نداد direct auth_login را امتحان می‌کند', idx.indexOf('_directLogin') > -1 && idx.indexOf("../api/crm.php?action=auth_login") > -1 && idx.indexOf('users_get can be stale') > -1);
-T('direct auth_login در موفقیت token/session/local user را ذخیره می‌کند', idx.indexOf("localStorage.setItem('ptf_crm_token', _directLogin.token)") > -1 && idx.indexOf("curUsers.push({ username: u") > -1 && idx.indexOf('showCrm();') > -1);
+/* v34.8.45 (R5/T4-1b): ذخیرهٔ نشست از لایهٔ ptfAuthLoginWrite — مستقیم در localStorage نه */
+T('direct auth_login در موفقیت token/session/local user را ذخیره می‌کند (ptfAuthLoginWrite — لایهٔ نشست جدید v34.8.45)', idx.indexOf("ptfAuthLoginWrite(_directLogin.token,") > -1 && idx.indexOf("curUsers.push({ username: u") > -1 && idx.indexOf('showCrm();') > -1);
 T('پیام خطای قدیمی «نه در این مرورگر و نه روی سرور یافت نشد» حذف شده است', idx.indexOf('نه در این مرورگر و نه روی سرور یافت نشد') === -1);
-T('پیام جدید راهکار همگام‌سازی کاربران را به ادمین می‌گوید', idx.indexOf('همگام‌سازی کاربران') > -1 && idx.indexOf('احراز هویت مستقیم سرور') > -1);
+/* v34.38.x: پیام راهکار همگام‌سازی بازنویسی شده — راهنمای عملی (ورود ادمین از مرورگر اصلی / دکمهٔ 🔄 همگام‌سازی کاربران) */
+T('پیام جدید راهکار همگام‌سازی کاربران را به ادمین می‌گوید', idx.indexOf('همگام‌سازی کاربران') > -1 && idx.indexOf('هنوز کاربری روی سرور ثبت نشده') > -1);
 T('نسخه CRM و SW به v33.5.0 رسیده‌اند', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 
 DONE('tester245-mobile-login-user-merge');

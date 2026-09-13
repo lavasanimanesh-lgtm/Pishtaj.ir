@@ -81,7 +81,7 @@
     return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
       '<section id="ptfToolReportDrafts" style="background:#f8fafc;border:1px solid var(--brd);border-radius:16px;padding:14px;line-height:1.9">' +
       '<h4 style="margin:0 0 8px;color:#0f172a">کارتابل گزارش ابزارهای مهندسی</h4>' +
-      '<div style="font-size:12px;color:#64748b;margin-bottom:10px">اینجا draftهای قفل‌شده کنترل می‌شود؛ پس از approval، final gate و کنترل quota، گزارش نهایی انگلیسی HTML صادر و قابل چاپ/Save as PDF است. PDF باینری سمت سرور هنوز فعال نیست.</div>' +
+      '<div style="font-size:12px;color:#64748b;margin-bottom:10px">اینجا draftهای قفل‌شده کنترل می‌شود؛ پس از approval، final gate و کنترل quota، گزارش نهایی انگلیسی HTML صادر و قابل چاپ/Save as PDF است. PDF باینری سمت سرور با wkhtmltopdf (در صورت نصب روی هاست) به‌صورت خودکار در لحظهٔ صدور ساخته می‌شود.</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfToolReportDraftsLoad()">بازخوانی draftها</button></div>' +
       '<div id="trdStatus" style="font-size:12px;color:#64748b;margin-top:8px">برای مشاهده draftها بازخوانی انجام می‌شود...</div>' +
       '<div id="trdList" style="margin-top:10px"></div>' +
@@ -132,7 +132,7 @@
       var html = '<div class="md-b" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:920px;max-height:88vh;overflow:auto">' +
         '<h3>مشاهده draft گزارش ابزار</h3>' +
         '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Locked draft review. Final report is issued only by CRM approval/gate/quota.</div>' +
-        '<table class="tbl"><tbody>' + detailRows({ draftId: dr.draftId, licenseId: dr.licenseId, checksum: dr.checksum, status: dr.status, reviewStatus: ((dr.review||{}).status || ''), reviewNote: ((dr.review||{}).note || ''), reviewedBy: ((dr.review||{}).reviewedBy || ''), reviewedAt: ((dr.review||{}).reviewedAt || ''), finalGate: ((dr.finalGate||{}).readyForFinalPhase ? 'ready' : 'blocked'), gateCheckedAt: ((dr.finalGate||{}).checkedAt || ''), gateBlockers: ((dr.finalGate||{}).blockersCount || 0), engineeringStatus: ((dr.finalGate||{}).engineeringStatus || (dr.finalReport||{}).engineeringStatus || ''), engineeringCriticalCount: ((dr.finalGate||{}).engineeringCriticalCount || (dr.finalReport||{}).engineeringCriticalCount || 0), vendorStatus: ((dr.finalGate||{}).vendorStatus || (dr.finalReport||{}).vendorStatus || ''), vendorMissingCount: ((dr.finalGate||{}).vendorMissingCount || (dr.finalReport||{}).vendorMissingCount || 0), quotaAllowedToIssue: ((dr.quotaDryRun||{}).allowedToIssue ? 'true' : 'false'), quotaWouldConsume: ((dr.quotaDryRun||{}).wouldConsume ? 'true' : 'false'), quotaRemaining: ((dr.quotaDryRun||{}).remainingReports == null ? '' : (dr.quotaDryRun||{}).remainingReports), finalReportNo: f.reportNo || '', finalIssuedAt: f.issuedAt || '', htmlChecksum: f.htmlChecksum || '', final: f.final ? 'true' : 'false', pdfReady: f.browserPrintPdf ? 'true' : 'false', serverPdf: 'false', download: f.final ? 'true' : 'false' }) + '</tbody></table>' +
+        '<table class="tbl"><tbody>' + detailRows({ draftId: dr.draftId, licenseId: dr.licenseId, checksum: dr.checksum, status: dr.status, reviewStatus: ((dr.review||{}).status || ''), reviewNote: ((dr.review||{}).note || ''), reviewedBy: ((dr.review||{}).reviewedBy || ''), reviewedAt: ((dr.review||{}).reviewedAt || ''), finalGate: ((dr.finalGate||{}).readyForFinalPhase ? 'ready' : 'blocked'), gateCheckedAt: ((dr.finalGate||{}).checkedAt || ''), gateBlockers: ((dr.finalGate||{}).blockersCount || 0), engineeringStatus: ((dr.finalGate||{}).engineeringStatus || (dr.finalReport||{}).engineeringStatus || ''), engineeringCriticalCount: ((dr.finalGate||{}).engineeringCriticalCount || (dr.finalReport||{}).engineeringCriticalCount || 0), vendorStatus: ((dr.finalGate||{}).vendorStatus || (dr.finalReport||{}).vendorStatus || ''), vendorMissingCount: ((dr.finalGate||{}).vendorMissingCount || (dr.finalReport||{}).vendorMissingCount || 0), quotaAllowedToIssue: ((dr.quotaDryRun||{}).allowedToIssue ? 'true' : 'false'), quotaWouldConsume: ((dr.quotaDryRun||{}).wouldConsume ? 'true' : 'false'), quotaRemaining: ((dr.quotaDryRun||{}).remainingReports == null ? '' : (dr.quotaDryRun||{}).remainingReports), finalReportNo: f.reportNo || '', finalIssuedAt: f.issuedAt || '', htmlChecksum: f.htmlChecksum || '', final: f.final ? 'true' : 'false', pdfReady: f.browserPrintPdf ? 'true' : 'false', serverPdf: f.serverPdf ? 'true' : 'false', pdfSize: f.pdfSize == null ? '' : f.pdfSize, pdfChecksum: f.pdfChecksum || '', download: f.final ? 'true' : 'false' }) + '</tbody></table>' +
         '<h4>Project</h4><table class="tbl"><tbody>' + detailRows(project) + '</tbody></table>' +
         '<h4>Cases</h4><table class="tbl"><thead><tr><th>Case</th><th>Cv</th><th>Cavitation</th><th>Noise</th><th>Vin</th><th>Vout</th></tr></thead><tbody>' + cases + '</tbody></table>' +
         '<h4>Readiness / Missing</h4><ul>' + missing + '</ul>' +
@@ -150,8 +150,8 @@
       var g = d.gate || {}, blockers = g.blockers || [], warnings = g.warnings || [];
       var html = '<div class="md-b" style="display:grid;z-index:3100" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:700px;max-height:86vh;overflow:auto">' +
         '<h3>Final readiness gate</h3>' +
-        '<div style="font-size:12px;color:#64748b;margin-bottom:8px">اگر gate آماده باشد، دکمه Issue final می‌تواند گزارش نهایی HTML را صادر کند. PDF باینری سمت سرور فعال نیست.</div>' +
-        '<table class="tbl"><tbody>' + detailRows({ readyForFinalPhase: g.readyForFinalPhase ? 'true' : 'false', finalReportGenerationEnabled: g.finalReportGenerationEnabled ? 'true' : 'false', pdfReady: g.pdfReady ? 'true' : 'false', serverPdfEnabled: 'false', downloadEnabled: g.downloadEnabled ? 'true' : 'false', engineeringStatus: (g.engineeringValidation || {}).overallStatus || '', engineeringCriticalCount: (g.engineeringValidation || {}).criticalCount || 0, engineeringReviewCount: (g.engineeringValidation || {}).reviewCount || 0, vendorStatus: (g.vendorValidation || {}).overallStatus || '', vendorMissingCount: (g.vendorValidation || {}).missingCount || 0, vendorCertificationRequired: (g.vendorValidation || {}).certificationRequired ? 'true' : 'false', quotaConsumed: 'false', checkedAt: g.checkedAt || '', checkedBy: g.checkedBy || '', serverChecksum: g.serverChecksum || '', nextAllowedAction: g.nextAllowedAction || '' }) + '</tbody></table>' +
+        '<div style="font-size:12px;color:#64748b;margin-bottom:8px">اگر gate آماده باشد، دکمه Issue final گزارش نهایی HTML را صادر می‌کند و PDF باینری سمت سرور را (در صورت نصب بودن wkhtmltopdf روی هاست) می‌سازد.</div>' +
+        '<table class="tbl"><tbody>' + detailRows({ readyForFinalPhase: g.readyForFinalPhase ? 'true' : 'false', finalReportGenerationEnabled: g.finalReportGenerationEnabled ? 'true' : 'false', pdfReady: g.pdfReady ? 'true' : 'false', serverPdfEnabled: g.serverPdfEnabled ? 'true' : 'false', downloadEnabled: g.downloadEnabled ? 'true' : 'false', engineeringStatus: (g.engineeringValidation || {}).overallStatus || '', engineeringCriticalCount: (g.engineeringValidation || {}).criticalCount || 0, engineeringReviewCount: (g.engineeringValidation || {}).reviewCount || 0, vendorStatus: (g.vendorValidation || {}).overallStatus || '', vendorMissingCount: (g.vendorValidation || {}).missingCount || 0, vendorCertificationRequired: (g.vendorValidation || {}).certificationRequired ? 'true' : 'false', quotaConsumed: 'false', checkedAt: g.checkedAt || '', checkedBy: g.checkedBy || '', serverChecksum: g.serverChecksum || '', nextAllowedAction: g.nextAllowedAction || '' }) + '</tbody></table>' +
         '<h4>Engineering validation</h4><ul>' + listHtml(((g.engineeringValidation || {}).items || []).map(function(it){ return (it.severity || '') + ' — ' + (it.area || '') + ': ' + (it.note || ''); }), 'No engineering validation item.') + '</ul>' +
         '<h4>Vendor data validation</h4><ul>' + listHtml(((g.vendorValidation || {}).items || []).map(function(it){ return (it.status || '') + ' — ' + (it.field || '') + ': ' + (it.note || ''); }), 'No vendor validation item.') + '</ul>' +
         '<h4>Blockers</h4><ul>' + listHtml(blockers, 'No blocker for final phase readiness.') + '</ul>' +
@@ -206,11 +206,21 @@
 
   function openFinalModal(d) {
     var f = d.finalReport || {}, html = d.html || '<div>No final report HTML returned.</div>';
+    var draftId = ((d.draft || {}).draftId) || '';
     window.ptfToolReportDraftLastFinalHtml = html;
+    window.ptfToolReportDraftLastFinalDraftId = draftId;
+    window.ptfToolReportDraftLastFinalNo = f.reportNo || '';
+    var hasServerPdf = !!(f.serverPdf && f.reportNo);
+    var serverPdfLine = hasServerPdf
+      ? 'Server PDF: <b>Yes</b> (' + esc(f.pdfSize == null ? '' : f.pdfSize + ' bytes') + ', sha256 <span dir="ltr">' + esc((f.pdfChecksum || '').slice(0, 12) + '…') + '</span>)'
+      : 'Server PDF: No (Browser PDF: Print / Save as PDF)';
+    var pdfButtons = hasServerPdf
+      ? '<button class="bt bt-o" style="color:#047857" onclick="ptfToolReportDraftDownloadServerPdf()">⬇️ دانلود PDF (سروری)</button>'
+      : '<button class="bt bt-o" style="color:#0e7490" onclick="ptfToolReportDraftGenerateServerPdf()">📄 تولید PDF سروری (wkhtmltopdf)</button>';
     var modal = '<div class="md-b" style="display:grid;z-index:3400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:1060px;max-height:92vh;overflow:auto">' +
       '<h3>Final HTML report</h3>' +
-      '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Report No: <span dir="ltr">' + esc(f.reportNo || '') + '</span> | htmlChecksum: <span dir="ltr">' + esc(f.htmlChecksum || '') + '</span> | Engineering: ' + esc(f.engineeringStatus || '') + ' | Vendor: ' + esc(f.vendorStatus || '') + ' | Server PDF: No | Browser PDF: Print / Save as PDF</div>' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="bt bt-o" onclick="ptfToolReportDraftOpenFinalWindow()">باز کردن/چاپ گزارش</button><button class="bt bt-o" onclick="ptfToolReportDraftDownloadFinalHtml(\'' + esc(f.reportNo || 'PTF-CV-REPORT') + '\')">دانلود HTML گزارش</button></div>' +
+      '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Report No: <span dir="ltr">' + esc(f.reportNo || '') + '</span> | htmlChecksum: <span dir="ltr">' + esc(f.htmlChecksum || '') + '</span> | Engineering: ' + esc(f.engineeringStatus || '') + ' | Vendor: ' + esc(f.vendorStatus || '') + ' | ' + serverPdfLine + '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="bt bt-o" onclick="ptfToolReportDraftOpenFinalWindow()">باز کردن/چاپ گزارش</button><button class="bt bt-o" onclick="ptfToolReportDraftDownloadFinalHtml(\'' + esc(f.reportNo || 'PTF-CV-REPORT') + '\')">دانلود HTML گزارش</button>' + pdfButtons + '</div>' +
       '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;direction:ltr;text-align:left;max-height:62vh;overflow:auto">' + html + '</div>' +
       '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div>' +
       '</div></div>';
@@ -264,6 +274,48 @@
     document.body.appendChild(a);
     a.click();
     setTimeout(function () { try { URL.revokeObjectURL(url); a.remove(); } catch (e) {} }, 1500);
+  };
+
+  /* v34.38.21: PDF باینری سمت سرور — تولید (idempotent) + دانلود با احراز هویت */
+  window.ptfToolReportDraftGenerateServerPdf = function (draftId) {
+    if (!roleOk()) return;
+    draftId = draftId || window.ptfToolReportDraftLastFinalDraftId || '';
+    if (!draftId) return;
+    api('admin_report_final_pdf_generate', { draftId: draftId }, function (d) {
+      if (!d || !d.ok) {
+        alert('PDF سروری ساخته نشد: ' + ((d && d.error) || 'خطا') + ((d && d.message) ? '\n' + d.message : ''));
+        return;
+      }
+      try { if (typeof ptfToast === 'function') ptfToast('PDF سروری ساخته شد', 'ok'); } catch (eT) {}
+      ptfToolReportDraftFinalGet(draftId);
+    });
+  };
+
+  window.ptfToolReportDraftDownloadServerPdf = function (draftId) {
+    if (!roleOk()) return;
+    draftId = draftId || window.ptfToolReportDraftLastFinalDraftId || '';
+    if (!draftId) return;
+    fetch(API + '?action=' + encodeURIComponent('admin_report_final_pdf_get'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CRM-Token': token(), 'X-CRM-Role': (typeof curRole === 'function' ? curRole() : '') },
+      body: JSON.stringify({ draftId: draftId }),
+      cache: 'no-store'
+    }).then(function (r) {
+      if (!r.ok) {
+        return r.json().then(function (j) { throw new Error((j && j.error) || ('HTTP ' + r.status)); }, function () { throw new Error('HTTP ' + r.status); });
+      }
+      return r.blob();
+    }).then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = String(window.ptfToolReportDraftLastFinalNo || 'PTF-CV-FINAL-REPORT').replace(/[^A-Za-z0-9_.-]/g, '_') + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { try { URL.revokeObjectURL(url); a.remove(); } catch (e) {} }, 1500);
+    }).catch(function (e) {
+      alert('دانلود PDF انجام نشد: ' + (e && e.message ? e.message : e));
+    });
   };
 
   window.ptfToolReportDraftSetStatus = function (draftId, status) {

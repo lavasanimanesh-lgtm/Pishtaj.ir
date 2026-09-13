@@ -826,7 +826,7 @@ function tools_build_final_gate($draft, $adminUser = '') {
         'readyForFinalPhase' => $ready,
         'finalReportGenerationEnabled' => $ready,
         'pdfReady' => $ready,
-        'serverPdfEnabled' => false,
+        'serverPdfEnabled' => tools_wkhtmltopdf_bin() !== false,
         'downloadEnabled' => $ready,
         'quotaConsumed' => false,
         'quotaExempt' => $quotaExempt,
@@ -871,11 +871,11 @@ function tools_build_quota_dry_run($draft, $adminUser = '') {
         'quotaAfter' => ['usedReports' => $afterUsed, 'maxReports' => $max, 'remainingReports' => $afterRemaining],
         'reportCost' => $quotaExempt ? 0 : 1,
         'blockers' => array_values(array_unique($blockers)),
-        'warnings' => ['Dry-run only: report quota is not decremented here.', 'Actual quota handling happens only inside admin_report_final_issue.', 'Server-side binary PDF remains disabled; final HTML is browser print/PDF-ready.'],
+        'warnings' => ['Dry-run only: report quota is not decremented here.', 'Actual quota handling happens only inside admin_report_final_issue.', 'Server-side binary PDF is produced at issue time when wkhtmltopdf is installed on the host; final HTML is always browser print/PDF-ready.'],
         'nextAllowedAction' => $allowed ? 'issue_final_report' : 'resolve_blockers',
         'finalReportGenerationEnabled' => $allowed,
         'pdfReady' => $allowed,
-        'serverPdfEnabled' => false,
+        'serverPdfEnabled' => tools_wkhtmltopdf_bin() !== false,
     ];
 }
 function tools_e($v) {
@@ -1450,6 +1450,243 @@ if ($action === 'admin_report_draft_update') {
     exit;
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Server-side binary PDF (wkhtmltopdf) — P1 ADV-CV finalization (v34.38.21)
+   The final HTML report is self-contained (inline CSS + inline SVG). The
+   binary PDF is a best-effort derivative: a render failure NEVER rolls back
+   or blocks an issued HTML report (quota is already committed).
+   Security: rendering happens in a private tmp dir under crm/data (Deny from
+   all), wkhtmltopdf gets --allow limited to that dir only, and the served
+   PDF is checksum-verified (fail-closed) before streaming.
+   ───────────────────────────────────────────────────────────────────── */
+function tools_pdf_dir() {
+    global $data_dir;
+    $d = $data_dir . '/tool_report_pdfs';
+    if (!is_dir($d)) {
+        @mkdir($d, 0755, true);
+        @file_put_contents($d . '/.htaccess', "Deny from all\n");
+    }
+    return $d;
+}
+function tools_pdf_tmp_dir() {
+    global $data_dir;
+    $d = $data_dir . '/tool_pdf_tmp';
+    if (!is_dir($d)) {
+        @mkdir($d, 0755, true);
+        @file_put_contents($d . '/.htaccess', "Deny from all\n");
+    }
+    return $d;
+}
+function tools_pdf_safe_name($reportNo) {
+    $s = preg_replace('/[^A-Za-z0-9_.-]/', '_', (string)$reportNo);
+    return 'ADV-CV-' . ($s === '' ? 'report' : $s) . '.pdf';
+}
+function tools_pdf_file_for($reportNo) {
+    return tools_pdf_dir() . '/' . tools_pdf_safe_name($reportNo);
+}
+function tools_wkhtmltopdf_bin() {
+    static $cached = null;
+    if ($cached !== null) return $cached;
+    $found = false;
+    $env = getenv('PTF_WKHTMLTOPDF_BIN');
+    $cands = $env ? array($env) : array('/usr/local/bin/wkhtmltopdf', '/usr/bin/wkhtmltopdf');
+    foreach ($cands as $c) {
+        if ($c && is_file($c) && is_executable($c)) { $found = $c; break; }
+    }
+    if (!$found) {
+        $out = @shell_exec('command -v wkhtmltopdf 2>/dev/null');
+        if ($out) { $c = trim((string)$out); if ($c && is_file($c) && is_executable($c)) $found = $c; }
+    }
+    $cached = $found;
+    return $cached;
+}
+function tools_wkhtmltopdf_version($bin) {
+    if (!$bin) return '';
+    $out = array(); $rc = 1;
+    @exec(escapeshellarg($bin) . ' --version 2>/dev/null', $out, $rc);
+    if ($rc !== 0) return '';
+    $v = trim(implode(' ', $out));
+    $m = array();
+    return preg_match('/wkhtmltopdf ([0-9][0-9a-zA-Z.\-]*)/i', $v, $m) ? $m[1] : (substr($v, 0, 60));
+}
+function tools_pdf_build_args($bin, $htmlFile, $pdfFile, $allowDir) {
+    return implode(' ', array(
+        escapeshellarg($bin),
+        '--quiet', '--no-progress', '--encoding', 'UTF-8',
+        '--page-size', 'A4',
+        '--margin-top', '10mm', '--margin-bottom', '12mm',
+        '--margin-left', '12mm', '--margin-right', '12mm',
+        '--javascript-delay', '200', '--print-media-type',
+        '--enable-local-file-access', '--allow', escapeshellarg($allowDir),
+        escapeshellarg($htmlFile), escapeshellarg($pdfFile)
+    ));
+}
+function tools_render_server_pdf($html, $reportNo) {
+    $bin = tools_wkhtmltopdf_bin();
+    if (!$bin) return array('ok' => false, 'available' => false, 'error' => 'wkhtmltopdf_not_installed');
+    $tmp = tools_pdf_tmp_dir();
+    $tok = bin2hex(random_bytes(8));
+    $htmlFile = $tmp . '/r' . $tok . '.html';
+    $pdfFile = $tmp . '/r' . $tok . '.pdf';
+    $finalFile = tools_pdf_file_for($reportNo);
+    $cmd = tools_pdf_build_args($bin, $htmlFile, $pdfFile, $tmp);
+    @file_put_contents($htmlFile, $html);
+    $pipes = array();
+    $pid = @proc_open($cmd, array(0 => array('pipe', 'r'), 1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+    if (!is_resource($pid)) {
+        @unlink($htmlFile);
+        return array('ok' => false, 'available' => true, 'error' => 'pdf_exec_failed');
+    }
+    fclose($pipes[0]);
+    stream_set_timeout($pipes[1], 30);
+    $err = stream_get_contents($pipes[2]);
+    $meta = stream_get_meta_data($pipes[1]);
+    if (!empty($meta['timed_out'])) @proc_terminate($pid, 9);
+    @stream_get_contents($pipes[1]); /* discard stdout before close */
+    $rc = proc_close($pid); /* proc_close closes the pipes — do NOT fclose after */
+    $ok = ($rc === 0) && is_file($pdfFile) && filesize($pdfFile) > 4;
+    if ($ok) {
+        if (is_file($finalFile)) @unlink($finalFile);
+        if (!@rename($pdfFile, $finalFile)) $ok = false;
+    }
+    @unlink($htmlFile);
+    if (!$ok) {
+        @unlink($pdfFile);
+        return array('ok' => false, 'available' => true, 'error' => ($rc === 0 ? 'pdf_move_failed' : 'pdf_render_failed'), 'detail' => substr(trim((string)$err), 0, 300));
+    }
+    return array('ok' => true, 'available' => true, 'file' => $finalFile, 'size' => filesize($finalFile), 'sha256' => hash_file('sha256', $finalFile));
+}
+
+if ($action === 'admin_report_pdf_status') {
+    $admin = tools_admin_require();
+    $bin = tools_wkhtmltopdf_bin();
+    $ver = $bin ? tools_wkhtmltopdf_version($bin) : '';
+    echo json_encode(array(
+        'ok' => true,
+        'available' => (bool)$bin,
+        'version' => $ver,
+        'module' => 'ptf-tools-pdf',
+        'message' => $bin
+            ? 'Server-side binary PDF enabled (wkhtmltopdf ' . $ver . ').'
+            : 'wkhtmltopdf is not installed on the host; server PDF stays disabled (browser Print/Save-as-PDF still works). Run _tools/host/install-wkhtmltopdf.sh on the host.'
+    ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'admin_report_final_pdf_generate') {
+    $admin = tools_admin_require();
+    $in = tools_read_input();
+    $draftId = tools_clean($in['draftId'] ?? '', 120);
+    if (!$draftId) {
+        http_response_code(422);
+        echo json_encode(['ok' => false, 'error' => 'draft_id_required'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $drafts = tools_load_report_drafts();
+    $found = false;
+    $targetIndex = -1;
+    foreach ($drafts as $i => $d) {
+        if (($d['draftId'] ?? '') === $draftId) { $found = true; $targetIndex = $i; break; }
+    }
+    if (!$found || $targetIndex < 0) {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => 'draft_not_found'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $draft = $drafts[$targetIndex];
+    $finalReport = is_array($draft['finalReport'] ?? null) ? $draft['finalReport'] : [];
+    if (empty($finalReport['final']) || empty($draft['finalHtml'])) {
+        http_response_code(409);
+        echo json_encode(['ok' => false, 'error' => 'final_report_not_issued', 'draft' => tools_report_draft_summary($draft)], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+    if (!empty($finalReport['htmlChecksum']) && tools_checksum32($draft['finalHtml']) !== $finalReport['htmlChecksum']) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'pdf_source_integrity_mismatch'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $reportNo = (string)($finalReport['reportNo'] ?? '');
+    $info = tools_render_server_pdf($draft['finalHtml'], $reportNo);
+    if (!$info['ok']) {
+        http_response_code($info['available'] ? 500 : 503);
+        echo json_encode([
+            'ok' => false,
+            'pdf' => false,
+            'serverPdf' => false,
+            'error' => $info['error'],
+            'available' => !empty($info['available']),
+            'message' => ($info['error'] === 'wkhtmltopdf_not_installed')
+                ? 'wkhtmltopdf is not installed on the host — run _tools/host/install-wkhtmltopdf.sh, then retry.'
+                : 'PDF rendering failed; the issued HTML report is unaffected.'
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+    $finalReport['serverPdf'] = true;
+    $finalReport['pdfSize'] = $info['size'];
+    $finalReport['pdfChecksum'] = $info['sha256'];
+    $finalReport['pdfGeneratedAt'] = date('c');
+    $finalReport['pdfGeneratedBy'] = $admin['user'] ?? '';
+    unset($finalReport['pdfError']);
+    $draft['finalReport'] = $finalReport;
+    $draft['pdf'] = true;
+    $drafts[$targetIndex] = $draft;
+    if (!tools_save_report_drafts($drafts)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'pdf_meta_write_failed'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    echo json_encode([
+        'ok' => true,
+        'pdf' => true,
+        'serverPdf' => true,
+        'reportNo' => $reportNo,
+        'size' => $info['size'],
+        'pdfChecksum' => $info['sha256'],
+        'message' => 'Server PDF generated from the immutable final HTML.'
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+if ($action === 'admin_report_final_pdf_get') {
+    $admin = tools_admin_require();
+    $in = tools_read_input();
+    $draftId = tools_clean($in['draftId'] ?? '', 120);
+    if (!$draftId) {
+        http_response_code(422);
+        echo json_encode(['ok' => false, 'error' => 'draft_id_required'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $draft = tools_find_report_draft($draftId);
+    if (!$draft) {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => 'draft_not_found'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $finalReport = is_array($draft['finalReport'] ?? null) ? $draft['finalReport'] : [];
+    if (empty($finalReport['final']) || empty($draft['finalHtml'])) {
+        http_response_code(409);
+        echo json_encode(['ok' => false, 'error' => 'final_report_not_issued', 'draft' => tools_report_draft_summary($draft)], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+    $file = tools_pdf_file_for((string)($finalReport['reportNo'] ?? ''));
+    if (!is_file($file)) {
+        http_response_code(404);
+        echo json_encode(['ok' => false, 'error' => 'pdf_not_generated', 'hint' => 'call admin_report_final_pdf_generate first'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+    if (!empty($finalReport['pdfChecksum']) && hash_file('sha256', $file) !== $finalReport['pdfChecksum']) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'pdf_integrity_mismatch'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . tools_pdf_safe_name((string)($finalReport['reportNo'] ?? '')) . '"');
+    header('Content-Length: ' . filesize($file));
+    header('Cache-Control: no-store');
+    readfile($file);
+    exit;
+}
+
 if ($action === 'admin_report_final_gate') {
     $admin = tools_admin_require();
     $in = tools_read_input();
@@ -1643,11 +1880,13 @@ if ($action === 'admin_report_final_get') {
         'finalReport' => $finalReport,
         'html' => $draft['finalHtml'],
         'final' => true,
-        'pdf' => false,
+        'pdf' => !empty($finalReport['serverPdf']),
         'pdfReady' => !empty($finalReport['browserPrintPdf']),
-        'serverPdf' => false,
+        'serverPdf' => !empty($finalReport['serverPdf']),
         'download' => true,
-        'message' => 'Final HTML report is available. Use browser Print / Save as PDF for PDF output.'
+        'message' => !empty($finalReport['serverPdf'])
+            ? 'Final HTML report and server PDF are available.'
+            : 'Final HTML report is available. Use browser Print / Save as PDF for PDF output, or generate the server PDF (admin_report_final_pdf_generate).'
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -1681,9 +1920,9 @@ if ($action === 'admin_report_final_issue') {
             'finalReport' => $draft['finalReport'],
             'html' => $draft['finalHtml'],
             'final' => true,
-            'pdf' => false,
+            'pdf' => !empty($draft['finalReport']['serverPdf']),
             'pdfReady' => !empty($draft['finalReport']['browserPrintPdf']),
-            'serverPdf' => false,
+            'serverPdf' => !empty($draft['finalReport']['serverPdf']),
             'download' => true,
             'message' => 'Final report was already issued. No additional quota was consumed.'
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -1755,13 +1994,26 @@ if ($action === 'admin_report_final_issue') {
     $draft['vendorValidation'] = $finalMeta['vendorValidation'];
     $draft['brandCandidateMatrix'] = $finalMeta['brandCandidateMatrix'];
     $html = tools_render_final_report_html($draft, $gate, $finalMeta);
+    /* v34.38.21: server-side binary PDF — best-effort derivative of the immutable
+       final HTML. A render failure (e.g. wkhtmltopdf not installed) is recorded as
+       pdfError and NEVER blocks/rolls back the issued report. */
+    $pdfInfo = tools_render_server_pdf($html, $reportNo);
+    if (!empty($pdfInfo['ok'])) {
+        $finalMeta['serverPdf'] = true;
+        $finalMeta['pdfSize'] = $pdfInfo['size'];
+        $finalMeta['pdfChecksum'] = $pdfInfo['sha256'];
+        $finalMeta['pdfGeneratedAt'] = date('c');
+        $finalMeta['pdfGeneratedBy'] = $admin['user'] ?? '';
+    } else {
+        $finalMeta['pdfError'] = $pdfInfo['error'] ?? 'pdf_unavailable';
+    }
     $finalMeta['htmlChecksum'] = tools_checksum32($html);
     $finalMeta['integrityChecksum'] = tools_checksum32(tools_stable_json($finalMeta));
 
     $draft['finalReport'] = $finalMeta;
     $draft['finalHtml'] = $html;
     $draft['final'] = true;
-    $draft['pdf'] = false;
+    $draft['pdf'] = !empty($finalMeta['serverPdf']);
     $draft['pdfReady'] = true;
     $draft['download'] = true;
     $draft['serverSideReport'] = true;
@@ -1777,7 +2029,7 @@ if ($action === 'admin_report_final_issue') {
     $dry['quotaBefore'] = $quotaBefore;
     $dry['quotaAfter'] = $quotaAfter;
     $dry['reportNo'] = $reportNo;
-    $dry['warnings'] = ['Final report issued. Quota trace is now committed for this draft.', 'Server-side binary PDF remains disabled; final HTML is browser print/PDF-ready.'];
+    $dry['warnings'] = array('Final report issued. Quota trace is now committed for this draft.') . (!empty($finalMeta['serverPdf']) ? array('Server PDF generated (wkhtmltopdf).') : array('Server PDF not generated (' . ($finalMeta['pdfError'] ?? 'unknown') . '); HTML report is browser print/PDF-ready. Retry with admin_report_final_pdf_generate.'));
     $draft['quotaDryRun'] = $dry;
     $quotaHist = is_array($draft['quotaDryRunHistory'] ?? null) ? $draft['quotaDryRunHistory'] : [];
     array_unshift($quotaHist, ['at' => date('c'), 'by' => $admin['user'] ?? '', 'quotaConsumed' => !$quotaExempt, 'quotaExempt' => $quotaExempt, 'reportNo' => $reportNo, 'remainingReports' => $quotaAfter['remainingReports']]);
@@ -1812,11 +2064,13 @@ if ($action === 'admin_report_final_issue') {
         'finalReport' => $finalMeta,
         'html' => $html,
         'final' => true,
-        'pdf' => false,
+        'pdf' => !empty($finalMeta['serverPdf']),
         'pdfReady' => true,
-        'serverPdf' => false,
+        'serverPdf' => !empty($finalMeta['serverPdf']),
         'download' => true,
-        'message' => 'Final HTML report issued. Use browser Print / Save as PDF for a PDF copy.'
+        'message' => !empty($finalMeta['serverPdf'])
+            ? 'Final HTML report issued and server PDF generated.'
+            : 'Final HTML report issued. Use browser Print / Save as PDF for a PDF copy (server PDF: ' . ($finalMeta['pdfError'] ?? 'unavailable') . ').'
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -1879,7 +2133,7 @@ if ($action === 'status') {
     echo json_encode([
         'ok' => true,
         'module' => 'ptf-tools-license',
-        'version' => 'v31.9',
+        'version' => 'v34.38.21',
         'configured' => file_exists(tools_license_file())
     ], JSON_UNESCAPED_UNICODE);
     exit;

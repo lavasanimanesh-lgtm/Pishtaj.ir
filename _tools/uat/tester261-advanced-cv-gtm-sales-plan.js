@@ -15,6 +15,7 @@ T('پلن فروش منصفانه tier دارد', ['Free Preview','Single Final 
 T('سیاست منصفانه quota/final gate را توضیح می‌دهد', doc.indexOf('اگر final gate مسدود شد، گزارش فروخته‌شده محسوب نشود') > -1 && doc.indexOf('محاسبه پایه و آموزش رایگان') > -1);
 T('roadmap دیتاشیت upload/OCR دارد', ['Datasheet Upload','TXT/CSV/JSON','PDF text extraction','OCR','LLM-assisted extraction'].every(function(x){ return doc.indexOf(x) > -1; }));
 T('Search Console action ذکر شده است', doc.indexOf('Google Search Console') > -1 && doc.indexOf('request indexing') > -1);
-T('handover نسخه v31.7.97 را ثبت کرده است', handover.indexOf('v31.7.97 — BUG-FISCAL-PROFIT-ICON-UX-001') > -1);
+/* v34.38.x: handover اسنپ‌شات دوران v32 است و وضعیت خود را با بنر اعلام می‌کند */
+T('handover وضعیت اسنپ‌شات دوران v32 خود را اعلام و به سند وضعیت فعلی اشاره دارد', handover.indexOf('اسنپ‌شات دوران v32') > -1 && handover.indexOf('REVIEW-ADVANCED-TOOLS-2026-09-12.md') > -1);
 
 DONE('tester261-advanced-cv-gtm-sales-plan');

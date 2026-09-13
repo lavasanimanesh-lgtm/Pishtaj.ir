@@ -1,0 +1,187 @@
+diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
+index 6817d26..3ba0964 100644
+--- a/.github/workflows/deploy-production.yml
++++ b/.github/workflows/deploy-production.yml
+@@ -35,7 +35,45 @@ permissions:
+   contents: write        # لازم برای ساخت تگ و Release
+ 
+ jobs:
++  quality:
++    name: Quality gate before production FTP
++    runs-on: ubuntu-latest
++    timeout-minutes: 12
++    steps:
++      - name: Verify confirmation
++        run: |
++          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
++            echo "::error::تایید نشد. باید عبارت DEPLOY وارد شود."
++            exit 1
++          fi
++
++      - name: Checkout target ref
++        uses: actions/checkout@v4
++        with:
++          ref: ${{ github.event.inputs.ref }}
++
++      - name: Set up PHP
++        uses: shivammathur/setup-php@v2
++        with:
++          php-version: '8.2'
++          coverage: none
++
++      - name: Lint PHP (api/ + crm/)
++        run: find api crm -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
++
++      - name: Set up Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++
++      - name: Check JavaScript syntax (first-party CRM code)
++        run: find crm api -type f -name '*.js' -not -name '*.min.js' -print0 | xargs -0 -r -n1 node --check
++
++      - name: Focused UAT gate (sync, finance, notifications, security)
++        run: node _tools/uat/run-ci-gate.js
++
+   deploy:
++    needs: quality
+     runs-on: ubuntu-latest
+     steps:
+       - name: Verify confirmation
+@@ -105,6 +143,8 @@ jobs:
+             docs-deploy/**
+             tester*.js
+             FILES-CHANGED-*.txt
++            api/migrate.php
++            api/data-health-check.php
+ 
+       # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
+       # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+index df419b5..2204d48 100644
+--- a/.github/workflows/deploy-staging.yml
++++ b/.github/workflows/deploy-staging.yml
+@@ -28,7 +28,35 @@ concurrency:
+   cancel-in-progress: false
+ 
+ jobs:
++  quality:
++    name: Quality gate before staging FTP
++    runs-on: ubuntu-latest
++    timeout-minutes: 12
++    steps:
++      - uses: actions/checkout@v4
++
++      - name: Set up PHP
++        uses: shivammathur/setup-php@v2
++        with:
++          php-version: '8.2'
++          coverage: none
++
++      - name: Lint PHP (api/ + crm/)
++        run: find api crm -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
++
++      - name: Set up Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++
++      - name: Check JavaScript syntax (first-party CRM code)
++        run: find crm api -type f -name '*.js' -not -name '*.min.js' -print0 | xargs -0 -r -n1 node --check
++
++      - name: Focused UAT gate (sync, finance, notifications, security)
++        run: node _tools/uat/run-ci-gate.js
++
+   deploy:
++    needs: quality
+     runs-on: ubuntu-latest
+     steps:
+       - name: Checkout
+@@ -86,6 +114,7 @@ jobs:
+             docs-deploy/**
+             tester*.js
+             FILES-CHANGED-*.txt
++            api/data-health-check.php
+ 
+       - name: Summary
+         run: |
+diff --git a/.github/workflows/php.yml b/.github/workflows/php.yml
+index 7d257b5..f722741 100644
+--- a/.github/workflows/php.yml
++++ b/.github/workflows/php.yml
+@@ -1,39 +1,52 @@
+-name: PHP Composer
++# ─────────────────────────────────────────────────────────────────────────────
++# Quality gate — lint واقعی PHP/JS و UAT کانونی
++#
++# این پروژه composer.json ندارد؛ بنابراین workflow قدیمی Composer همیشه شکست
++# می‌خورد و هیچ سیگنال کیفیتی تولید نمی‌کرد. این workflow منبع رسمی بررسی
++# pull request و branchهای قابل استقرار است.
++# ─────────────────────────────────────────────────────────────────────────────
++name: Quality gate
+ 
+ on:
+   push:
+-    branches: [ "main" ]
++    branches:
++      - main
++      - development
++      - 'site/**'
++      - 'crm/**'
++      - 'staging/**'
++      - 'arena/**'
+   pull_request:
+-    branches: [ "main" ]
++    branches: [main]
++  workflow_dispatch:
+ 
+ permissions:
+   contents: read
+ 
+ jobs:
+-  build:
+-
++  quality:
++    name: PHP lint, JS syntax and focused UAT
+     runs-on: ubuntu-latest
+-
++    timeout-minutes: 12
+     steps:
+-    - uses: actions/checkout@v4
++      - uses: actions/checkout@v4
+ 
+-    - name: Validate composer.json and composer.lock
+-      run: composer validate --strict
++      - name: Set up PHP
++        uses: shivammathur/setup-php@v2
++        with:
++          php-version: '8.2'
++          coverage: none
+ 
+-    - name: Cache Composer packages
+-      id: composer-cache
+-      uses: actions/cache@v3
+-      with:
+-        path: vendor
+-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+-        restore-keys: |
+-          ${{ runner.os }}-php-
++      - name: Lint PHP (api/ + crm/)
++        run: find api crm -type f -name '*.php' -print0 | xargs -0 -r -n1 php -l
+ 
+-    - name: Install dependencies
+-      run: composer install --prefer-dist --no-progress
++      - name: Set up Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
+ 
+-    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
+-    # Docs: https://getcomposer.org/doc/articles/scripts.md
++      - name: Check JavaScript syntax (first-party CRM code)
++        run: find crm api -type f -name '*.js' -not -name '*.min.js' -print0 | xargs -0 -r -n1 node --check
+ 
+-    # - name: Run test suite
+-    #   run: composer run-script test
++      - name: Focused UAT gate (sync, finance, notifications, security)
++        run: node _tools/uat/run-ci-gate.js

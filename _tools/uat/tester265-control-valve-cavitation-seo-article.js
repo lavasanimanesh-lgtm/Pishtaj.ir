@@ -9,7 +9,10 @@ var article = fs.readFileSync(articlePath, 'utf-8');
 var kc = fs.readFileSync(path.join(ROOT, 'knowledge-center/index.html'), 'utf-8');
 var cvArticle = fs.readFileSync(path.join(ROOT, 'knowledge-center/control-valve-cv-calculation-guide.html'), 'utf-8');
 var landing = fs.readFileSync(path.join(ROOT, 'tools/control-valve-sizing/index.html'), 'utf-8');
-var sitemap = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf-8');
+/* v34.38.x: ساختار sitemap = sitemap-index.xml + زیرنقشه‌های sitemap-*.xml (بازسازی 2026-08-31) */
+var _subs = fs.readdirSync(ROOT).filter(function (n) { return /^sitemap-[a-z-]+\.xml$/.test(n) && n !== 'sitemap-index.xml'; });
+var sitemap = _subs.map(function (n) { return fs.readFileSync(path.join(ROOT, n), 'utf-8'); }).join('\n');
+var sitemapIndex = fs.readFileSync(path.join(ROOT, 'sitemap-index.xml'), 'utf-8');
 var idx = fs.readFileSync(path.join(ROOT, 'crm/index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8');
 
@@ -27,6 +30,7 @@ T('مقاله Cv calculation به مقاله کاویتاسیون لینک می�
 T('landing اختصاصی به مقاله کاویتاسیون لینک دارد', landing.indexOf('../../knowledge-center/control-valve-cavitation-guide.html') > -1 && landing.indexOf('کاویتاسیون در کنترل ولو') > -1);
 T('knowledge-center index مقاله را در cluster شیرآلات لینک می‌دهد', kc.indexOf('control-valve-cavitation-guide.html') > -1 && kc.indexOf('کاویتاسیون در کنترل ولو') > -1);
 T('sitemap شامل مقاله کاویتاسیون است', sitemap.indexOf('https://pishtaj.ir/knowledge-center/control-valve-cavitation-guide.html') > -1 && sitemap.indexOf('<priority>0.9</priority>') > -1);
+T('هر زیرنقشه در sitemap-index.xml رفرنس دارد (ساختار شاخهٔ 2026-08-31)', _subs.length > 0 && _subs.every(function (n) { return sitemapIndex.indexOf(n) > -1; }));
 
 SECTION('Structured data and assets');
 T('مقاله JSON-LD Article/FAQPage/BreadcrumbList دارد', ['Article','FAQPage','BreadcrumbList','ADV-CV-CAVITATION-SEO-ARTICLE-v1'].every(function (x) { return article.indexOf(x) > -1; }));

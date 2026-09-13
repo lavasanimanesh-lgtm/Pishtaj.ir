@@ -1572,7 +1572,11 @@
        هرگز وارد ptf_crm_rfqs نشده (شکست فرمان درج در نسخه‌های قبلی) نباید برای همیشه
        ناپیدا بمانند. آنها جدا با دکمهٔ «ورود به چرخه» نمایش داده می‌شوند تا قابل بازیابی باشند. */
     var imported = getData('ptf_crm_rfqs').map(function (x) { return x && x.cd; });
-    var orphan = site.filter(function (r) { return r.status !== 'pending' && imported.indexOf(r.code) < 0; });
+    /* v34.38.20 (ORPHAN-SCOPE-FIX): بخش orphan فقط مخصوص رکوردهای «تاییدشدهٔ سایت
+       ولی واردچرخه‌نشده» است. استعلام‌هایی که «رد/مختومه» شده‌اند به‌طور طراحی در
+       ptf_crm_rfqs قرار نمی‌گیرند، پس شرط status!=='pending' باعث می‌شد آنها برای
+       همیشه (با دکمهٔ دوباره‌تایید) در این بخش نمایش یابند. شرط درست: approved. */
+    var orphan = site.filter(function (r) { return r.status === 'approved' && imported.indexOf(r.code) < 0; });
     if (!pend.length && !orphan.length) { el.innerHTML = ''; return; }
     var h = '';
     if (pend.length) {
@@ -1596,9 +1600,9 @@
       h += '</tbody></table></div></div>';
     }
     if (orphan.length) {
-      h += '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:14px;padding:14px;margin-bottom:16px">' +
-        '<h4 style="margin:0 0 10px;font-size:13.5px;color:#92400e">⚠️ استعلام‌های تاییدشدهٔ سایت که هنوز وارد چرخه نشده‌اند (' + orphan.length + ')</h4>' +
-        '<div style="font-size:11.5px;color:#92400e;margin:0 0 10px">این درخواست‌ها قبلاً تایید شده‌اند اما رکوردشان در فهرست درخواست‌ها ثبت نشده است. با «ورود به چرخه» آنها را بازیابی کنید.</div>' +
+      h += '<details style="background:#fffbeb;border:1px solid #fcd34d;border-radius:14px;padding:14px;margin-bottom:16px">' +
+        '<summary style="cursor:pointer;font-size:13.5px;font-weight:800;color:#92400e;outline:none">⚠️ استعلام‌های تاییدشدهٔ سایت که هنوز وارد چرخه نشده‌اند (' + orphan.length + ') <small style="font-size:11px;font-weight:400;color:#a16207">(پیش‌فرض بسته — برای بازکردن کلیک کنید)</small></summary>' +
+        '<div style="font-size:11.5px;color:#92400e;margin:10px 0">این درخواست‌ها قبلاً تایید شده‌اند اما رکوردشان در فهرست درخواست‌ها ثبت نشده است. با «ورود به چرخه» آنها را بازیابی کنید.</div>' +
         '<div class="tb2"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>تماس</th><th>حوزه</th><th>تاریخ</th><th>عملیات</th></tr></thead><tbody>';
       orphan.forEach(function (r) {
         h += '<tr><td><b>' + escP(r.code) + '</b></td><td>' + escP(r.company) + '</td>' +
@@ -1610,7 +1614,7 @@
             : '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>') +
           '</td></tr>';
       });
-      h += '</tbody></table></div></div>';
+      h += '</tbody></table></div></details>';
     }
     el.innerHTML = h;
   };

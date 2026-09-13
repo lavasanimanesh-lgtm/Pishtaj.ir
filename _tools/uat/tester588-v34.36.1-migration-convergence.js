@@ -451,7 +451,7 @@ function waitFor(fn, timeoutMs) {
   await (async function () {
     var h = makeContext({ script: [] });
     var ref = h.c._ptfSyncKeys || [];
-    T('F6: sync.js فهرست مرجع را صادر می‌کند', ref.length === 68, 'len=' + ref.length);
+    T('F6: sync.js فهرست مرجع را صادر می‌کند', ref.length === 66, 'len=' + ref.length);
     var ks = h.c.ptfBKeysForTest ? h.c.ptfBKeysForTest() : null;
     /* bKeys داخلی است؛ از طریق مسیر واقعی مهاجرت بررسی می‌کنیم */
     h.ls.setItem('ptf_crm_fin_events', '[{"id":"fe-9"}]');

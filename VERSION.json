@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.38.20",
+  "crm_version": "v34.38.21",
   "last_stable_tag": "v2026.08.16-0100",
-  "last_updated": "2026-09-11",
-  "updated_by": "Arena Agent (v34.38.20: INV-ARCHIVED-SETTLED — درخواست کارفرما: فاکتور تسویه‌شده‌ای که پروندهٔ فروش مرتبطش مختومه/بایگانی شده، در پنل فاکتورها دیگر «پرونده فروش یافت نشد» نشان داده نمی‌شود؛ به بخش جداگانهٔ «فاکتورهای تسویه‌شده با پروندهٔ مختومه» منتقل می‌شود و «پرونده مختومه شده است» می‌نویسد. فقط نمایشی — بدون تغییر داده)"
+  "last_updated": "2026-09-13",
+  "updated_by": "Arena Agent (v34.38.21: ADV-CV-SERVER-SIDE-PDF — تکمیل P1 بک‌لاگ: PDF باینری سمت سرور برای گزارش نهایی ADV-CV با wkhtmltopdf (best-effort در Issue + تولید idempotent + استریم با احراز هویت و verify checksum fail-closed + وضعیت نصب در gate/CRM). قرارداد: tester656 (CI gate). نصب هاست: _tools/host/install-wkhtmltopdf.sh)"
 }

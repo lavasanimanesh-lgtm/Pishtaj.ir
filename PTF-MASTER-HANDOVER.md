@@ -1,5 +1,7 @@
 # 📘 سند جامع انتقال معماری و راهنمای ایجنت — PTF Master Handover — v32
 
+> ⚠️ **یادداشت به‌روزرسانی (2026-09-12):** این سند «اسنپ‌شات دوران v32» (2026-07-24) است. پروژه پس از آن به **v34.38.20** پیش رفته و بخش‌هایی از این سند (به‌ویژه دربارهٔ نشست/احراز هویت — خروج از localStorage در v34.8.45 — و ساختار sitemap — شاخهٔ `sitemap-index.xml` + ۸ زیرنقشه در 2026-08-31) دیگر وضعیت فعلی را نمی‌نمایند. وضعیت فعلی: `REVIEW-ADVANCED-TOOLS-2026-09-12.md` + `ADV-CV-FINALIZATION-BACKLOG-v31.7.97.md`.
+
 **نسخه:** v32 — KNOWLEDGE-CENTER-UNIQUE-ICONS-UX-001  
 **تاریخ:** 2026-07-24  
 **مبنا:** v31.9 (SEC-AUTH-SESSION-001 + BUG-OFFER-SYNC-INTEGRITY-001) → Major bump به v32  
