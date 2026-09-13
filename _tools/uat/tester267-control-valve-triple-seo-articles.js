@@ -9,7 +9,10 @@ var pages = [
   ['gas', 'knowledge-center/gas-control-valve-sizing-guide.html', ['سایزینگ کنترل ولو گاز','Gas control valve sizing','Nm3/h','pressure ratio','Xt']],
   ['actuator', 'knowledge-center/control-valve-actuator-selection-guide.html', ['انتخاب اکچویتور کنترل ولو','Control valve actuator','Fail Close','Fail Open','shutoff pressure']]
 ];
-var sitemap = fs.readFileSync(path.join(ROOT, 'sitemap.xml'), 'utf-8');
+/* v34.38.x: ساختار sitemap = sitemap-index.xml + زیرنقشه‌های sitemap-*.xml (بازسازی 2026-08-31) */
+var _subs = fs.readdirSync(ROOT).filter(function (n) { return /^sitemap-[a-z-]+\.xml$/.test(n) && n !== 'sitemap-index.xml'; });
+var sitemap = _subs.map(function (n) { return fs.readFileSync(path.join(ROOT, n), 'utf-8'); }).join('\n');
+var sitemapIndex = fs.readFileSync(path.join(ROOT, 'sitemap-index.xml'), 'utf-8');
 var kc = fs.readFileSync(path.join(ROOT, 'knowledge-center/index.html'), 'utf-8');
 var landing = fs.readFileSync(path.join(ROOT, 'tools/control-valve-sizing/index.html'), 'utf-8');
 var api = fs.readFileSync(path.join(ROOT, 'api/tools.php'), 'utf-8');
@@ -31,6 +34,7 @@ pages.forEach(function (p) {
 
 SECTION('Cluster links and sitemap');
 T('sitemap هر سه مقاله جدید را دارد', ['steam-control-valve-sizing-guide.html','gas-control-valve-sizing-guide.html','control-valve-actuator-selection-guide.html'].every(function (x) { return sitemap.indexOf(x) > -1; }));
+T('هر زیرنقشه در sitemap-index.xml رفرنس دارد (ساختار شاخهٔ 2026-08-31)', _subs.length > 0 && _subs.every(function (n) { return sitemapIndex.indexOf(n) > -1; }));
 T('knowledge-center index هر سه مقاله جدید را لینک می‌دهد', ['steam-control-valve-sizing-guide.html','gas-control-valve-sizing-guide.html','control-valve-actuator-selection-guide.html'].every(function (x) { return kc.indexOf(x) > -1; }));
 T('landing کنترل ولو هر سه مقاله جدید را لینک می‌دهد', ['steam-control-valve-sizing-guide.html','gas-control-valve-sizing-guide.html','control-valve-actuator-selection-guide.html'].every(function (x) { return landing.indexOf(x) > -1; }));
 T('نسخه ADV-CV-TRIPLE-SEO-ARTICLE-001 ثبت شده است', api.indexOf('ADV-CV-TRIPLE-SEO-ARTICLE-001') > -1 && adv.indexOf('ADV-CV-TRIPLE-SEO-ARTICLE-001') > -1);

@@ -17,7 +17,11 @@ T('محدودیت PDF باینری و vendor-certified شفاف است', doc.ind
 T('پرداخت آنلاین تعمداً عقب افتاده است', doc.indexOf('پرداخت آنلاین') > -1 && doc.indexOf('تعمداً عقب افتاده') > -1);
 
 SECTION('Master handover update');
-T('PTF-MASTER-HANDOVER نسخه v31.7.97 را ثبت کرده است', handover.indexOf('v31.7.97 — BUG-FISCAL-PROFIT-ICON-UX-001') > -1);
-T('handover فایل‌ها و محدودیت‌های جدید را ثبت کرده است', ['admin_report_final_issue','admin_report_final_get','PDF باینری سمت سرور','staff_internal'].every(function (x) { return handover.indexOf(x) > -1; }));
+/* v34.38.x: PTF-MASTER-HANDOVER.md «اسنپ‌شات دوران v32» است (عمداً بازنویسی شده) و با بنر،
+   وضعیت اسنپ‌شات خود را اعلام و به سند وضعیت فعلی اشاره می‌کند. قرارداد جدید:
+   handover باید خود را اسنپ‌شات نشان دهد + سند وضعیت فعلی باید فایل‌ها/محدودیت‌ها را ثبت کند. */
+var currentDoc = fs.readFileSync(path.join(ROOT, 'REVIEW-ADVANCED-TOOLS-2026-09-12.md'), 'utf-8');
+T('PTF-MASTER-HANDOVER وضعیت اسنپ‌شات دوران v32 خود را اعلام و به سند وضعیت فعلی اشاره دارد', handover.indexOf('اسنپ‌شات دوران v32') > -1 && handover.indexOf('REVIEW-ADVANCED-TOOLS-2026-09-12.md') > -1);
+T('سند وضعیت فعلی فایل‌ها و محدودیت‌های جدید را ثبت کرده است (final_issue/final_get + PDF باینری سمت سرور + staff_internal)', ['admin_report_final_issue','admin_report_final_get','PDF باینری سمت سرور','staff_internal'].every(function (x) { return currentDoc.indexOf(x) > -1; }));
 
 DONE('tester254-advanced-cv-finalization-backlog-doc');

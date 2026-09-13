@@ -122,7 +122,7 @@
       /* A command/pull projection must not silently drop local physical financial rows
          that have not reached the server yet. The sync module preserves such rows and
          marks the key dirty for the protected merge path. */
-      if ((k === 'ptf_crm_sharetx' || k === 'ptf_crm_shareholders' || k === 'ptf_crm_personnel' || k === 'ptf_crm_personnel_tx') && typeof window.ptfSyncMergeServerProjection === 'function') {
+      if ((k === 'ptf_crm_sharetx' || k === 'ptf_crm_shareholders') && typeof window.ptfSyncMergeServerProjection === 'function') {
         var currentProjection = null;
         try { if (typeof window.ptfBRead === 'function') currentProjection = window.ptfBRead(k); } catch (eCurrentMirror) {}
         if (currentProjection === null || currentProjection === undefined) currentProjection = localGet(k);
@@ -289,7 +289,7 @@
       if (window.__ptfBKeys) return window.__ptfBKeys;
       /* سعی می‌کنیم از state/sync.js لیست را بگیریم — fallback: کلیدهای معروف */
       if (window._ptfSyncKeys) { window.__ptfBKeys = window._ptfSyncKeys.slice(); return window.__ptfBKeys; }
-      var known = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_surplus','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_personnel','ptf_crm_personnel_tx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_treasury_calls','ptf_crm_bank_recon','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings','ptf_crm_fin_events','ptf_crm_personal_cheques'];
+      var known = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_surplus','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_treasury_calls','ptf_crm_bank_recon','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings','ptf_crm_fin_events','ptf_crm_personal_cheques'];
       /* v34.36.1 (F6): فهرست ناقص را cache نکن. هر دو کلید مالی جاافتاده
          (ptf_crm_fin_events / ptf_crm_personal_cheques) اضافه شدند و اگر sync.js
          دیرتر بار شود، کش‌نکردن اجازه می‌دهد فهرست مرجعِ ۶۶ کلیدی بعداً جایگزین
@@ -420,7 +420,7 @@
                merely because a command had stamped the global rev into this key. */
             if (incomingRev && (+knownRevs[k] || 0) > incomingRev && !responseIsCurrentOrNewer) return;
             var v = d.data[k];
-            if ((k === 'ptf_crm_sharetx' || k === 'ptf_crm_shareholders' || k === 'ptf_crm_personnel' || k === 'ptf_crm_personnel_tx') && typeof window.ptfSyncMergeServerProjection === 'function') {
+            if ((k === 'ptf_crm_sharetx' || k === 'ptf_crm_shareholders') && typeof window.ptfSyncMergeServerProjection === 'function') {
               var currentProjection = null;
               try { if (typeof window.ptfBRead === 'function') currentProjection = window.ptfBRead(k); } catch (eProjectionMirror) {}
               if (currentProjection === null || currentProjection === undefined) currentProjection = localGet(k);

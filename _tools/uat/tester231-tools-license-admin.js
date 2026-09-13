@@ -25,7 +25,8 @@ T('UI فقط برای admin/chairman نمایش داده می‌شود', ui.inde
 T('UI به تنظیمات CRM تزریق می‌شود', ui.indexOf('var _buildSettings = window.buildSettings') > -1 && ui.indexOf('ptfToolLicensesAdminHtml') > -1);
 T('فرم صدور لایسنس ابزار/نوع/سقف/انقضا دارد', ['tlCompany','tlContact','tlType','tlTool','tlMax','tlExp','tlNote'].every(function (x) { return ui.indexOf(x) > -1; }));
 T('UI اکشن‌های admin_list/admin_issue/admin_update را صدا می‌زند', ['admin_list','admin_issue','admin_update'].every(function (x) { return ui.indexOf(x) > -1; }));
-T('درخواست‌های UI توکن JWT را با X-CRM-Token می‌فرستند', ui.indexOf("'X-CRM-Token': token()") > -1 && ui.indexOf("localStorage.getItem('ptf_crm_token')") > -1);
+/* v34.38.x: نشست CRM از localStorage خارج شده (v34.8.45 R5) — توکن از لایهٔ ptfAuthToken می‌آید */
+T('درخواست‌های UI توکن JWT را با X-CRM-Token می‌فرستند (توکن از لایهٔ ptfAuthToken — پس از خروج نشست از localStorage در v34.8.45)', ui.indexOf("'X-CRM-Token': token()") > -1 && ui.indexOf("typeof ptfAuthToken === 'function'") > -1);
 T('کد خام یک‌بار نمایش/کپی می‌شود', ui.indexOf('کد خام فقط همین یک‌بار') > -1 && ui.indexOf('ptfToolLicCopyLast') > -1 && ui.indexOf('oneTimeVisible') === -1);
 T('وضعیت لایسنس active/suspended/revoked قابل تغییر است', ['active','suspended','revoked','ptfToolLicSetStatus'].every(function (x) { return ui.indexOf(x) > -1; }));
 T('کد پرسنل داخلی با tool all و سقف ۹۹۹۹ پشتیبانی می‌شود', ui.indexOf('ptfToolLicIssueStaff') > -1 && ui.indexOf("type: staff ? 'staff_internal'") > -1 && ui.indexOf('maxReports: staff ? 9999') > -1);

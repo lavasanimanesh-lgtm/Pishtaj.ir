@@ -30,34 +30,9 @@
         if (so === true) cls = 'official';
         else if (so === false) cls = 'unofficial';
       }
-      /* PERSONNEL: ردیف حقوق پرسنل (personnelSalary / psalary:) که هنوز isOfficial
-         ندارد، نوع سند را از پروفایل پرسنل (salaryOfficial) می‌خواند — هم‌منطق با مسیر
-         سهامداران. فقط‌خواندنی است؛ هیچ رکوردی تغییر نمی‌کند. */
-      if (cls === 'unclassified' && (o.personnelSalary || String(o.recurringKey || '').indexOf('psalary:') === 0)) {
-        var po = personnelSalaryOfficialOf(o);
-        if (po === true) cls = 'official';
-        else if (po === false) cls = 'unofficial';
-      }
       return cls;
     }
     catch (e) { return 'unclassified'; }
-  }
-  function personnelSalaryOfficialOf(o) {
-    try {
-      if (!o) return null;
-      var userId = '';
-      if (o.personnelUserId) userId = String(o.personnelUserId);
-      if (!userId) {
-        var m = String(o.recurringKey || '').match(/^psalary:(.+):(?:13|14)\d{2}\/\d{2}$/);
-        if (m) userId = m[1];
-      }
-      if (!userId) return null;
-      var p = arr('ptf_crm_personnel').filter(function (x) { return x && (String(x.userId || '') === userId || String(x.user || '') === userId); })[0];
-      if (!p) return null;
-      if (p.salaryOfficial === true || p.salaryOfficial === 'yes') return true;
-      if (p.salaryOfficial === false || p.salaryOfficial === 'no') return false;
-      return null;
-    } catch (e) { return null; }
   }
   function shareholderSalaryOfficialOf(o) {
     try {
@@ -109,7 +84,7 @@
       if (o.st === 'void') return;
       /* v34.38.5 (DATA-QUALITY SH-SALARY): ردیف‌های حقوق سهامدار (shareholderSalary/recurringKey
          salary:*) جدا علامت‌خورده تا راهنما بگوید از تب سهامداران هم قابل اصلاح است. */
-      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt, { type: 'opex', cd: o.cd, shareholderSalary: !!(o.shareholderSalary || String(o.recurringKey || '').indexOf('salary:') === 0), personnelSalary: !!(o.personnelSalary || String(o.recurringKey || '').indexOf('psalary:') === 0), personnelUserId: o.personnelUserId || '', label: 'هزینه ' + (o.cat || '—') + ' — ' + (o.desc || o.cd) + (o.month ? ' (' + o.month + ')' : '') });
+      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt, { type: 'opex', cd: o.cd, shareholderSalary: !!(o.shareholderSalary || String(o.recurringKey || '').indexOf('salary:') === 0), label: 'هزینه ' + (o.cat || '—') + ' — ' + (o.desc || o.cd) + (o.month ? ' (' + o.month + ')' : '') });
     });
     /* v34.38.6 (OPEX-DUP-DETECT — گام ۰): گزارش read-only ردیف‌های مشکوک به
        دوباره‌شماری (دستی+تکرارشونده، قالب تکراری، هزینه/تنخواه هم‌مبلغ). فقط افشا
@@ -229,8 +204,7 @@
     if (!details.length) return r.refs && r.refs.length ? escP(r.refs.join(', ')) : '—';
     return details.map(function (d) {
       var action = '';
-      if (d.type === 'opex' && d.personnelSalary && typeof window.ptfPersonnelEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfPersonnelEdit(\'' + ptfOnClickArg(d.personnelUserId) + '\')">👥 اصلاح از تب پرسنل</button>';
-      else if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpexEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح هزینه</button>';
+      if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpexEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح هزینه</button>';
       else if ((d.type === 'supplier-invoice' || d.type === 'supplier-amount') && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح فاکتور خرید</button>' + (d.type === 'supplier-amount' && typeof slAckLinkFromQuality === 'function' ? ' <button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px;color:#7c3aed" onclick="slAckLinkFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">برداشتن اخطار</button>' : '');
       else if (d.type === 'cheque' && typeof window.ptfChequeEditFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfChequeEditFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح چک</button>';
       else if (d.type === 'treasury' && typeof window.ptfTreasuryOpenFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfTreasuryOpenFromQuality(\'' + ptfOnClickArg(d.kind || 'crm') + '\',\'' + ptfOnClickArg(d.cd) + '\')">🏦 باز کردن همین ردیف در خزانه</button>';
@@ -241,7 +215,7 @@
         : '';
       var explanation = d.type === 'procurement'
         ? 'تطبیق قلم‌به‌قلم پیش‌فاکتور با خرید واقعی/استعلام قطعی نیست. این با «لینک فاکتور به تعهد» فرق دارد؛ اتصال فاکتور به‌تنهایی این مورد را نمی‌بندد.'
-        : d.type === 'opex' ? (d.personnelSalary ? 'این هزینه «حقوق پرسنل» است؛ از تب پرسنل (ویرایش شخص → تعیین سند حقوق) مشخص کنید که این پرداخت شرکت رسمی است یا غیررسمی.' : d.shareholderSalary ? 'این هزینه «حقوق موظف سهامدار» است؛ نوع سند را از تب سهامداران (ویرایش سهامدار → نوع سند حقوق) یا از همین فرم هزینه مشخص کنید.' : 'نوع سند (رسمی/غیررسمی) خالی است و در تراز داخل سطل نامشخص می‌ماند تا در همین فرم هزینه مشخص شود.')
+        : d.type === 'opex' ? (d.shareholderSalary ? 'این هزینه «حقوق موظف سهامدار» است؛ نوع سند را از تب سهامداران (ویرایش سهامدار → نوع سند حقوق) یا از همین فرم هزینه مشخص کنید.' : 'نوع سند (رسمی/غیررسمی) خالی است و در تراز داخل سطل نامشخص می‌ماند تا در همین فرم هزینه مشخص شود.')
         : d.type === 'supplier-invoice' ? 'نوع سند فاکتور خرید خالی است؛ از دکمهٔ اصلاح، رسمی یا غیررسمی را انتخاب کنید.'
         : d.type === 'supplier-amount' ? 'لینک تعهدها برقرار است اما جمع مبلغ تعهدها با مبلغ فاکتور یکی نیست — معمولاً قلم بدون قیمت خرید. می‌توانید اختلاف را در حساب تأمین تأیید و اخطار را بردارید.'
         : d.type === 'cheque' ? 'نوع مالکیت (شرکت/شخصی/وارده) خالی است؛ نام روی دسته چک کافی نیست. از اصلاح چک، «مالکیت چک» را انتخاب کنید.'

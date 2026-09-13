@@ -22,7 +22,8 @@ T('tool-report-drafts.js در CRM با cache-bust v33.5.0 لود می‌شود',
 T('UI فقط برای admin/chairman است', ui.indexOf("['admin', 'chairman'].indexOf(curRole())") > -1 && ui.indexOf('roleOk()') > -1);
 T('UI به buildSettings تزریق می‌شود', ui.indexOf('var _buildSettings = window.buildSettings') > -1 && ui.indexOf('ptfToolReportDraftsHtml') > -1);
 T('UI admin_report_drafts و admin_report_draft_get را صدا می‌زند', ui.indexOf('admin_report_drafts') > -1 && ui.indexOf('admin_report_draft_get') > -1);
-T('درخواست‌های UI توکن JWT را با X-CRM-Token می‌فرستند', ui.indexOf("'X-CRM-Token': token()") > -1 && ui.indexOf("localStorage.getItem('ptf_crm_token')") > -1);
+/* v34.38.x: نشست CRM از localStorage خارج شده (v34.8.45 R5) — توکن از لایهٔ ptfAuthToken می‌آید */
+T('درخواست‌های UI توکن JWT را با X-CRM-Token می‌فرستند (توکن از لایهٔ ptfAuthToken — پس از خروج نشست از localStorage در v34.8.45)', ui.indexOf("'X-CRM-Token': token()") > -1 && ui.indexOf("typeof ptfAuthToken === 'function'") > -1);
 T('جدول draftها فیلدهای مهم review را دارد', ['Draft ID','Project/Tag','License/Checksum','Governing','Risk','Readiness'].every(function (x) { return ui.indexOf(x) > -1; }));
 T('modal مشاهده جزئیات payload وضعیت final/pdfReady/download را نشان می‌دهد', ui.indexOf('Locked draft review') > -1 && ui.indexOf('pdfReady') > -1 && ui.indexOf('finalReportNo') > -1 && ui.indexOf('download: f.final') > -1);
 T('UI مسیر دانلود HTML نهایی دارد ولی exportPdf/document.write ندارد', ui.indexOf('ptfToolReportDraftDownloadFinalHtml') > -1 && ui.indexOf('createObjectURL') > -1 && ui.indexOf('document.write') === -1 && ui.indexOf('exportPdf') === -1);
