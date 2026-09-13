@@ -2133,7 +2133,7 @@ if ($action === 'status') {
     echo json_encode([
         'ok' => true,
         'module' => 'ptf-tools-license',
-        'version' => 'v34.38.20',
+        'version' => 'v34.38.21',
         'configured' => file_exists(tools_license_file())
     ], JSON_UNESCAPED_UNICODE);
     exit;

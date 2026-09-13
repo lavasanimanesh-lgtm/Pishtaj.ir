@@ -1,4 +1,4 @@
-/* tester656 — v34.38.20 (ADV-CV-SERVER-SIDE-PDF-001):
+/* tester656 — v34.38.21 (ADV-CV-SERVER-SIDE-PDF-001):
    P1 FINALIZATION: «PDF باینری سمت سرور» — گزارش نهایی ADV-CV حالا علاوه بر HTML
    (Print/Save-as-PDF)، PDF باینری واقعی با wkhtmltopdf سمت سرور می‌سازد:
    - admin_report_final_issue در لحظهٔ صدور، PDF را به‌صورت best-effort می‌سازد؛
@@ -263,9 +263,9 @@ if (!phpOk || fs.existsSync(secretsPath)) {
       try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch (e) {}
     }
     if (process.exitCode) {
-      console.log('FAIL tester656 v34.38.20 server-side-pdf');
+      console.log('FAIL tester656 v34.38.21 server-side-pdf');
       process.exit(1);
     }
-    console.log('PASS tester656 v34.38.20 server-side-pdf');
+    console.log('PASS tester656 v34.38.21 server-side-pdf');
   })().catch(function (e) { console.log('FAIL tester656 (runner): ' + e.message); process.exit(1); });
 }

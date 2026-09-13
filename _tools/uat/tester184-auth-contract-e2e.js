@@ -35,8 +35,14 @@ if (!phpBin) {
   done();
 } else {
   var crypto = require('crypto');
-  var tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ptf-e2e-'));
+  // v34.38.21: خودکفایی محیطی — secret به مسیر کنترل‌شدهٔ همین تست (نه بقیه‌ماندهٔ /tmp):
+  // docroot یک سطح پایین‌تر (www) تا ptf_secret_config_paths() = dirname(docroot/api, 2)
+  // بر دایرکتوری اختصاصی این اجرا بیفتد؛ کل‌چیز با rmSync(root) پاک می‌شود.
+  var root = fs.mkdtempSync(path.join(os.tmpdir(), 'ptf-e2e-'));
+  var tmp = path.join(root, 'www');
+  fs.mkdirSync(tmp);
   cp.execSync('cp -r ' + JSON.stringify(path.join(ROOT, 'api')) + ' ' + JSON.stringify(path.join(ROOT, 'crm')) + ' ' + JSON.stringify(tmp));
+  fs.writeFileSync(path.join(root, 'ptf-secrets.php'), "<?php\nreturn ['auth_key' => 'ptf-e2e-test-key-0123456789abcdef0123456789abcdef'];\n");
   fs.mkdirSync(path.join(tmp, 'crm/data/sync'), { recursive: true });
   var ph = crypto.createHash('sha256').update('e2e-pass-1234').digest('hex');
   fs.writeFileSync(path.join(tmp, 'crm/data/sync/ptf_crm_users.json'),
@@ -64,15 +70,17 @@ if (!phpBin) {
       T('users_get بدون توکن 200 و بدون passhash', rUsers.status === 200 &&
         jUsers.ok === true && JSON.stringify(jUsers).indexOf('passhash') === -1);
 
+      /* v34.38.21: قرارداد runtime — auth_login رمز متن‌ساده می‌گیرد (فیلد password) و
+         همان سرور هش sha256/bcrypt را مقایسه می‌کند؛ فرستادن خودِ هش دیگر قرارداد نیست. */
       var rLogin = await fetch(B, { method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=auth_login&username=e2euser&passhash=' + ph });
+        body: 'action=auth_login&username=e2euser&password=e2e-pass-1234' });
       var jLogin = await rLogin.json().catch(function () { return {}; });
       T('auth_login با اعتبار درست توکن می‌دهد', jLogin.ok === true && !!jLogin.token);
 
       var rBad = await fetch(B, { method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=auth_login&username=e2euser&passhash=' + '0'.repeat(64) });
+        body: 'action=auth_login&username=e2euser&password=wrong-pass-999' });
       var jBad = await rBad.json().catch(function () { return {}; });
       T('auth_login با رمز غلط رد می‌شود', jBad.ok === false);
 
@@ -96,7 +104,7 @@ if (!phpBin) {
       T('اجرای E2E بدون خطای غیرمنتظره', false, String(e && e.message || e));
     } finally {
       try { srv.kill(); } catch (e) {}
-      try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) {}
+      try { fs.rmSync(root, { recursive: true, force: true }); } catch (e) {}
       done();
     }
   })();
