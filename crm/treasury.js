@@ -176,7 +176,7 @@
 
     get('ptf_crm_opex').forEach(function (o) {
       if (!active(o) || o.st === 'void') return;
-      if (o.shareholderSalary || o.shareTx) return;
+      if (o.shareholderSalary || o.shareTx || o.personnelSalary) return;
       if (o.chequeCd || o.payHow === 'cheque') return;
       var isCoverOpex = !!(o.fromCoverInvoice || o.coverInvoiceCd);
       var isRecurringOpex = !!o.tplId;
@@ -226,6 +226,17 @@
       if (!r || r.kind !== 'payment' || r.status !== 'posted' || txt(r.method) !== 'bank') return;
       var amt = num(r.amount); if (!amt) return;
       pushMove(out, { key: 'commission-pay:' + (r.cd || ''), cd: r.cd || '', dir: 'out', amount: amt, dateISO: r.dateISO || isoOf(r), dateFa: r.dateFa || faOf(r), src: 'پرداخت پورسانت فروش', label: 'پرداخت پورسانت ' + (r.userLabel || r.user || '') + (r.doc ? ' — ' + r.doc : '') });
+    });
+
+    /* پرداخت حقوق پرسنل: هزینهٔ حقوق قبلاً در OPEX با فلگ personnelSalary ثبت شده
+       (تعهدی، بدون خروج نقدی)؛ اینجا فقط حرکت نقدیِ پرداخت حقوق ثبت می‌شود. */
+    get('ptf_crm_personnel_tx').forEach(function (x) {
+      if (!active(x) || String(x.status || '').toLowerCase() === 'void') return;
+      var t = txt(x.type);
+      if (t !== 'payment' && t !== 'pay') return;
+      if (txt(x.method) !== 'bank') return;
+      var amt = num(x.amt || x.amount); if (!amt) return;
+      pushMove(out, { key: 'personnel-pay:' + (x.cd || ''), cd: x.cd || '', dir: 'out', amount: amt, dateISO: x.dateISO || isoOf(x), dateFa: x.dateFa || faOf(x), src: 'پرداخت حقوق پرسنل', label: 'پرداخت حقوق ' + (x.name || x.userId || '') + (x.doc ? ' — ' + x.doc : '') });
     });
 
     chequeList('ptf_crm_cheques_received').filter(active).forEach(function (ch) {
