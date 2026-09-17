@@ -47,6 +47,15 @@ function client(db, opts) {
   return sb;
 }
 
+/* خنثی‌سازی بمب تاریخ (2026-09-17): رویداد پروندهٔ «فعال» باید همیشه نسبت به اکنون
+   تازه بماند — تاریخ مطلق 2026-08-16 پس از عبور از مرز STALE_DAYS=30 (یعنی 2026-09-15)
+   پروندهٔ D-4 را راکد می‌کرد و هر دو چک AN-05 بدون هیچ تغییر کد، با گذر زمان قرمز می‌شدند
+   (آخرین اجرای سبز main: 14 سپتامبر؛ اولین اجرای قرمز: 17 سپتامبر). asserts دست‌نخورده‌اند. */
+function isoDaysAgo(n) {
+  var d = new Date(Date.now() - n * 86400000);
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+
 function baseDb() {
   var iso = function (d) { return d; };
   return {
@@ -55,7 +64,7 @@ function baseDb() {
       { cd: 'D-1', inqNo: 'RFQ-1', buyerCo: 'شرکت الف', wonOffer: 'CO-1', dueISO: '2020-01-01', st: 'open', timeline: [{ t: '2026-08-01' }] }, /* تأخیر */
       { cd: 'D-2', inqNo: 'RFQ-2', buyerCo: 'شرکت الف', wonOffer: 'CO-3', st: 'open', qcEvents: [{ conf: 'nonconform' }], timeline: [{ t: '2026-08-10' }] }, /* QC */
       { cd: 'D-3', inqNo: 'RFQ-3', buyerCo: 'شرکت الف', wonOffer: 'CO-4', st: 'open', timeline: [{ t: '2026-01-01' }] }, /* رکود */
-      { cd: 'D-4', inqNo: 'RFQ-4', buyerCo: 'شرکت الف', st: 'open', timeline: [{ t: '2026-08-16' }] }  /* سالم: بدون برد ولی فعال */
+      { cd: 'D-4', inqNo: 'RFQ-4', buyerCo: 'شرکت الف', st: 'open', timeline: [{ t: isoDaysAgo(2) }] }  /* سالم: بدون برد ولی فعال — رویداد تازه نسبت به اکنون */
     ],
     ptf_crm_offers: [
       /* دو پیشنهاد موازی برای یک استعلام: یکی برنده */
