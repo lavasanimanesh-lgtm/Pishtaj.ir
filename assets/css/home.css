@@ -73,11 +73,7 @@
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   v34.38.25 (HOME-MODERN — دستور کارفرما: ظاهرِ مدرن‌تر و داینامیک‌ترِ صفحهٔ اول
-   با حفظ پرستیژ محتوا و تم شرکت: گرادیان نارنجی/قرمز و ذغالی ثابت می‌ماند)
-   قواعد این لایه فقط نمایشی‌اند؛ هیچ متن، لینک، هوک یا ساختار محتوایی عوض نمی‌شود.
-   ═══════════════════════════════════════════════════════════════════ */
+/* v34.38.25 (HOME-MODERN — دستور کارفرما: ظاهرِ مدرن‌تر و داینامیک‌ترِ صفحهٔ اول */
 
 /* ── ۱) دکمه‌های شناور: یک نظام واحد و متناسب (گزارش کارفرما: «بزرگ و غیرمتناسب») ──
    پشتهٔ چپ-پایین: چت ۲۰ → تماس ۸۲ → واتساپ ۱۴۴ (فاصلهٔ یکنواخت ۱۴px، قطر یکنواخت ۴۸px) */
@@ -170,14 +166,7 @@
   *{scroll-behavior:auto!important}
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   v34.39.0 — HOME-DYNAMIC-X (پژوهش بنچ‌مارک‌های برتر تامین تجهیزات:
-   Grainger·McMaster·Fastenal + الگوهای B2B صنعتی برتر ۲۰۲۶)
-   تم جدید: ۶۰٪ سطح روشن + گرافیت فولادی/سرمه‌ای مهندسی (اعتماد)
-            ۳۰٪ surfaces نقره‌ای-یخی  +  ۱۰٪ شعلهٔ برند (CTA/تبدیل)
-   — وفادار به لوگو: چرخ‌دندهٔ گرافیتی + شعلهٔ نارنجی/قرمز.
-   همه قواعد نمایشی‌اند؛ صفر کتابخانه؛ فقط transform/opacity؛ RTL-first.
-   ═══════════════════════════════════════════════════════════════════ */
+/* v34.39.0 — HOME-DYNAMIC-X (پژوهش بنچ‌مارک‌های برتر تامین تجهیزات: */
 :root{
   --steel-950:#080d16;--steel-900:#0b1220;--steel-800:#101d33;--steel-700:#16233c;--steel-600:#1f3350;
   --ice:#eef3f9;--ice2:#e4ecf6;--link-steel:#155a97;--ink:#141a26;
@@ -320,15 +309,7 @@ button,a{touch-action:manipulation}
 /* ── ۱۴) چاپ ── */
 @media print{#ptfDock,#ptfNavBackdrop,#ptfScrollProgress{display:none!important}}
 
-/* ═══════════════════════════════════════════════════════════════════
-   v34.39.1 — HOME-ELECTRIC-3D (دستور کارفرما):
-   ① جریان برق رنگی روی لبهٔ کارت‌ها و دکمه‌ها  ② هاور رنگی زیبا
-   ③ حذف منوی بالای موبایل و انتقال به شیت پایین  ④ انیمیشن منوها
-   ④ نمای روز/شب (کلید بالا، ماندگار)  ⑤ RFQ از داک حذف؛ دکمهٔ منو وسط
-   ⑥ جلوه سه‌بعدی عمیق‌تر  ⑦ فلش‌های مینیمالِ متحرک  ⑧ اعداد فارسی پنل هیرو
-   ── همه display-only؛ صفر کتابخانه؛ gate شده با media(hover/reduced-motion)
-   ═══════════════════════════════════════════════════════════════════ */
-
+/* v34.39.1 — HOME-ELECTRIC-3D (دستور کارفرما): */
 /* ── ① جریان برق: حلقهٔ نورانی لبه با ماسک padding/border-box ── */
 @keyframes ptfCur{from{background-position:220% 0}to{background-position:-240% 0}}
 @keyframes ptfCurS{0%{background-position:220% 0}52%{background-position:-240% 0}100%{background-position:-240% 0}}
@@ -340,17 +321,17 @@ button,a{touch-action:manipulation}
           mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
   opacity:0;transition:opacity .3s ease}
 @media (prefers-reduced-motion: no-preference){
-  .btn-primary,.header-call,#ptfDock .dock-cta,#ptfDockChat,.ptf-finder button{border-radius:inherit}
+  .btn-primary,.header-call,#ptfDock .dock-cta,.ptf-finder button{border-radius:inherit}
   .btn-primary::after{z-index:0}
-  .btn-primary::before,.header-call::before,#ptfDock .dock-cta::before,#ptfDockChat::before,.ptf-finder button::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
-    padding:1.4px;background:linear-gradient(105deg,transparent 42%,rgba(255,214,120,.95) 48%,rgba(255,255,255,.95) 50%,rgba(239,75,26,.95) 52%,transparent 58%);
+  .btn-primary::before,.header-call::before,#ptfDock .dock-cta::before,.ptf-finder button::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
+    padding:1.4px;background:linear-gradient(105deg,transparent 42%,rgba(255,214,120,.95) 48%,rgba(255,255,255,.7) 50%,rgba(239,75,26,.95) 52%,transparent 58%);
     background-size:280% 100%;
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
             mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
     animation:ptfCurS 8s linear infinite;opacity:.75}
-  .btn-primary,.header-call,#ptfDock .dock-cta,#ptfDockChat,.ptf-finder button{position:relative;isolation:isolate}
+  .btn-primary,.header-call,#ptfDock .dock-cta,.ptf-finder button{position:relative;isolation:isolate}
   .btn-primary>*{position:relative;z-index:1}
-  #ptfDock .dock-cta>*,#ptfDockChat>*{position:relative;z-index:1}
+  #ptfDock .dock-cta>*{position:relative;z-index:1}
   .header-call{position:relative}
   /* کارت‌ها: جریان هنگام هاور + درخشش داخلی */
   .service-card::after,#journey a.reveal::after,#why-ptf div.reveal::after{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:inherit;
@@ -441,7 +422,7 @@ html.ptf-dark .feature-list li:before{background:rgba(247,148,0,.16);color:#ffb0
 html.ptf-dark [style*="background:#fff"]{background:#101b30!important}
 html.ptf-dark [style*="background:#f8fafc"],html.ptf-dark [style*="background:#f8f9fa"]{background:#0d1626!important}
 html.ptf-dark [style*="color:#1e293b"],html.ptf-dark [style*="color:#202228"],html.ptf-dark [style*="color:#24262b"]{color:#eef3fb!important}
-html.ptf-dark [style*="color:#64748b"],html.ptf-dark [style*="color:#646872"],html.ptf-dark [style*="color:#666"],html.ptf-dark [style*="color:#656973"],html.ptf-dark [style*="color:#4d5058"],html.ptf-dark [style*="color:#555"]{color:#9db0ca!important}
+html.ptf-dark [style*="color:#64748b"],html.ptf-dark [style*="color:#646872"],html.ptf-dark [style*="color:#666"],html.ptf-dark [style*="color:#656973"],html.ptf-dark [style*="color:#4d5058"],html.ptf-dark [style*="color:#555"],html.ptf-dark [style*="color:#475569"],html.ptf-dark [style*="color:#60646d"],html.ptf-dark [style*="color:#4b4d55"]{color:#a9bdd8!important}
 html.ptf-dark [style*="color:#334155"]{color:#c3d0e6!important}
 html.ptf-dark .contact,html.ptf-dark #contact{background:linear-gradient(180deg,#0c1526,#0a1120)!important}
 html.ptf-dark #contactForm input,html.ptf-dark #contactForm textarea,html.ptf-dark #contactForm select{background:#0c1526!important;border-color:#24344c!important;color:#e6edf8!important}
@@ -472,7 +453,7 @@ html.ptf-dark .ptf-finder{background:rgba(8,13,24,.5)}
 /* ── ⑧ موبایل: حذف منوی بالا → شیت پایین + داکِ منو‌محور ── */
 @media(max-width:790px){
   .menu-toggle{display:none!important}
-  #mainNav{top:auto!important;bottom:calc(86px + env(safe-area-inset-bottom))!important;right:10px!important;left:10px!important;
+  #mainNav{z-index:9535;top:auto!important;bottom:calc(86px + env(safe-area-inset-bottom))!important;right:10px!important;left:10px!important;
     max-height:min(60dvh,520px)!important;border-radius:26px;transform-origin:bottom center;
     transform:translateY(26px) scale(.97);visibility:hidden;opacity:0;
     box-shadow:0 -20px 60px rgba(2,8,23,.35),0 0 0 1px rgba(255,255,255,.06);
@@ -508,7 +489,7 @@ html.ptf-dark .ptf-finder{background:rgba(8,13,24,.5)}
 
 /* ── کاهش حرکت: خاموشی کامل حرکت‌های جدید ── */
 @media (prefers-reduced-motion: reduce){
-  .btn-primary::before,.header-call::before,#ptfDock .dock-cta::before,#ptfDockChat::before,.ptf-finder button::before{animation:none;opacity:.5}
+  .btn-primary::before,.header-call::before,#ptfDock .dock-cta::before,.ptf-finder button::before{animation:none;opacity:.5}
   .service-card:hover::after,#journey a.reveal:hover::after,#why-ptf div.reveal:hover::after{animation:none;opacity:.8}
   .main-nav>*,#mainNav.open>*{animation:none!important}
   #mainNav,.theme-toggle,#mainNav a:active{transition:none}
@@ -517,11 +498,7 @@ html.ptf-dark .ptf-finder{background:rgba(8,13,24,.5)}
 @media(max-width:790px){.theme-toggle{width:40px;height:40px;flex-basis:40px}.theme-toggle svg{width:19px;height:19px}}
 @media(max-width:560px){.header-call{display:none!important}}
 
-/* v34.39.2 — HOME-DOCK-SUN — لایهٔ نمایشی (presentation-only)
-   ① FIX: backdrop-filter هدر = containing-block برای شیت fixed → بلور ≤۷۹۰ خاموش (باگ «منو کار نمی‌کند»)
-   ② داک: خانه→منو (اسلات اول)؛ وسط→استعلام واقعی (a.rfq، CTA سه‌بعدی، مروف ✕ روی دکمه منو)
-   ③ شب خودکار از غروب تهران (NOAA) + کلید دستی داخل #mainNav با اوررایدِ کوکی (A10-safe)
-   ④ ptfCurS: عبور آهسته + دمِ سکوت (۸s دائم / ۵s هاور) */
+/* v34.39.2 — HOME-DOCK-SUN — لایهٔ نمایشی (presentation-only) */
 @media(max-width:790px){
   .site-header,.site-header.scrolled,.site-header.is-compact{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:rgba(255,255,255,.985)!important}
   html.ptf-dark .site-header,html.ptf-dark .site-header.scrolled,html.ptf-dark .site-header.is-compact{background:rgba(10,17,32,.985)!important}
@@ -550,3 +527,16 @@ html.ptf-dark #mainNav .theme-toggle .tt-moon{display:block}
   #mainNav .theme-toggle,#mainNav .theme-toggle svg{transition:none}
   #ptfDock .dock-cta>svg{transition:none}
 }
+
+/* v34.39.3 — HOME-NIGHT-READ — لایهٔ نمایشی/پایداری (presentation-only؛ بدون تغییر متن/لینک) */
+html.ptf-dark .service-card:hover{background:linear-gradient(180deg,#14203a,#1a2949);border-color:rgba(255,179,51,.42);box-shadow:0 30px 62px rgba(0,0,0,.6),0 10px 26px rgba(247,148,0,.14)}
+html.ptf-dark .service-card:hover .card-body h3{color:var(--orange2)}
+html.ptf-dark .trust-item:hover{background:linear-gradient(180deg,#131f38,#182645);border-color:rgba(255,179,51,.32);color:#ffd9a1}
+html.ptf-dark #journey a.reveal:hover{background:linear-gradient(160deg,#131f38,#1a2949)!important;border-color:rgba(255,179,51,.36)!important;box-shadow:0 26px 54px rgba(0,0,0,.55)!important}
+html.ptf-dark #why-ptf div.reveal:hover{background:linear-gradient(160deg,#131f38,#1a2949)!important;border-color:rgba(255,179,51,.32)!important}
+html.ptf-dark #home-faq summary{color:#eef3fb}
+html.ptf-dark #home-faq details p{color:#b7c6de}
+html.ptf-dark #ptfDock .dock-cta{color:#fff;background:linear-gradient(135deg,#e0431a,#f28a00)}
+html.ptf-dark .btn-primary,html.ptf-dark .header-call,html.ptf-dark #ptfDock .dock-cta{text-shadow:0 1px 2px rgba(60,16,0,.45)}
+.btn-primary,#ptfDock .dock-cta{text-shadow:0 1px 2px rgba(60,16,0,.30)}
+@media (prefers-reduced-motion: reduce){#mainNav,#mainNav.open{transition:none}}

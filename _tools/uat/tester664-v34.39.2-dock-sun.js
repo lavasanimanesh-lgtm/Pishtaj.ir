@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester664 — v34.39.2 (HOME-DOCK-SUN)
+   tester664 — v34.39.3 (HOME-DOCK-SUN)
    دستور کارفرما:
      «دکمهٔ منو کار نمی‌کند؛ دکمهٔ منو → استعلام شود و خانه → منو؛ سرعت و
      فرکانس برق را کم کنید (دیربه‌دیرتر و یواش‌تر)؛ دکمهٔ شب/روز از هدر حذف،
@@ -43,7 +43,7 @@ T('۱.۲ پس‌زمینهٔ جامدِ موبایل برای روز و شب (ج
   /background:rgba\(255,255,255,\.985\)!important/.test(lay) &&
   /html\.ptf-dark \.site-header,html\.ptf-dark \.site-header\.scrolled,html\.ptf-dark \.site-header\.is-compact\{background:rgba\(10,17,32,\.985\)!important\}/.test(lay));
 T('۱.۳ لنگر شیت همان‌جا سالم است (بالای داک، safe-area)',
-  /#mainNav\{top:auto!important;bottom:calc\(86px \+ env\(safe-area-inset-bottom\)\)!important/.test(home));
+  /#mainNav\{z-index:9535;top:auto!important;bottom:calc\(86px \+ env\(safe-area-inset-bottom\)\)!important/.test(home));
 T('۱.۴ JS: تاگل با stopPropagation (نه وابستگی به همبرگر مخفی)',
   /dm\.addEventListener\('click', function \(e\) \{ if \(e && e\.stopPropagation\) e\.stopPropagation\(\); nav\.classList\.toggle\('open'\); \}\)/.test(motion));
 
@@ -130,8 +130,8 @@ T('۴.۴ reduce: خاموشی کامل همچنان برجا',
   /@media \(prefers-reduced-motion: reduce\)\{[\s\S]*?\.btn-primary::before[^}]*animation:none;opacity:\.5/.test(home));
 
 SECTION('۵. قرارداد کلی');
-T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.2',
-  /home\.css\?v=34\.39\.2/.test(idx) && /ptf-motion\.js\?v=34\.39\.2" defer/.test(idx));
+T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.3',
+  /home\.css\?v=34\.39\.3/.test(idx) && /ptf-motion\.js\?v=34\.39\.3" defer/.test(idx));
 T('۵.۲ اعداد فارسی پنل هیرو هنوز ۳ و ۶+ (بازگشت‌ناپذیر)',
   /<b>۳<\/b><span>دپارتمان تامین<\/span>/.test(idx) && /<b>۶\+<\/b><span>صنعت هدف<\/span>/.test(idx));
 T('۵.۳ پارس JS: ptf-motion و main.js', (function () {
@@ -155,8 +155,8 @@ T('۵.۷ نگهبان بی‌تغییری: h1، canonical، tel/wa، ۱۰ بخش
   idx.indexOf('tel:02146087679') > -1 && idx.indexOf('wa.me/989925868479') > -1 &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   /<a href="rfq\/">استعلام<\/a>/.test(idx) && /<a class="btn btn-primary" href="rfq\/">/.test(idx));
-T('۵.۸ VERSION.json = v34.39.2', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.2');
+T('۵.۸ VERSION.json = v34.39.3', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.3');
 
-DONE('tester664-v34.39.2-dock-sun');
+DONE('tester664-v34.39.3-dock-sun');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

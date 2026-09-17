@@ -136,6 +136,17 @@
     if (bd) bd.addEventListener('click', function () { nav.classList.remove('open'); });
     var dm = doc.getElementById('ptfDockMenu');
     if (dm) dm.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); nav.classList.toggle('open'); });
+    /* v34.39.3 — شیت در موبایل به body منتقل می‌شود (فیلترِ هدر = بلوکِ حاوی؛ باگ «منو باز نمی‌شود») */
+    var mqN = win.matchMedia ? win.matchMedia('(max-width:790px)') : null;
+    var bd2 = doc.getElementById('ptfNavBackdrop'), wrap = doc.querySelector('.nav-wrap');
+    function placeNav() {
+      if (!mqN || !bd2 || !wrap) return;
+      var inHeader = nav.parentNode === wrap;
+      if (mqN.matches && inHeader) doc.body.insertBefore(nav, bd2);
+      else if (!mqN.matches && !inHeader) wrap.appendChild(nav);
+    }
+    placeNav();
+    if (mqN) { if (mqN.addEventListener) mqN.addEventListener('change', placeNav); else if (mqN.addListener) mqN.addListener(placeNav); }
     doc.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { nav.classList.remove('open'); tog.focus(); } });
   }
 

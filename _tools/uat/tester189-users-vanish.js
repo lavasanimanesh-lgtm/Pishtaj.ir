@@ -45,7 +45,7 @@ var cp = require('child_process'), os = require('os');
 var php = null; try { cp.execSync('php -v', { stdio: 'ignore' }); php = 'php'; } catch (e) {}
 if (!php) { T('PHP نبود — E2E روی CI/staging اجرا شود', true); DONE('tester189-users-vanish'); }
 else (async function () {
-  // v34.39.2: خودکفایی محیطی — secret به مسیر کنترل‌شدهٔ همین تست (نه بقیه‌ماندهٔ /tmp):
+  // v34.39.3: خودکفایی محیطی — secret به مسیر کنترل‌شدهٔ همین تست (نه بقیه‌ماندهٔ /tmp):
   // docroot یک سطح پایین‌تر (www) تا ptf_secret_config_paths() = dirname(docroot/api, 2)
   // بر دایرکتوری اختصاصی این اجرا بیفتد؛ کل‌چیز با rmSync(root) پاک می‌شود.
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'ptf-uv-'));
@@ -55,7 +55,7 @@ else (async function () {
     cp.execSync('cp -r ' + JSON.stringify(path.join(ROOT, 'api')) + ' ' + JSON.stringify(tmp));
     fs.writeFileSync(path.join(root, 'ptf-secrets.php'), "<?php\nreturn ['auth_key' => 'ptf-e2e-test-key-0123456789abcdef0123456789abcdef'];\n");
     fs.mkdirSync(path.join(tmp, 'crm/data'), { recursive: true });
-    /* v34.39.2: passhashها واقعی (sha256) + ورود با قرارداد فعلی auth_login
+    /* v34.39.3: passhashها واقعی (sha256) + ورود با قرارداد فعلی auth_login
        (فیلد password با متن‌ساده؛ همان سرور هش را مقایسه می‌کند). */
     var accHash = require('crypto').createHash('sha256').update('acc-pass-123').digest('hex');
     var bossHash = require('crypto').createHash('sha256').update('boss-pass-123').digest('hex');

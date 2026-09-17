@@ -21,10 +21,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.39.2', ver.crm_version === 'v34.39.2', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.39.2', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.2'") > -1);
-T('sw RELEASE = v34.39.2', sw.indexOf("RELEASE = 'v34.39.2'") > -1);
-T('offers-pro.js cache-bust 34.39.2', idx.indexOf('offers-pro.js?v=34.39.2') > -1);
+T('VERSION.json = v34.39.3', ver.crm_version === 'v34.39.3', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.39.3', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.3'") > -1);
+T('sw RELEASE = v34.39.3', sw.indexOf("RELEASE = 'v34.39.3'") > -1);
+T('offers-pro.js cache-bust 34.39.3', idx.indexOf('offers-pro.js?v=34.39.3') > -1);
 
 /* ---------- فرم: materialize مشترک + دکمه رسمی ---------- */
 T('offMaterializeCurrentDocument تعریف شده', off.indexOf('function offMaterializeCurrentDocument()') > -1);
