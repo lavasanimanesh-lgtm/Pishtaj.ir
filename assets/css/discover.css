@@ -107,3 +107,32 @@
 .ptf-search-form button{flex:0 0 auto;padding:12px 22px;border:0;border-radius:14px;background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;font-weight:900;font-size:15px;cursor:pointer}
 .ptf-search-form button:hover{filter:brightness(1.05)}
 @media(max-width:560px){.ptf-search-form{flex-direction:column}.ptf-search-form button{width:100%}}
+
+/* =====================================================================
+   v35 — graphite nav surfaces + professional mobile drawer
+   ===================================================================== */
+.lang-switch{background:rgba(255,255,255,.12)!important;color:#fff!important;border:1px solid rgba(255,255,255,.18)}
+@media(max-width:850px){
+  .site-header .main-nav{top:0!important;right:0!important;left:auto!important;bottom:0;width:min(86vw,350px);height:100dvh;max-height:none!important;display:flex!important;flex-direction:column;align-items:stretch;flex-wrap:nowrap!important;gap:2px;padding:96px 16px calc(24px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#0c0e11,#12151a);border:0;border-left:1px solid rgba(255,255,255,.08);border-radius:0;box-shadow:-24px 0 70px rgba(0,0,0,.55);opacity:1;visibility:visible;transform:translateX(103%);transition:transform .42s cubic-bezier(.22,.9,.32,1);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .site-header .main-nav.open{transform:translateX(0)}
+  .site-header .main-nav.open>*{animation:ptfNavIn .5s cubic-bezier(.2,.7,.2,1) both}
+  .site-header .main-nav.open>*:nth-child(2){animation-delay:.04s}.site-header .main-nav.open>*:nth-child(3){animation-delay:.08s}.site-header .main-nav.open>*:nth-child(4){animation-delay:.12s}.site-header .main-nav.open>*:nth-child(5){animation-delay:.16s}.site-header .main-nav.open>*:nth-child(6){animation-delay:.2s}.site-header .main-nav.open>*:nth-child(7){animation-delay:.24s}.site-header .main-nav.open>*:nth-child(8){animation-delay:.28s}.site-header .main-nav.open>*:nth-child(9){animation-delay:.32s}.site-header .main-nav.open>*:nth-child(10){animation-delay:.36s}
+  .site-header .main-nav>a,.site-header .main-nav>.nav-drop>a,.site-header .main-nav>.nav-products>a{color:#e8ebf0!important;background:transparent!important}
+  .site-header .main-nav a:hover,.site-header .main-nav a.active{background:rgba(247,148,0,.14)!important;color:#ffc46b!important}
+  .nav-drop-menu{background:transparent!important;border:0!important;box-shadow:none!important;padding:0 12px!important}
+  .nav-drop-menu a{color:#cfd4db!important}
+  .nav-mega-trigger{background:rgba(255,255,255,.08)!important;border-color:rgba(255,255,255,.14)!important;color:#ffb033!important}
+  .nav-mega-col{background:#161a21!important;border-color:rgba(255,255,255,.09)!important}
+  .nav-mega-col.open{background:#1a1f27!important;border-color:rgba(239,75,26,.4)!important}
+  .nav-mega-head{color:#f4f6f8!important}
+  .nav-mega-head svg{color:#8b93a0}
+  .nav-mega-col.open .nav-mega-head{color:#ffb033!important}
+  .nav-mega-col.open .nav-mega-head svg{color:#ffb033}
+  .main-nav .nav-mega .nav-mega-items-in a{color:#c9ced6!important}
+  .main-nav .nav-mega .nav-mega-items-in a:hover,.main-nav .nav-mega .nav-mega-items-in a:active{background:rgba(247,148,0,.12)!important;color:#ffc46b!important}
+}
+@keyframes ptfNavIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.site-header .main-nav{transition:none}.site-header .main-nav.open>*{animation:none}}
+
+/* v35.2 — keep brand row clickable above the drawer */
+.site-header .nav-wrap>.brand,.site-header .menu-toggle{position:relative;z-index:2}

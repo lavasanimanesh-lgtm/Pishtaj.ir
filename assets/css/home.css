@@ -169,3 +169,76 @@
   .reveal{transition-duration:.01ms!important;transition-delay:0s!important}
   *{scroll-behavior:auto!important}
 }
+
+/* =====================================================================
+   v35 — homepage dynamics: blueprint grid, ticker, dark data bands,
+   scroll-reveal base, FAQ chevron, render perf (content-visibility)
+   ===================================================================== */
+
+/* scroll-reveal base (main.js toggles .visible) */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.visible{opacity:1;transform:none}
+
+/* hero: faint blueprint grid + depth */
+.hero::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.14;
+  background-image:linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px);
+  background-size:56px 56px;
+  -webkit-mask-image:radial-gradient(ellipse at 72% 18%,#000 0%,transparent 62%);
+  mask-image:radial-gradient(ellipse at 72% 18%,#000 0%,transparent 62%)}
+
+/* hero keyword ticker */
+.hero-ticker{display:flex;align-items:center;gap:10px;margin-top:26px;flex-wrap:wrap}
+.ticker-label{font-size:12px;font-weight:900;color:rgba(255,255,255,.72);border:1px dashed rgba(255,255,255,.28);padding:7px 13px;border-radius:999px}
+.ticker-viewport{overflow:hidden;display:inline-flex;align-items:center;height:40px}
+.ticker-word{display:inline-block;font-weight:900;color:#ffcf7d;font-size:14.5px;padding:8px 18px;border-radius:999px;background:rgba(247,148,0,.15);border:1px solid rgba(247,148,0,.38);white-space:nowrap}
+.ticker-word.swap{animation:ptfTick .5s cubic-bezier(.2,.7,.2,1)}
+@keyframes ptfTick{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* dark trust band (graphite + gold counters, Sandvik-style data strip) */
+.trust-strip{background:linear-gradient(180deg,#0d0f12,#12141a)!important;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)}
+.trust-strip .trust-item{background:rgba(255,255,255,.05)!important;border:1px solid rgba(255,255,255,.09)!important;color:#e8ebf0!important;box-shadow:none!important}
+.trust-strip .trust-item:hover{border-color:rgba(247,148,0,.4);transform:translateY(-4px)}
+.trust-strip b[style]{color:#ffb033!important}
+.trust-strip span[style]{color:#aeb6c2!important}
+.trust-strip .ptf-line-icon{background:rgba(247,148,0,.14)!important;color:#ffb033!important;border-color:transparent!important}
+
+/* dark stats band */
+#stats{background:linear-gradient(180deg,#0c0e11,#141720)!important;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)}
+#stats .kicker{color:#ffb033}
+#stats h2[style],#stats h2{color:#fff!important}
+#stats p[style]{color:#a7afbb!important}
+#stats [style*="border-top"]{background:rgba(255,255,255,.05)!important;border:1px solid rgba(255,255,255,.09)!important;border-top:3px solid #f79400!important;border-radius:18px!important;box-shadow:none!important}
+#stats [style*="border-top"]:hover{box-shadow:0 18px 44px rgba(247,148,0,.14)!important}
+#stats [style*="border-top"]>div:first-child{color:#ffb033!important}
+#stats [style*="border-top"]>div:nth-child(2){color:#fff!important}
+#stats [style*="border-top"]>div:nth-child(3){color:#98a1ad!important}
+#stats em{color:#7d8794!important}
+
+/* FAQ accordion plus-icon */
+#home-faq details{background:#fff;border-radius:18px!important;overflow:hidden;padding:0!important}
+#home-faq summary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px!important;list-style:none}
+#home-faq summary::-webkit-details-marker{display:none}
+#home-faq summary::after{content:'+';flex:0 0 auto;display:grid;place-items:center;width:28px;height:28px;border-radius:10px;background:rgba(239,75,26,.1);color:var(--red);font-size:18px;font-weight:900;transition:transform .3s ease,background .3s}
+#home-faq details[open] summary::after{transform:rotate(45deg);background:rgba(239,75,26,.18)}
+#home-faq details p{padding:0 18px 18px!important;margin:0!important}
+
+/* contact band: warm porcelain instead of blue tint (logo-faithful) */
+#contact{background:linear-gradient(180deg,#f6f6f3,#f0ede8)!important}
+
+/* render perf: skip offscreen sections until near viewport */
+#journey,#why-ptf,#about,#services,#brands,#projects,#stats,#home-faq,#contact{content-visibility:auto;contain-intrinsic-size:auto 760px}
+
+/* service card image veil */
+.card-img{position:relative}
+.card-img::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(10,11,13,.5));transition:opacity .3s}
+.service-card:hover .card-img::after{opacity:.3}
+
+@media(prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+  .hero::after{display:none}
+  .ticker-word.swap{animation:none}
+}
+
+/* v35.1 — timing polish */
+#journey a.reveal{transition:opacity .6s ease,transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s ease,border-color .35s ease}
+.hero-copy > *:nth-child(5){animation-delay:.40s}

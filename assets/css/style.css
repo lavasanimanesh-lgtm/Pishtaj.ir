@@ -95,3 +95,49 @@ main,.section,.container,.client-showcase,.brand-marquee-section,.marquee-shell{
 .marquee-shell{contain:layout paint}
 .marquee-track{will-change:transform}
 @media(max-width:790px){.lang-switch{padding:6px 10px!important;font-size:11px!important}}@media(max-width:440px){.brand small{display:none}.lang-switch{padding:5px 8px!important;gap:2px!important}}.floating-whatsapp{position:fixed;left:20px;bottom:156px;z-index:9999;width:54px;height:54px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.25);transition:transform .2s;text-decoration:none}.floating-whatsapp:hover{transform:scale(1.1)}@media(max-width:600px){.floating-call{bottom:70px}.floating-whatsapp{bottom:140px}}
+
+/* =====================================================================
+   v35 — EMBER GRAPHITE design system
+   Benchmark-derived (Sandvik / Caterpillar / Epiroc patterns): deep graphite
+   surfaces + bold typography + single energetic accent. Accent colors are
+   taken from the PTF logo flame (red-orange #ef4b1a, amber #f79400, gold),
+   gear-ring graphite becomes the structural surface color.
+   ===================================================================== */
+:root{--g950:#0a0b0d;--g900:#0f1114;--g850:#14171c;--g800:#1a1e25;--g700:#252b34;--steel:#454c57;--porcelain:#f6f6f3;--gold:#f2b13d;--ember:linear-gradient(135deg,var(--red),var(--orange))}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+body{background:var(--porcelain)}
+::selection{background:rgba(247,148,0,.42);color:#1a1206}
+
+/* graphite glass header (dark, premium, high-contrast on light content) */
+.site-header{background:rgba(10,11,13,.58);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);border-bottom:1px solid rgba(255,255,255,.08)}
+.site-header.scrolled{background:rgba(10,11,13,.94);box-shadow:0 16px 44px rgba(0,0,0,.45)}
+.brand b{color:#fff}
+.brand small{color:var(--gold)}
+.main-nav a{color:#dfe3ea}
+.main-nav a:hover,.main-nav a.active{background:linear-gradient(135deg,rgba(239,75,26,.25),rgba(247,148,0,.16));color:#ffc46b}
+.menu-toggle{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);box-shadow:none}
+.menu-toggle span{background:#fff;transition:.3s}
+body.nav-open .menu-toggle span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+body.nav-open .menu-toggle span:nth-child(2){opacity:0}
+body.nav-open .menu-toggle span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
+/* footer ember line */
+.footer{position:relative}
+.footer[style]{border-top:0!important}
+.footer::before{content:'';position:absolute;top:0;right:0;left:0;height:4px;background:linear-gradient(90deg,var(--red),var(--orange) 35%,var(--red) 70%,var(--orange))}
+
+/* scrim + scroll lock for mobile drawer */
+.ptf-scrim{position:fixed;inset:0;z-index:55;background:rgba(6,7,9,.58);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s}
+body.nav-open .ptf-scrim{opacity:1;visibility:visible}
+body.nav-open{overflow:hidden}
+
+/* mobile bottom action bar (app-like, thumb-reachable) */
+.ptf-bottombar{position:fixed;right:0;left:0;bottom:0;z-index:66;display:none;grid-template-columns:1fr 1fr 1.7fr 1fr;gap:8px;background:rgba(13,15,18,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.09);padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+.ptf-bottombar a,.ptf-bottombar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;border-radius:14px;background:rgba(255,255,255,.06);color:#e6e9ee;font-family:inherit;font-size:10.5px;font-weight:800;cursor:pointer;text-decoration:none;transition:transform .2s,background .2s}
+.ptf-bottombar svg{width:21px;height:21px}
+.ptf-bottombar a:active,.ptf-bottombar button:active{transform:scale(.95)}
+.ptf-bottombar .bb-cta{background:var(--ember);color:#fff;font-size:12.5px;box-shadow:0 10px 26px rgba(239,75,26,.4)}
+@media(max-width:850px){.ptf-bottombar{display:grid}.floating-call,.floating-whatsapp{display:none}}
+
+/* v35.1 — mobile bottom bar clearance for footer */
+@media(max-width:850px){.footer{padding-bottom:92px}}
