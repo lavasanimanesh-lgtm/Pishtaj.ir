@@ -1,0 +1,152 @@
+/* =====================================================================
+   PTF HOME-DYNAMIC-X — v34.39.0
+   موتورِ حرکت و UX موبایلِ صفحهٔ اول — بدون هیچ کتابخانه‌ای.
+   اصول (بر اساس بنچ‌مارک‌های Grainger / McMaster-Carr / Fastenal و الگوهای برتر B2B صنعتی):
+   ① سرعت مطلق: همه‌چیز transform/opacity، rAF، listenerهای passive، بدون layout thrash.
+   ② موبایل اپ‌گونه: داک پایین، کشوی منو با بک‌دراپ، قفل اسکرول، ESC.
+   ③ دسترس‌پذیری: respects prefers-reduced-motion؛ بدون JS یعنی محتوای کاملاً سالم.
+   لایهٔ نمایشی است؛ هیچ متن/لینک/ساختار محتوایی را تغییر نمی‌دهد.
+   ===================================================================== */
+(function () {
+  'use strict';
+  var doc = document, root = doc.documentElement, win = window;
+  var RM = !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var FINE = !!(win.matchMedia && win.matchMedia('(hover:hover) and (pointer:fine)').matches);
+  function ready(fn) { if (doc.readyState !== 'loading') fn(); else doc.addEventListener('DOMContentLoaded', fn); }
+
+  /* ① هدر جمع‌شونده + داک هوشمند (مخفی در اسکرول نزولی، نمایان در صعودی) */
+  function scrollUI() {
+    var header = doc.querySelector('.site-header'), dock = doc.getElementById('ptfDock');
+    if (!header && !dock) return;
+    var lastY = win.scrollY || 0, ticking = false;
+    function upd() {
+      var y = win.scrollY || root.scrollTop || 0;
+      if (header) header.classList.toggle('is-compact', y > 90);
+      if (dock && win.matchMedia('(max-width:790px)').matches) {
+        if (y > 380 && y > lastY + 8) dock.classList.add('is-hidden');
+        else if (y < lastY - 8 || y <= 380) dock.classList.remove('is-hidden');
+      } else if (dock) dock.classList.remove('is-hidden');
+      lastY = y; ticking = false;
+    }
+    win.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(upd); } }, { passive: true });
+    upd();
+  }
+
+  /* ② شکافت کلمات H1 برای پرده‌گشایی سینمایی (کاهش‌حرکت = بدون تغییر DOM) */
+  function splitWords() {
+    if (RM) return;
+    var h1 = doc.querySelector('.hero h1');
+    if (!h1 || h1.getAttribute('data-ptf-split')) return;
+    h1.setAttribute('data-ptf-split', '1');
+    var i = 0;
+    function wordSpan(word, strong) {
+      var outer = doc.createElement('span'); outer.className = 'ptf-w';
+      var inner = doc.createElement('span'); inner.className = 'ptf-wi' + (strong ? ' w-strong' : '');
+      inner.textContent = word;
+      inner.style.animationDelay = Math.min(1500, 160 + (i++) * 42) + 'ms';
+      outer.appendChild(inner); return outer;
+    }
+    Array.prototype.slice.call(h1.childNodes).forEach(function (n) {
+      if (n.nodeType === 3) {
+        var words = n.textContent.split(/\s+/).filter(Boolean);
+        if (!words.length) return;
+        var frag = doc.createDocumentFragment();
+        words.forEach(function (w) { frag.appendChild(wordSpan(w, false)); frag.appendChild(doc.createTextNode(' ')); });
+        n.parentNode.replaceChild(frag, n);
+      } else if (n.nodeType === 1 && n.tagName === 'STRONG') {
+        var ws = n.textContent.split(/\s+/).filter(Boolean);
+        n.textContent = '';
+        ws.forEach(function (w) { n.appendChild(wordSpan(w, true)); n.appendChild(doc.createTextNode(' ')); });
+      }
+    });
+  }
+
+  /* ③ شمارنده‌های آماری (فقط متن‌های عددی‌مانند؛ متن نهایی دقیقاً بازگردانده می‌شود) */
+  function fa(n) { return String(n).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
+  function counters() {
+    if (RM || !('IntersectionObserver' in win)) return;
+    var els = Array.prototype.filter.call(doc.querySelectorAll('[data-counter]'), function (el) {
+      return /^(\D{0,2})[\u06F0-\u06F9\d]+.{0,3}$/.test(el.textContent.trim());
+    });
+    if (!els.length) return;
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (!e.isIntersecting) return; io.unobserve(e.target); run(e.target); });
+    }, { threshold: 0.5 });
+    els.forEach(function (el) { io.observe(el); });
+    function run(el) {
+      var text = el.textContent.trim(), m = /^(\D{0,2})([\u06F0-\u06F9\d]+)(.*)$/.exec(text);
+      if (!m) return;
+      var target = parseInt(m[2].replace(/[\u06F0-\u06F9]/g, function (c) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c); }).replace(/[^\d]/g, ''), 10);
+      if (!target || target > 100000) return;
+      var t0 = 0, DUR = 1100;
+      function tick(t) {
+        if (!t0) t0 = t;
+        var p = Math.min(1, (t - t0) / DUR), e = 1 - Math.pow(1 - p, 3);
+        el.textContent = m[1] + fa(Math.round(target * e)) + m[3];
+        if (p < 1) requestAnimationFrame(tick); else el.textContent = text;
+      }
+      requestAnimationFrame(tick);
+    }
+  }
+
+  /* ④ اسپات‌لایت نشانگر روی کارت‌ها (فقط دسکتاپ؛ متغیرهای CSS --mx/--my) */
+  function spotlight() {
+    if (!FINE || RM) return;
+    var sel = '.service-card,.trust-item,#journey a.reveal,#why-ptf .reveal';
+    var raf = false, ev = null;
+    function mv(e) {
+      ev = e;
+      if (raf) return; raf = true;
+      requestAnimationFrame(function () {
+        raf = false;
+        var el = ev.currentTarget, x = ev.clientX, y = ev.clientY;
+        if (!el || !el.getBoundingClientRect) return;
+        var r = el.getBoundingClientRect();
+        el.style.setProperty('--mx', ((x - r.left) / r.width * 100).toFixed(1) + '%');
+        el.style.setProperty('--my', ((y - r.top) / r.height * 100).toFixed(1) + '%');
+      });
+    }
+    Array.prototype.forEach.call(doc.querySelectorAll(sel), function (el) {
+      el.addEventListener('pointermove', mv, { passive: true });
+    });
+  }
+
+  /* ⑤ کشوی موبایل: هماهام‌سازی با toggle موجودِ main.js (MutationObserver، بدون رقابت) */
+  function drawer() {
+    var nav = doc.getElementById('mainNav'), tog = doc.getElementById('menuToggle'), bd = doc.getElementById('ptfNavBackdrop');
+    if (!nav || !tog) return;
+    tog.setAttribute('aria-expanded', 'false');
+    function sync() {
+      var open = nav.classList.contains('open');
+      tog.classList.toggle('is-x', open);
+      tog.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (bd) bd.classList.toggle('show', open);
+      root.classList.toggle('ptf-lock', open);
+    }
+    if ('MutationObserver' in win) new MutationObserver(sync).observe(nav, { attributes: true, attributeFilter: ['class'] });
+    else tog.addEventListener('click', function () { setTimeout(sync, 0); });
+    if (bd) bd.addEventListener('click', function () { nav.classList.remove('open'); tog.focus(); });
+    doc.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { nav.classList.remove('open'); tog.focus(); } });
+  }
+
+  /* ⑥ داک موبایل: دکمهٔ چت + بستن هوشمند */
+  function dock() {
+    var chat = doc.getElementById('ptfDockChat');
+    if (chat) chat.addEventListener('click', function () {
+      var fab = doc.getElementById('ptfChatBtn');
+      if (fab) { fab.click(); }
+      else { var c = doc.getElementById('contact'); if (c) c.scrollIntoView({ behavior: RM ? 'auto' : 'smooth' }); }
+    });
+  }
+
+  /* ⑦ مایکرو-انرژی: دکمه‌های PR — ripple ساده روی hover (دسکتاپ) */
+  function tilt() {
+    if (!FINE || RM) return;
+    Array.prototype.forEach.call(doc.querySelectorAll('.service-card'), function (el) {
+      el.addEventListener('pointerenter', function () { el.classList.add('ptf-lift'); });
+      el.addEventListener('pointerleave', function () { el.classList.remove('ptf-lift'); });
+    });
+  }
+
+  ready(function () { scrollUI(); splitWords(); counters(); spotlight(); drawer(); dock(); tilt(); });
+})();

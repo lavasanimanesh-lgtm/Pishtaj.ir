@@ -95,3 +95,13 @@ main,.section,.container,.client-showcase,.brand-marquee-section,.marquee-shell{
 .marquee-shell{contain:layout paint}
 .marquee-track{will-change:transform}
 @media(max-width:790px){.lang-switch{padding:6px 10px!important;font-size:11px!important}}@media(max-width:440px){.brand small{display:none}.lang-switch{padding:5px 8px!important;gap:2px!important}}.floating-whatsapp{position:fixed;left:20px;bottom:156px;z-index:9999;width:54px;height:54px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.25);transition:transform .2s;text-decoration:none}.floating-whatsapp:hover{transform:scale(1.1)}@media(max-width:600px){.floating-call{bottom:70px}.floating-whatsapp{bottom:140px}}
+
+/* ═ v34.39.0 — GLOBAL THEME TOKENS (additive; consumed by HOME-DYNAMIC-X and future pages)
+   تم رسمی: سطح روشن ۶۰٪ + استیل/سرمه مهندسی ۳۰٪ + شعلهٔ برند ۰٪ (CTA) — وفادار به لوگوی PTF */
+:root{--steel-950:#080d16;--steel-900:#0b1220;--steel-800:#101d33;--steel-700:#16233c;--link-steel:#155a97;--ice:#eef3f9;--ice2:#e4ecf6;--flame-grad:linear-gradient(135deg,var(--red),var(--orange));--flame-line:linear-gradient(90deg,var(--red),var(--orange))}
+/* قفل اسکرول هنگام باز بودن کشوی موبایل + انیمیشن دکمهٔ همبرگری → ✕ */
+@media(max-width:790px){html.ptf-lock,html.ptf-lock body{overflow:hidden}}
+.menu-toggle span{transition:transform .25s ease,opacity .2s ease}
+.menu-toggle.is-x span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.menu-toggle.is-x span:nth-child(2){opacity:0}
+.menu-toggle.is-x span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}

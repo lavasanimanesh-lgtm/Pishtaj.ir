@@ -15,8 +15,8 @@ var sf = read('crm/salesfiles.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.25', ver.crm_version === 'v34.38.25', ver.crm_version);
-T('salesfiles.js cache-bust 34.38.25', /salesfiles\.js\?v=34\.38\.25/.test(idx));
+T('VERSION.json = v34.39.0', ver.crm_version === 'v34.39.0', ver.crm_version);
+T('salesfiles.js cache-bust 34.39.0', /salesfiles\.js\?v=34\.39\.0/.test(idx));
 
 /* قفل مرحله حذف شد */
 T('قفل مرحله (stg < 7) حذف شد', sf.indexOf('stg < 7') === -1 && sf.indexOf("why: 'stage'") === -1);
