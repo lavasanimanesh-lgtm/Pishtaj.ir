@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester668 — v34.39.9 (HOME-WAVE)
+   tester668 — v34.39.10 (HOME-WAVE)
    درخواست کارفرما: «یک موج مورب رنگی روی کادرِ «دپارتمان تامین / صنعت هدف / RFQ»
    (پنل شیشه‌ای هیرو) هر چند ثانیه یک‌بار عبور کند.»
    قرارداد:
@@ -44,7 +44,7 @@ T('۱.۶ پنل base نسبی است و متن‌ها زیرِ لایهٔ موج
 SECTION('رگرسیون و قرارداد کلی');
 T('۲.۱ تیلتِ ۳بعدی و هاورِ پنل از قبل دست‌نخورده',
   /\.hero-panel\{transform-style:preserve-3d;transition:transform/.test(home.replace(/\n/g, ' ')) || home.indexOf('.hero-panel:hover{transform:rotateY(-3deg)') > -1 || /#mainNav \.nav-drop-menu/.test(home) && home.indexOf('rotateY(-3deg)') > -1);
-T('۲.۲ cache-bust روی v34.39.9', /home\.css\?v=34\.39\.9/.test(idx) && /ptf-motion\.js\?v=34\.39\.9" defer/.test(idx));
+T('۲.۲ cache-bust روی v34.39.10', /home\.css\?v=34\.39\.10/.test(idx) && /ptf-motion\.js\?v=34\.39\.10" defer/.test(idx));
 T('۲.۳ حجم زیرِ بودجه و آکولادِ متوازن', home.length < 40000 && home.split('{').length === home.split('}').length);
 T('۲.۴ رگرسیون‌زدا: ردیفِ تم آیکونی، آکاردئون، مگای شب، ریتم برق، اعداد فارسی، canonical‌ها',
   home.indexOf('.nav-search{display:none!important}') > -1 &&
@@ -52,8 +52,8 @@ T('۲.۴ رگرسیون‌زدا: ردیفِ تم آیکونی، آکاردئو�
   home.indexOf('html.ptf-dark #mainNav .nav-mega') > -1 &&
   /animation:ptfCurS 26s linear infinite/.test(home) && /<b>۳<\/b>/.test(idx) && /<b>۶\+<\/b>/.test(idx) &&
   idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
-T('۲.۵ VERSION.json = v34.39.9', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.9');
+T('۲.۵ VERSION.json = v34.39.10', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.10');
 
-DONE('tester668-v34.39.9-hero-wave');
+DONE('tester668-v34.39.10-hero-wave');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

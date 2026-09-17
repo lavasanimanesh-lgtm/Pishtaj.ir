@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester670 — v34.39.9 (HOME-CALM2)
+   tester670 — v34.39.10 (HOME-CALM2)
    «کادر جستجو در هدر حذف شود» + «برق دور کارت‌ها هنوز سریع است؛ خیلی کمتر کن»
    ① .nav-search سراسری display:none (موبایل از ۳۹.۵؛ دسکتاپ از این پس) — DOM و
       ptf-discover.js و مسیر search/ دست‌نخورده (لایهٔ نمایشی؛ مرجعِ جست‌وجو Finder هیرو)
@@ -27,12 +27,12 @@ T('۲.۲ هاور = ۱۵s', /animation:ptfCurS 15s linear infinite/.test(home));
 T('۲.۳ کیفریم دم‌سکوت ثابت (۵۲٪ عبور/۴۸٪ تاریکی) و بدون دورِ تندِ ptfCur باقی‌مانده',
   /@keyframes ptfCurS\{0%\{background-position:220% 0\}52%\{background-position:-240% 0\}/.test(home) && !/animation:ptfCur [1-9](\.\d)?s/.test(home));
 SECTION('قراردادها و بودجه');
-T('۳.۱ cache-bust روی v34.39.9', /home\.css\?v=34\.39\.9/.test(idx) && /ptf-motion\.js\?v=34\.39\.9" defer/.test(idx));
+T('۳.۱ cache-bust روی v34.39.10', /home\.css\?v=34\.39\.10/.test(idx) && /ptf-motion\.js\?v=34\.39\.10" defer/.test(idx));
 T('۳.۲ بودجه <۴۰K و آکولاد متوازن و مارکرِ ۹ لایه یکتا', home.length < 40000 && home.split('{').length === home.split('}').length && ['v34.39.0 — HOME-DYNAMIC-X','v34.39.1 — HOME-ELECTRIC-3D','v34.39.2 — HOME-DOCK-SUN','v34.39.3 — HOME-NIGHT-READ','v34.39.4 — HOME-ACCORD-NIGHTMEGA','v34.39.5 — HOME-ICONMIN','v34.39.6 — HOME-WAVE','v34.39.8 — HOME-MINBTN','v34.39.9 — HOME-CALM2'].every(function(m){ return home.split(m).length === 2; }));
 T('۳.۳ رگرسیون‌زدا: کلید تم فقط‌آیکونِ دسکتاپ، موجِ no-repeat، آیکون شیت، canonical‌ها، جست‌وجو در DOM حذف نشده',
   home.indexOf('#mainNav .theme-toggle{width:42px;height:42px;padding:0;border:0!important') > -1 &&
   home.indexOf('background-repeat:no-repeat') > -1 && idx.indexOf('href="tel:02146087679"') > -1);
-T('۳.۴ VERSION.json = v34.39.9', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.9');
-DONE('tester670-v34.39.9-calm2-searchmin');
+T('۳.۴ VERSION.json = v34.39.10', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.10');
+DONE('tester670-v34.39.10-calm2-searchmin');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
