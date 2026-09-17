@@ -137,7 +137,30 @@ body.nav-open{overflow:hidden}
 .ptf-bottombar svg{width:21px;height:21px}
 .ptf-bottombar a:active,.ptf-bottombar button:active{transform:scale(.95)}
 .ptf-bottombar .bb-cta{background:var(--ember);color:#fff;font-size:12.5px;box-shadow:0 10px 26px rgba(239,75,26,.4)}
-@media(max-width:850px){.ptf-bottombar{display:grid}.floating-call,.floating-whatsapp{display:none}}
+@media(max-width:850px){.ptf-bottombar{display:grid}body:has(.ptf-bottombar) .floating-call,body:has(.ptf-bottombar) .floating-whatsapp{display:none}}
 
 /* v35.1 — mobile bottom bar clearance for footer */
-@media(max-width:850px){.footer{padding-bottom:92px}}
+@media(max-width:850px){body:has(.ptf-bottombar) .footer{padding-bottom:92px}}
+
+/* =====================================================================
+   v35.3 — mobile refinements (per feedback round 2)
+   1) top hamburger removed on mobile (menu lives in the bottom bar)
+   2) chat launcher lifted above the bottom bar (no overlap)
+   3) bottom-bar RFQ button slimmed down
+   4) logo legibility on dark surfaces: graphite lightened + ember outline
+   ===================================================================== */
+@media(max-width:850px){
+  body:has(.ptf-bottombar) .menu-toggle{display:none!important}
+  body #ptfChatBtn{bottom:calc(88px + env(safe-area-inset-bottom))!important;left:12px!important}
+  body #ptfChatBox{bottom:calc(146px + env(safe-area-inset-bottom))!important;height:min(480px,calc(100vh - 210px))!important}
+  .ptf-bottombar{grid-template-columns:1fr 1fr 1.35fr 1fr}
+  .ptf-bottombar .bb-cta{min-height:48px;font-size:11.5px}
+  .ptf-bottombar .bb-cta svg{width:18px;height:18px}
+}
+/* logo on dark: brighten the gear gray + colored outline hugging the gear */
+.site-header .brand img,
+.hero-panel>img,
+.footer img[alt*="لوگو"]{filter:brightness(1.38) saturate(1.05) drop-shadow(0 0 1px rgba(247,148,0,.85)) drop-shadow(0 0 7px rgba(247,148,0,.4))}
+
+/* v35.4 — chat script injects body padding on mobile; bar already reserves space */
+@media(max-width:850px){body:has(.ptf-bottombar){padding-bottom:0!important}}
