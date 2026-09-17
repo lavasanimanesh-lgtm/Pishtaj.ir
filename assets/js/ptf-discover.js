@@ -43,10 +43,130 @@
     else if (mqHeaderActions.addListener) mqHeaderActions.addListener(syncHeaderActions);
   }
 
+  function pageLang() {
+    var html = (document.documentElement.lang || "").toLowerCase();
+    var known = ["ar", "en", "tr", "de", "fr", "zh", "ru"];
+    for (var i = 0; i < known.length; i++) {
+      if (html.indexOf(known[i]) === 0) return known[i];
+    }
+    var path = location.pathname || "";
+    for (i = 0; i < known.length; i++) {
+      if (new RegExp("\\/" + known[i] + "(\\/|$)").test(path)) return known[i];
+    }
+    return "fa";
+  }
+  function isNonFa() {
+    return pageLang() !== "fa";
+  }
+
+  var FLAG_IR = '<svg viewBox="0 0 60 45" width="22" height="16" aria-hidden="true" focusable="false"><rect width="60" height="15" fill="#239f40"/><rect y="15" width="60" height="15" fill="#fff"/><rect y="30" width="60" height="15" fill="#da0000"/></svg>';
+  var FLAG_UK = '<svg viewBox="0 0 60 45" width="22" height="16" aria-hidden="true" focusable="false"><rect width="60" height="45" fill="#012169"/><path d="M0 0L60 45M60 0L0 45" stroke="#fff" stroke-width="10"/><path d="M0 0L60 45M60 0L0 45" stroke="#C8102E" stroke-width="4"/><path d="M30 0V45M0 22.5H60" stroke="#fff" stroke-width="12"/><path d="M30 0V45M0 22.5H60" stroke="#C8102E" stroke-width="8"/></svg>';
+  var FLAG_SA = '<svg viewBox="0 0 60 45" width="22" height="16" aria-hidden="true" focusable="false"><rect width="60" height="45" rx="2" fill="#006C35"/><g fill="#fff"><path d="M11 13.5c2.2-3.4 8.2-5.2 14.2-2.4 3.2 1.4 7.4 1.1 10.6-1.2 2.4 2.6 7.4 4.6 14.2 2.6-1.6 2.8-7.4 4.6-13.6 2.2-3.8-1.4-7.8-.8-10.8 1.2-3.8 2.4-8.2 1.6-14.6-2.4z"/><path d="M13 20c3.2-2 8.4-2.4 12.6.2 4 2.2 9.2 1.6 14.4-1.2-1.2 2.8-6.2 4.8-12 2.8-3.8-1.2-7.8-.8-10.8 1.2-2.6.4-5.4-.4-4.2-3z"/><rect x="13" y="27.2" width="28" height="2.3" rx="1.1"/><path d="M41 25.4l8 2.9-8 2.9z"/><path d="M15.2 26.2c-2.4 1.2-2.4 3.2 0 4.4" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/></g></svg>';
+  var FLAG_TR = '<svg viewBox="0 0 60 45" width="22" height="16" aria-hidden="true" focusable="false"><rect width="60" height="45" rx="2" fill="#E30A17"/><circle cx="23" cy="22.5" r="10" fill="#fff"/><circle cx="26.5" cy="22.5" r="8" fill="#E30A17"/><polygon fill="#fff" points="36.2,22.5 32.6,24.7 33.8,20.6 31,18.2 35.2,18.6 36.2,14.6 37.2,18.6 41.4,18.2 38.6,20.6 39.8,24.7"/></svg>';
+  var FLAG_DE = '<svg viewBox="0 0 60 45" width="22" height="16" aria-hidden="true" focusable="false"><rect width="60" height="15" fill="#000"/><rect y="15" width="60" height="15" fill="#D00"/><rect y="30" width="60" height="15" fill="#FFCE00"/></svg>';
+  var FLAG_FR = '<svg viewBox="0 0 60 45" width="22" height="16" aria-hidden="true" focusable="false"><rect width="20" height="45" fill="#002395"/><rect x="20" width="20" height="45" fill="#fff"/><rect x="40" width="20" height="45" fill="#ED2939"/></svg>';
+  var FLAG_CN = '<svg viewBox="0 0 60 45" width="22" height="16" aria-hidden="true" focusable="false"><rect width="60" height="45" rx="2" fill="#DE2910"/><polygon fill="#FFDE00" points="12,9 13.8,14.4 19.5,14.4 14.9,17.7 16.6,23.1 12,19.8 7.4,23.1 9.1,17.7 4.5,14.4 10.2,14.4"/><polygon fill="#FFDE00" points="22,8 23.1,11.2 26.5,11.2 23.8,13.2 24.8,16.4 22,14.4 19.2,16.4 20.2,13.2 17.5,11.2 20.9,11.2"/><polygon fill="#FFDE00" points="26,14 27.1,17.2 30.5,17.2 27.8,19.2 28.8,22.4 26,20.4 23.2,22.4 24.2,19.2 21.5,17.2 24.9,17.2"/><polygon fill="#FFDE00" points="26,22 27.1,25.2 30.5,25.2 27.8,27.2 28.8,30.4 26,28.4 23.2,30.4 24.2,27.2 21.5,25.2 24.9,25.2"/><polygon fill="#FFDE00" points="22,28 23.1,31.2 26.5,31.2 23.8,33.2 24.8,36.4 22,34.4 19.2,36.4 20.2,33.2 17.5,31.2 20.9,31.2"/></svg>';
+  var FLAG_RU = '<svg viewBox="0 0 60 45" width="22" height="16" aria-hidden="true" focusable="false"><rect width="60" height="15" fill="#fff"/><rect y="15" width="60" height="15" fill="#0039A6"/><rect y="30" width="60" height="15" fill="#D52B1E"/></svg>';
+
+  var LANG_CSS =
+    ".site-header,.nav-wrap,.hdr-actions{overflow:visible!important}" +
+    ".ptf-lang{position:relative;display:inline-flex;align-items:center;flex:0 0 auto;z-index:10080}" +
+    ".ptf-lang-panel{position:absolute;top:calc(100% + 8px);inset-inline-start:0;min-width:188px;max-height:min(70vh,420px);overflow:auto;padding:8px;border-radius:16px;background:#fff;border:1px solid rgba(15,23,42,.10);box-shadow:0 18px 40px rgba(15,23,42,.16);opacity:0;visibility:hidden;pointer-events:none;transform:translateY(8px);transition:opacity .22s ease,transform .22s cubic-bezier(.16,1,.3,1),visibility .22s;display:grid;gap:4px;z-index:10080}" +
+    ".ptf-lang.open .ptf-lang-panel{opacity:1;visibility:visible;pointer-events:auto;transform:none}" +
+    ".ptf-lang-panel a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;text-decoration:none;color:#1e293b;font-weight:800;font-size:13.5px;white-space:nowrap;min-height:44px}" +
+    ".ptf-lang-panel a:hover,.ptf-lang-panel a:focus-visible{background:rgba(239,75,26,.08);color:#c73616}" +
+    ".ptf-lang-panel svg{border-radius:3px;box-shadow:0 0 0 1px rgba(15,23,42,.08);flex:0 0 auto;display:block}" +
+    "html.ptf-dark .ptf-lang-panel{background:#101b30;border-color:rgba(255,255,255,.1);box-shadow:0 18px 40px rgba(0,0,0,.45)}" +
+    "html.ptf-dark .ptf-lang-panel a{color:#e8eef8}" +
+    "html.ptf-dark .ptf-lang-panel a:hover{background:rgba(247,148,0,.14);color:#ffb033}" +
+    "@media(max-width:790px){.ptf-lang-panel{position:fixed;top:72px;left:10px;right:auto;inset-inline-start:auto;min-width:200px;transform:none}.ptf-lang.open .ptf-lang-panel{transform:none}}" +
+    "@media(prefers-reduced-motion:reduce){.ptf-lang-panel{transition:none}}";
+
+  function ensureLangCss() {
+    if (document.getElementById("ptf-lang-css")) return;
+    var s = document.createElement("style");
+    s.id = "ptf-lang-css";
+    s.textContent = LANG_CSS;
+    document.head.appendChild(s);
+  }
+
+  function bindLangMenu(wrap) {
+    if (!wrap || wrap.getAttribute("data-lang-bound")) return;
+    wrap.setAttribute("data-lang-bound", "1");
+    var btn = wrap.querySelector(".lang-switch");
+    function setOpen(on) {
+      wrap.classList.toggle("open", !!on);
+      if (btn) btn.setAttribute("aria-expanded", on ? "true" : "false");
+    }
+    if (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        setOpen(!wrap.classList.contains("open"));
+      }, true);
+    }
+    document.addEventListener("click", function (e) {
+      if (!wrap.contains(e.target)) setOpen(false);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") setOpen(false);
+    });
+  }
+
+  function langItems() {
+    var p = prefix();
+    return [
+      { id: "fa", href: p || "./", label: "فارسی", flag: FLAG_IR },
+      { id: "en", href: p + "en/", label: "English", flag: FLAG_UK },
+      { id: "ar", href: p + "ar/", label: "العربية", flag: FLAG_SA },
+      { id: "tr", href: p + "tr/", label: "Türkçe", flag: FLAG_TR },
+      { id: "de", href: p + "de/", label: "Deutsch", flag: FLAG_DE },
+      { id: "fr", href: p + "fr/", label: "Français", flag: FLAG_FR },
+      { id: "zh", href: p + "zh/", label: "中文", flag: FLAG_CN },
+      { id: "ru", href: p + "ru/", label: "Русский", flag: FLAG_RU }
+    ];
+  }
+  function fillLangPanel(panel) {
+    var cur = pageLang();
+    panel.innerHTML = "";
+    langItems().forEach(function (it) {
+      if (it.id === cur) return;
+      var a = document.createElement("a");
+      a.href = it.href;
+      a.setAttribute("role", "menuitem");
+      a.innerHTML = it.flag + "<span>" + it.label + "</span>";
+      panel.appendChild(a);
+    });
+  }
+  function ensureLangMenu() {
+    ensureLangCss();
+    var existing = document.querySelector(".site-header .ptf-lang");
+    if (existing) {
+      var panelEx = existing.querySelector(".ptf-lang-panel");
+      if (panelEx) fillLangPanel(panelEx);
+      bindLangMenu(existing);
+      return;
+    }
+    var link = document.querySelector(".site-header a.lang-switch, .site-header button.lang-switch");
+    if (!link) return;
+    var wrap = document.createElement("div");
+    wrap.className = "ptf-lang";
+    link.parentNode.insertBefore(wrap, link);
+    wrap.appendChild(link);
+    link.setAttribute("aria-haspopup", "true");
+    link.setAttribute("aria-expanded", "false");
+    var panel = document.createElement("div");
+    panel.className = "ptf-lang-panel";
+    panel.setAttribute("role", "menu");
+    fillLangPanel(panel);
+    wrap.appendChild(panel);
+    bindLangMenu(wrap);
+  }
+
   function ensureCareersLink() {
     var nav = document.getElementById("mainNav");
     if (!nav) return;
-    if ((document.documentElement.lang || "").toLowerCase().indexOf("en") === 0) return;
+    if (isNonFa()) return;
     function apply(d) {
       var existing = nav.querySelector(".nav-careers");
       var count = d && d.count ? +d.count : 0;
@@ -442,7 +562,7 @@
   function ensureProductsMenu() {
     var nav = document.getElementById("mainNav");
     if (!nav) return;
-    if ((document.documentElement.lang || "").toLowerCase().indexOf("en") === 0) return;
+    if (isNonFa()) return;
     ensureMegaCss();
     var wrap = nav.querySelector(".nav-products");
     var p = prefix();
@@ -508,6 +628,7 @@
 
   function boot() {
     bindHeaderActions();
+    ensureLangMenu();
     ensureSearchLink();
     ensureCareersLink();
     ensureProductsMenu();
