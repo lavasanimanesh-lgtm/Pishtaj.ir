@@ -89,6 +89,23 @@ window.cbEnsurePerson = cbEnsurePerson;
 window.cbPersonHasContact = cbPersonHasContact;
 window.ptfMergeExtraCoTels = ptfMergeExtraCoTels;
 
+/* ═══ v34.38.25 (CONTACT-STALE-HOOK — RCA 2026-09-17) ═══
+   آیا رکورد هر نشانهٔ تماسی دارد؟ (مبنای مهر _ccClear و invariant سرور)
+   گزارش کارفرما: «مشتری‌های ثبت‌شدهٔ مدیرعامل برای من بدون شماره تماس دیده
+   می‌شود؛ ثبت‌های خودم سالم است». ریشهٔ اثبات‌شده با کد واقعی:
+   هوک phonefmt حتی وقتی saveCust2 زودهنگام برمی‌گشت (ضدتکرار/نام‌خالی) اجرا
+   می‌شد و «آخرین رکورد ذخیره‌شدهٔ تب» را از کشِ کهنه با expectCreate:false
+   دوباره upsert می‌کرد؛ merge سرور «کلید حاضر بازنویسی» → تغییرات بعدیِ دیگر
+   دستگاه‌ها (شماره/ایمیل اضافه‌شده) روی سرور پاک می‌شد و دستگاهِ ثبت‌کننده از
+   کش خودش نسخهٔ تماس‌دار را می‌دید — دقیقاً الگوی «مالِ من سالم، مال او پاک». */
+function ptfCustHadContacts(r) {
+  if (!r || typeof r !== 'object') return false;
+  function hasN(a) { return Array.isArray(a) && a.some(function (x) { return x && x.n && String(x.n).trim(); }); }
+  function hasP(a) { return Array.isArray(a) && a.some(function (p) { return p && (hasN(p.tels) || hasN(p.mobs) || hasN(p.mails)); }); }
+  return !!(hasN(r.coTels) || hasN(r.phones) || hasP(r.people) || (r.ph && String(r.ph).trim()));
+}
+window.ptfCustHadContacts = ptfCustHadContacts;
+
 /* v34.38.6 (CONTACT-WIPE R3): تبدیل حقوقی→حقیقی قبلاً people/coTels را عمداً صفر
    می‌کرد و آن‌ها را به phones منتقل نمی‌کرد — شماره‌های قدیمی بی‌صدا گم می‌شدند.
    حالا تماس‌های حقوقیِ رکورد قبلی (تلفن‌خانه + اشخاص رابط) به فهرست تلفن‌های شخص
@@ -3793,6 +3810,17 @@ function saveCust2(cd) {
       items[i] = rec;
     }
   } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
+  /* v34.38.25 (CONTACT-STALE-HOOK): نرمال‌سازی شماره‌ها پیش از پایدارسازی انجام
+     می‌شود (نه در هوک پس از ذخیره) — payload اولیه و مسیر retry برخورد کد هر دو
+     نرمال‌اند و هوک دیگر مجبور به بازنویسیِ پس از ذخیره نیست. ضدتکرار بالاتر
+     نرمال‌سازی داخلی خودش را دارد و به موقعیت این بلوک وابسته نیست. */
+  try { if (typeof window.ptfNormalizeEntityPhones === 'function') window.ptfNormalizeEntityPhones(rec, 'fa'); } catch (eNormC) {}
+  /* v34.38.25 (CONTACT-WIPE-INVARIANT): پاک‌سازی عمدی همهٔ تماس‌ها در ویرایش باید
+     مهر صریح داشته باشد؛ بدون مهر، invariant سرور تماس‌های قبلی را حفظ می‌کند
+     (سپر در برابر هر کلاینتِ کهنه/معرور که تماس خالی می‌فرستد). */
+  try {
+    if (cd && oldRecPre && typeof ptfCustHadContacts === 'function' && ptfCustHadContacts(oldRecPre) && !ptfCustHadContacts(rec)) rec._ccClear = 1;
+  } catch (eCCC) {}
   /* v34.8.22 (W1): ثبت/ویرایش مشتری از پیشنهاد با فرمان اتمیک سروری. */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'offer-cust' });
   else setData('ptf_crm_customers', items);
@@ -3905,6 +3933,23 @@ function saveSup2(cd) {
       if (!rec.ph && !(rec.coTels || []).length && !primaryPerson(rec) && oldS2.ph) rec.ph = oldS2.ph;
     }
   } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
+  /* v34.38.25 (CONTACT-STALE-HOOK): نرمال‌سازی/لاتین‌سازی پیش از پایدارسازی —
+     وظیفهٔ واقعی هوک قبلی، حالا یک‌بار و قبل از payload. حالت خارجی از خودِ فرم
+     (isForeign) خوانده می‌شود — rec.origin هیچ‌گاه ست نمی‌شد و شاخهٔ 'en' هوک
+     در عمل مرده بود؛ این‌جا همان رفتارِ مقصود زنده می‌شود. */
+  try {
+    if (typeof window.ptfNormalizeEntityPhones === 'function') {
+      window.ptfNormalizeEntityPhones(rec, isForeign ? 'en' : 'fa');
+      if (isForeign) {
+        ['co', 'nm', 'ca', 'coWeb', 'coAddr'].forEach(function (k) { if (rec[k]) rec[k] = window.ptfLatinize(rec[k]); });
+        (rec.people || []).forEach(function (p) { if (p.nm) p.nm = window.ptfLatinize(p.nm); if (p.dept) p.dept = window.ptfLatinize(p.dept); });
+      }
+    }
+  } catch (eNormS) {}
+  /* v34.38.25 (CONTACT-WIPE-INVARIANT): مثل مشتری — پاک‌سازی عمدی تماس‌ها مهر می‌خواهد. */
+  try {
+    if (cd && oldSupPre && typeof ptfCustHadContacts === 'function' && ptfCustHadContacts(oldSupPre) && !ptfCustHadContacts(rec)) rec._ccClear = 1;
+  } catch (eCCS) {}
   /* v34.8.22 (W1): ثبت/ویرایش تامین‌کننده از پیشنهاد با فرمان اتمیک سروری. */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'offer-sup' });
   else setData('ptf_crm_suppliers', items);
