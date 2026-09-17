@@ -15,6 +15,8 @@
     var nav = document.getElementById("mainNav");
     if (!nav || nav.querySelector(".nav-search")) return;
     if (document.querySelector(".site-header .hdr-search")) return; /* header already has magnifier icon — text pill is redundant */
+    var searchLang = (document.documentElement.lang || "fa").toLowerCase();
+    if (searchLang.indexOf("fa") !== 0) return; /* the text pill is Persian-only (fa pages); en/ar use header icons or none */
     var a = document.createElement("a");
     a.className = "nav-search";
     a.href = prefix() + "search/";
@@ -46,7 +48,8 @@
   function ensureCareersLink() {
     var nav = document.getElementById("mainNav");
     if (!nav) return;
-    if ((document.documentElement.lang || "").toLowerCase().indexOf("en") === 0) return;
+    var docLang = (document.documentElement.lang || "").toLowerCase();
+    if (docLang.indexOf("en") === 0 || docLang.indexOf("ar") === 0) return; /* Persian-only enhancements */
     function apply(d) {
       var existing = nav.querySelector(".nav-careers");
       var count = d && d.count ? +d.count : 0;
@@ -442,7 +445,8 @@
   function ensureProductsMenu() {
     var nav = document.getElementById("mainNav");
     if (!nav) return;
-    if ((document.documentElement.lang || "").toLowerCase().indexOf("en") === 0) return;
+    var docLang = (document.documentElement.lang || "").toLowerCase();
+    if (docLang.indexOf("en") === 0 || docLang.indexOf("ar") === 0) return; /* Persian-only enhancements */
     ensureMegaCss();
     var wrap = nav.querySelector(".nav-products");
     var p = prefix();

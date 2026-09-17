@@ -1,9 +1,9 @@
 {
   "note": "منبع رسمی نسخه‌ها: site_public_version برای وب‌سایت عمومی و crm_version برای CRM. فایل‌های هر دامنه باید با فیلد همان دامنه هم‌خوان باشند.",
-  "site_public_version": "v34.39.15",
+  "site_public_version": "v34.39.16",
   "crm_version": "v34.39.11",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-09-18",
-  "updated_by": "v34.39.15 — AR-LAUNCH: راه‌اندازی نسخهٔ عربی وب‌سایت عمومی در /ar/ (صفحهٔ اول، خدمات، درباره ما، پروژه‌ها، careers) به‌صورت RTL؛ افزودن hreflang=ar به خوشهٔ صفحات fa/en، سوییچر زبان عربی در هدر صفحهٔ اول و بخش انگلیسی، sitemap-ar.xml و ثبت آن در sitemap-index، و افزودن عربی به availableLanguage در JSON-LD",
+  "updated_by": "v34.39.16 — AR-MOBILE-HOTFIX: منوی همبرگری برای ۵ صفحهٔ عربی /ar/ (id=mainNav + دکمهٔ menu-toggle + اسکریپت toggle با aria-expanded)، رفع فشردگی قرص‌های زبان در ≤790px با خنثی‌سازی width/height سراسری، هدر فشردهٔ موبایل (فقط لوگو ≤600px) در صفحات ar/en، گارد زبانی ptf-discover.js (قرص «جستجو» فقط فارسی؛ careers و منوی محصولات بدون تزریق در en/ar)، و مدیاکوئری ارتفاع hero موبایل",
   "updated_at": "2026-09-18T00:00:00+03:30"
 }
