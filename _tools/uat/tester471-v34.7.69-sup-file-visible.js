@@ -15,8 +15,8 @@ var bridge = read('crm/bridge.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.3', ver.crm_version === 'v34.39.3', ver.crm_version);
-T('offers.js cache-bust 34.39.3', /offers\.js\?v=34\.39\.3/.test(idx));
+T('VERSION.json = v34.39.4', ver.crm_version === 'v34.39.4', ver.crm_version);
+T('offers.js cache-bust 34.39.4', /offers\.js\?v=34\.39\.4/.test(idx));
 
 /* helper استخراج فایل */
 T('ptfEntityFiles تعریف شده', offers.indexOf('function ptfEntityFiles(c)') > -1);

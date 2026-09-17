@@ -18,10 +18,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.39.3', ver.crm_version === 'v34.39.3', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.39.3', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.3'") > -1);
-T('sw RELEASE = v34.39.3', sw.indexOf("RELEASE = 'v34.39.3'") > -1);
-T('offers.js cache-bust 34.39.3', idx.indexOf('offers.js?v=34.39.3') > -1);
+T('VERSION.json = v34.39.4', ver.crm_version === 'v34.39.4', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.39.4', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.4'") > -1);
+T('sw RELEASE = v34.39.4', sw.indexOf("RELEASE = 'v34.39.4'") > -1);
+T('offers.js cache-bust 34.39.4', idx.indexOf('offers.js?v=34.39.4') > -1);
 
 /* ---------- قراردادهای ایستا ---------- */
 T('نشان BUG-OFFER-DUP-SKIP-267 ثبت شده', off.indexOf('BUG-OFFER-DUP-SKIP-267') > -1);

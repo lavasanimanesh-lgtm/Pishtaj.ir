@@ -1,12 +1,4 @@
-/* =====================================================================
-   PTF HOME-DYNAMIC-X — v34.39.0
-   موتورِ حرکت و UX موبایلِ صفحهٔ اول — بدون هیچ کتابخانه‌ای.
-   اصول (بر اساس بنچ‌مارک‌های Grainger / McMaster-Carr / Fastenal و الگوهای برتر B2B صنعتی):
-   ① سرعت مطلق: همه‌چیز transform/opacity، rAF، listenerهای passive، بدون layout thrash.
-   ② موبایل اپ‌گونه: داک پایین، کشوی منو با بک‌دراپ، قفل اسکرول، ESC.
-   ③ دسترس‌پذیری: respects prefers-reduced-motion؛ بدون JS یعنی محتوای کاملاً سالم.
-   لایهٔ نمایشی است؛ هیچ متن/لینک/ساختار محتوایی را تغییر نمی‌دهد.
-   ===================================================================== */
+/* ================================== */
 (function () {
   'use strict';
   var doc = document, root = doc.documentElement, win = window;
@@ -14,7 +6,7 @@
   var FINE = !!(win.matchMedia && win.matchMedia('(hover:hover) and (pointer:fine)').matches);
   function ready(fn) { if (doc.readyState !== 'loading') fn(); else doc.addEventListener('DOMContentLoaded', fn); }
 
-  /* ① هدر جمع‌شونده + داک هوشمند (مخفی در اسکرول نزولی، نمایان در صعودی) */
+  /* ① هدر جمع‌شونده + داک هوشمند (مخفی */
   function scrollUI() {
     var header = doc.querySelector('.site-header'), dock = doc.getElementById('ptfDock'), nav = doc.getElementById('mainNav');
     if (!header && !dock) return;
@@ -33,7 +25,7 @@
     upd();
   }
 
-  /* ② شکافت کلمات H1 برای پرده‌گشایی سینمایی (کاهش‌حرکت = بدون تغییر DOM) */
+  /* ② شکافت کلمات H1 (کاهش‌حرکت = بدون */
   function splitWords() {
     if (RM) return;
     var h1 = doc.querySelector('.hero h1');
@@ -62,7 +54,7 @@
     });
   }
 
-  /* ③ شمارنده‌های آماری (فقط متن‌های عددی‌مانند؛ متن نهایی دقیقاً بازگردانده می‌شود) */
+  /* ③ شمارنده‌های آماری (فقط متن‌های ع */
   function fa(n) { return String(n).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
   function counters() {
     if (RM || !('IntersectionObserver' in win)) return;
@@ -90,7 +82,7 @@
     }
   }
 
-  /* ④ اسپات‌لایت نشانگر روی کارت‌ها (فقط دسکتاپ؛ متغیرهای CSS --mx/--my) */
+  /* ④ اسپات‌لایت نشانگر روی کارت‌ها (ف */
   function spotlight() {
     if (!FINE || RM) return;
     var sel = '.service-card,.trust-item,#journey a.reveal,#why-ptf .reveal';
@@ -117,13 +109,14 @@
     });
   }
 
-  /* ⑤ کشوی موبایل: هماهام‌سازی با toggle موجودِ main.js (MutationObserver، بدون رقابت) */
+  /* ⑤ کشوی موبایل: هماهام‌سازی با togg */
   function drawer() {
     var nav = doc.getElementById('mainNav'), tog = doc.getElementById('menuToggle'), bd = doc.getElementById('ptfNavBackdrop');
     if (!nav || !tog) return;
     tog.setAttribute('aria-expanded', 'false');
     function sync() {
       var open = nav.classList.contains('open');
+      if (!open) Array.prototype.forEach.call(nav.querySelectorAll('.nav-drop.open'), function (d) { d.classList.remove('open'); });
       tog.classList.toggle('is-x', open);
       tog.setAttribute('aria-expanded', open ? 'true' : 'false');
       var dm = doc.getElementById('ptfDockMenu');
@@ -136,7 +129,17 @@
     if (bd) bd.addEventListener('click', function () { nav.classList.remove('open'); });
     var dm = doc.getElementById('ptfDockMenu');
     if (dm) dm.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); nav.classList.toggle('open'); });
-    /* v34.39.3 — شیت در موبایل به body منتقل می‌شود (فیلترِ هدر = بلوکِ حاوی؛ باگ «منو باز نمی‌شود») */
+    /* آکاردئون «درباره ما» در شیت: کلیک  */
+    nav.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('#mainNav .nav-drop>a[aria-haspopup]') : null;
+      if (!a || !(win.matchMedia && win.matchMedia('(max-width:790px)').matches)) return;
+      var d = a.parentNode;
+      if (d.classList.contains('open')) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      Array.prototype.forEach.call(nav.querySelectorAll('.nav-drop.open'), function (o) { o.classList.remove('open'); });
+      d.classList.add('open');
+    }, true);
+    /* v34.39.3 — شیت در موبایل به body م */
     var mqN = win.matchMedia ? win.matchMedia('(max-width:790px)') : null;
     var bd2 = doc.getElementById('ptfNavBackdrop'), wrap = doc.querySelector('.nav-wrap');
     function placeNav() {
@@ -150,7 +153,7 @@
     doc.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { nav.classList.remove('open'); tog.focus(); } });
   }
 
-  /* ⑥ داک موبایل: دکمهٔ چت + بستن هوشمند */
+  /* ⑥ دکمهٔ چت داک */
   function dock() {
     var chat = doc.getElementById('ptfDockChat');
     if (chat) chat.addEventListener('click', function () {
@@ -160,7 +163,7 @@
     });
   }
 
-  /* ⑦ مایکرو-انرژی: دکمه‌های PR — ripple ساده روی hover (دسکتاپ) */
+  /* ⑦ لیفت هاور کارت‌ها (دسکتاپ) */
   function tilt() {
     if (!FINE || RM) return;
     Array.prototype.forEach.call(doc.querySelectorAll('.service-card'), function (el) {
@@ -169,8 +172,7 @@
     });
   }
 
-  /* ⑧ شب خودکار از غروب (فرمول NOAA/معادلهٔ خورشید، مختصات تهران) + کلید دستی در منو
-     ماندگاری فقط با کوکی (بدون localStorage طبق نگهبان A10)؛ نبودِ کوکی = حالت خودکار. */
+  /* ⑧ شب خودکار از غروب (فرمول NOAA/مع */
   function sunNight(jd) {
     try {
       var R = Math.PI / 180, lat = 35.7 * R, lng = 51.44;
@@ -202,7 +204,7 @@
     }
     syncBtn(root.classList.contains('ptf-dark'));
     btn.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); set(!root.classList.contains('ptf-dark'), true); });
-    /* خودکار: هر دقیقه اگر کاربر دستی انتخاب نکرده باشد، با غروب/طلوع هماهنگ می‌شود */
+    /* خودکار: هر دقیقه اگر کاربر دستی ان */
     win.setInterval(function () {
       if (manualTheme() || doc.hidden) return;
       var want = sunNight(Date.now() / 864e5 + 2440587.5);
@@ -210,7 +212,7 @@
     }, 6e4);
   }
 
-  /* ⑨ فلش‌های مینیمال زنده: پیچیدن آخرین ←/→ داخل آیکن (متن دست‌نخورده با JS خاموش) */
+  /* ⑨ فلش‌های مینیمال زنده: پیچیدن آخر */
   function arrows() {
     Array.prototype.forEach.call(doc.querySelectorAll('.text-link, a.btn, #journey em'), function (el) {
       if (el.querySelector('.arw')) return;
