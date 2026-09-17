@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester652 — v34.38.21 (OFFER-INTEGRITY-DIAG): قفلِ دو اصلاح برای بن‌بست «کلید آفرز زرد».
+/* tester652 — v34.38.24 (OFFER-INTEGRITY-DIAG): قفلِ دو اصلاح برای بن‌بست «کلید آفرز زرد».
    ریشه: data_push عمومی حق ایجاد پیشنهاد تازه را ندارد (فقط register_offer). وقتی یک
    پیش‌نویس روی دستگاه ثبت‌نشده می‌ماند، سرور کل کلید ptf_crm_offers را rejected+conflicts
    رد می‌کند و دکمهٔ ذخیره هم چون کلید dirty است قفل می‌شود — بن‌بست ابدی با «تلاش مجدد» و

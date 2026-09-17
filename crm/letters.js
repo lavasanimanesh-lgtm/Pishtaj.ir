@@ -482,6 +482,26 @@ function letSafeBodyHtml(html) {
   });
   return box.innerHTML;
 }
+/* v34.38.23 (LETTER-SIG-PAGINATION): پیرایش سفیدهای نامرئیِ انتهای متن در زمان چاپ.
+   کپی از Word/Outlook معمولاً چند پاراگراف خالی انتهایی (<p><br></p>، <p>&nbsp;</p>،
+   <p><span>&nbsp;</span></p>) و <br> اضافه می‌آورد؛ در ادیتور دیده نمی‌شوند ولی در چاپ
+   هرکدام یک سطر جا می‌گیرند (با line-height 2.1 حدود ۱۰mm) — بلوک مهر و امضا را به
+   صفحهٔ بعد هل می‌دهند و اگر زیاد باشند یک صفحهٔ کاملاً سفید بین متن و امضا می‌سازند.
+   فقط انتهای سند پیرایش می‌شود؛ فاصله‌هایی که کاربر عمداً میان متن ساخته دست‌نخورده
+   می‌ماند (بازنویسی محتوای میانی نداریم). حلقه تا نقطهٔ ثابت: اول درون‌خطی‌های خالیِ
+   انتهایی، بعد بلوکی که با حذف آن‌ها خالی شده، تا تو در توها هم پیرایش شوند. */
+function letTrimTrailingEmptyHtml(html) {
+  var s = String(html == null ? '' : html), prev;
+  do {
+    prev = s;
+    s = s.replace(/[\s\u00a0]+$/, '');
+    s = s.replace(/<br\s*\/?>$/i, '');
+    s = s.replace(/(?:&nbsp;|&#160;)$/i, '');
+    s = s.replace(/<(span|b|strong|i|em|u|s|strike|font)(?:\s[^>]*)?>(?:(?:&nbsp;|&#160;|[\s\u00a0])|<br\s*\/?>)*<\/\1>$/i, '');
+    s = s.replace(/<(\w+)(?:\s[^>]*)?>(?:\s|\u00a0|&nbsp;|&#160;|<br\s*\/?>|<\/?(?:span|b|strong|i|em|u|s|strike|font)(?:\s[^>]*)?>)*<\/\1>$/i, '');
+  } while (s !== prev);
+  return s;
+}
 function letEditorExec(cmd, value, editorId) {
   var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return;
   ed.focus(); try { document.execCommand(cmd, false, value || null); } catch (e) {}
@@ -1143,6 +1163,11 @@ function letPrintObj(l, isPreview) {
   var identitySnapshot = l.signatureSnapshot || {};
   var signerNameFa = identitySnapshot.nm || l.signerNm || signerProfile.nm || (curSession() || {}).name || '';
   var signerRoleFa = identitySnapshot.role || l.signerRole || signerProfile.role || '';
+  /* v34.38.23 (LETTER-SIG-PAGINATION): بدنهٔ چاپ — همان sanitize همیشگی + پیرایش
+     سفیدهای نامرئیِ انتها (پاراگراف/‌<br>‌های خالی باقی‌مانده از کپی Word) تا بلوک
+     مهر و امضا به‌خاطر فضای اشغال‌شدهٔ نامرئی به صفحهٔ بعد پرتاب نشود. */
+  var printBody = l.bodyHtml ? letSafeBodyHtml(l.bodyHtml) : escP(l.body).replace(/\n/g, '<br>');
+  printBody = letTrimTrailingEmptyHtml(printBody);
   var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + escP(l.no || 'پیش‌نمایش') + '</title><style>' + letEmbeddedFontCss() +
     '@page{size:A4 portrait;margin:0}' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
@@ -1173,14 +1198,24 @@ function letPrintObj(l, isPreview) {
     '.body{font-family:' + bodyFont + ';font-size:' + fs + 'pt;line-height:' + lh + ';text-align:' + align + ';white-space:normal;' +
       (s.bold ? 'font-weight:700;' : '') + (s.italic ? 'font-style:italic;' : '') + '}' +
     (s.font ? '.body,.body *{font-family:' + bodyFont + '!important}' : '') +
-    '.body p{margin:0 0 3mm}.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:avoid}.body td,.body th{border:1px solid #64748b;padding:2mm;text-align:' + align + '}.body th{background:#f1f5f9}.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +
+    /* v34.38.23 (LETTER-SIG-PAGINATION): جدول بلندتر از یک صفحه با page-break-inside:avoid
+       باگ معروف «صفحهٔ خالی» کروم را فعال می‌کرد: کل جدول به صفحهٔ بعد هل داده می‌شد و اگر
+       در آن صفحه هم جا نمی‌شد، یک صفحهٔ سفید بین متن نامه و مهر/امضا می‌افتاد. همان الگوی
+       اثبات‌شدهٔ چاپ پیشنهاد (offers-pro) و سربرگ: جدول بین سطرها شکستنی است، سطر شکستنی
+       نیست و گروه سرستون در هر صفحه تکرار می‌شود. */
+    '.body p{margin:0 0 3mm}.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:auto}.body tr{page-break-inside:avoid}.body thead{display:table-header-group}.body td,.body th{border:1px solid #64748b;padding:2mm;text-align:' + align + '}.body th{background:#f1f5f9}.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +
     /* v31.7.22 US-LTR-IMG: تصاویر متن نامه — وسط‌چین، متناسب صفحه، بدون شکستن وسط تصویر */
     '.limgs{margin-top:5mm}' +
     '.limgs figure{margin:4mm auto;text-align:center;page-break-inside:avoid}' +
     '.limgs img{max-width:100%;max-height:110mm;border-radius:1.5mm}' +
     '.limgs figcaption{font-size:' + (fs - 2) + 'pt;color:#4b5057;margin-top:1.5mm}' +
-    '.sig{margin-top:12mm;display:flex;justify-content:flex-end;direction:' + dir + '}' +
-    '.sigbox{text-align:center;position:relative;min-width:60mm;padding-top:2mm}' +
+    /* v34.38.23 (LETTER-SIG-PAGINATION): بلوک امضا (تعارف + نام + سمت + تصویر امضا + مهر +
+       محل امضای فیزیکی) بین صفحات شکستنی بود — نام/سمت در صفحهٔ قبل می‌ماند و مهر و تصویر
+       امضا به صفحهٔ بعد می‌افتاد (مهر position:absolute داخل sigbox نسبت به قطعهٔ شکسته
+       جابه‌جا می‌شد). همان قرارداد .endsig در مسیر سربرگ و .sig در چاپ پیشنهاد: بلوک
+       اتمیک است و اگر در صفحهٔ جاری جا نشود، کامل و یکجا به صفحهٔ بعد می‌رود. */
+    '.sig{margin-top:12mm;display:flex;justify-content:flex-end;direction:' + dir + ';break-inside:avoid;page-break-inside:avoid}' +
+    '.sigbox{text-align:center;position:relative;min-width:60mm;padding-top:2mm;break-inside:avoid;page-break-inside:avoid}' +
     '.sigbox .salute{font-size:' + fs + 'pt;font-weight:700;margin-bottom:6mm;color:#1e293b}' +
     '.sigbox .nm{font-weight:800;font-size:' + signerFs + 'pt;position:relative;z-index:5}' +
     '.sigbox .rl{font-weight:700;font-size:' + signerRoleFs + 'pt;color:#4b5057;position:relative;z-index:5}' +
@@ -1215,7 +1250,7 @@ function letPrintObj(l, isPreview) {
     '<div class="to">' + (isEn ? 'To: ' : '') + escP(l.to) + '</div>' +
     (l.toRole ? '<div class="torl">' + escP(l.toRole) + '</div>' : '') + /* v123.1: سمت — دقیقا زیر نام */
     '<div class="sub">' + (isEn ? 'Subject: ' : 'موضوع: ') + escP(l.subject) + '</div>' +
-    '<div class="body">' + (l.bodyHtml ? letSafeBodyHtml(l.bodyHtml) : escP(l.body).replace(/\n/g, '<br>')) + '</div>' +
+    '<div class="body">' + printBody + '</div>' +
     ((l.images && l.images.length) ? '<div class="limgs">' + l.images.map(function (im) {
       return '<figure><img src="' + im.src + '" alt="">' + (im.cap ? '<figcaption>' + escP(im.cap) + '</figcaption>' : '') + '</figure>';
     }).join('') + '</div>' : '') +
@@ -1421,7 +1456,9 @@ window.ptfLetterheadPastePrint = function () {
     '.body{padding:' + mt + 'mm ' + mr + 'mm ' + mb + 'mm ' + ml + 'mm;font-size:' + bodyFs + ';line-height:' + bodyLh + ';text-align:' + bodyAlign + ';' + (bold ? 'font-weight:700;' : '') + (italic ? 'font-style:italic;' : '') + 'direction:' + dir + '}' +
     (fontTok ? '.body,.body *{font-family:' + bodyFont + '!important}' : '') +
     '.body p,.body div{margin:0 0 3mm}' +
-    '.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:avoid}.body td,.body th{border:1px solid #64748b;padding:2mm}.body th{background:#f1f5f9}' +
+    /* v34.38.23 (LETTER-SIG-PAGINATION): همان اصلاح جدول مسیر نامهٔ استاندارد — جدول
+       بلندتر از صفحه «صفحهٔ خالی» نمی‌سازد؛ سطرها اتمیک و سرستون تکرارشونده. */
+    '.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:auto}.body tr{page-break-inside:avoid}.body thead{display:table-header-group}.body td,.body th{border:1px solid #64748b;padding:2mm}.body th{background:#f1f5f9}' +
     '.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +
     '.endsig{margin:12mm 16mm 0;display:flex;justify-content:flex-end;direction:' + dir + ';break-inside:avoid;page-break-inside:avoid}' +
     '.endsig .box{text-align:center;min-width:60mm;position:relative}' +

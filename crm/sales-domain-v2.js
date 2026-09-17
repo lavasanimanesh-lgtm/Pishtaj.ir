@@ -131,12 +131,80 @@
     try { devKvSet(key,JSON.stringify({kind:kind,action:action,operationId:op,message:String((e&&e.message)||e||''),at:new Date().toISOString()})); } catch(ignore){}
     return key;
   }
+  /* ═══ v34.38.24 (NOTIF-FRESH / INFLIGHT-JOURNAL) ═══
+     فرمان‌های اتمیک (entity_upsert/entity_delete/...) نه dirty می‌سازند و نه صف
+     پایدار دارند — اگر صفحه دقیقاً mid-flight رفرش/بسته شود، فرمان برای همیشه گم
+     می‌شود. ریشهٔ نشانهٔ «خواندم را زدم، هارد رفرش کردم، همان اعلان قدیمی برگشت»
+     (readBy هرگز به سرور نمی‌رسید و pull بعدی جایگزینش می‌کرد). ژورنال: هر فرمانِ
+     در حال پرواز ثبت و روی pagehide/beforeunload در localStorage پایدار می‌شود؛ پس
+     از bootstrap نشستِ بعد، عیناً با همان idempotencyKey بازپخش می‌شود — WAL سرور
+     رسیدِ commit‌شده را می‌شناسد، پس بازپخش اثر دوباره/مخرب ندارد. سقف ۴۸ ساعت و
+     ۴۰ فرمان تا ژورنال خودش انبار نشود. */
+  var inflightCmds = {};
+  var INFLIGHT_TTL_MS = 48 * 3600000;
+  /* مالکِ ذخیرهٔ ژورنال، لایهٔ دادهٔ sync است (اصل E2/A10 نگهبان معماری: این فایل
+     نازک است و مستقیم به localStorage دست نمی‌زند) — کلید پایدار: ptf_sd_inflight. */
+  function journalWrite(str) { try { if (typeof window.ptfSyncInflightJournalWrite === 'function') window.ptfSyncInflightJournalWrite(str); } catch (eJW) {} }
+  function journalRead() { try { if (typeof window.ptfSyncInflightJournalRead === 'function') return window.ptfSyncInflightJournalRead(); } catch (eJR) {} return null; }
+  function journalClear() { try { if (typeof window.ptfSyncInflightJournalClear === 'function') window.ptfSyncInflightJournalClear(); } catch (eJC) {} }
+  function inflightRegister(action, payload) {
+    try {
+      if (actionIsReadOnly(action)) return;
+      var op = String((payload && payload.idempotencyKey) || '');
+      if (!op) return;
+      inflightCmds[op] = { action: action, payload: payload, at: Date.now() };
+    } catch (eIfR) {}
+  }
+  function inflightSettle(payload) {
+    try { var op = String((payload && payload.idempotencyKey) || ''); if (op) delete inflightCmds[op]; } catch (eIfS) {}
+  }
+  function inflightPersist() {
+    try {
+      var rows = Object.keys(inflightCmds).map(function (op) { return inflightCmds[op]; })
+        .filter(function (r) { return r && r.action && r.payload && (Date.now() - (+r.at || 0)) < INFLIGHT_TTL_MS; });
+      if (!rows.length) { journalClear(); return; }
+      journalWrite(JSON.stringify(rows.slice(0, 40)));
+    } catch (eIfP) {}
+  }
+  if (typeof window !== 'undefined' && window.addEventListener && !window._ptfSdInflightBound) {
+    window._ptfSdInflightBound = true;
+    try { window.addEventListener('pagehide', inflightPersist); } catch (eIfB1) {}
+    try { window.addEventListener('beforeunload', inflightPersist); } catch (eIfB2) {}
+  }
+  window.ptfSalesDomainReplayInflight = function () {
+    var rows = [];
+    try { rows = JSON.parse(journalRead() || '[]') || []; } catch (eRpJ) { rows = []; }
+    journalClear();
+    if (!Array.isArray(rows) || !rows.length) return 0;
+    var n = 0;
+    rows.forEach(function (r) {
+      if (!r || !r.action || !r.payload) return;
+      if ((Date.now() - (+r.at || 0)) > INFLIGHT_TTL_MS) return; /* کهنه → دور انداختن قطعی */
+      n++;
+      try {
+        inflightRegister(r.action, r.payload); /* اگر این نشست هم mid-flight رفرش شود → دوباره پایدار می‌شود */
+        api(r.action, r.payload).then(function () { inflightSettle(r.payload); }, function () {
+          /* هنوز قطعی نشده → برای بوت بعدی نگه دار (idempotencyKey همان است) */
+          inflightSettle(r.payload);
+          try {
+            var cur = JSON.parse(journalRead() || '[]') || [];
+            if (!Array.isArray(cur)) cur = [];
+            cur.push(r);
+            journalWrite(JSON.stringify(cur.slice(0, 40)));
+          } catch (eRpK) {}
+        });
+      } catch (eRpA) {}
+    });
+    return n;
+  };
   function api(action, payload, options) {
     payload = payload || {}; options=options||{};
     if (!payload.idempotencyKey) payload.idempotencyKey = nowId(action.toUpperCase());
+    inflightRegister(action, payload); /* v34.38.24 (INFLIGHT-JOURNAL) */
     var first=apiAttempt(action,payload);
-    if(options.autoReplay===false)return first;
-    return first.then(null,function(e){
+    var out;
+    if(options.autoReplay===false) out=first;
+    else out=first.then(null,function(e){
       if(!commandErrorIsAmbiguous(e))throw e;
       return apiAttempt(action,payload).then(null,function(replayError){
         if(commandErrorIsAmbiguous(replayError)&&!actionIsReadOnly(action)){
@@ -150,6 +218,13 @@
         throw replayError;
       });
     });
+    /* v34.38.24: تسویهٔ ژورنال در نخستین پاسخِ قطعی (ack یا خطای قطعی) — دو حالت
+       در ژورنال می‌ماند: فرمانِ بی‌پاسخ (گم‌شده در unload) و فرمانِ «uncertain»
+       (نتیجهٔ commit نامشخص — بازپخشِ بوت با همان idempotencyKey از WAL سرور
+       تعیینِ تکلیف قطعی می‌گیرد). شاخهٔ تسویه نتیجهٔ caller را تغییر نمی‌دهد؛
+       همان `out` برگردانده می‌شود. */
+    out.then(function(){inflightSettle(payload);},function(e){if(!(e&&e.commitOutcome==='uncertain'))inflightSettle(payload);});
+    return out;
   }
   function postAckWarning(action,payload,e) {
     persistCommandDiagnostic('post_ack_warning',action,payload,e);
@@ -1338,6 +1413,12 @@
   window.ptfCaseFinanceOpen = function (id) {
     var c=findCase(id); if(!c){alert('پرونده یافت نشد');return;}
     var t=caseTotals(c), cid=caseId(c);
+    /* v34.38.22 (RECEIPT-BUTTON-FIX): ستون «مطالبه باز» جدول فاکتورها از v34.38.19
+       (INV-OPEN-CANONICAL) به `arCore` ارجاع می‌داد، ولی arCore فقط محلیِ caseTotals بود؛
+       نتیجه برای هر پروندهٔ دارای فاکتور ReferenceError و بازنشدنِ کامل پنجرهٔ
+       «دریافت و حساب پرونده» بود (دکمهٔ دریافت مرده به‌نظر می‌رسید). همان الگوی
+       caseTotals: منبع واحد PTF.ar، و اگر حاضر نبود fallback فرمول قدیمیِ خود رکورد. */
+    var arCore=(window.PTF||{}).ar;
     var receipts=t.receipts.map(function(r){
       var acts=canFinance()?'<button class="bt bt-o" style="font-size:11px" onclick="ptfReceiptCorrectOpen(\''+arg(receiptId(r))+'\')">اصلاح</button> <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfReceiptVoid(\''+arg(receiptId(r))+'\')">ابطال</button> ':'';
       if(role()==='admin')acts+='<button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfAdminHardDelete(\'receipt\',\''+arg(receiptId(r))+'\',function(){document.querySelectorAll(\'#ptfCaseFinanceDlg\').forEach(function(x){x.remove();});ptfCaseFinanceOpen(\''+arg(cid)+'\');})">حذف قطعی</button> ';

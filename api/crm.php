@@ -445,6 +445,11 @@ function sync_union_merge_shared_key($key, $incomingJson, $serverJson) {
             foreach ((isset($row['readBy']) && is_array($row['readBy']) ? $row['readBy'] : []) as $u) { if ($u) $rb[$u] = 1; }
             $ex['readBy'] = array_values(array_keys($rb));
             $ex['done'] = !empty($ex['done']) || !empty($row['done']);
+            /* v34.38.24 (NOTIF-FRESH): پرچم بایگانی سنی هم اتحاد می‌شود — قاعدهٔ همسان کلاینت */
+            if (!empty($row['ageArchived']) && empty($ex['ageArchived'])) {
+                $ex['ageArchived'] = 1;
+                if (!empty($row['ageArchivedAt'])) { $ex['ageArchivedAt'] = $row['ageArchivedAt']; }
+            }
             $ir = isset($row['repeat']) ? $row['repeat'] : 1; $xr = isset($ex['repeat']) ? $ex['repeat'] : 1;
             if ($ir > $xr) {
                 $ex['repeat'] = $ir;
@@ -465,6 +470,7 @@ function sync_union_merge_shared_key($key, $incomingJson, $serverJson) {
             foreach ((isset($item['readBy']) && is_array($item['readBy']) ? $item['readBy'] : []) as $u) { if ($u) $rb2[$u] = 1; }
             $keep['readBy'] = array_values(array_keys($rb2));
             $keep['done'] = !empty($keep['done']) || !empty($item['done']);
+            if (!empty($item['ageArchived']) && empty($keep['ageArchived'])) { $keep['ageArchived'] = 1; if (!empty($item['ageArchivedAt'])) { $keep['ageArchivedAt'] = $item['ageArchivedAt']; } } /* v34.38.24 */
             $iIso = (string)(isset($item['iso']) ? $item['iso'] : ''); $kIso = (string)(isset($keep['iso']) ? $keep['iso'] : '');
             if ($iIso !== '' && ($kIso === '' || $iIso < $kIso)) { $keep['t'] = isset($item['t']) ? $item['t'] : ''; $keep['iso'] = $item['iso']; }
             $byTask[$dk] = $keep;

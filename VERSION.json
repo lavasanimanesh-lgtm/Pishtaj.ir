@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.38.21",
+  "crm_version": "v34.38.24",
   "last_stable_tag": "v2026.08.16-0100",
-  "last_updated": "2026-09-13",
-  "updated_by": "Arena Agent (v34.38.21: ADV-CV-SERVER-SIDE-PDF — تکمیل P1 بک‌لاگ: PDF باینری سمت سرور برای گزارش نهایی ADV-CV با wkhtmltopdf (best-effort در Issue + تولید idempotent + استریم با احراز هویت و verify checksum fail-closed + وضعیت نصب در gate/CRM). قرارداد: tester656 (CI gate). نصب هاست: _tools/host/install-wkhtmltopdf.sh)"
+  "last_updated": "2026-09-17",
+  "updated_by": "Arena Agent (v34.38.24: NOTIF-FRESH — بازطراحی تازگی اعلانات/کارتابل به دستور کارفرما («اعلانات مهم و به‌روز دیده شوند و با گزینهٔ خواندم از بین بروند»): ① dedupe چسبندهٔ dkey صریح در notify/addMsg — کارت خوانده‌شده دیگر با cd تازه و readBy خالی بازتولید نمی‌شود (پایان حلقهٔ روزانهٔ chq-due/quota/گزارش مدیریتی)؛ ② سیاست سنی ptfPruneStaleNotifs — خوانده‌نشدهٔ اقدام‌دار >۳۰ روز done+ageArchived (خارج از نمای پیش‌فرض + suppress بازتولید)، خوانده‌شدهٔ >۶۰ روز و بایگانیِ >۹۰ روز سخت حذف تک‌رکوردی؛ ③ pull دیگر notifs را خام جایگزین نمی‌کند — union merge (readBy/done/ageArchived) + tombstone پس از merge + dirty همگرا؛ ④ ژورنال فرمان‌های در پرواز (INFLIGHT-JOURNAL): pagehide → localStorage → بازپخش پس از bootstrap با همان idempotencyKey — هارد رفرش mid-flight دیگر «خواندم» را گم نمی‌کند؛ ⑤ STALE-BOOT-GUARD روی چهار سازندهٔ کارت + اتحاد readBy/done در entity_upsert سرور و merge کانونیک data_push. قرارداد: tester659 (CI gate، ۴۳ چک؛ روی کد قبل از اصلاح ۲۲ FAIL). RCA: ARENA-NOTIF-CARTABLE-FRESHNESS-RCA-2026-09-17.md)"
 }

@@ -223,17 +223,75 @@ window.ptfPruneSystemLogs = function () {
    کاربر مخفی می‌شوند (رفتار موجود renderCartable). این تابع صرفاً رکوردهای «اطلاعی»
    قدیمی‌تر از NTF_INFO_TTL_DAYS روز را از داده حذف می‌کند — بدون اثر روی اعلانات مهم. */
 var NTF_INFO_TTL_DAYS = 2;
+/* ═══ v34.38.24 (NOTIF-FRESH — سیاست سنی؛ دستور کارفرما ۱۴۰۵/۰۶: «اعلانات مهم و
+   به‌روز دیده شوند و با گزینهٔ خواندم از بین بروند») — جایگزینِ «مهم هرگز با گذر
+   زمان حذف نمی‌شود» از v33.4.1 برای کارت‌های کهنه:
+   ① کارتِ مهمِ خوانده‌نشدهٔ قدیمی‌تر از NTF_STALE_ARCHIVE_DAYS روز → done+ageArchived
+      (از نمای پیش‌فرض کارتابل خارج؛ زیر «نمایش انجام‌شده‌ها» دیده می‌شود؛ سازنده‌ها
+      دیگر با همان dkey صریح زنده‌اش نمی‌کنند — ریشهٔ «کارهای بسیار قدیمی»).
+   ② کارتِ مهمِ خوانده‌شدهٔ قدیمی‌تر از NTF_READ_DELETE_DAYS روز → سخت حذف.
+   ③ بایگانیِ سنی قدیمی‌تر از NTF_ARCHIVED_DELETE_DAYS روز (از لحظهٔ بایگانی) → سخت حذف.
+   منبعِ واقعیِ کسب‌وکار (چک/یادآور/پرونده/فاکتور) هرگز دست نمی‌خورد — فقط کارتِ
+   اعلان پیر می‌شود. حذف‌ها تک‌رکوردی از ntfCommitRemoval (بدون شکاف MAX_OPS). ═══ */
+var NTF_STALE_ARCHIVE_DAYS = 30;
+var NTF_READ_DELETE_DAYS = 60;
+var NTF_ARCHIVED_DELETE_DAYS = 90;
+function ntfAgeDays(isoLike) {
+  try {
+    var iso = String(isoLike || '');
+    if (!iso) return -1;
+    var ms = Date.parse(iso);
+    if (isNaN(ms) && typeof window.ptfJToISO === 'function') {
+      var j = window.ptfJToISO(iso);
+      if (j) ms = Date.parse(String(j));
+    }
+    if (isNaN(ms)) return -1;
+    return (Date.now() - ms) / 86400000;
+  } catch (eAge) { return -1; }
+}
 window.ptfPruneStaleNotifs = function () {
   try {
     var notifs = getData('ptf_crm_notifs');
     if (!notifs.length) return 0;
-    var kept = notifs.filter(function (n) {
-      if (!n) return false;
-      if (n.kind === 'co_expiry' || n.kind === 'referral_info') return false;
-      return typeof ntfNeedsAction === 'function' ? ntfNeedsAction(n) : !!n.actionable;
+    var kept = [], agedArchived = 0, agedDeleted = 0;
+    notifs.forEach(function (n) {
+      if (!n) return;
+      if (n.kind === 'co_expiry' || n.kind === 'referral_info') return;
+      var isAction = (typeof ntfNeedsAction === 'function' ? ntfNeedsAction(n) : !!n.actionable) || !!(n.done && n.ageArchived);
+      if (!isAction) return; /* خبرهای اطلاعی و doneهای معمولی — مثل قبل از داده حذف می‌شوند */
+      if (n.done) {
+        /* ③ بایگانیِ سنی: تا NTF_ARCHIVED_DELETE_DAYS روز از لحظهٔ بایگانی نگه داشته می‌شود */
+        var archAge = ntfAgeDays(n.ageArchivedAt || n.iso || n.lastISO);
+        if (archAge >= 0 && archAge > NTF_ARCHIVED_DELETE_DAYS) { agedDeleted++; return; }
+        kept.push(n);
+        return;
+      }
+      var age = ntfAgeDays(n.iso || n.lastISO || n.t);
+      if ((n.readBy || []).length > 0) {
+        /* ② خوانده‌شدهٔ کهنه → سخت حذف (مدتهاست از دید همه بیرون بوده) */
+        if (age >= 0 && age > NTF_READ_DELETE_DAYS) { agedDeleted++; return; }
+        kept.push(n);
+        return;
+      }
+      /* ① خوانده‌نشدهٔ کهنه → بایگانی سنی (جهش درجا؛ commit پایین) */
+      if (age >= 0 && age > NTF_STALE_ARCHIVE_DAYS) {
+        n.done = true; n.ageArchived = 1; n.ageArchivedAt = new Date().toISOString();
+        agedArchived++;
+      }
+      kept.push(n);
     });
-    if (kept.length !== notifs.length) ntfCommitRemoval(notifs, kept);
-    return notifs.length - kept.length;
+    var removed = notifs.length - kept.length;
+    if (removed) ntfCommitRemoval(notifs, kept);
+    if (agedArchived) {
+      /* فیلدهای تازهٔ done/ageArchived باید به سرور هم برسند (upsert از مسیر فرمان؛
+         خودِ روتر silentWrite محلی را هم انجام می‌دهد) */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' });
+      else setData('ptf_crm_notifs', kept);
+      try { audit('اعلانات', '🗄 بایگانی سنی: ' + agedArchived + ' اعلانِ اقدام‌دارِ قدیمی‌تر از ' + NTF_STALE_ARCHIVE_DAYS + ' روز از کارتابل بایگانی شد' + (agedDeleted ? ' و ' + agedDeleted + ' مورد کهنهٔ خوانده‌شده/بایگانی‌شده حذف شد' : ''), 'PRUNE'); } catch (eAuP) {}
+      try { updateCartBadge(); } catch (eBgP) {}
+      try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (eBgP2) {}
+    }
+    return removed;
   } catch (ePruneN) { return 0; }
 };
 
@@ -291,7 +349,17 @@ function notify(opt) {
     (opt.toRoles || []).join(',') + '|' + (opt.toUsers || []).join(','));
   for (var di = 0; di < notifs.length; di++) {
     var dn = notifs[di];
-    if (!dn || dn.done) continue;
+    if (!dn || dn.done) {
+      /* v34.38.24 (NOTIF-FRESH): کارتِ بایگانی‌شدهٔ سنی (done+ageArchived) با dkey صریح
+         نباید با شلیک دوبارهٔ سازنده زنده شود — همان منبع، همان هویت پایدار. وقتی منبع
+         واقعاً حل شود (چک پاس/یادآور انجام/پرونده بسته)، resolver کارت را سخت حذف می‌کند
+         و dkey آزاد می‌شود؛ شلیک بعدیِ واقعی کارت تازه می‌سازد. */
+      if (dn && dn.done && dn.ageArchived && opt.dkey && String(dn.dkey || '') === String(dkey)) {
+        window._ptfNotifySuppressed = true;
+        return dn.cd;
+      }
+      continue;
+    }
     var dnk = dn.dkey || (String(dn.title || '') + '|' + String(dn.body || '') + '|' +
       (dn.toRoles || []).join(',') + '|' + (dn.toUsers || []).join(','));
     /* ارجاع یک task پایدار است، نه خبر تازه. حتی اگر کاربر آن را خوانده باشد
@@ -299,7 +367,15 @@ function notify(opt) {
        با تاریخ امروز بسازد و readBy را دور بزند. اعلان‌های دوره‌ای دیگر فقط تا
        زمان خوانده‌نشدن همان رفتار تکرار قبلی را حفظ می‌کنند. */
     var persistentTask = (opt.kind === 'referral' && /^referral\|/.test(String(dkey)));
-    if (dnk === dkey && ((dn.readBy || []).length === 0 || persistentTask)) {
+    /* v34.38.24 (NOTIF-FRESH — دستور کارفرما: «با گزینهٔ خواندم از بین بروند»):
+       dkey صریح = هویت پایدارِ یک کار (chq-due/quota/mgmt-report/rfq-due/rem-due/...).
+       شلیک دوبارهٔ سازنده هرگز نباید کارتِ خوانده‌شده را با cd تازه و readBy خالی
+       جایگزین کند — ریشهٔ «خواندم فایده ندارد؛ همان اعلان قدیمی برمی‌گردد» (حلقهٔ
+       روزانهٔ chq-due و اخطارهای سهمیه/گزارش مدیریتی). کارت موجود — خوانده یا
+       نخوانده — بازاستفاده و محتوایش تازه می‌شود. dkey خودکار (عنوان‌محور) همان
+       قرارداد v31.7.10 (تستر۱۸۵) را حفظ می‌کند: وقوعِ تازه پس از خواندن = کارت تازه. */
+    var stickyDkey = persistentTask || !!opt.dkey;
+    if (dnk === dkey && ((dn.readBy || []).length === 0 || stickyDkey)) {
       dn.repeat = (dn.repeat || 1) + 1;
       dn.lastT = faDateTime(); dn.lastISO = new Date().toISOString();
       /* v33.4.1: اگر dkey صریح داده شده (مثلاً یادآور روزانه چک با شمارش روز تغییرپذیر)،
@@ -419,6 +495,13 @@ function ntfCard(n, me) {
 function renderCartable() {
   var el = document.getElementById('ctWrap');
   if (!el) return;
+  /* v34.38.24 (NOTIF-FRESH): سیاست سنی هنگام بازکردن کارتابل هم اعمال شود تا کاربر
+     همیشه فهرست «مهم و به‌روز» را ببیند (prune بی‌اثر هیچ نوشتی ندارد). با
+     STALE-BOOT-GUARD — پیش از قطعِ snapshot، روی کش کهنه اجرا نمی‌شود. */
+  try {
+    if (typeof window.ptfPruneStaleNotifs === 'function' &&
+        (typeof window.ptfSyncPullNow !== 'function' || window._ptfSyncBootstrapped)) window.ptfPruneStaleNotifs();
+  } catch (ePruneR) {}
   var me = curSession().user;
   var showAll = (document.getElementById('ctAll') || {}).checked;
   var list = myNotifs().filter(function (n) {
@@ -433,7 +516,10 @@ function renderCartable() {
     openList.forEach(function (n) { h += ntfCard(n, me); });
   }
   if (showAll && doneList.length) {
-    h += '<div style="font-size:12.5px;font-weight:bold;color:#64748b;margin:14px 0 8px">✅ انجام‌شده / خوانده‌شده (' + doneList.length + ')</div>';
+    /* v34.38.24 (NOTIF-FRESH): بایگانیِ سنی شفاف باشد — کاربر بداند کارت‌های قدیمی کجا رفته‌اند */
+    var archN = doneList.filter(function (n) { return n.ageArchived; }).length;
+    h += '<div style="font-size:12.5px;font-weight:bold;color:#64748b;margin:14px 0 8px">✅ انجام‌شده / خوانده‌شده (' + doneList.length + ')' +
+      (archN ? ' <span style="font-weight:normal;color:#94a3b8">— شامل ' + archN + ' مورد بایگانیِ خودکارِ قدیمی (بیش از ' + NTF_STALE_ARCHIVE_DAYS + ' روز)</span>' : '') + '</div>';
     doneList.forEach(function (n) { h += ntfCard(n, me); });
   }
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">اقدام بازی ندارید</div>';
@@ -498,7 +584,15 @@ window.ptfResolveRfqReferral = function (inqNo, taskType) {
     return !(n.taskType === taskType || (!n.taskType && legacyText.test(String(n.title || ''))));
   });
   var removed = notifs.length - kept.length;
-  if (removed) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' }); else setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (e1) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (e2) {} }
+  /* v34.38.24: حذف از مسیر ntfCommitRemoval (تک‌رکوردی + tombstone) — SaveCollection
+     کل‌مجموعه در حذفِ بیش از MAX_OPS رکورد به legacyFallback('too-many-ops') می‌افتاد
+     و چون notifs کلید اتحاد است، legacy-push روی سرور هیچ‌چیز را حذف نمی‌کرد
+     (همان شکاف MAX_OPS که v34.38.6 برای ntfResolveByRef/ByDkey بست).
+     گارد typeof برای evalهای standalone (تسترهای قدیمی) — در scope فایل همیشه هست. */
+  if (removed) {
+    if (typeof ntfCommitRemoval === 'function') ntfCommitRemoval(notifs, kept);
+    else { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' }); else setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (e1) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (e2) {} }
+  }
   return removed;
 };
 /* سازگاری با فراخوان قدیمی CO */

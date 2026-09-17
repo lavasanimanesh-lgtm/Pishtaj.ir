@@ -18,8 +18,8 @@ var zip = read('api/zip-attachments.php');
 var ht = read('api/.htaccess');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.38.21', ver.crm_version === 'v34.38.21', ver.crm_version);
-T('inqreader.js cache-bust 34.38.21', /inqreader\.js\?v=34\.38\.21/.test(idx));
+T('VERSION.json = v34.38.24', ver.crm_version === 'v34.38.24', ver.crm_version);
+T('inqreader.js cache-bust 34.38.24', /inqreader\.js\?v=34\.38\.24/.test(idx));
 
 /* ① کلاینت */
 T('ptfRfqZipEntries تعریف شد', /window\.ptfRfqZipEntries = function \(r\)\s*\{/.test(inq));
