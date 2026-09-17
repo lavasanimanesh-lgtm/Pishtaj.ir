@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester667 — v34.39.8 (HOME-ICONMIN)
+   tester667 — v34.39.9 (HOME-ICONMIN)
    گزارش کارفرما:
      «جستجو از منو حذف شود؛ در موبایل کادر دور کلید شب/روز حذف و فقط آیکون شود؛
      انتخابِ دستیِ روز در شب بعد از چند ثانیه به شب برمی‌گشت (باگ)؛ تماس/واتس‌اپ
@@ -34,8 +34,8 @@ SECTION('۰. لایه');
 T('۰.۱ لایهٔ HOME-ICONMIN پس از ۳۹.۴ است', i0 > -1 && i0 > home.indexOf('v34.39.4 — HOME-ACCORD-NIGHTMEGA'));
 
 SECTION('① حذف جستجو از شیت');
-T('۱.۱ اوررایدِ #mainNav .nav-search فقط ≤۷۹۰',
-  /@media\(max-width:790px\)\{\s*#mainNav \.nav-search\{display:none!important\}/.test(lay));
+T('۱.۱ مخفیِ سراسریِ .nav-search (v34.39.9 هدر دسکتاپ هم پوشش داده شد)',
+  /\.nav-search\{display:none!important\}/.test(home));
 T('۱.۲ DOM/تزریق‌کننده دست‌نخورده (پیمایش دسکتاپِ جستجو باقی است)',
   read('assets/js/ptf-discover.js').indexOf('a.className = "nav-search"') > -1 &&
   idx.indexOf('id="mainNav"') > -1);
@@ -77,7 +77,7 @@ T('۴.۳ هر دو آیتمِ داک لینکِ واقعی‌اند (<a href>) �
   /id="ptfDock"[\s\S]*?<a href="tel:02146087679"[\s\S]*?<a href="https:\/\/wa\.me\//.test(idx));
 
 SECTION('⑤ قرارداد کلی');
-T('۵.۱ cache-bust روی v34.39.8', /home\.css\?v=34\.39\.8/.test(idx) && /ptf-motion\.js\?v=34\.39\.8" defer/.test(idx));
+T('۵.۱ cache-bust روی v34.39.9', /home\.css\?v=34\.39\.9/.test(idx) && /ptf-motion\.js\?v=34\.39\.9" defer/.test(idx));
 T('۵.۲ حجم‌ها زیر بودجه‌ها (home.css<۴۰K، ptf-motion<۱۲K)', home.length < 40000 && motion.length < 12000);
 T('۵.۳ پارس JS + تعادلِ آکولادِ CSS', (function () {
   try { new Function(motion); new Function(read('assets/js/main.js')); } catch (e) { return false; }
@@ -87,14 +87,14 @@ T('۵.۴ رگرسیون‌زدا: reparent شیت، z-index، آکاردئونِ
   motion.indexOf('doc.body.insertBefore(nav, bd2)') > -1 && /#mainNav\{z-index:9535/.test(home) &&
   /#mainNav \.nav-drop\.open>\.nav-drop-menu\{max-height:240px/.test(home) &&
   home.indexOf('html.ptf-dark #mainNav .nav-mega') > -1 &&
-  /animation:ptfCurS 8s linear infinite/.test(home) && /<b>۳<\/b>/.test(idx) && /<b>۶\+<\/b>/.test(idx));
+  /animation:ptfCurS 26s linear infinite/.test(home) && /<b>۳<\/b>/.test(idx) && /<b>۶\+<\/b>/.test(idx));
 T('۵.۵ نگهبان بی‌تغییری: h1/canonical/۱۰‌بخش/صفر CDN',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی — تجهیزات حیاتی پروژه‌ها را <strong>مطمئن، سریع و دقیق</strong> تامین کنید') > -1 &&
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   !/<(script|link)[^>]+src="https?:/.test(idx));
-T('۵.۶ VERSION.json = v34.39.8', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.8');
+T('۵.۶ VERSION.json = v34.39.9', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.9');
 
-DONE('tester667-v34.39.8-iconmin');
+DONE('tester667-v34.39.9-iconmin');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

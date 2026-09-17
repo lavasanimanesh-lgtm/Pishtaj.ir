@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester664 — v34.39.8 (HOME-DOCK-SUN)
+   tester664 — v34.39.9 (HOME-DOCK-SUN)
    دستور کارفرما:
      «دکمهٔ منو کار نمی‌کند؛ دکمهٔ منو → استعلام شود و خانه → منو؛ سرعت و
      فرکانس برق را کم کنید (دیربه‌دیرتر و یواش‌تر)؛ دکمهٔ شب/روز از هدر حذف،
@@ -123,15 +123,15 @@ SECTION('۴. ریتم آرامِ برق');
 T('۴.۱ کیفریم ptfCurS با دمِ سکوت (۵۲٪ عبور، ۴۸٪ تاریکی)',
   /@keyframes ptfCurS\{0%\{background-position:220% 0\}52%\{background-position:-240% 0\}100%\{background-position:-240% 0\}\}/.test(home));
 T('۴.۲ حلقهٔ دائم: ۸ ثانیه (از ۳.۴) — دیربه‌دیرتر و یواش‌تر',
-  /animation:ptfCurS 8s linear infinite;opacity:\.75/.test(home) && home.indexOf('animation:ptfCur 3.4s') === -1);
+  /animation:ptfCurS 26s linear infinite;opacity:\.75/.test(home) && home.indexOf('animation:ptfCur 3.4s') === -1);
 T('۴.۳ حلقهٔ هاور کارت‌ها: ۵ ثانیه (از ۲.۲)',
-  /animation:ptfCurS 5s linear infinite/.test(home) && home.indexOf('animation:ptfCur 2.2s') === -1);
+  /animation:ptfCurS 15s linear infinite/.test(home) && home.indexOf('animation:ptfCur 2.2s') === -1);
 T('۴.۴ reduce: خاموشی کامل همچنان برجا',
   /@media \(prefers-reduced-motion: reduce\)\{[\s\S]*?\.btn-primary::before[^}]*animation:none;opacity:\.5/.test(home));
 
 SECTION('۵. قرارداد کلی');
-T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.8',
-  /home\.css\?v=34\.39\.8/.test(idx) && /ptf-motion\.js\?v=34\.39\.8" defer/.test(idx));
+T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.9',
+  /home\.css\?v=34\.39\.9/.test(idx) && /ptf-motion\.js\?v=34\.39\.9" defer/.test(idx));
 T('۵.۲ اعداد فارسی پنل هیرو هنوز ۳ و ۶+ (بازگشت‌ناپذیر)',
   /<b>۳<\/b><span>دپارتمان تامین<\/span>/.test(idx) && /<b>۶\+<\/b><span>صنعت هدف<\/span>/.test(idx));
 T('۵.۳ پارس JS: ptf-motion و main.js', (function () {
@@ -155,8 +155,8 @@ T('۵.۷ نگهبان بی‌تغییری: h1، canonical، tel/wa، ۱۰ بخش
   idx.indexOf('tel:02146087679') > -1 && idx.indexOf('wa.me/989925868479') > -1 &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   /<a href="rfq\/">استعلام<\/a>/.test(idx) && /<a class="btn btn-primary" href="rfq\/">/.test(idx));
-T('۵.۸ VERSION.json = v34.39.8', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.8');
+T('۵.۸ VERSION.json = v34.39.9', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.9');
 
-DONE('tester664-v34.39.8-dock-sun');
+DONE('tester664-v34.39.9-dock-sun');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
