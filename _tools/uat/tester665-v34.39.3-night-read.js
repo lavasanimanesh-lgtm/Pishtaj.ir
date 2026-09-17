@@ -80,8 +80,8 @@ T('۳.۶ پالت روزِ هاور (سفید کرمی) برای نمای روز
   /html:not\(\.ptf-dark\) \.service-card:hover/.test(home) === false && /@media \(hover:hover\)\{[\s\S]*?\.service-card:hover\{background:linear-gradient\(180deg,#fff,#fff6e9\)/.test(home));
 
 SECTION('④ قرارداد کلی');
-T('۴.۱ cache-bust: home.css و ptf-motion روی v34.39.11',
-  /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۴.۱ cache-bust: home.css و ptf-motion روی v34.39.14',
+  /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۴.۲ پارس JS: ptf-motion و main.js', (function () {
   try { new Function(motion); new Function(read('assets/js/main.js')); return true; } catch (e) { return false; }
 })());

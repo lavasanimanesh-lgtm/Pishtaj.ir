@@ -21,6 +21,28 @@
     a.textContent = "جستجو";
     nav.appendChild(a);
   }
+
+  /* Keep the theme control in the mobile sheet, but visually group it with
+     search + language in the desktop header. Moving the same node preserves
+     its id, event listener and ARIA state; no duplicate control is created. */
+  var mqHeaderActions = window.matchMedia ? window.matchMedia("(min-width:791px)") : { matches: true };
+  function syncHeaderActions() {
+    var nav = document.getElementById("mainNav");
+    var actions = document.querySelector(".site-header .hdr-actions");
+    var theme = document.getElementById("ptfThemeToggle");
+    if (!nav || !actions || !theme) return;
+    if (mqHeaderActions.matches) {
+      if (theme.parentNode !== actions) actions.insertBefore(theme, actions.firstChild);
+    } else if (theme.parentNode !== nav) {
+      nav.appendChild(theme);
+    }
+  }
+  function bindHeaderActions() {
+    syncHeaderActions();
+    if (mqHeaderActions.addEventListener) mqHeaderActions.addEventListener("change", syncHeaderActions);
+    else if (mqHeaderActions.addListener) mqHeaderActions.addListener(syncHeaderActions);
+  }
+
   function ensureCareersLink() {
     var nav = document.getElementById("mainNav");
     if (!nav) return;
@@ -485,6 +507,7 @@
   }
 
   function boot() {
+    bindHeaderActions();
     ensureSearchLink();
     ensureCareersLink();
     ensureProductsMenu();

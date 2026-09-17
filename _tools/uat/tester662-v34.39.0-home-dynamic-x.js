@@ -25,7 +25,7 @@
    ④ MOTION: ptf-motion.js — rAF+passive، guardهای prefers-reduced-motion و
      hover:hover؛ main.js — مکث خودکار اسلایدر در تب پنهان + سوایپ لمسی؛
      هیچ متن/هوک/اسکیمای موجود تغییر نکرده (رجیکس‌های keep below).
-   ⑤ SPEED: بدون کتابخانه/فونت/اسکریپت خارجی جدید؛ cache-bust v34.39.11؛
+   ⑤ SPEED: بدون کتابخانه/فونت/اسکریپت خارجی جدید؛ cache-bust v34.39.14؛
      content-visibility برای بخش‌های زیرِ صفحه (دسکتاپ).
    ============================================================================= */
 require('./harness');
@@ -113,8 +113,8 @@ T('۴.۷ پرده‌گشایی کلمات H1 فقط با JS فعال و DOM مح
 SECTION('۵. سرعت');
 T('۵.۱ اسکریپت/استایل خارجی جدید اضافه نشده (همه assets محلی‌اند)',
   !/<(script|link)[^>]+src="https?:/.test(idx) && !/<link[^>]+href="https?:[^"]*\.css/.test(idx));
-T('۵.۲ home.css با cache-bust v34.39.11 و ptf-motion با defer+version لود می‌شود',
-  /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۵.۲ home.css با cache-bust v34.39.14 و ptf-motion با defer+version لود می‌شود',
+  /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۵.۳ content-visibility فقط دسکتاپ و فقط بخش‌های زیرِ صفحه (LCP دست‌نخورده)',
   /@media\(min-width:791px\)/.test(layer) && /#stats,#home-faq,#projects,\.brands,\.services\{content-visibility:auto/.test(layer) && /\.hero\{min-height:100vh;min-height:100svh\}/.test(layer));
 T('۵.۴ preload‌های حیاتی قبلی حذف نشده‌اند (فونت/هیرو)',

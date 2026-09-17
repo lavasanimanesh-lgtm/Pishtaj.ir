@@ -103,7 +103,7 @@ T('۵.۳ فرم استعلام سریع همان wiring قبلی را دارد',
   idx.indexOf('data-ptf-custom-submit="home-rfq"') > -1 && idx.indexOf('api/crm.php?action=add_rfq_site') > -1);
 T('۵.۴ h1 و eyebrow صفحه دست‌نخورده است',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی') > -1 && idx.indexOf('تامین پروژه‌ای، واردات و سورسینگ اقلام صنعتی') > -1);
-T('۵.۵ home.css با cache-bust جدید لود می‌شود', idx.indexOf('home.css?v=34.39.11') > -1);
+T('۵.۵ home.css با cache-bust جدید لود می‌شود', idx.indexOf('home.css?v=34.39.14') > -1);
 T('۵.۶ شماره‌ها و لینک‌های تماس/واتساپ عوض نشده‌اند',
   idx.indexOf('tel:02146087679') > -1 && idx.indexOf('wa.me/989925868479') > -1);
 

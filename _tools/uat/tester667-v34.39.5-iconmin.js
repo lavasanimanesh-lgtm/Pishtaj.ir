@@ -77,7 +77,7 @@ T('۴.۳ هر دو آیتمِ داک لینکِ واقعی‌اند (<a href>) �
   /id="ptfDock"[\s\S]*?<a href="tel:02146087679"[\s\S]*?<a href="https:\/\/wa\.me\//.test(idx));
 
 SECTION('⑤ قرارداد کلی');
-T('۵.۱ cache-bust روی v34.39.11', /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۵.۱ cache-bust روی v34.39.14', /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۵.۲ حجم‌ها زیر بودجه‌ها (home.css<۴۰K، ptf-motion<۱۲K)', home.length < 40000 && motion.length < 12000);
 T('۵.۳ پارس JS + تعادلِ آکولادِ CSS', (function () {
   try { new Function(motion); new Function(read('assets/js/main.js')); } catch (e) { return false; }

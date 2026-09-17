@@ -33,7 +33,7 @@ T('۲.۲ ورودی و دکمهٔ جست‌وجو بدون تغییر (فقط ق
 T('۲.۳ رگرسیون ۳۹.۹: لینکِ قاب‌دارِ هدر همچنان سراسری مخفی', home.indexOf('.nav-search{display:none!important}') > -1);
 
 console.log('\n── قراردادها ──');
-T('۳.۱ cache-bust روی v34.39.11', /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۳.۱ cache-bust روی v34.39.14', /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۳.۲ بودجه <۴۰K، آکولاد متوازن، مارکرِ ۱۰ لایه یکتا',
   home.length < 40000 && home.split('{').length === home.split('}').length &&
   ['v34.39.0 — HOME-DYNAMIC-X','v34.39.1 — HOME-ELECTRIC-3D','v34.39.2 — HOME-DOCK-SUN','v34.39.3 — HOME-NIGHT-READ','v34.39.4 — HOME-ACCORD-NIGHTMEGA','v34.39.5 — HOME-ICONMIN','v34.39.6 — HOME-WAVE','v34.39.8 — HOME-MINBTN','v34.39.9 — HOME-CALM2','v34.39.10 — HOME-NOFRAME'].every(function(m){ return home.split(m).length === 2; }));

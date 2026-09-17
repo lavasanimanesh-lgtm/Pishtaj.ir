@@ -49,7 +49,7 @@ T('۲.۶ رگرسیون: موجِ no-repeatِ پنل و برقِ آرام ۲۶s/
   home.indexOf('background-repeat:no-repeat') > -1 && /animation:ptfCurS 26s/.test(home) && /animation:ptfCurS 15s/.test(home));
 
 console.log('\n── قراردادها ──');
-T('۳.۱ cache-bust روی v34.39.11', /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۳.۱ cache-bust روی v34.39.14', /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۳.۲ بودجه <۴۰K، آکولاد متوازن، مارکرِ ۱۱ لایه یکتا',
   home.length < 40000 && home.split('{').length === home.split('}').length &&
   ['v34.39.0 — HOME-DYNAMIC-X','v34.39.1 — HOME-ELECTRIC-3D','v34.39.2 — HOME-DOCK-SUN','v34.39.3 — HOME-NIGHT-READ','v34.39.4 — HOME-ACCORD-NIGHTMEGA','v34.39.5 — HOME-ICONMIN','v34.39.6 — HOME-WAVE','v34.39.8 — HOME-MINBTN','v34.39.9 — HOME-CALM2','v34.39.10 — HOME-NOFRAME','v34.39.11 — HOME-ICONTRIO'].every(function(m){ return home.split(m).length === 2; }));

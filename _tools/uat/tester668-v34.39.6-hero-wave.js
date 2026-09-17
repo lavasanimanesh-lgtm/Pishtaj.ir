@@ -44,7 +44,7 @@ T('۱.۶ پنل base نسبی است و متن‌ها زیرِ لایهٔ موج
 SECTION('رگرسیون و قرارداد کلی');
 T('۲.۱ تیلتِ ۳بعدی و هاورِ پنل از قبل دست‌نخورده',
   /\.hero-panel\{transform-style:preserve-3d;transition:transform/.test(home.replace(/\n/g, ' ')) || home.indexOf('.hero-panel:hover{transform:rotateY(-3deg)') > -1 || /#mainNav \.nav-drop-menu/.test(home) && home.indexOf('rotateY(-3deg)') > -1);
-T('۲.۲ cache-bust روی v34.39.11', /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۲.۲ cache-bust روی v34.39.14', /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۲.۳ حجم زیرِ بودجه و آکولادِ متوازن', home.length < 40000 && home.split('{').length === home.split('}').length);
 T('۲.۴ رگرسیون‌زدا: ردیفِ تم آیکونی، آکاردئون، مگای شب، ریتم برق، اعداد فارسی، canonical‌ها',
   home.indexOf('.nav-search{display:none!important}') > -1 &&

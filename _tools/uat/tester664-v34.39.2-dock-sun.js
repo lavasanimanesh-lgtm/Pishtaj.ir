@@ -130,8 +130,8 @@ T('۴.۴ reduce: خاموشی کامل همچنان برجا',
   /@media \(prefers-reduced-motion: reduce\)\{[\s\S]*?\.btn-primary::before[^}]*animation:none;opacity:\.5/.test(home));
 
 SECTION('۵. قرارداد کلی');
-T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.11',
-  /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.14',
+  /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۵.۲ اعداد فارسی پنل هیرو هنوز ۳ و ۶+ (بازگشت‌ناپذیر)',
   /<b>۳<\/b><span>دپارتمان تامین<\/span>/.test(idx) && /<b>۶\+<\/b><span>صنعت هدف<\/span>/.test(idx));
 T('۵.۳ پارس JS: ptf-motion و main.js', (function () {

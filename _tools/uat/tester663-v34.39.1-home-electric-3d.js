@@ -106,8 +106,8 @@ T('۴.۴ پنل هیرو تیلت ملایم + سایهٔ فیزیکی داک CT
   /inset 0 1\.5px 0 rgba\(255,255,255,\.4\)/.test(lay));
 
 SECTION('۵. قرارداد کلی');
-T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.11',
-  /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.14',
+  /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۵.۲ بدون اسکریپت/CDN خارجی جدید', !/<(script|link)[^>]+src="https?:/.test(idx));
 T('۵.۳ پارس JS: ptf-motion و main.js', (function () {
   try { new Function(motion); new Function(read('assets/js/main.js')); return true; } catch (e) { return false; }
