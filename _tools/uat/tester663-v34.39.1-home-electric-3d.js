@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester663 — v34.39.1 (HOME-ELECTRIC-3D)
+   tester663 — v34.39.2 (HOME-ELECTRIC-3D)
    دستور کارفرما:
      «جریان برق روی کارت‌ها/دکمه‌ها؛ هاور رنگی زیبا؛ حذف منوی بالای موبایل و
      انتقال به شیت پایین؛ انیمیشن منوها؛ کلید روز/شب؛ RFQ از داک حذف و دکمهٔ
@@ -40,9 +40,9 @@ T('۱.۲ حلقهٔ دائم روی .btn-primary/.header-call/CTA داک/چت د
   lay.indexOf('.btn-primary::before,.header-call::before,#ptfDock .dock-cta::before,#ptfDockChat::before,.ptf-finder button::before') > -1);
 T('۱.۳ حلقهٔ هاور روی کارت‌های خدمات/مسیر/چرایی',
   /\.service-card::after,#journey a\.reveal::after,#why-ptf div\.reveal::after/.test(lay) &&
-  /\.service-card:hover::after,#journey a\.reveal:hover::after,#why-ptf div\.reveal:hover::after\{opacity:\.95;animation:ptfCur 2\.2s linear infinite\}/.test(lay));
+  /\.service-card:hover::after,#journey a\.reveal:hover::after,#why-ptf div\.reveal:hover::after\{opacity:\.95;animation:ptfCurS 5s linear infinite\}/.test(lay));
 T('۱.۴ کاهش‌حرکت: ارجاع خاموش‌کننده در بلاک reduce انتهای لایه',
-  lay.slice(lay.lastIndexOf('prefers-reduced-motion: reduce')).indexOf('.btn-primary::before') > -1);
+  lay.slice(lay.indexOf('@media (prefers-reduced-motion: reduce)')).indexOf('.btn-primary::before') > -1);
 T('۱.۵ هاور رنگی: گرادیان کرمی کارت + لیفت فیلتر دکمه + تب‌ها زیر media(hover)',
   /\.service-card:hover\{background:linear-gradient\(180deg,#fff,#fff6e9\)/.test(lay) &&
   /\.btn-ghost:hover\{background:rgba\(247,148,0,\.30\)/.test(lay) &&
@@ -53,19 +53,19 @@ T('۲.۱ دکمهٔ منوی بالا ≤۷۹۰ حذف', /\.menu-toggle\{display
 T('۲.۲ شیت پایین بالای داک با استگر ورودی و اسکرول داخلی',
   /#mainNav\{top:auto!important;bottom:calc\(86px \+ env\(safe-area-inset-bottom\)\)!important/.test(lay) &&
   /#mainNav\.open>\*\{animation:ptfSheetItem \.42s cubic-bezier\(\.16,1,\.3,1\) both\}/.test(lay));
-T('۲.۳ داک پنج‌تایی و بدون RFQ', (function () {
+T('۲.۳ داک پنج‌تایی (خانه جای خود را به منو داد) — RFQ وسط بازگشت (v34.39.2)', (function () {
   var block = (idx.match(/id="ptfDock"[\s\S]*?<\/nav>/) || [''])[0];
   var items = (block.match(/<a |<button /g) || []).length;
-  return items === 5 && block.indexOf('href="rfq/"') === -1 && block.indexOf('ptfDockMenu') > -1;
+  return items === 5 && block.indexOf('href="rfq/"') > -1 && block.indexOf('ptfDockMenu') > -1 && block.indexOf('خانه') === -1;
 })());
-T('۲.۴ منو وسط است (بعد از تماس، قبل از واتس‌اپ) با dock-cta و مروف ✕',
-  /data-ptf-event="dock_call"[\s\S]*?<button type="button" id="ptfDockMenu" class="dock-cta"[\s\S]*?class="dock-wa"/.test(idx) &&
+T('۲.۴ منو اسلات اول، استعلام وسط (dock-cta) و مروف ✕ روی همان دکمه (v34.39.2)',
+  /<button type="button" id="ptfDockMenu" class="dock-menu"[\s\S]*?data-ptf-event="dock_call"[\s\S]*?<a href="rfq\/" class="dock-cta"[\s\S]*?class="dock-wa"/.test(idx) &&
   /#ptfDockMenu\.is-x \.dm-bars i:nth-child\(1\)\{top:6px;transform:rotate\(45deg\)\}/.test(lay) &&
   /#ptfDockMenu\.is-x \.dm-bars i:nth-child\(3\)/.test(lay));
 T('۲.۵ مسیر استعلام حفظ شده (منوی بالا + هیرو) — «استعلام کافیه»',
   /<a href="rfq\/">استعلام<\/a>/.test(idx) && /<a class="btn btn-primary" href="rfq\/">/.test(idx));
 T('۲.۶ JS: تاگل شیت از داک + sync دکمهٔ مخفیِ اصلی + بک‌دراپ/ESC',
-  /dm\.addEventListener\('click', function \(\) \{ nav\.classList\.toggle\('open'\); \}\)/.test(motion) &&
+  /dm\.addEventListener\('click', function \(e\) \{ if \(e && e\.stopPropagation\) e\.stopPropagation\(\); nav\.classList\.toggle\('open'\); \}\)/.test(motion) &&
   /var dm = doc\.getElementById\('ptfDockMenu'\)/.test(motion));
 T('۲.۷ داک هنگام باز بودن شیت مخفی نمی‌شود',
   /var sheetOpen = nav && nav\.classList\.contains\('open'\)/.test(motion));
@@ -73,8 +73,9 @@ T('۲.۸ قفل اسکرول کشو سراسری در style.css (ترجیح مو
   /@media\(max-width:790px\)\{html\.ptf-lock,html\.ptf-lock body\{overflow:hidden\}\}/.test(style));
 
 SECTION('۳. روز/شب');
-T('۳.۱ کلید تم در هدر، قبل از سوییچ زبان، با aria-pressed',
-  /id="ptfThemeToggle"[^>]*aria-pressed="false"/.test(idx) && idx.indexOf('ptfThemeToggle') < idx.indexOf('class="lang-switch"'));
+T('۳.۱ کلید تم از هدر حذف و داخل منو (#mainNav) نشسته، با aria-pressed و برچسب tt-txt (v34.39.2)',
+  /id="ptfThemeToggle"[^>]*aria-pressed="false"[^>]*data-label="نمای شب"/.test(idx) &&
+  (function () { var navBlk = (idx.match(/id="mainNav"[\s\S]*?<\/nav>/) || [''])[0]; return navBlk.indexOf('ptfThemeToggle') > -1 && navBlk.indexOf('class="tt-txt"') > -1; })());
 T('۳.۲ بوت‌استرپ ضدFOUC با کوکی در head (A10-safe؛ بدون localStorage)',
   idx.indexOf('ptf_theme=(dark|light)') > -1 && idx.indexOf('document.documentElement.className+=" ptf-dark"') > -1 &&
   idx.indexOf('document.documentElement.className+=" ptf-dark"') < idx.indexOf('</head>'));
@@ -84,8 +85,9 @@ T('۳.۴ پالت شب: بدنه/کارت/فرم/داک/شیت + فلش‌های
   /html\.ptf-dark body\{background:#0a1120;color:#d7e0ef\}/.test(lay) &&
   /html\.ptf-dark #contactForm input/.test(lay) && /html\.ptf-dark #ptfDock\{/.test(lay) &&
   /html\.ptf-dark #mainNav\{/.test(lay));
-T('۳.۵ ترجیح سیستم فقط بار اول (نبود کوکی) و sync تگ theme-color',
-  idx.indexOf('m?m[1]==="dark":!!(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)') > -1 &&
+T('۳.۵ نبودِ کوکی = شب خودکار از غروب (NOAA در head) و sync تگ theme-color',
+  idx.indexOf('Math.floor(jd-0.5)-2451544') > -1 && idx.indexOf('if(m){dark=m[1]==="dark"}else{') > -1 &&
+  idx.indexOf('jd<(t-w/360)||jd>(t+w/360)') > -1 &&
   /mc\.setAttribute\('content', dark \? '#0a1120' : '#ffffff'\)/.test(motion));
 
 SECTION('۴. فلش‌ها + اعداد + سه‌بعدی');
@@ -104,17 +106,17 @@ T('۴.۴ پنل هیرو تیلت ملایم + سایهٔ فیزیکی داک CT
   /inset 0 1\.5px 0 rgba\(255,255,255,\.4\)/.test(lay));
 
 SECTION('۵. قرارداد کلی');
-T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.1',
-  /home\.css\?v=34\.39\.1/.test(idx) && /ptf-motion\.js\?v=34\.39\.1" defer/.test(idx));
+T('۵.۱ cache-bust: home.css و ptf-motion روی v34.39.2',
+  /home\.css\?v=34\.39\.2/.test(idx) && /ptf-motion\.js\?v=34\.39\.2" defer/.test(idx));
 T('۵.۲ بدون اسکریپت/CDN خارجی جدید', !/<(script|link)[^>]+src="https?:/.test(idx));
 T('۵.۳ پارس JS: ptf-motion و main.js', (function () {
   try { new Function(motion); new Function(read('assets/js/main.js')); return true; } catch (e) { return false; }
 })());
 T('۵.۴ حجم‌ها: home.css<۴۸KB، ptf-motion<۱۲KB', home.length < 48000 && motion.length < 12000);
-T('۵.۵ تعادل هدر موبایل: تماس ≤۵۶ حذف و تم‌توگل ۴۰px',
+T('۵.۵ تعادل هدر (تماس ≤۵۶) + فیکسِ بلور هدر موبایل (محشرِ containing-block شیت)',
   /@media\(max-width:560px\)\{\.header-call\{display:none!important\}\}/.test(lay) &&
-  /@media\(max-width:790px\)\{\.theme-toggle\{width:40px;height:40px/.test(lay));
-T('۵.۶ VERSION.json = v34.39.1', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.1');
+  lay.indexOf('.site-header,.site-header.scrolled,.site-header.is-compact{-webkit-backdrop-filter:none!important;backdrop-filter:none!important') > -1);
+T('۵.۶ VERSION.json = v34.39.2', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.2');
 T('۵.۷ نگهبان بی‌تغییری: h1، canonical، tel/wa، ۱۰ بخش، theme-color دوحالته',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی — تجهیزات حیاتی پروژه‌ها را <strong>مطمئن، سریع و دقیق</strong> تامین کنید') > -1 &&
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
@@ -122,6 +124,6 @@ T('۵.۷ نگهبان بی‌تغییری: h1، canonical، tel/wa، ۱۰ بخش
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   /name="theme-color" content="#ffffff"/.test(idx));
 
-DONE('tester663-v34.39.1-home-electric-3d');
+DONE('tester663-v34.39.2-home-electric-3d');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

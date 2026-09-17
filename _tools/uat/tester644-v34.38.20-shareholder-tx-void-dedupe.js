@@ -1,4 +1,4 @@
-/* tester644 — v34.39.1 (SHARE-TX-MANUAL-VOID + SHARE-SALARY-DEDUPE):
+/* tester644 — v34.39.2 (SHARE-TX-MANUAL-VOID + SHARE-SALARY-DEDUPE):
    گزارش کارفرما: «حقوق یک سهامدار دو بار در یک ماه ثبت شده؛ خودکار درست نشده و راهکار
    اصلاح دستی هم وجود ندارد». ریشهٔ «خودکار درست نشد»: reconcile_shareholder_salaries فقط
    ماهِ ارسال‌شده (ماه پنل/جاری) را پاک می‌کرد و ردیفِ تکراریِ ماه‌های گذشته هرگز لمس
@@ -15,7 +15,7 @@ var assert = require('assert');
 var php = fs.readFileSync('api/sales-domain.php', 'utf8');
 var sh = fs.readFileSync('crm/shareholders.js', 'utf8');
 
-console.log('── SHARE-TX-MANUAL-VOID + SHARE-SALARY-DEDUPE (v34.39.1) ──');
+console.log('── SHARE-TX-MANUAL-VOID + SHARE-SALARY-DEDUPE (v34.39.2) ──');
 
 /* قرارداد استاتیک — کلاینت (UI) */
 assert.ok(/window\.ptfShareTxVoid = function/.test(sh), 'عملگر ابطال دستی ردیف گردش تعریف شده است');
@@ -90,4 +90,4 @@ var o3 = voidOpexLinkModel('SHT-A', 'salary:SHR-1:1405/04', [
 assert.deepStrictEqual(o3, { voided: 0, kept: 1 }, 'هزینهٔ غیرمرتبط یا از پیش باطل‌شده void نمی‌شود');
 console.log('  ✔ رفتاری: ابطالِ حقوق، فقط هزینهٔ همان ردیف را می‌بندد (بدون دوباره‌شماری سود)');
 
-console.log('PASS tester644 v34.39.1 shareholder manual void + salary dedupe');
+console.log('PASS tester644 v34.39.2 shareholder manual void + salary dedupe');

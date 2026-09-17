@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.1';
+const SD_SERVICE_VERSION = '34.39.2';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -417,7 +417,7 @@ function sd_identity($value): string {
     $s=strtr(trim((string)$value),['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
     return strtoupper((string)preg_replace('/[\s\x{200c}\x{200e}\x{200f}]+/u','',$s));
 }
-/* ═══ v34.39.1 (CONTACT-WIPE-INVARIANT — گزارش کارفرما ۱۴۰۵/۰۶/۲۶) ═══
+/* ═══ v34.38.25 (CONTACT-WIPE-INVARIANT — گزارش کارفرما ۱۴۰۵/۰۶/۲۶) ═══
    «مشتری‌های ثبت‌شدهٔ مدیرعامل برای رییس هیات مدیره بدون شماره تماس دیده می‌شود».
    ریشهٔ کلاینت (هوک stale phonefmt) در همین نسخه بسته شد؛ این invariant، کل
    کلاس را برای *هر* نویسنده‌ای می‌بندد (کلاینت کهنه/کش‌شده، رگرسیون آینده):

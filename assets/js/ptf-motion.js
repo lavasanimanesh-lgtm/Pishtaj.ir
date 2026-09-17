@@ -135,7 +135,7 @@
     else tog.addEventListener('click', function () { setTimeout(sync, 0); });
     if (bd) bd.addEventListener('click', function () { nav.classList.remove('open'); });
     var dm = doc.getElementById('ptfDockMenu');
-    if (dm) dm.addEventListener('click', function () { nav.classList.toggle('open'); });
+    if (dm) dm.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); nav.classList.toggle('open'); });
     doc.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { nav.classList.remove('open'); tog.focus(); } });
   }
 
@@ -158,19 +158,45 @@
     });
   }
 
-  /* ⑧ نمای روز/شب — ماندگار در کوکی (بدون localStorage طبق نگهبان A10) */
+  /* ⑧ شب خودکار از غروب (فرمول NOAA/معادلهٔ خورشید، مختصات تهران) + کلید دستی در منو
+     ماندگاری فقط با کوکی (بدون localStorage طبق نگهبان A10)؛ نبودِ کوکی = حالت خودکار. */
+  function sunNight(jd) {
+    try {
+      var R = Math.PI / 180, lat = 35.7 * R, lng = 51.44;
+      var n = Math.floor(jd - 0.5) - 2451544, Js = n - lng / 360;
+      var M = (357.5291 + 0.98560028 * Js) % 360, mr = M * R;
+      var C = 1.9148 * Math.sin(mr) + 0.02 * Math.sin(2 * mr) + 0.0003 * Math.sin(3 * mr);
+      var L = (M + C + 282.9372) % 360, lr = L * R;
+      var t = 2451545 + Js + 0.0053 * Math.sin(mr) - 0.0069 * Math.sin(2 * lr);
+      var d = Math.asin(Math.sin(lr) * 0.397746);
+      var c = (Math.sin(-0.0145444) - Math.sin(lat) * Math.sin(d)) / (Math.cos(lat) * Math.cos(d));
+      var w = Math.acos(Math.max(-1, Math.min(1, c))) / R;
+      return jd < (t - w / 360) || jd > (t + w / 360);
+    } catch (e) { return root.classList.contains('ptf-dark'); }
+  }
+  function manualTheme() { var m = /(?:^|; )ptf_theme=(dark|light)/.exec(doc.cookie || ''); return m ? m[1] : ''; }
   function theme() {
     var btn = doc.getElementById('ptfThemeToggle'); if (!btn) return;
-    function set(dark, persist) {
-      root.classList.toggle('ptf-dark', dark);
+    var txt = btn.querySelector('.tt-txt');
+    function syncBtn(dark) {
       btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      if (txt) txt.textContent = dark ? 'نمای روز' : 'نمای شب';
       var mc = doc.querySelector('meta[name="theme-color"]:not([media])'); if (mc) mc.setAttribute('content', dark ? '#0a1120' : '#ffffff');
+    }
+    function set(dark, persist) {
+      root.classList.toggle('ptf-dark', dark); syncBtn(dark);
       root.classList.add('ptf-theme-anim');
       setTimeout(function () { root.classList.remove('ptf-theme-anim'); }, 480);
       if (persist) { try { doc.cookie = 'ptf_theme=' + (dark ? 'dark' : 'light') + ';max-age=31536000;path=/;SameSite=Lax'; } catch (e) {} }
     }
-    set(root.classList.contains('ptf-dark'), false);
-    btn.addEventListener('click', function () { set(!root.classList.contains('ptf-dark'), true); });
+    syncBtn(root.classList.contains('ptf-dark'));
+    btn.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); set(!root.classList.contains('ptf-dark'), true); });
+    /* خودکار: هر دقیقه اگر کاربر دستی انتخاب نکرده باشد، با غروب/طلوع هماهنگ می‌شود */
+    win.setInterval(function () {
+      if (manualTheme() || doc.hidden) return;
+      var want = sunNight(Date.now() / 864e5 + 2440587.5);
+      if (want !== root.classList.contains('ptf-dark')) set(want, false);
+    }, 6e4);
   }
 
   /* ⑨ فلش‌های مینیمال زنده: پیچیدن آخرین ←/→ داخل آیکن (متن دست‌نخورده با JS خاموش) */

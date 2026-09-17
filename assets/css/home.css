@@ -331,6 +331,7 @@ button,a{touch-action:manipulation}
 
 /* ── ① جریان برق: حلقهٔ نورانی لبه با ماسک padding/border-box ── */
 @keyframes ptfCur{from{background-position:220% 0}to{background-position:-240% 0}}
+@keyframes ptfCurS{0%{background-position:220% 0}52%{background-position:-240% 0}100%{background-position:-240% 0}}
 .ptf-cur{position:relative;isolation:isolate}
 .ptf-cur::before{content:'';position:absolute;inset:0;z-index:5;pointer-events:none;border-radius:inherit;
   padding:1.4px;background:linear-gradient(105deg,transparent 42%,rgba(255,214,120,.95) 48%,rgba(255,255,255,.9) 50%,rgba(239,75,26,.95) 52%,transparent 58%);
@@ -346,7 +347,7 @@ button,a{touch-action:manipulation}
     background-size:280% 100%;
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
             mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
-    animation:ptfCur 3.4s linear infinite;opacity:.75}
+    animation:ptfCurS 8s linear infinite;opacity:.75}
   .btn-primary,.header-call,#ptfDock .dock-cta,#ptfDockChat,.ptf-finder button{position:relative;isolation:isolate}
   .btn-primary>*{position:relative;z-index:1}
   #ptfDock .dock-cta>*,#ptfDockChat>*{position:relative;z-index:1}
@@ -358,7 +359,7 @@ button,a{touch-action:manipulation}
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
             mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude}
   .service-card,#journey a.reveal,#why-ptf div.reveal{position:relative;isolation:isolate}
-  .service-card:hover::after,#journey a.reveal:hover::after,#why-ptf div.reveal:hover::after{opacity:.95;animation:ptfCur 2.2s linear infinite}
+  .service-card:hover::after,#journey a.reveal:hover::after,#why-ptf div.reveal:hover::after{opacity:.95;animation:ptfCurS 5s linear infinite}
 }
 
 /* ── ② هاورِ رنگی — کارت‌ها و دکمه‌ها رنگ گرم برند می‌گیرند ── */
@@ -494,7 +495,7 @@ html.ptf-dark .ptf-finder{background:rgba(8,13,24,.5)}
   #ptfDockMenu.is-x .dm-bars i:nth-child(1){top:6px;transform:rotate(45deg)}
   #ptfDockMenu.is-x .dm-bars i:nth-child(2){opacity:0;transform:translateX(8px)}
   #ptfDockMenu.is-x .dm-bars i:nth-child(3){top:6px;transform:rotate(-45deg)}
-  #ptfDockMenu{min-height:62px}
+  #ptfDockMenu{min-height:54px}
 }
 @keyframes ptfSheetItem{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 
@@ -515,3 +516,37 @@ html.ptf-dark .ptf-finder{background:rgba(8,13,24,.5)}
 /* v34.39.1 — تعادل هدر موبایل با افزودن کلید تم (تماس در داک هست؛ اینجا حذف می‌شود) */
 @media(max-width:790px){.theme-toggle{width:40px;height:40px;flex-basis:40px}.theme-toggle svg{width:19px;height:19px}}
 @media(max-width:560px){.header-call{display:none!important}}
+
+/* v34.39.2 — HOME-DOCK-SUN — لایهٔ نمایشی (presentation-only)
+   ① FIX: backdrop-filter هدر = containing-block برای شیت fixed → بلور ≤۷۹۰ خاموش (باگ «منو کار نمی‌کند»)
+   ② داک: خانه→منو (اسلات اول)؛ وسط→استعلام واقعی (a.rfq، CTA سه‌بعدی، مروف ✕ روی دکمه منو)
+   ③ شب خودکار از غروب تهران (NOAA) + کلید دستی داخل #mainNav با اوررایدِ کوکی (A10-safe)
+   ④ ptfCurS: عبور آهسته + دمِ سکوت (۸s دائم / ۵s هاور) */
+@media(max-width:790px){
+  .site-header,.site-header.scrolled,.site-header.is-compact{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:rgba(255,255,255,.985)!important}
+  html.ptf-dark .site-header,html.ptf-dark .site-header.scrolled,html.ptf-dark .site-header.is-compact{background:rgba(10,17,32,.985)!important}
+}
+/* داک: استعلام وسط (CTA شناور) و منو در اسلات اول با حالت فعال */
+#ptfDock .dock-cta{cursor:pointer}
+#ptfDock .dock-cta>svg{width:22px;height:22px}
+#ptfDockMenu.is-x{color:#fff;background:var(--flame-grad);border-radius:15px;box-shadow:0 6px 16px rgba(239,75,26,.34)}
+/* ردیف شب/روز داخل منو (شیت موبایل): تمام‌عرض، آیکون استاتیک، برچسبِ متنیِ زنده */
+#mainNav .theme-toggle{width:auto;height:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:flex-start;gap:10px;padding:0 14px;border-radius:15px;margin:0;position:relative;overflow:hidden}
+#mainNav .theme-toggle svg{position:static;width:20px;height:20px;flex:0 0 20px;transform:none;opacity:1;transition:transform .45s cubic-bezier(.34,1.56,.64,1)}
+#mainNav .theme-toggle .tt-moon{display:none}
+#mainNav .theme-toggle .tt-txt{font-size:14px;font-weight:900;color:inherit;letter-spacing:0}
+html.ptf-dark #mainNav .theme-toggle .tt-sun{display:none}
+html.ptf-dark #mainNav .theme-toggle .tt-moon{display:block}
+@media(hover:hover){#mainNav .theme-toggle:hover{background:rgba(247,148,0,.12);border-color:rgba(247,148,0,.42);color:var(--red2);transform:none}}
+/* دسکتاپ: همان کلید به‌صورت قرص کوچک انتهای نوبار */
+@media(min-width:791px){
+  #mainNav .theme-toggle{height:34px;gap:7px;padding:0 11px;border-radius:999px}
+  #mainNav .theme-toggle svg{width:17px;height:17px}
+  #mainNav .theme-toggle .tt-txt{font-size:12.5px}
+  html.ptf-dark .main-nav .theme-toggle .tt-sun{display:none}
+  html.ptf-dark .main-nav .theme-toggle .tt-moon{display:block}
+}
+@media (prefers-reduced-motion: reduce){
+  #mainNav .theme-toggle,#mainNav .theme-toggle svg{transition:none}
+  #ptfDock .dock-cta>svg{transition:none}
+}
