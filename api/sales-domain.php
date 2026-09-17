@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.38.24';
+const SD_SERVICE_VERSION = '34.38.25';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -416,6 +416,47 @@ function sd_text($value, int $max = 500): string {
 function sd_identity($value): string {
     $s=strtr(trim((string)$value),['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
     return strtoupper((string)preg_replace('/[\s\x{200c}\x{200e}\x{200f}]+/u','',$s));
+}
+/* ═══ v34.38.25 (CONTACT-WIPE-INVARIANT — گزارش کارفرما ۱۴۰۵/۰۶/۲۶) ═══
+   «مشتری‌های ثبت‌شدهٔ مدیرعامل برای رییس هیات مدیره بدون شماره تماس دیده می‌شود».
+   ریشهٔ کلاینت (هوک stale phonefmt) در همین نسخه بسته شد؛ این invariant، کل
+   کلاس را برای *هر* نویسنده‌ای می‌بندد (کلاینت کهنه/کش‌شده، رگرسیون آینده):
+   اگر رکورد ذخیره‌شده تماس دارد و payloadِ ارسالی «هر کلید تماسی که می‌آورد»
+   خالی است، پاک‌سازی نیت صریح می‌خواهد (_ccClear=1 از کلاینت جاری)؛ در غیر این
+   صورت مقدارهای قبلی حفظ و شمارش در sanitize برمی‌گردد. هم‌سنگِ قاعدهٔ
+   merge v34.8.34 («کلید غایب = تغییرنکرده»): «کلید حاضرِ خالی = پاک‌سازی عمدی
+   فقط با مهر». فیلد نیت (_ccClear) پیش از ذخیره حذف می‌شود. */
+function sd_contact_val_empty($v): bool {
+    if (is_array($v)) {
+        foreach ($v as $it) {
+            if (is_array($it)) {
+                foreach ((isset($it['tels']) && is_array($it['tels']) ? $it['tels'] : []) as $t) { if (is_array($t) && isset($t['n']) && trim((string)$t['n']) !== '') return false; }
+                foreach ((isset($it['mobs']) && is_array($it['mobs']) ? $it['mobs'] : []) as $t) { if (is_array($t) && isset($t['n']) && trim((string)$t['n']) !== '') return false; }
+                foreach ((isset($it['mails']) && is_array($it['mails']) ? $it['mails'] : []) as $t) { if (is_array($t) && isset($t['n']) && trim((string)$t['n']) !== '') return false; }
+                if (isset($it['n']) && trim((string)$it['n']) !== '') return false;
+            } elseif (is_string($it) && trim($it) !== '') return false;
+        }
+        return true;
+    }
+    return trim((string)$v) === '';
+}
+function sd_row_has_contact(array $r, string $k): bool {
+    if (!array_key_exists($k, $r)) return false;
+    $v = $r[$k];
+    if ($k === 'ph') return is_string($v) ? trim($v) !== '' : false;
+    return is_array($v) && !empty($v) && !sd_contact_val_empty($v);
+}
+function sd_contact_wipe_guard(array $row, array $prev, array &$stats, bool $ccClear): array {
+    $keys = ['people', 'coTels', 'phones', 'ph'];
+    $anyPresented = false; $allEmpty = true; $storedHas = false;
+    foreach ($keys as $k) {
+        if (array_key_exists($k, $row)) { $anyPresented = true; if (!sd_contact_val_empty($row[$k])) $allEmpty = false; }
+        if (sd_row_has_contact($prev, $k)) $storedHas = true;
+    }
+    if (!$anyPresented || !$allEmpty || !$storedHas || $ccClear) return $row;
+    foreach ($keys as $k) if (array_key_exists($k, $row)) $row[$k] = $prev[$k];
+    if ($stats !== null) $stats['contactsWipeBlocked'] = ($stats['contactsWipeBlocked'] ?? 0) + 1;
+    return $row;
 }
 /* v34.7.16: تعارض هویت بین دو پرونده برای ادغام — همان قاعده‌ای که commit اعمال می‌کند.
    fallback buyerCo وقتی buyerCd هر دو خالی است (هماهنگ با sd_case_offer_linked) تا دو مشتریِ
@@ -2872,6 +2913,12 @@ try {
                 $prev = $rows[$found];
                 $row['createdAt'] = (string)($prev['createdAt'] ?? $now);
                 $row['createdBy'] = (string)($prev['createdBy'] ?? $user);
+                /* v34.38.25 (CONTACT-WIPE-INVARIANT): نیت پاک‌سازی صریح (_ccClear) خوانده
+                   و فیلدش پیش از ذخیره حذف می‌شود؛ بدون نیت، «کلید حاضرِ خالی» تماس‌های
+                   قبلی را نمی‌شوید — مقدار قبلی حفظ و در sanitize گزارش می‌شود. */
+                $ccClear = !empty($row['_ccClear']);
+                if (array_key_exists('_ccClear', $row)) unset($row['_ccClear']);
+                $row = sd_contact_wipe_guard($row, $prev, $sanitizeStats, $ccClear);
                 /* v34.8.34 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
                    یعنی «تغییری نکرده»، نه «پاک». ریشهٔ حلقهٔ «کارتابل هر چند ثانیه تکرار
                    می‌شد»: upsert دیرهنگام/دوباره‌ارسالی، notifiedUsers (state ضدتکرار

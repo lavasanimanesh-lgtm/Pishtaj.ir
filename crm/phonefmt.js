@@ -91,16 +91,34 @@
     window._pfCustHooked = true;
     var _s = window.saveCust2;
     window.saveCust2 = function (cd) {
+      /* ═══ v34.38.25 (CONTACT-STALE-HOOK — RCA 2026-09-17) ═══
+         گزارش کارفرما: «مشتری‌های ثبت‌شدهٔ مدیرعامل برای رییس هیات مدیره بدون
+         شماره تماس دیده می‌شود؛ ثبت‌های خودش سالم است». ریشهٔ اثبات‌شده (vm با
+         کد واقعی): این هوک حتی وقتی saveCust2 *زودهنگام* برمی‌گشت اجرا می‌شد —
+         بلاک ضدتکرار (ptfDupBlock) یا نام‌خالی — و «آخرین رکورد ذخیره‌شدهٔ تب»
+         را از کشِ محلیِ کهنه با expectCreate:false دوباره upsert می‌کرد؛ merge
+         سرور «کلید حاضر بازنویسی» → تغییرات بعدیِ دیگر دستگاه‌ها (شماره/ایمیل)
+         پاک می‌شد و دستگاهِ ثبت‌کننده از کشِ خودش نسخهٔ تماس‌دار را می‌دید.
+         قرارداد تازه: هوک فقط وقتی می‌نویسد که «همین فراخوان» واقعاً به مرحلهٔ
+         پایدارسازی رسیده باشد (مهر _ptfLastSavedCustCd در همین فراخوان عوض شده
+         یا cd صریح بوده)؛ در غیر این صورت هیچ نوشتنی ممنوع. نرمال‌سازی اصلی از
+         همین نسخه داخل saveCust2 پیش از payload انجام می‌شود؛ این دفاع دومِ
+         تک‌رکوردیِ idempotent است (قرارداد ساختtester604 بند ۲: فقط
+         ptfEntityUpsert، بدون items[0]، بدون SaveCollection). */
+      var prevCd = cd || window._ptfLastSavedCustCd || '';
       _s(cd);
       try {
-        /* v34.37.7 (CONTACT-WIPE): هرگز کل مجموعه را از getData کهنه بازنویس نکن
-           و هرگز به items[0] برنگرد — مشتری تازه‌ثبت‌شده بدون cd، رکورد دیگری را
-           قالب‌بندی/حذف می‌کرد. فقط همان رکورد با ptfEntityUpsert. */
         var savedCd = cd || window._ptfLastSavedCustCd;
         if (!savedCd) return;
+        /* v34.38.25: فقط ویرایش صریح (cd مشخص) این‌جا تایید مجدد می‌شود. ثبتِ جدید
+           (cd=null) هیچ نوشتنی از هوک ندارد — payload اصلی از داخل saveCust2
+           نرمال‌شده و در-flight است؛ بازنویسیِ هم‌زمان یا «آخرینِ تب» از کشِ کهنه
+           (۴۰۹/retry/بلاک ضدتکرار) دیگر از این مسیر ممکن نیست. */
+        if (!cd) return;
+        if (String(savedCd) !== String(prevCd)) return; /* cd صریح ولی مهر عوض شده → مسیر نامعتبر */
         var items = getData('ptf_crm_customers') || [];
         var rec = items.filter(function (x) { return x && x.cd === savedCd; })[0];
-        if (!rec) return;
+        if (!rec) return; /* مثلاً مسیر retry برخورد کد، cd را عوض کرده — دست نزن */
         ptfNormalizeEntityPhones(rec, 'fa');
         if (window.ptfEntityUpsert) window.ptfEntityUpsert('ptf_crm_customers', rec);
         else setData('ptf_crm_customers', items);
@@ -115,12 +133,18 @@
     window._pfSupHooked = true;
     var _s = window.saveSup2;
     window.saveSup2 = function (cd) {
+      /* ═══ v34.38.25 (CONTACT-STALE-HOOK): همان قرارداد هوک مشتری — فقط روی
+         ذخیرهٔ واقعاً کامل‌شده؛ هیچ بازنویسیِ کهنه‌کش در بلاک/خطای زودهنگام. */
+      var prevCdS = cd || window._ptfLastSavedSupCd || window._supLastSaved || '';
       _s(cd);
       try {
-        var savedCd = cd || window._ptfLastSavedSupCd || window._supLastSaved;
-        if (!savedCd) return;
+        var savedCdS = cd || window._ptfLastSavedSupCd || window._supLastSaved;
+        if (!savedCdS) return;
+        /* v34.38.25: فقط ویرایش صریح — مثل هوک مشتری (CONTACT-STALE-HOOK) */
+        if (!cd) return;
+        if (String(savedCdS) !== String(prevCdS)) return;
         var items = getData('ptf_crm_suppliers') || [];
-        var rec = items.filter(function (x) { return x && x.cd === savedCd; })[0];
+        var rec = items.filter(function (x) { return x && x.cd === savedCdS; })[0];
         if (!rec) return;
         var mode = (rec.origin === 'خارجی') ? 'en' : 'fa';
         ptfNormalizeEntityPhones(rec, mode);

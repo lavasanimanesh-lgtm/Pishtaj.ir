@@ -1,4 +1,4 @@
-/* tester655 — v34.38.24 (INDEX-TRACKER-REQUEST-LINK):
+/* tester655 — v34.38.25 (INDEX-TRACKER-REQUEST-LINK):
    گزارش کارفرما: «در ردیابِ ایندکسِ افزایشی در سرچ کنسول، برای هر ردیفی که ایندکس نشده
    باید دکمهٔ مستقیمِ «درخواست ایندکس» وجود داشته باشد.»
    پیش از این، جدولِ pending_list فقط «صفحه / وضعیت / گوگل می‌گوید» را نشان می‌داد و هیچ
@@ -14,7 +14,7 @@ var assert = require('assert');
 var php = fs.readFileSync('api/gsc.php', 'utf8');
 var gsc = fs.readFileSync('crm/gsc.js', 'utf8');
 
-console.log('── درخواست ایندکسِ مستقیم برای ردیف‌های ایندکس‌نشدهٔ ردیاب (v34.38.24) ──');
+console.log('── درخواست ایندکسِ مستقیم برای ردیف‌های ایندکس‌نشدهٔ ردیاب (v34.38.25) ──');
 
 /* ── قرارداد استاتیک — سرور ── */
 assert.ok(php.indexOf("case 'index_tracker':") > -1, 'اکشن index_tracker موجود است');
@@ -54,4 +54,4 @@ assert.ok(gsc.indexOf('gscIndexTrackerLoad(25)') > -1 && gsc.indexOf('gscIndexTr
 assert.ok(php.indexOf("if (($st['state'] ?? '') === 'indexed') continue;") > -1, 'منطق افزایشی (skip ایندکس‌شده) دست‌نخورده است');
 console.log('  ✔ سازگاری: قرارداد قبلی ردیاب و منطق افزایشی دست‌نخورده');
 
-console.log('PASS tester655 v34.38.24 index-tracker per-row request-indexing link');
+console.log('PASS tester655 v34.38.25 index-tracker per-row request-indexing link');
