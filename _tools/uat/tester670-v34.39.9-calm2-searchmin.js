@@ -27,7 +27,7 @@ T('۲.۲ هاور = ۱۵s', /animation:ptfCurS 15s linear infinite/.test(home));
 T('۲.۳ کیفریم دم‌سکوت ثابت (۵۲٪ عبور/۴۸٪ تاریکی) و بدون دورِ تندِ ptfCur باقی‌مانده',
   /@keyframes ptfCurS\{0%\{background-position:220% 0\}52%\{background-position:-240% 0\}/.test(home) && !/animation:ptfCur [1-9](\.\d)?s/.test(home));
 SECTION('قراردادها و بودجه');
-T('۳.۱ cache-bust روی v34.39.11', /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۳.۱ cache-bust روی v34.39.14', /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۳.۲ بودجه <۴۰K و آکولاد متوازن و مارکرِ ۹ لایه یکتا', home.length < 40000 && home.split('{').length === home.split('}').length && ['v34.39.0 — HOME-DYNAMIC-X','v34.39.1 — HOME-ELECTRIC-3D','v34.39.2 — HOME-DOCK-SUN','v34.39.3 — HOME-NIGHT-READ','v34.39.4 — HOME-ACCORD-NIGHTMEGA','v34.39.5 — HOME-ICONMIN','v34.39.6 — HOME-WAVE','v34.39.8 — HOME-MINBTN','v34.39.9 — HOME-CALM2'].every(function(m){ return home.split(m).length === 2; }));
 T('۳.۳ رگرسیون‌زدا: کلید تم فقط‌آیکونِ دسکتاپ، موجِ no-repeat، آیکون شیت، canonical‌ها، جست‌وجو در DOM حذف نشده',
   home.indexOf('#mainNav .theme-toggle{width:42px;height:42px;padding:0;border:0!important') > -1 &&

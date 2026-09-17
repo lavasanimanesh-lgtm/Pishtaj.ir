@@ -339,6 +339,7 @@ var SUITE = [
   { g: 'سایت/صفحهٔ اول (39.9): HOME-CALM2 — حذفِ سراسریِ کادر جست‌وجوی هدر + آهسته‌سازیِ شدیدِ برقِ کارت‌ها (۲۶s دائم/۱۵s هاور). قرارداد: tester670 (۱۰ سنجه)', f: '_tools/uat/tester670-v34.39.9-calm2-searchmin.js' },
   { g: 'سایت/صفحهٔ اول (39.10): HOME-NOFRAME —Finder هیرو بی‌قاب (border/glass/blur/سایه حذف؛ فوکوس=تن). قرارداد: tester671 (۱۱ سنجه)', f: '_tools/uat/tester671-v34.39.10-noframe.js' },
   { g: 'سایت/صفحهٔ اول (39.11): HOME-ICONTRIO — سه‌گانهٔ مینیمالِ چپِ هدر دسکتاپ (تم/ذره‌بین/پرچم، ۴۲px دایره). قرارداد: tester672 (۱۴ سنجه)', f: '_tools/uat/tester672-v34.39.11-icontrio.js' },
+  { g: 'سایت/دیپلوی (39.14): HOTFIX PR40 — نسخه عمومی مستقل، بودجه CSS، مالکیت واکنش‌گرای تم و قابلیت‌های 39.12/13', f: '_tools/uat/tester673-v34.39.14-home-deploy-hotfix.js' },
 ];
 
 var SYNTAX = [

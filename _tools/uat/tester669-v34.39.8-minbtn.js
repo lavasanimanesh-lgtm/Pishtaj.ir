@@ -51,7 +51,7 @@ T('۲.۵ CSS: کادر/پس‌زمینهٔ قرصی حذف — بستر شفاف
   home.indexOf('html.ptf-dark .lang-switch:hover{background:rgba(255,176,51,.13)!important}') > -1);
 
 SECTION('قراردادهای کلی');
-T('۳.۱ cache-bust روی v34.39.11', /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۳.۱ cache-bust روی v34.39.14', /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۳.۲ بودجه و آکولاد: home.css<۴۰K متوازن', home.length < 40000 && home.split('{').length === home.split('}').length);
 T('۳.۳ مارکرِ هر هشت لایه یکتا', ['v34.39.0 — HOME-DYNAMIC-X','v34.39.1 — HOME-ELECTRIC-3D','v34.39.2 — HOME-DOCK-SUN','v34.39.3 — HOME-NIGHT-READ','v34.39.4 — HOME-ACCORD-NIGHTMEGA','v34.39.5 — HOME-ICONMIN','v34.39.6 — HOME-WAVE','v34.39.8 — HOME-MINBTN'].every(function(m){ return home.split(m).length === 2; }));
 T('۳.۴ رگرسیون‌زدا: موجِ پنل، آیکونِ شیت، آکاردئون، مگای شب، canonical‌ها، no-repeat',

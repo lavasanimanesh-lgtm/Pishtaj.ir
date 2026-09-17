@@ -83,7 +83,7 @@ T('۲.۶ ptf-discover.js دست‌نخورده (MEGA_CSS همان است — ج�
   read('assets/js/ptf-discover.js').indexOf('.nav-mega-head{display:flex;align-items:center;gap:8px;width:100%;min-height:48px') > -1);
 
 SECTION('③ قرارداد کلی');
-T('۳.۱ cache-bust روی v34.39.11', /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
+T('۳.۱ cache-bust روی v34.39.14', /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
 T('۳.۲ حجم‌ها: home.css<۴۰K (گارد ۶۶۲) و ptf-motion<۱۲K', home.length < 40000 && motion.length < 12000);
 T('۳.۳ پارس JS', (function () { try { new Function(motion); new Function(read('assets/js/main.js')); return true; } catch (e) { return false; } })());
 T('۳.۴ بدون localStorage/eval/CDN؛ کوکی تنها ماندگاری',
