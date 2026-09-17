@@ -221,14 +221,14 @@ function runHeal(rfqs, custs, archive) {
 /* ───────────────────── ۴) گیت / نسخه ───────────────────── */
 head('۴. گیت و نسخه');
 var ver = JSON.parse(read('VERSION.json'));
-T('۴.۱ VERSION.json = v34.39.7', ver.crm_version === 'v34.39.7', ver.crm_version);
+T('۴.۱ VERSION.json = v34.39.8', ver.crm_version === 'v34.39.8', ver.crm_version);
 T('۴.۲ tester611 در run-ci-gate.js ثبت است',
   gate.indexOf('tester611-v34.38.4-contact-wipe-ind-heal.js') > -1);
 T('۴.۳ tester604 (ضد رگرسیون) هنوز در گیت است',
   gate.indexOf('tester604-v34.37.7-contact-wipe.js') > -1);
-T('۴.۴ قرارداد UI/sw = 34.39.7',
-  /window\.PTF_CRM_RELEASE = 'v34\.39\.7'/.test(idx) &&
-  /CACHE = 'ptf-crm-v34\.39\.7'/.test(read('crm/sw.js')));
+T('۴.۴ قرارداد UI/sw = 34.39.8',
+  /window\.PTF_CRM_RELEASE = 'v34\.39\.8'/.test(idx) &&
+  /CACHE = 'ptf-crm-v34\.39\.8'/.test(read('crm/sw.js')));
 
 console.log('\n— tester611 (CONTACT-WIPE-EXT: حوزهٔ کاری مشتری در heal/حذف کهنه حفظ می‌شود) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

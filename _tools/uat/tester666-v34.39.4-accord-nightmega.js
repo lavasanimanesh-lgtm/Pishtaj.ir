@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester666 — v34.39.7 (HOME-ACCORD-NIGHTMEGA)
+   tester666 — v34.39.8 (HOME-ACCORD-NIGHTMEGA)
    گزارش کارفرما:
      «در نمای موبایل اخبار و وبلاگ زیر درباره‌ما باید باز شوند؛ زیرمنوهای محصولات
      در نمای شب خوانایی ندارند.»
@@ -83,7 +83,7 @@ T('۲.۶ ptf-discover.js دست‌نخورده (MEGA_CSS همان است — ج�
   read('assets/js/ptf-discover.js').indexOf('.nav-mega-head{display:flex;align-items:center;gap:8px;width:100%;min-height:48px') > -1);
 
 SECTION('③ قرارداد کلی');
-T('۳.۱ cache-bust روی v34.39.7', /home\.css\?v=34\.39\.7/.test(idx) && /ptf-motion\.js\?v=34\.39\.7" defer/.test(idx));
+T('۳.۱ cache-bust روی v34.39.8', /home\.css\?v=34\.39\.8/.test(idx) && /ptf-motion\.js\?v=34\.39\.8" defer/.test(idx));
 T('۳.۲ حجم‌ها: home.css<۴۰K (گارد ۶۶۲) و ptf-motion<۱۲K', home.length < 40000 && motion.length < 12000);
 T('۳.۳ پارس JS', (function () { try { new Function(motion); new Function(read('assets/js/main.js')); return true; } catch (e) { return false; } })());
 T('۳.۴ بدون localStorage/eval/CDN؛ کوکی تنها ماندگاری',
@@ -96,8 +96,8 @@ T('۳.۶ نگهبان بی‌تغییری: h1/canonical/۱۰‌بخش',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی — تجهیزات حیاتی پروژه‌ها را <strong>مطمئن، سریع و دقیق</strong> تامین کنید') > -1 &&
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }));
-T('۳.۷ VERSION.json = v34.39.7', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.7');
+T('۳.۷ VERSION.json = v34.39.8', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.8');
 
-DONE('tester666-v34.39.7-accord-nightmega');
+DONE('tester666-v34.39.8-accord-nightmega');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

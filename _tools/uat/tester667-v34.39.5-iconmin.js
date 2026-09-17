@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester667 — v34.39.7 (HOME-ICONMIN)
+   tester667 — v34.39.8 (HOME-ICONMIN)
    گزارش کارفرما:
      «جستجو از منو حذف شود؛ در موبایل کادر دور کلید شب/روز حذف و فقط آیکون شود؛
      انتخابِ دستیِ روز در شب بعد از چند ثانیه به شب برمی‌گشت (باگ)؛ تماس/واتس‌اپ
@@ -77,7 +77,7 @@ T('۴.۳ هر دو آیتمِ داک لینکِ واقعی‌اند (<a href>) �
   /id="ptfDock"[\s\S]*?<a href="tel:02146087679"[\s\S]*?<a href="https:\/\/wa\.me\//.test(idx));
 
 SECTION('⑤ قرارداد کلی');
-T('۵.۱ cache-bust روی v34.39.7', /home\.css\?v=34\.39\.7/.test(idx) && /ptf-motion\.js\?v=34\.39\.7" defer/.test(idx));
+T('۵.۱ cache-bust روی v34.39.8', /home\.css\?v=34\.39\.8/.test(idx) && /ptf-motion\.js\?v=34\.39\.8" defer/.test(idx));
 T('۵.۲ حجم‌ها زیر بودجه‌ها (home.css<۴۰K، ptf-motion<۱۲K)', home.length < 40000 && motion.length < 12000);
 T('۵.۳ پارس JS + تعادلِ آکولادِ CSS', (function () {
   try { new Function(motion); new Function(read('assets/js/main.js')); } catch (e) { return false; }
@@ -93,8 +93,8 @@ T('۵.۵ نگهبان بی‌تغییری: h1/canonical/۱۰‌بخش/صفر CDN
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   !/<(script|link)[^>]+src="https?:/.test(idx));
-T('۵.۶ VERSION.json = v34.39.7', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.7');
+T('۵.۶ VERSION.json = v34.39.8', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.8');
 
-DONE('tester667-v34.39.7-iconmin');
+DONE('tester667-v34.39.8-iconmin');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

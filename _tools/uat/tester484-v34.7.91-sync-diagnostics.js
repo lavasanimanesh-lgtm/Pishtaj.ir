@@ -18,11 +18,11 @@ var sync = read('crm/sync.js');
 var bak = read('crm/backup.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.7', ver.crm_version === 'v34.39.7', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.39.7', /window\.PTF_CRM_RELEASE = 'v34\.39\.7'/.test(idx));
-T('sw.js RELEASE = v34.39.7', /RELEASE = 'v34\.39\.7'/.test(sw));
-T('sync.js cache-bust 34.39.7', /sync\.js\?v=34\.39\.7/.test(idx));
-T('backup.js cache-bust 34.39.7', /backup\.js\?v=34\.39\.7/.test(idx));
+T('VERSION.json = v34.39.8', ver.crm_version === 'v34.39.8', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.39.8', /window\.PTF_CRM_RELEASE = 'v34\.39\.8'/.test(idx));
+T('sw.js RELEASE = v34.39.8', /RELEASE = 'v34\.39\.8'/.test(sw));
+T('sync.js cache-bust 34.39.8', /sync\.js\?v=34\.39\.8/.test(idx));
+T('backup.js cache-bust 34.39.8', /backup\.js\?v=34\.39\.8/.test(idx));
 
 /* ---------- تشخیص سرور ---------- */
 T('ptfSyncServerStatus تعریف شده', /window\.ptfSyncServerStatus = function/.test(sync));

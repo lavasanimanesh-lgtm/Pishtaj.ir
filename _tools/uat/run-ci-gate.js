@@ -335,6 +335,7 @@ var SUITE = [
   { g: 'سایت/صفحهٔ اول (39.4): HOME-ACCORD-NIGHTMEGA — آکاردئونِ اخبار/وبلاگ زیر درباره‌ما در شیت موبایل (capture-phase، تک‌باز، هم‌خوان با بستنِ شیت) + خواناییِ شبِ زیرمنوهای محصولات (اورراید #mainNav+!important روی MEGA_CSS). قرارداد: tester666 (۲۰ سنجه)', f: '_tools/uat/tester666-v34.39.4-accord-nightmega.js' },
   { g: 'سایت/صفحهٔ اول (39.5): HOME-ICONMIN — حذف جستجو از شیت موبایل، کلیدِ تمِ فقط‌آیکونِ بی‌قاب در شیت، فیکسِ بازگشتِ تم (memManual در برابرِ iframeهای بی‌کوکی)؛ شماره‌های تماس/واتساپ = canonical تأییدشده. قرارداد: tester667 (۲۰ سنجه)', f: '_tools/uat/tester667-v34.39.5-iconmin.js' },
   { g: 'سایت/صفحهٔ اول (39.6): HOME-WAVE — موج مورب رنگیِ عبوری روی پنل هیرو (CSS خالص، سیکل ۸s با دمِ سکوت، شب پررنگ، reduce kill). قرارداد: tester668 (۱۲ سنجه)', f: '_tools/uat/tester668-v34.39.6-hero-wave.js' },
+  { g: 'سایت/صفحهٔ اول (39.8): HOME-MINBTN — کلید تمِ فقط‌آیکونِ بی‌قاب در دسکتاپ + پرچمِ SVG مینیمالِ زبان (بدون EN/کادر). قرارداد: tester669 (۱۵ سنجه)', f: '_tools/uat/tester669-v34.39.8-minbtn.js' },
 ];
 
 var SYNTAX = [
