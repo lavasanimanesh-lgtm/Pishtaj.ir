@@ -17,8 +17,8 @@ var idx = read('crm/index.html');
 var rbac = read('crm/rbac.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.4', ver.crm_version === 'v34.39.4', ver.crm_version);
-T('rbac.js cache-bust 34.39.4', /rbac\.js\?v=34\.39\.4/.test(idx));
+T('VERSION.json = v34.39.5', ver.crm_version === 'v34.39.5', ver.crm_version);
+T('rbac.js cache-bust 34.39.5', /rbac\.js\?v=34\.39\.5/.test(idx));
 
 /* ① دکمهٔ واقعی همگام‌سازی کاربران */
 T('تابع ptfUsersSyncManual تعریف شد', /function ptfUsersSyncManual\(\)\s*\{/.test(rbac));

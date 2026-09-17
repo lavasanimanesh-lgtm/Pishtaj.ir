@@ -132,8 +132,8 @@ T('پوش انبوه legacy فقط وقتی فرمان خاموش است', /else
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.39.4', ver.crm_version === 'v34.39.4', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.39.4', /window\.PTF_CRM_RELEASE = 'v34\.39\.4'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.39\.4'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.39.5', ver.crm_version === 'v34.39.5', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.39.5', /window\.PTF_CRM_RELEASE = 'v34\.39\.5'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.39\.5'/.test(read('crm/sw.js')));
 
 console.log('\n— tester522 (v34.38.0: DING-LOOP) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

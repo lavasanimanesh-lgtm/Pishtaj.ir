@@ -187,7 +187,8 @@
       return jd < (t - w / 360) || jd > (t + w / 360);
     } catch (e) { return root.classList.contains('ptf-dark'); }
   }
-  function manualTheme() { var m = /(?:^|; )ptf_theme=(dark|light)/.exec(doc.cookie || ''); return m ? m[1] : ''; }
+  var memManual = '';
+  function manualTheme() { if (memManual) return memManual; var m = /(?:^|; )ptf_theme=(dark|light)/.exec(doc.cookie || ''); return m ? m[1] : ''; }
   function theme() {
     var btn = doc.getElementById('ptfThemeToggle'); if (!btn) return;
     var txt = btn.querySelector('.tt-txt');
@@ -200,11 +201,11 @@
       root.classList.toggle('ptf-dark', dark); syncBtn(dark);
       root.classList.add('ptf-theme-anim');
       setTimeout(function () { root.classList.remove('ptf-theme-anim'); }, 480);
-      if (persist) { try { doc.cookie = 'ptf_theme=' + (dark ? 'dark' : 'light') + ';max-age=31536000;path=/;SameSite=Lax'; } catch (e) {} }
+      if (persist) { memManual = dark ? 'dark' : 'light'; try { doc.cookie = 'ptf_theme=' + (dark ? 'dark' : 'light') + ';max-age=31536000;path=/;SameSite=Lax'; } catch (e) {} }
     }
     syncBtn(root.classList.contains('ptf-dark'));
     btn.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); set(!root.classList.contains('ptf-dark'), true); });
-    /* خودکار: هر دقیقه اگر کاربر دستی ان */
+    /* خودکار هر دقیقه؛ اوررایدِ دستی در حافظه (کوکی اگر مسدودِ iframe) */
     win.setInterval(function () {
       if (manualTheme() || doc.hidden) return;
       var want = sunNight(Date.now() / 864e5 + 2440587.5);

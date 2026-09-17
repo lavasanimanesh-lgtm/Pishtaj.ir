@@ -333,6 +333,7 @@ var SUITE = [
   { g: 'سایت/صفحهٔ اول (39.2): HOME-DOCK-SUN — فیکس باگ شیتِ منوی موبایل (backdrop-filter=containing-block)؛ داک: خانه→منو و منوی وسط→استعلام واقعی؛ شب خودکار از غروبِ تهران (NOAA، اوررایدِ کوکی) با کلید داخل منو؛ ریتم آرامِ برق (ptfCurS). قرارداد: tester664 (۲۹ سنجه)', f: '_tools/uat/tester664-v34.39.2-dock-sun.js' },
   { g: 'سایت/صفحهٔ اول (39.3): HOME-NIGHT-READ — فیکسِ قطعی نمایشِ شیت موبایل با انتقال گره به body (containing-block هدر)؛ حذف برق چت داک؛ هاورِ گرمِ شب به‌جای سفید؛ خوانایی FAQ/رئیس هیئت‌مدیره/دکمهٔ استعلام. قرارداد: tester665 (۲۱ سنجه)', f: '_tools/uat/tester665-v34.39.3-night-read.js' },
   { g: 'سایت/صفحهٔ اول (39.4): HOME-ACCORD-NIGHTMEGA — آکاردئونِ اخبار/وبلاگ زیر درباره‌ما در شیت موبایل (capture-phase، تک‌باز، هم‌خوان با بستنِ شیت) + خواناییِ شبِ زیرمنوهای محصولات (اورراید #mainNav+!important روی MEGA_CSS). قرارداد: tester666 (۲۰ سنجه)', f: '_tools/uat/tester666-v34.39.4-accord-nightmega.js' },
+  { g: 'سایت/صفحهٔ اول (39.5): HOME-ICONMIN — حذف جستجو از شیت موبایل، کلیدِ تمِ فقط‌آیکونِ بی‌قاب در شیت، فیکسِ بازگشتِ تم (memManual در برابرِ iframeهای بی‌کوکی)؛ شماره‌های تماس/واتساپ = canonical تأییدشده. قرارداد: tester667 (۲۰ سنجه)', f: '_tools/uat/tester667-v34.39.5-iconmin.js' },
 ];
 
 var SYNTAX = [
