@@ -2879,7 +2879,48 @@ try {
                    چون state را گم‌شده می‌دید، کارت تکراری می‌ساخت و چرخه ادامه یافت. */
                 foreach ($prev as $pk => $pv) {
                     if ($pk === 'createdAt' || $pk === 'createdBy' || $pk === 'updatedAt' || $pk === 'updatedBy') continue;
-                    if (array_key_exists($pk, $row)) continue;
+                    if (array_key_exists($pk, $row)) {
+                        /* v34.38.25 (CONTACT-WIPE FIX): آرایهٔ تماس خالی نباید روی آرایهٔ پرِ قبلی بنشیند — ریشهٔ «مدیرعامل ثبت می‌کند، رییس هیات مدیره شماره نمی‌بیند»
+                           استثنا: اگر فقط تماس‌ها خالی شده و بقیه فیلدها عین prev است، حذف عمدی فرض می‌شود و اجازه می‌دهیم. */
+                        if (in_array($collection, ['ptf_crm_customers','ptf_crm_suppliers'], true)) {
+                            if (in_array($pk, ['people','coTels','phones'], true)) {
+                                $rv = $row[$pk];
+                                if (is_array($rv) && count($rv) === 0 && is_array($pv) && count($pv) > 0) {
+                                    $isOnlyContactChange = true;
+                                    foreach ($row as $rk => $rv2) {
+                                        if (in_array($rk, ['people','coTels','phones','ph','con','updatedAt','updatedBy','createdAt','createdBy'], true)) continue;
+                                        if (!array_key_exists($rk, $prev)) { $isOnlyContactChange = false; break; }
+                                        if (is_array($rv2) && is_array($prev[$rk])) {
+                                            if (json_encode($rv2) !== json_encode($prev[$rk])) { $isOnlyContactChange = false; break; }
+                                        } elseif ((string)$rv2 !== (string)($prev[$rk] ?? '')) {
+                                            if (trim((string)$rv2) !== trim((string)($prev[$rk] ?? ''))) { $isOnlyContactChange = false; break; }
+                                        }
+                                    }
+                                    if (!$isOnlyContactChange) {
+                                        $row[$pk] = $pv;
+                                    }
+                                }
+                            } elseif (in_array($pk, ['ph','con'], true)) {
+                                $rv = $row[$pk];
+                                if (is_string($rv) && trim($rv) === '' && is_string($pv) && trim($pv) !== '') {
+                                    // اگر فقط ph/con خالی شده ولی people هم خالی است، احتمال حذف عمدی نیست — حفظ کن مگر اینکه people هم عمداً خالی شده باشد
+                                    $peopleEmpty = isset($row['people']) && is_array($row['people']) && count($row['people'])===0;
+                                    $prevPeopleEmpty = isset($prev['people']) && is_array($prev['people']) && count($prev['people'])>0;
+                                    if (!($peopleEmpty && $prevPeopleEmpty)) {
+                                        // بررسی آیا فقط تماس‌ها تغییر کرده؟
+                                        $isOnlyContactChange2 = true;
+                                        foreach ($row as $rk => $rv2) {
+                                            if (in_array($rk, ['people','coTels','phones','ph','con','updatedAt','updatedBy','createdAt','createdBy'], true)) continue;
+                                            if (!array_key_exists($rk, $prev)) { $isOnlyContactChange2 = false; break; }
+                                            if ((string)$rv2 !== (string)($prev[$rk] ?? '')) { $isOnlyContactChange2 = false; break; }
+                                        }
+                                        if (!$isOnlyContactChange2) $row[$pk] = $pv;
+                                    }
+                                }
+                            }
+                        }
+                        continue;
+                    }
                     $row[$pk] = $pv;
                 }
                 /* v34.38.24 (NOTIF-FRESH): کارتابل کلید اتحاد است — readBy/done هرگز با
