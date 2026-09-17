@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester665 — v34.39.6 (HOME-NIGHT-READ + Sheet-reparent)
+   tester665 — v34.39.7 (HOME-NIGHT-READ + Sheet-reparent)
    گزارش کارفرما:
      «در ویو موبایل روی دکمهٔ منو که می‌زنم فقط تار می‌شه و منو نمایش داده نمی‌شه؛
      برق دور چت هوشمند برداشته شود؛ تغییر رنگ کارت‌ها به سفید در شب نوشتهٔ برخی
@@ -80,8 +80,8 @@ T('۳.۶ پالت روزِ هاور (سفید کرمی) برای نمای روز
   /html:not\(\.ptf-dark\) \.service-card:hover/.test(home) === false && /@media \(hover:hover\)\{[\s\S]*?\.service-card:hover\{background:linear-gradient\(180deg,#fff,#fff6e9\)/.test(home));
 
 SECTION('④ قرارداد کلی');
-T('۴.۱ cache-bust: home.css و ptf-motion روی v34.39.6',
-  /home\.css\?v=34\.39\.6/.test(idx) && /ptf-motion\.js\?v=34\.39\.6" defer/.test(idx));
+T('۴.۱ cache-bust: home.css و ptf-motion روی v34.39.7',
+  /home\.css\?v=34\.39\.7/.test(idx) && /ptf-motion\.js\?v=34\.39\.7" defer/.test(idx));
 T('۴.۲ پارس JS: ptf-motion و main.js', (function () {
   try { new Function(motion); new Function(read('assets/js/main.js')); return true; } catch (e) { return false; }
 })());
@@ -99,10 +99,10 @@ T('۴.۶ نگهبان بی‌تغییری: h1، canonical، ۱۰ بخش، اعد
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   /<b>۳<\/b>/.test(idx) && /<b>۶\+<\/b>/.test(idx));
-T('۴.۷ VERSION.json = v34.39.6', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.6');
+T('۴.۷ VERSION.json = v34.39.7', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.7');
 T('۴.۸ reduce-motion: کیل‌سوئیچِ شیت هم در لایهٔ جدید',
   /@media \(prefers-reduced-motion: reduce\)\{#mainNav,#mainNav\.open\{transition:none\}\}/.test(lay));
 
-DONE('tester665-v34.39.6-night-read');
+DONE('tester665-v34.39.7-night-read');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

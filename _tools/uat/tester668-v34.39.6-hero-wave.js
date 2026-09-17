@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester668 — v34.39.6 (HOME-WAVE)
+   tester668 — v34.39.7 (HOME-WAVE)
    درخواست کارفرما: «یک موج مورب رنگی روی کادرِ «دپارتمان تامین / صنعت هدف / RFQ»
    (پنل شیشه‌ای هیرو) هر چند ثانیه یک‌بار عبور کند.»
    قرارداد:
@@ -33,6 +33,7 @@ T('۱.۲ موربِ ۱۱۵deg با طیف برند (کهربایی/سفید/شع
 T('۱.۳ سیکل ۸ ثانیه: عبور ۵۲٪ اول، سکوتِ تاریک تا پایان (هر چند ثانیه یک‌بار)',
   lay.indexOf('animation:ptfWave 8s ease-in-out infinite') > -1 &&
   /@keyframes ptfWave\{0%\{background-position:210% 0\}52%\{background-position:-150% 0\}100%\{background-position:-150% 0\}\}/.test(lay));
+T('۱.۳b تایل‌بندی خاموش (no-repeat) و موقعیت اولیه بیرونِ قاب — فیکسِ «موج ثابت» (بازگشتِ تکراریِ tile در دمِ سکوت باعث فریزشدنِ نوار می‌شد)', home.indexOf('background-size:260% 100%;background-repeat:no-repeat;background-position:210% 0;animation:ptfWave 8s') > -1 && home.indexOf('transparent 66%);background-size:260% 100%;background-repeat:no-repeat;background-position:210% 0}') > -1);
 T('۱.۴ شب پررنگ‌تر',
   lay.indexOf('html.ptf-dark .hero-panel::after{background:linear-gradient(115deg,transparent 34%,rgba(255,196,110,.24)') > -1);
 T('۱.۵ reduce: کاملاً خاموش (بدون حرکت، بدون روشنایی)',
@@ -43,7 +44,7 @@ T('۱.۶ پنل base نسبی است و متن‌ها زیرِ لایهٔ موج
 SECTION('رگرسیون و قرارداد کلی');
 T('۲.۱ تیلتِ ۳بعدی و هاورِ پنل از قبل دست‌نخورده',
   /\.hero-panel\{transform-style:preserve-3d;transition:transform/.test(home.replace(/\n/g, ' ')) || home.indexOf('.hero-panel:hover{transform:rotateY(-3deg)') > -1 || /#mainNav \.nav-drop-menu/.test(home) && home.indexOf('rotateY(-3deg)') > -1);
-T('۲.۲ cache-bust روی v34.39.6', /home\.css\?v=34\.39\.6/.test(idx) && /ptf-motion\.js\?v=34\.39\.6" defer/.test(idx));
+T('۲.۲ cache-bust روی v34.39.7', /home\.css\?v=34\.39\.7/.test(idx) && /ptf-motion\.js\?v=34\.39\.7" defer/.test(idx));
 T('۲.۳ حجم زیرِ بودجه و آکولادِ متوازن', home.length < 40000 && home.split('{').length === home.split('}').length);
 T('۲.۴ رگرسیون‌زدا: ردیفِ تم آیکونی، آکاردئون، مگای شب، ریتم برق، اعداد فارسی، canonical‌ها',
   home.indexOf('#mainNav .nav-search{display:none!important}') > -1 &&
@@ -51,8 +52,8 @@ T('۲.۴ رگرسیون‌زدا: ردیفِ تم آیکونی، آکاردئو�
   home.indexOf('html.ptf-dark #mainNav .nav-mega') > -1 &&
   /animation:ptfCurS 8s linear infinite/.test(home) && /<b>۳<\/b>/.test(idx) && /<b>۶\+<\/b>/.test(idx) &&
   idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
-T('۲.۵ VERSION.json = v34.39.6', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.6');
+T('۲.۵ VERSION.json = v34.39.7', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.7');
 
-DONE('tester668-v34.39.6-hero-wave');
+DONE('tester668-v34.39.7-hero-wave');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
