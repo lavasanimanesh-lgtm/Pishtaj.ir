@@ -219,12 +219,20 @@
     };
   }
 
-  /* ---------- UI ویجت (AC1) ---------- */
-  var css = '#ptfChatBtn{position:fixed;bottom:20px;left:20px;z-index:9990;width:58px;height:58px;border-radius:50%;border:0;cursor:pointer;background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;font-size:26px;box-shadow:0 12px 30px rgba(239,75,26,.4);transition:.25s;display:grid;place-items:center}' +
-    '#ptfChatBtn:hover{transform:scale(1.08)}' +
-    '#ptfChatBtn .dot{position:absolute;top:2px;right:2px;width:13px;height:13px;border-radius:50%;background:#22c55e;border:2px solid #fff}' +
-    '#ptfChatBox{position:fixed;bottom:90px;left:20px;z-index:9991;width:min(360px,calc(100vw - 30px));height:min(520px,calc(100vh - 120px));background:#fff;border-radius:20px;box-shadow:0 25px 60px rgba(0,0,0,.25);display:none;flex-direction:column;overflow:hidden;font-family:Vazirmatn,Tahoma,sans-serif;direction:rtl}' +
-    '#ptfChatBox.open{display:flex}' +
+  /* ═══ v34.38.25 (FAB-CHAT-HARMONY — گزارش کارفرما: «پنجرهٔ چت زیر آیکون واتساپ باز می‌شود و مزاحمت ایجاد می‌کند») ═══
+     قرارداد تازهٔ پنجرهٔ چت:
+     ① z-index پنجره (10050) بالاتر از هر دکمهٔ شناور است (واتساپ 9999 / تماس 45)؛
+     ② هنگام باز بودن چت، body کلاس ptf-chat-open می‌گیرد و دکمه‌های تماس/واتساپ
+        با CSS صفحه (home.css) کنار می‌روند — در هیچ صفحه‌ای همپوشانی باقی نمی‌ماند؛
+     ③ اندازهٔ لانچر با سایر دکمه‌های شناور یکدست شد (۴۸px دسکتاپ / ۴۴px موبایل)؛
+     ④ باز شدن پنجره انیمیشن نرم دارد و با ESC هم بسته می‌شود. */
+  var css = '#ptfChatBtn{position:fixed;bottom:20px;left:18px;z-index:10045;width:48px;height:48px;border-radius:50%;border:0;cursor:pointer;background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;box-shadow:0 10px 24px rgba(239,75,26,.38);transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s ease;display:grid;place-items:center}' +
+    '#ptfChatBtn:hover{transform:translateY(-3px) scale(1.05);box-shadow:0 16px 32px rgba(239,75,26,.46)}' +
+    '#ptfChatBtn svg{width:22px;height:22px;display:block}' +
+    '#ptfChatBtn .dot{position:absolute;top:2px;right:2px;width:11px;height:11px;border-radius:50%;background:#22c55e;border:2px solid #fff}' +
+    '#ptfChatBox{position:fixed;bottom:80px;left:18px;z-index:10050;width:min(360px,calc(100vw - 28px));height:min(520px,calc(100vh - 110px));background:#fff;border:1px solid rgba(15,23,42,.07);border-radius:18px;box-shadow:0 28px 70px rgba(2,6,23,.30);display:none;flex-direction:column;overflow:hidden;font-family:Vazirmatn,Tahoma,sans-serif;direction:rtl;transform-origin:bottom left}' +
+    '#ptfChatBox.open{display:flex;animation:ptfcIn .24s cubic-bezier(.16,1,.3,1)}' +
+    '@keyframes ptfcIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}' +
     '.ptfc-hd{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;padding:13px 16px;display:flex;justify-content:space-between;align-items:center}' +
     '.ptfc-hd b{font-size:14.5px;display:block}.ptfc-hd small{font-size:11px;opacity:.9}' +
     '.ptfc-hd button{background:rgba(255,255,255,.2);border:0;color:#fff;width:28px;height:28px;border-radius:9px;cursor:pointer;font-size:14px}' +
@@ -259,7 +267,9 @@
     '.ptfc-ft button{border:0;border-radius:12px;background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;width:42px;cursor:pointer;font-size:16px}' +
     '.ptfc-send2{text-align:center;padding:4px 0 8px;background:#fff}' +
     '.ptfc-send2 a{font-size:11px;color:#94a3b8;cursor:pointer;text-decoration:underline}' +
-    '@media(max-width:600px){#ptfChatBtn{width:46px;height:46px;bottom:14px;left:12px;font-size:20px}#ptfChatBox{bottom:70px}body{padding-bottom:70px}}';
+    '@media(max-width:600px){#ptfChatBtn{width:44px;height:44px;bottom:14px;left:12px}#ptfChatBtn svg{width:20px;height:20px}#ptfChatBox{bottom:66px;left:12px;height:min(520px,calc(100vh - 96px))}body{padding-bottom:62px}}' +
+    /* هماهنگی با دکمه‌های شناور صفحه: هنگام باز بودن چت، تماس/واتساپ محو می‌شوند */
+    'body.ptf-chat-open .floating-call,body.ptf-chat-open .floating-whatsapp{opacity:0!important;pointer-events:none!important;transform:translateY(14px) scale(.85)!important}';
 
   var style = document.createElement('style');
   style.textContent = css;
@@ -544,8 +554,12 @@
 
   /* ---------- رویدادها ---------- */
   var opened = false;
+  function syncOpen() { /* v34.38.25 (FAB-CHAT-HARMONY): کلاس body برای کناررفتن تماس/واتساپ */
+    try { document.body.classList.toggle('ptf-chat-open', box.classList.contains('open')); } catch (eSync) {}
+  }
   btn.addEventListener('click', function () {
     box.classList.toggle('open');
+    syncOpen();
     if (box.classList.contains('open') && !opened) {
       opened = true;
       var h = history();
@@ -559,7 +573,10 @@
       setTimeout(function () { input.focus(); }, 200);
     }
   });
-  document.getElementById('ptfcClose').addEventListener('click', function () { box.classList.remove('open'); });
+  document.getElementById('ptfcClose').addEventListener('click', function () { box.classList.remove('open'); syncOpen(); });
+  document.addEventListener('keydown', function (e) { /* v34.38.25: بستن با ESC */
+    if (e.key === 'Escape' && box.classList.contains('open')) { box.classList.remove('open'); syncOpen(); }
+  });
   document.getElementById('ptfcSend').addEventListener('click', function () { send(); });
   document.getElementById('ptfcToExpert').addEventListener('click', toExpert);
   input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
