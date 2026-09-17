@@ -1,4 +1,4 @@
-/* tester654 — v34.38.25 (SH-SALARY-EDIT-PROPAGATE + SH-SALARY-ADVANCE):
+/* tester654 — v34.39.11 (SH-SALARY-EDIT-PROPAGATE + SH-SALARY-ADVANCE):
    گزارش کارفرما: «حقوقِ یکی از کاربران را اصلاح کردم ولی در بخش حقوق تعهدیِ سال مالی
    تغییری ایجاد نشد؛ و مبلغی از حقوقِ یک سهامدار به‌صورت علی‌الحساب پرداخت شد ولی کسر نشد.»
 
@@ -20,7 +20,7 @@ var assert = require('assert');
 var php = fs.readFileSync('api/sales-domain.php', 'utf8');
 var sh = fs.readFileSync('crm/shareholders.js', 'utf8');
 
-console.log('── salary edit cross-month amount propagation + salary advance (v34.38.25) ──');
+console.log('── salary edit cross-month amount propagation + salary advance (v34.39.11) ──');
 
 /* ── قرارداد استاتیک — سرور ── */
 assert.ok(/applySalaryAmountAllMonths/.test(php), 'سرور پرچم انتشار مبلغ در همهٔ ماه‌ها را می‌خواند');
@@ -145,4 +145,4 @@ assert.strictEqual(t2.salaryPaid, 0, 'برداشت عادی (بدون نشان �
 assert.strictEqual(t2.advYear, 70000000, 'برداشت عادی همچنان علی‌الحساب سود است (قرارداد tester628)');
 console.log('  ✔ رفتاری: علی‌الحساب حقوق از حقوق تعهدی کم می‌شود و برداشت عادی در advYear می‌ماند');
 
-console.log('PASS tester654 v34.38.25 salary edit cross-month propagation + salary advance');
+console.log('PASS tester654 v34.39.11 salary edit cross-month propagation + salary advance');

@@ -103,7 +103,7 @@ T('۵.۳ فرم استعلام سریع همان wiring قبلی را دارد',
   idx.indexOf('data-ptf-custom-submit="home-rfq"') > -1 && idx.indexOf('api/crm.php?action=add_rfq_site') > -1);
 T('۵.۴ h1 و eyebrow صفحه دست‌نخورده است',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی') > -1 && idx.indexOf('تامین پروژه‌ای، واردات و سورسینگ اقلام صنعتی') > -1);
-T('۵.۵ home.css با cache-bust جدید لود می‌شود', idx.indexOf('home.css?v=34.38.25') > -1);
+T('۵.۵ home.css با cache-bust جدید لود می‌شود', idx.indexOf('home.css?v=34.39.11') > -1);
 T('۵.۶ شماره‌ها و لینک‌های تماس/واتساپ عوض نشده‌اند',
   idx.indexOf('tel:02146087679') > -1 && idx.indexOf('wa.me/989925868479') > -1);
 
@@ -114,6 +114,6 @@ catch (e) { T('۶.۱ ptf-chat.js پارس می‌شود', false, e.message); }
 try { new Function(read('assets/js/main.js')); T('۶.۲ main.js پارس می‌شود', true); }
 catch (e) { T('۶.۲ main.js پارس می‌شود', false, e.message); }
 
-DONE('tester661-v34.38.25-home-modern-fab-chat');
+DONE('tester661-v34.39.11-home-modern-fab-chat');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
