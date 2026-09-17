@@ -1,0 +1,68 @@
+/* ============================================================
+   daynight.css — لایهٔ مشترک نمای روز/شب برای صفحات /ar/ و /en/
+   پالت دارک هم‌راستا با home.css (html.ptf-dark): بوم #0a1120، سطوح #101b30
+   دکمهٔ toggle: pill داخل شیت موبایل (.main-nav) و آیکون داخل (.hdr-actions)
+   ============================================================ */
+
+/* ---------- دکمهٔ تم: حالت pill (پایه) ---------- */
+.theme-toggle{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:9px 14px;border:1px solid var(--line);border-radius:15px;background:#fff;color:#343740;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;transition:.22s}
+.theme-toggle:hover{color:var(--red);border-color:rgba(239,75,26,.35)}
+.theme-toggle svg{width:19px;height:19px;display:block;flex:0 0 auto}
+.theme-toggle .tt-moon{display:none}
+html.ptf-dark .theme-toggle{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#9fc3ec}
+html.ptf-dark .theme-toggle .tt-moon{display:block}
+html.ptf-dark .theme-toggle .tt-sun{display:none}
+
+/* ---------- دکمهٔ تم: حالت آیکون در گروه hdr-actions ---------- */
+.hdr-actions .theme-toggle{width:42px;height:42px;padding:0;border:0;background:transparent;box-shadow:none;display:grid;place-items:center;border-radius:50%;color:#475569}
+.hdr-actions .theme-toggle:hover{background:rgba(239,75,26,.12);color:var(--red2);transform:none}
+.hdr-actions .theme-toggle:active{transform:scale(.92)}
+.hdr-actions .theme-toggle:focus-visible{outline:3px solid rgba(239,75,26,.45);outline-offset:2px}
+.hdr-actions .theme-toggle .tt-txt{display:none}
+html.ptf-dark .hdr-actions .theme-toggle{color:#cfe0f5}
+html.ptf-dark .hdr-actions .theme-toggle:hover{background:rgba(255,176,51,.13);color:#ffb033}
+
+/* ---------- سوییچر زبان: هاور با CSS (سازگار با هر دو تم) ---------- */
+a.lang-switch[style]:hover{background:var(--red)!important;color:#fff!important}
+
+/* ---------- گذار نرم هنگام تعویض تم ---------- */
+html.ptf-theme-anim body,html.ptf-theme-anim .site-header{transition:background .45s ease,color .45s ease}
+
+/* ============================================================
+   نمای شب — اجزای عمومی صفحات /ar/ و /en/
+   ============================================================ */
+html.ptf-dark body{background:#0a1120;color:#d7e0ef}
+html.ptf-dark .site-header,html.ptf-dark .site-header.scrolled{background:rgba(12,20,36,.92);border-bottom-color:rgba(255,255,255,.08)}
+html.ptf-dark .brand b{color:#e8f0fb}
+html.ptf-dark .main-nav a{color:#c7d5ea}
+html.ptf-dark .main-nav a:hover,html.ptf-dark .main-nav a.active{background:rgba(239,75,26,.22);color:#ffb899}
+html.ptf-dark .main-nav{background:#101b30;border-color:rgba(255,255,255,.1);box-shadow:0 24px 70px rgba(0,0,0,.5)}
+html.ptf-dark .menu-toggle{background:#182338;box-shadow:0 10px 25px rgba(0,0,0,.4)}
+html.ptf-dark .menu-toggle span{background:#cbd8ea}
+html.ptf-dark .ptf-bc{background:#0e1728;border-bottom-color:rgba(255,255,255,.08)}
+html.ptf-dark .ptf-bc ol{color:#93a7c7}
+html.ptf-dark .lang-switch[style]{background:rgba(255,255,255,.1)!important;color:#c7d5ea!important}
+
+/* کارت‌ها و سطوح روشن */
+html.ptf-dark .card,html.ptf-dark .prod-card,html.ptf-dark .case-card{background:#101b30;border-color:rgba(255,255,255,.1);box-shadow:0 8px 20px rgba(0,0,0,.35)}
+html.ptf-dark .card:hover,html.ptf-dark .prod-card:hover,html.ptf-dark .case-card:hover{box-shadow:0 16px 40px rgba(0,0,0,.5);border-color:rgba(255,179,51,.35)}
+html.ptf-dark .card h3,html.ptf-dark .prod-card h3,html.ptf-dark .case-card h3{color:#f1f5fb}
+html.ptf-dark .card p,html.ptf-dark .prod-card p,html.ptf-dark .case-card p{color:#a9bdd8}
+html.ptf-dark .case-card .specs{color:#c3d2e8}
+html.ptf-dark .stat{background:#101b30}
+html.ptf-dark .stat span{color:#8fa5c4}
+html.ptf-dark .about-content{background:#101b30;border-color:rgba(255,255,255,.1);color:#c3d2e8}
+html.ptf-dark .about-content h2{color:#f1f5fb}
+html.ptf-dark .job-card{background:#101b30;border-color:rgba(255,255,255,.1);color:#e6edf8}
+html.ptf-dark .clients span{background:#101b30;border-color:rgba(255,255,255,.1);color:#b9c9e2}
+
+/* بخش‌هایی که پس‌زمینه با style درون‌خطی ست شده */
+html.ptf-dark section[style*="background:#fff"]{background:#0b1220!important}
+html.ptf-dark section[style*="background:#f8fafc"]{background:#0e1728!important}
+html.ptf-dark div[style*="background:#f8fafc"]{background:#111c31!important;border-color:rgba(255,255,255,.12)!important}
+
+/* متن‌های درون‌خطی */
+html.ptf-dark h2[style*="#0f2744"],html.ptf-dark h3[style*="#0f2744"],html.ptf-dark b[style*="#0f2744"]{color:#eef4fd!important}
+html.ptf-dark p[style*="#334155"]{color:#b9c9e2!important}
+html.ptf-dark span[style*="#64748b"]{color:#93a7c7!important}
+html.ptf-dark a[style*="#0e7490"]{color:#67d4f7!important}
