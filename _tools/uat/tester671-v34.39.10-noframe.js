@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester671 — v34.39.10 (HOME-NOFRAME)
+   tester671 — v34.39.11 (HOME-NOFRAME)
    «کادر دور جستجو در هدر حذف بشه» — یعنی خودِ جست‌وجو بماند و قابش برود:
    Finder هیرو بدون border/glass/blur/سایه؛ فیدبک فوکوس = تنِ تیره بدون خط.
    (کادرِ لینکِ .nav-search از ۳۹.۹ سراسری مخفی است — چک رگرسیون.)
@@ -33,15 +33,15 @@ T('۲.۲ ورودی و دکمهٔ جست‌وجو بدون تغییر (فقط ق
 T('۲.۳ رگرسیون ۳۹.۹: لینکِ قاب‌دارِ هدر همچنان سراسری مخفی', home.indexOf('.nav-search{display:none!important}') > -1);
 
 console.log('\n── قراردادها ──');
-T('۳.۱ cache-bust روی v34.39.10', /home\.css\?v=34\.39\.10/.test(idx) && /ptf-motion\.js\?v=34\.39\.10" defer/.test(idx));
+T('۳.۱ cache-bust روی v34.39.11', /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
 T('۳.۲ بودجه <۴۰K، آکولاد متوازن، مارکرِ ۱۰ لایه یکتا',
   home.length < 40000 && home.split('{').length === home.split('}').length &&
   ['v34.39.0 — HOME-DYNAMIC-X','v34.39.1 — HOME-ELECTRIC-3D','v34.39.2 — HOME-DOCK-SUN','v34.39.3 — HOME-NIGHT-READ','v34.39.4 — HOME-ACCORD-NIGHTMEGA','v34.39.5 — HOME-ICONMIN','v34.39.6 — HOME-WAVE','v34.39.8 — HOME-MINBTN','v34.39.9 — HOME-CALM2','v34.39.10 — HOME-NOFRAME'].every(function(m){ return home.split(m).length === 2; }));
 T('۳.۳ رگرسیونِ کلی: برقِ ۲۶s/۱۵s، موجِ no-repeat، canonical‌ها',
   /animation:ptfCurS 26s linear infinite/.test(home) && /animation:ptfCurS 15s linear infinite/.test(home) &&
   home.indexOf('background-repeat:no-repeat') > -1 && idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
-T('۳.۴ VERSION.json = v34.39.10', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.10');
+T('۳.۴ VERSION.json = v34.39.11', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.11');
 
-DONE('tester671-v34.39.10-noframe');
+DONE('tester671-v34.39.11-noframe');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

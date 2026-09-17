@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester669 — v34.39.10 (HOME-MINBTN)
+   tester669 — v34.39.11 (HOME-MINBTN)
    درخواست کارفرما: «در دسکتاپ کلمهٔ نمای روز و کادر دور آن حذف، فقط آیکون ماه/خورشید؛
    در زبان هم کلمهٔ EN حذف و فقط آیکون پرچمِ مینیمال، کادر هم حذف.»
    قرارداد:
@@ -45,13 +45,13 @@ T('۲.۳ نامِ دسترس‌پذیری و title (aria-label انگلیسی)',
 (function(){ var a=idx.slice(idx.indexOf('class="lang-switch"'), idx.indexOf('</a>', idx.indexOf('class="lang-switch"')));
   T('۲.۴ هندلِرِ onmouseover/onmouseout اینلاینِ لینکِ زبان حذف (هاور به CSS منتقل شد)', a.indexOf('onmouseover') === -1 && a.indexOf('onmouseout') === -1); })();
 T('۲.۵ CSS: کادر/پس‌زمینهٔ قرصی حذف — بستر شفاف با هاورِ ملایمِ روز و شب',
-  home.indexOf('.lang-switch{display:inline-flex!important;align-items:center;padding:5px!important;border-radius:9px;background:transparent!important}') > -1 &&
-  home.indexOf('.lang-switch:hover{background:rgba(239,75,26,.12)}') > -1 &&
-  home.indexOf('html.ptf-dark .lang-switch{background:transparent!important}') > -1 &&
-  home.indexOf('html.ptf-dark .lang-switch:hover{background:rgba(255,176,51,.13)}') > -1);
+  home.indexOf('.lang-switch{width:42px;height:42px;display:inline-grid!important;place-items:center;border-radius:50%;background:transparent!important}') > -1 &&
+  home.indexOf('.lang-switch:hover{background:rgba(239,75,26,.12)!important}') > -1 &&
+  home.indexOf('html.ptf-dark .lang-switch{color:#cfe0f5}') > -1 &&
+  home.indexOf('html.ptf-dark .lang-switch:hover{background:rgba(255,176,51,.13)!important}') > -1);
 
 SECTION('قراردادهای کلی');
-T('۳.۱ cache-bust روی v34.39.10', /home\.css\?v=34\.39\.10/.test(idx) && /ptf-motion\.js\?v=34\.39\.10" defer/.test(idx));
+T('۳.۱ cache-bust روی v34.39.11', /home\.css\?v=34\.39\.11/.test(idx) && /ptf-motion\.js\?v=34\.39\.11" defer/.test(idx));
 T('۳.۲ بودجه و آکولاد: home.css<۴۰K متوازن', home.length < 40000 && home.split('{').length === home.split('}').length);
 T('۳.۳ مارکرِ هر هشت لایه یکتا', ['v34.39.0 — HOME-DYNAMIC-X','v34.39.1 — HOME-ELECTRIC-3D','v34.39.2 — HOME-DOCK-SUN','v34.39.3 — HOME-NIGHT-READ','v34.39.4 — HOME-ACCORD-NIGHTMEGA','v34.39.5 — HOME-ICONMIN','v34.39.6 — HOME-WAVE','v34.39.8 — HOME-MINBTN'].every(function(m){ return home.split(m).length === 2; }));
 T('۳.۴ رگرسیون‌زدا: موجِ پنل، آیکونِ شیت، آکاردئون، مگای شب، canonical‌ها، no-repeat',
@@ -59,8 +59,8 @@ T('۳.۴ رگرسیون‌زدا: موجِ پنل، آیکونِ شیت، آکا
   /#mainNav \.nav-drop\.open>\.nav-drop-menu\{max-height:240px/.test(home) &&
   home.indexOf('html.ptf-dark #mainNav .nav-mega') > -1 &&
   idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
-T('۳.۵ VERSION.json = v34.39.10', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.10');
+T('۳.۵ VERSION.json = v34.39.11', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.11');
 
-DONE('tester669-v34.39.10-minbtn');
+DONE('tester669-v34.39.11-minbtn');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
