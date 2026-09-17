@@ -160,7 +160,48 @@ body.nav-open{overflow:hidden}
 /* logo on dark: brighten the gear gray + colored outline hugging the gear */
 .site-header .brand img,
 .hero-panel>img,
-.footer img[alt*="لوگو"]{filter:brightness(1.38) saturate(1.05) drop-shadow(0 0 1px rgba(247,148,0,.85)) drop-shadow(0 0 7px rgba(247,148,0,.4))}
+.footer img[alt*="لوگو"]{filter:brightness(1.52) saturate(1.05) drop-shadow(0 0 1px rgba(247,148,0,.9)) drop-shadow(0 0 8px rgba(247,148,0,.45))}
 
 /* v35.4 — chat script injects body padding on mobile; bar already reserves space */
 @media(max-width:850px){body:has(.ptf-bottombar){padding-bottom:0!important}}
+
+/* =====================================================================
+   v35.5 — micro-interaction layer (feedback round 3)
+   minimal animated arrows, periodic electric sheen across cards,
+   warm color-shift on hover for every card-like element
+   ===================================================================== */
+
+/* minimal line-arrow (replaces raw ← chars) */
+.ptf-arrow{display:inline-block;width:15px;height:2px;border-radius:2px;background:currentColor;vertical-align:middle;margin-inline-start:7px;position:relative;transition:width .3s cubic-bezier(.2,.7,.2,1),transform .3s cubic-bezier(.2,.7,.2,1)}
+.ptf-arrow::before{content:'';position:absolute;left:-1px;top:50%;width:6px;height:6px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-50%) rotate(45deg)}
+a:hover .ptf-arrow,button:hover .ptf-arrow{width:24px;transform:translateX(-4px)}
+
+/* periodic electric sheen sweeping across cards */
+.service-card,.trust-item,#journey a.reveal,#why-ptf div.reveal,.brand-panel a,#stats [style*="border-top"],.cert-card,.about-links a{position:relative;overflow:hidden}
+.service-card::after,.trust-item::after,#journey a.reveal::after,#why-ptf div.reveal::after,.brand-panel a::after,#stats [style*="border-top"]::after,.cert-card::after,.about-links a::after{content:'';position:absolute;top:0;bottom:0;left:-55%;width:42%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:translateX(0) skewX(-16deg);pointer-events:none;animation:ptfSheen 5.6s linear infinite}
+.trust-item::after,#stats [style*="border-top"]::after{background:linear-gradient(100deg,transparent,rgba(255,176,51,.30),transparent)}
+.service-card:nth-child(2)::after,.trust-item:nth-child(2)::after,.brand-panel a:nth-child(2)::after,.cert-card:nth-child(2)::after{animation-delay:.7s}
+.service-card:nth-child(3)::after,.trust-item:nth-child(3)::after,.brand-panel a:nth-child(3)::after,.cert-card:nth-child(3)::after{animation-delay:1.4s}
+.trust-item:nth-child(4)::after,.brand-panel a:nth-child(4)::after,.cert-card:nth-child(4)::after{animation-delay:2.1s}
+#journey a.reveal:nth-child(2)::after{animation-delay:.9s}#journey a.reveal:nth-child(3)::after{animation-delay:1.8s}#journey a.reveal:nth-child(4)::after{animation-delay:2.7s}
+#why-ptf div.reveal:nth-child(2)::after{animation-delay:1.1s}#why-ptf div.reveal:nth-child(3)::after{animation-delay:2.2s}#why-ptf div.reveal:nth-child(4)::after{animation-delay:3.3s}
+@keyframes ptfSheen{0%,58%{transform:translateX(0) skewX(-16deg);opacity:0}62%{opacity:1}86%,100%{transform:translateX(360%) skewX(-16deg);opacity:0}}
+
+/* warm color-shift hover for card-like elements */
+.trust-item,.feature-list li,.rich-list li,.about-links a,.cert-card,.related-service-grid a,.related-links a,.org-node,.side-card,.tab,.faq-list details summary{transition:transform .28s ease,border-color .28s ease,background-color .28s ease,color .28s ease,box-shadow .28s ease}
+.feature-list li:hover,.rich-list li:hover{background:#fff6ee;border-color:rgba(239,75,26,.32);color:#b93417;transform:translateX(-4px)}
+.brand-panel a{transition:transform .25s ease,border-color .25s ease,background-color .25s ease,box-shadow .25s ease}
+.brand-panel a:hover{background:#fff6ee!important;border-color:rgba(239,75,26,.4);transform:translateY(-4px);box-shadow:0 14px 32px rgba(239,75,26,.14)}
+.about-links a:hover{background:#fff6ee}
+.cert-card:hover{border-color:rgba(239,75,26,.38)}
+.related-service-grid a:hover{background:#fff6ee}
+.org-node:hover{border-color:rgba(239,75,26,.35);background:#fff6ee}
+.side-card:hover{border-color:rgba(239,75,26,.3)}
+.faq-list details summary:hover{color:var(--red);background:rgba(239,75,26,.05)}
+.trust-item:hover{background:#fff6ee}
+.trust-strip .trust-item:hover{background:rgba(247,148,0,.10)!important}
+
+@media(prefers-reduced-motion:reduce){
+  .service-card::after,.trust-item::after,#journey a.reveal::after,#why-ptf div.reveal::after,.brand-panel a::after,#stats [style*="border-top"]::after,.cert-card::after,.about-links a::after{animation:none;opacity:0}
+  .ptf-arrow{transition:none}
+}
