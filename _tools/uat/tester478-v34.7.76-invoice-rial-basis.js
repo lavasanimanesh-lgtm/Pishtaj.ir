@@ -18,9 +18,9 @@ var inv = read('crm/official-invoice-v2.js');
 var api = read('api/sales-domain.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.5', ver.crm_version === 'v34.39.5', ver.crm_version);
-T('salesfiles.js cache-bust 34.39.5', /salesfiles\.js\?v=34\.39\.5/.test(idx));
-T('official-invoice-v2.js cache-bust 34.39.5', /official-invoice-v2\.js\?v=34\.39\.5/.test(idx));
+T('VERSION.json = v34.39.6', ver.crm_version === 'v34.39.6', ver.crm_version);
+T('salesfiles.js cache-bust 34.39.6', /salesfiles\.js\?v=34\.39\.6/.test(idx));
+T('official-invoice-v2.js cache-bust 34.39.6', /official-invoice-v2\.js\?v=34\.39\.6/.test(idx));
 
 /* ① هستهٔ ارجاع — مبنای ریالی */
 T('why=need_rial برای ارزی بدون نسخهٔ ریالی', sf.indexOf("why: 'need_rial'") > -1);
