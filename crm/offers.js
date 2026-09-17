@@ -81,9 +81,14 @@ function cbPersonHasContact(p) {
   return has(p.tels) || has(p.mobs) || has(p.mails);
 }
 function ptfMergeExtraCoTels(oldRec, tel) {
-  var extra = ((oldRec && Array.isArray(oldRec.coTels)) ? oldRec.coTels : []).slice(1);
-  var first = oldRec && oldRec.coTels && oldRec.coTels[0] ? oldRec.coTels[0] : null;
-  return (tel ? [{ n: tel, ext: (first && first.ext) || '', lb: (first && first.lb) || 'تلفنخانه' }] : []).concat(extra);
+  var oldTels = (oldRec && Array.isArray(oldRec.coTels)) ? oldRec.coTels : [];
+  if (!tel) {
+    /* v34.38.25 (CONTACT-WIPE FIX): empty tel input must NOT wipe existing coTels — preserve old */
+    return oldTels.slice();
+  }
+  var extra = oldTels.slice(1);
+  var first = oldTels[0] || null;
+  return [{ n: tel, ext: (first && first.ext) || '', lb: (first && first.lb) || 'تلفنخانه' }].concat(extra);
 }
 window.cbEnsurePerson = cbEnsurePerson;
 window.cbPersonHasContact = cbPersonHasContact;
@@ -106,6 +111,8 @@ function ptfPreserveLegalContactsAsPhones(oldRec, phones) {
     seen[key] = 1;
     out.push({ k: kind, n: n, lb: lb || '' });
   }
+  /* v34.38.25 (CONTACT-WIPE FIX): also preserve old phones (حقیقی→حقیقی) — previously only coTels+people were migrated, so editing a حقیقی with empty new phones wiped old phones */
+  (oldRec.phones || []).forEach(function (p) { if (p) push(p.k || 'mob', p.n, p.lb || ''); });
   (oldRec.coTels || []).forEach(function (t) { if (t) push('tel', t.n, t.lb || t.ext || ''); });
   (oldRec.people || []).forEach(function (pp) {
     if (!pp) return;
@@ -3731,6 +3738,20 @@ function saveCust2(cd) {
     coWeb: document.getElementById('nC2Web').value.trim(),
     coAddr: document.getElementById('nC2Addr').value.trim()
   };
+  /* v34.38.25 (CONTACT-WIPE FIX): اگر cbCollect به‌خاطر blank person خالی برگشت ولی رکورد قبلی تماس دارد، تماس‌های قبلی حفظ شوند — جلوی پاک‌شدن برای رییس هیات مدیره وقتی مدیرعامل ثبت کرده */
+  try {
+    if (oldRecPre) {
+      var _cbLen = (_cbState && _cbState.people) ? _cbState.people.length : -1;
+      /* اگر کاربر عمداً همه را حذف کرده (_cbLen===0) اجازه خالی شدن بده، وگرنه (blank=1 یا collect خالی از stale) حفظ کن */
+      var isIntentionalDeleteAll = (_cbLen === 0);
+      if (!isIntentionalDeleteAll && (!rec.people || !rec.people.length) && oldRecPre.people && oldRecPre.people.length) {
+        rec.people = JSON.parse(JSON.stringify(oldRecPre.people));
+      }
+      if ((!rec.coTels || !rec.coTels.length) && oldRecPre.coTels && oldRecPre.coTels.length) {
+        rec.coTels = JSON.parse(JSON.stringify(oldRecPre.coTels));
+      }
+    }
+  } catch (ePres) {}
   /* v21.5 US-411ف1: owner — پیش‌فرض سازنده؛ تغییر فقط اگر فیلد nC2Owner هست (ارشد) */
   try {
     var ownEl = document.getElementById('nC2Owner');
@@ -3873,6 +3894,19 @@ function saveSup2(cd) {
     coTels: ptfMergeExtraCoTels(oldSupPre, tel),
     coWeb: document.getElementById('nS2Web').value.trim()
   };
+  /* v34.38.25 (CONTACT-WIPE FIX): حفظ تماس‌های قبلی اگر cbCollect خالی برگشت */
+  try {
+    if (oldSupPre) {
+      var _cbLen2 = (_cbState && _cbState.people) ? _cbState.people.length : -1;
+      var isIntentionalDeleteAll2 = (_cbLen2 === 0);
+      if (!isIntentionalDeleteAll2 && (!rec.people || !rec.people.length) && oldSupPre.people && oldSupPre.people.length) {
+        rec.people = JSON.parse(JSON.stringify(oldSupPre.people));
+      }
+      if ((!rec.coTels || !rec.coTels.length) && oldSupPre.coTels && oldSupPre.coTels.length) {
+        rec.coTels = JSON.parse(JSON.stringify(oldSupPre.coTels));
+      }
+    }
+  } catch (ePres2) {}
   // v80.2: حقیقی → تلفن‌های خود شخص
   if (rec.kind === 'حقیقی') {
     rec.phones = ptfPreserveLegalContactsAsPhones(oldSupPre, indivPhonesCollect()); /* v34.38.6 (CONTACT-WIPE R3): تماس‌های حقوقی قبلی منتقل می‌شوند */

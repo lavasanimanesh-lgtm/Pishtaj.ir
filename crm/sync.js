@@ -3553,7 +3553,55 @@
           // Exists in both, pick the one with newer timestamp if available, else local
           var lTs = item.iso || item.ts || item.t || item.date || '';
           var rTs = map[item[idF]].iso || map[item[idF]].ts || map[item[idF]].t || map[item[idF]].date || '';
-          if (lTs > rTs) map[item[idF]] = item;
+          var winner = (lTs > rTs) ? item : map[item[idF]];
+          var loser = (winner === item) ? map[item[idF]] : item;
+          /* v34.38.25 (CONTACT-WIPE FIX): برای مشتری/تامین‌کننده، تماس خالی نباید برنده شود — اتحاد تماس‌ها */
+          if (key === 'ptf_crm_customers' || key === 'ptf_crm_suppliers') {
+            try {
+              var mergedRec = winner;
+              // people
+              var wPeople = Array.isArray(winner.people) ? winner.people : [];
+              var lPeople = Array.isArray(loser.people) ? loser.people : [];
+              if (!wPeople.length && lPeople.length) mergedRec.people = lPeople.slice();
+              else if (wPeople.length && lPeople.length) {
+                var seenP = {}, outP = [];
+                function pSig(p){ try { return JSON.stringify(p); } catch(e){ return String(p && p.nm || '') + '|' + String((p && p.tels && p.tels[0] && p.tels[0].n) || ''); } }
+                wPeople.forEach(function(p){ var s=pSig(p); if(!seenP[s]){seenP[s]=1; outP.push(p);} });
+                lPeople.forEach(function(p){ var s=pSig(p); if(!seenP[s]){seenP[s]=1; outP.push(p);} });
+                mergedRec.people = outP;
+              }
+              // coTels union by normalized number
+              var wTels = Array.isArray(winner.coTels) ? winner.coTels : [];
+              var lTels = Array.isArray(loser.coTels) ? loser.coTels : [];
+              if (!wTels.length && lTels.length) mergedRec.coTels = lTels.slice();
+              else if (wTels.length && lTels.length) {
+                var seenT = {}, outT = [];
+                function tKey(t){ return String(t && t.n || '').replace(/[^0-9]/g,''); }
+                wTels.forEach(function(t){ var k=tKey(t); if(k && !seenT[k]){seenT[k]=1; outT.push(t);} else if(!k){outT.push(t);} });
+                lTels.forEach(function(t){ var k=tKey(t); if(k && !seenT[k]){seenT[k]=1; outT.push(t);} else if(!k && outT.length<20){outT.push(t);} });
+                mergedRec.coTels = outT;
+              }
+              // phones union
+              var wPhones = Array.isArray(winner.phones) ? winner.phones : [];
+              var lPhones = Array.isArray(loser.phones) ? loser.phones : [];
+              if (!wPhones.length && lPhones.length) mergedRec.phones = lPhones.slice();
+              else if (wPhones.length && lPhones.length) {
+                var seenPh = {}, outPh = [];
+                wPhones.forEach(function(p){ var k=String(p && p.n || '').replace(/[^0-9]/g,''); if(k && !seenPh[k]){seenPh[k]=1; outPh.push(p);} else if(!k){outPh.push(p);} });
+                lPhones.forEach(function(p){ var k=String(p && p.n || '').replace(/[^0-9]/g,''); if(k && !seenPh[k]){seenPh[k]=1; outPh.push(p);} });
+                mergedRec.phones = outPh;
+              }
+              // ph / con scalar preservation
+              if ((!winner.ph || !String(winner.ph).trim()) && loser.ph) mergedRec.ph = loser.ph;
+              if ((!winner.con || !String(winner.con).trim()) && loser.con) mergedRec.con = loser.con;
+              if ((!winner.nm || !String(winner.nm).trim()) && loser.nm) mergedRec.nm = loser.nm;
+              map[item[idF]] = mergedRec;
+            } catch (eMergeContact) {
+              if (lTs > rTs) map[item[idF]] = item;
+            }
+          } else {
+            if (lTs > rTs) map[item[idF]] = item;
+          }
         }
       });
       

@@ -1,0 +1,585 @@
+/* ==========================================================================
+   PTF — home-modern.css — v34.38.25
+   مدرن‌سازی صفحه اصلی بدون تغییر محتوا — فقط لایه‌ی بصری و تعاملی
+   ========================================================================== */
+
+/* ---------- 1. Scroll Progress Bar ---------- */
+#ptf-scroll-progress{
+  position:fixed; top:0; left:0; right:0; height:3px; z-index:9999;
+  background:linear-gradient(90deg,var(--red),var(--orange));
+  transform-origin:left; transform:scaleX(0);
+  transition:transform .1s linear;
+  pointer-events:none;
+}
+
+/* ---------- 2. Hero — Modern Dynamic Layer ---------- */
+.hero{
+  isolation:isolate;
+}
+.hero::before{
+  content:''; position:absolute; inset:0; z-index:1;
+  background:
+    radial-gradient(800px 400px at 15% 20%, rgba(239,75,26,.22), transparent 60%),
+    radial-gradient(600px 300px at 85% 70%, rgba(247,148,0,.18), transparent 60%),
+    radial-gradient(500px 500px at 50% 50%, rgba(14,116,144,.10), transparent 70%);
+  pointer-events:none;
+  animation:ptf-hero-mesh 18s ease-in-out infinite alternate;
+}
+@keyframes ptf-hero-mesh{
+  0%{ transform:translate(0,0) scale(1); }
+  100%{ transform:translate(-20px,12px) scale(1.05); }
+}
+/* floating orbs */
+.ptf-orb{
+  position:absolute; border-radius:50%; pointer-events:none; z-index:1;
+  filter:blur(22px); mix-blend-mode:screen; opacity:.55;
+  animation:ptf-float 12s ease-in-out infinite;
+}
+.ptf-orb-1{ width:220px; height:220px; background:radial-gradient(circle at 30% 30%, #ffb347, #ef4b1a); top:12%; right:18%; animation-delay:0s; }
+.ptf-orb-2{ width:160px; height:160px; background:radial-gradient(circle at 30% 30%, #7dd3fc, #0e7490); bottom:18%; left:10%; animation-delay:-4s; }
+.ptf-orb-3{ width:120px; height:120px; background:radial-gradient(circle at 30% 30%, #fde68a, #f59e0b); top:55%; right:8%; animation-delay:-8s; }
+@keyframes ptf-float{
+  0%,100%{ transform:translate(0,0) scale(1); }
+  33%{ transform:translate(18px,-22px) scale(1.08); }
+  66%{ transform:translate(-14px,16px) scale(.96); }
+}
+
+/* Ken Burns for slides */
+.hero .slide{
+  will-change:transform, opacity;
+}
+.hero .slide.active{
+  animation:ptf-kenburns 7.2s ease-out forwards;
+}
+@keyframes ptf-kenburns{
+  from{ transform:scale(1.06); }
+  to{ transform:scale(1.14); }
+}
+
+/* headline gradient animation — only for strong inside h1, content unchanged */
+.hero-copy h1 strong{
+  background:linear-gradient(90deg, #ffb347 0%, #ff8a3d 25%, #ef4b1a 50%, #ffb347 100%);
+  background-size:200% auto;
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+  animation:ptf-gradient-shift 4.5s linear infinite;
+  filter:drop-shadow(0 8px 22px rgba(247,148,0,.28));
+}
+@keyframes ptf-gradient-shift{
+  to{ background-position:200% center; }
+}
+
+/* eyebrow pulse dot */
+.hero-copy .eyebrow i{
+  animation:ptf-pulse-dot 2.2s ease-in-out infinite;
+}
+@keyframes ptf-pulse-dot{
+  0%,100%{ box-shadow:0 0 0 0 rgba(247,148,0,.55); }
+  50%{ box-shadow:0 0 0 12px rgba(247,148,0,0); }
+}
+
+/* hero panel glassmorphism upgrade */
+.hero-panel{
+  background:linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.08)) !important;
+  border:1px solid rgba(255,255,255,.22) !important;
+  backdrop-filter:blur(22px) saturate(1.2);
+  -webkit-backdrop-filter:blur(22px) saturate(1.2);
+  position:relative;
+  overflow:hidden;
+}
+.hero-panel::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(105deg, transparent 20%, rgba(255,255,255,.18) 45%, transparent 70%);
+  transform:translateX(-120%);
+  transition:transform .9s ease;
+  pointer-events:none;
+}
+.hero-panel:hover::after{ transform:translateX(120%); }
+
+/* buttons — shine and magnetic (JS adds --mx) */
+.btn{
+  position:relative; overflow:hidden; isolation:isolate;
+  --mx:50%; --my:50%;
+}
+.btn::before{
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(300px 120px at var(--mx) var(--my), rgba(255,255,255,.22), transparent 60%);
+  opacity:0; transition:opacity .25s ease;
+  pointer-events:none;
+}
+.btn:hover::before{ opacity:1; }
+.btn-primary{
+  box-shadow:0 18px 42px rgba(239,75,26,.34), 0 0 0 1px rgba(255,255,255,.12) inset;
+}
+.btn-primary:hover{
+  box-shadow:0 26px 56px rgba(239,75,26,.42), 0 0 0 1px rgba(255,255,255,.18) inset;
+  transform:translateY(-3px) scale(1.01);
+}
+
+/* ---------- 3. Trust Strip — Counter & Hover ---------- */
+.trust-item{
+  position:relative; overflow:hidden;
+  transition:transform .28s cubic-bezier(.34,1.56,.64,1), box-shadow .28s ease, border-color .28s ease;
+  will-change:transform;
+}
+.trust-item::before{
+  content:''; position:absolute; top:0; right:0; width:100%; height:3px;
+  background:linear-gradient(90deg,var(--red),var(--orange));
+  transform:scaleX(0); transform-origin:right; transition:transform .32s ease;
+}
+.trust-item:hover{
+  transform:translateY(-5px);
+  box-shadow:0 18px 36px rgba(15,23,42,.10);
+  border-color:rgba(239,75,26,.22);
+}
+.trust-item:hover::before{ transform:scaleX(1); }
+.trust-item b[data-counter]{
+  display:inline-block;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.trust-item:hover b[data-counter]{ transform:scale(1.08); }
+
+/* ---------- 4. Journey Cards ---------- */
+#journey a[data-ptf-event]{
+  position:relative; overflow:hidden;
+  transition:transform .32s cubic-bezier(.34,1.56,.64,1), box-shadow .32s ease, border-color .32s ease;
+  transform-style:preserve-3d;
+}
+#journey a[data-ptf-event]::after{
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(420px 200px at var(--mx,50%) var(--my,50%), rgba(239,75,26,.08), transparent 70%);
+  opacity:0; transition:opacity .3s ease;
+  pointer-events:none;
+}
+#journey a[data-ptf-event]:hover{
+  transform:translateY(-6px) rotateX(2deg) rotateY(-2deg);
+  box-shadow:0 20px 40px rgba(15,23,42,.12);
+  border-color:rgba(239,75,26,.18) !important;
+}
+#journey a[data-ptf-event]:hover::after{ opacity:1; }
+#journey a .ptf-line-icon{
+  transition:transform .32s cubic-bezier(.34,1.56,.64,1), background .3s ease;
+}
+#journey a:hover .ptf-line-icon{ transform:scale(1.12) rotate(-6deg); }
+
+/* ---------- 5. Why PTF Cards ---------- */
+#why-ptf [style*=\"background:#f8fafc\"]{
+  position:relative; overflow:hidden;
+  transition:transform .30s cubic-bezier(.34,1.56,.64,1), box-shadow .30s ease, border-color .30s ease;
+}
+#why-ptf [style*=\"background:#f8fafc\"]::before{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg, rgba(239,75,26,.04), transparent 60%);
+  opacity:0; transition:opacity .3s ease;
+}
+#why-ptf [style*=\"background:#f8fafc\"]:hover{
+  transform:translateY(-6px);
+  box-shadow:0 18px 36px rgba(15,23,42,.10);
+  border-color:rgba(239,75,26,.20) !important;
+}
+#why-ptf [style*=\"background:#f8fafc\"]:hover::before{ opacity:1; }
+#why-ptf .ptf-ico{
+  transition:transform .32s cubic-bezier(.34,1.56,.64,1);
+}
+#why-ptf [style*=\"background:#f8fafc\"]:hover .ptf-ico{
+  transform:scale(1.12) rotate(4deg);
+}
+
+/* ---------- 6. Service Cards — Shine Sweep ---------- */
+.service-card{
+  position:relative; overflow:hidden;
+}
+.service-card::after{
+  content:''; position:absolute; top:0; left:-120%; width:80%; height:100%;
+  background:linear-gradient(105deg, transparent, rgba(255,255,255,.22), transparent);
+  transform:skewX(-18deg);
+  transition:transform .9s ease;
+  pointer-events:none;
+  z-index:2;
+}
+.service-card:hover::after{ transform:translateX(260%) skewX(-18deg); }
+.service-card .card-body{
+  position:relative; z-index:1;
+}
+.service-card .card-body::before{
+  content:''; position:absolute; bottom:0; right:0; left:0; height:3px;
+  background:linear-gradient(90deg,var(--red),var(--orange));
+  transform:scaleX(0); transform-origin:right; transition:transform .36s ease;
+}
+.service-card:hover .card-body::before{ transform:scaleX(1); }
+
+/* ---------- 7. Brand & Client Marquees — Modern ---------- */
+.marquee-shell{
+  --speed:52s;
+  background:linear-gradient(135deg, #fbfdff, #eef6ff) !important;
+  border:1px solid #dbeafe !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 8px 24px rgba(15,23,42,.06);
+}
+.brand-marquee-track, .marquee-track{
+  animation-duration:var(--speed) !important;
+}
+.marquee-shell:hover .marquee-track{ animation-play-state:paused; }
+.marquee-track span, .brand-marquee-track a{
+  transition:transform .22s ease, box-shadow .22s ease, border-color .22s ease, filter .22s ease;
+  filter:grayscale(.15);
+}
+.marquee-track span:hover, .brand-marquee-track a:hover{
+  transform:translateY(-2px) scale(1.03);
+  box-shadow:0 10px 24px rgba(15,23,42,.12);
+  border-color:rgba(239,75,26,.22) !important;
+  filter:grayscale(0);
+}
+
+/* ---------- 8. Stats — Count-up ---------- */
+#stats [style*=\"border-top:3px solid #ef4b1a\"]{
+  position:relative; overflow:hidden;
+  transition:transform .28s cubic-bezier(.34,1.56,.64,1), box-shadow .28s ease;
+}
+#stats [style*=\"border-top:3px solid #ef4b1a\"]::after{
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(300px 160px at 50% 0%, rgba(239,75,26,.06), transparent 70%);
+  opacity:0; transition:opacity .3s ease;
+}
+#stats [style*=\"border-top:3px solid #ef4b1a\"]:hover{
+  transform:translateY(-5px);
+  box-shadow:0 16px 32px rgba(0,0,0,.10);
+}
+#stats [style*=\"border-top:3px solid #ef4b1a\"]:hover::after{ opacity:1; }
+
+/* ---------- 9. FAQ — Smooth Accordion ---------- */
+.faq-list details{
+  position:relative; overflow:hidden;
+  transition:border-color .22s ease, box-shadow .22s ease, background .22s ease;
+  background:#fff;
+}
+.faq-list details[open]{
+  background:linear-gradient(180deg, #fff, #f8fafc);
+  border-color:rgba(239,75,26,.22) !important;
+  box-shadow:0 12px 28px rgba(15,23,42,.06);
+}
+.faq-list summary{
+  list-style:none; position:relative; padding-left:28px;
+  transition:color .22s ease;
+}
+.faq-list summary::-webkit-details-marker{ display:none; }
+.faq-list summary::after{
+  content:'+'; position:absolute; left:0; top:50%; transform:translateY(-50%);
+  width:26px; height:26px; display:grid; place-items:center;
+  border-radius:8px; background:#f1f5f9; color:#475569;
+  font-weight:900; transition:transform .26s cubic-bezier(.34,1.56,.64,1), background .22s ease, color .22s ease;
+}
+.faq-list details[open] summary::after{
+  content:'−'; background:linear-gradient(135deg,var(--red),var(--orange)); color:#fff;
+  transform:translateY(-50%) rotate(180deg);
+}
+.faq-list details p{
+  animation:ptf-faq-in .32s ease;
+}
+@keyframes ptf-faq-in{
+  from{ opacity:0; transform:translateY(-6px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+
+/* ---------- 10. Contact — Glass & Focus ---------- */
+.contact-grid-modern .contact-form{
+  position:relative; overflow:hidden;
+  background:linear-gradient(145deg, #202124, #2a2c30) !important;
+  border:1px solid rgba(255,255,255,.10) !important;
+}
+.contact-grid-modern .contact-form::before{
+  content:''; position:absolute; inset:-1px;
+  background:radial-gradient(600px 300px at 10% 10%, rgba(239,75,26,.12), transparent 60%),
+             radial-gradient(500px 300px at 90% 90%, rgba(14,116,144,.10), transparent 60%);
+  pointer-events:none;
+}
+.contact-grid-modern .contact-info a{
+  transition:transform .24s cubic-bezier(.34,1.56,.64,1), box-shadow .24s ease, border-color .24s ease;
+}
+.contact-grid-modern .contact-info a:hover{
+  transform:translateY(-3px);
+  box-shadow:0 14px 28px rgba(15,23,42,.10);
+  border-color:rgba(239,75,26,.22) !important;
+}
+
+/* ---------- 11. Reveal Stagger ---------- */
+.reveal{ will-change:transform, opacity; }
+.reveal.visible{
+  animation:ptf-reveal .72s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes ptf-reveal{
+  from{ opacity:0; transform:translateY(24px) scale(.98); }
+  to{ opacity:1; transform:translateY(0) scale(1); }
+}
+/* stagger children */
+.service-cards .service-card.reveal:nth-child(2){ animation-delay:.06s; }
+.service-cards .service-card.reveal:nth-child(3){ animation-delay:.12s; }
+.service-cards .service-card.reveal:nth-child(4){ animation-delay:.18s; }
+.service-cards .service-card.reveal:nth-child(5){ animation-delay:.24s; }
+.service-cards .service-card.reveal:nth-child(6){ animation-delay:.30s; }
+
+/* ---------- 12. Grain Texture (subtle) ---------- */
+body::after{
+  content:''; position:fixed; inset:0; z-index:9998; pointer-events:none;
+  opacity:.018; mix-blend-mode:multiply;
+  background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23n)" opacity="0.6"/></svg>');
+}
+
+/* ---------- 13. Header — Modern Blur ---------- */
+.site-header{
+  backdrop-filter:blur(20px) saturate(1.15);
+  -webkit-backdrop-filter:blur(20px) saturate(1.15);
+  border-bottom:1px solid rgba(15,23,42,.06);
+}
+.site-header.scrolled{
+  background:rgba(255,255,255,.92) !important;
+  box-shadow:0 12px 40px rgba(15,23,42,.10), 0 1px 0 rgba(15,23,42,.06) inset;
+}
+
+/* ---------- 14. Floating Call Modern ---------- */
+.floating-call, .floating-whatsapp{
+  backdrop-filter:blur(10px);
+  transition:transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s ease;
+}
+.floating-call:hover, .floating-whatsapp:hover{
+  transform:scale(1.08);
+  box-shadow:0 18px 36px rgba(0,0,0,.22);
+}
+
+/* ---------- 15. Reduced Motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  .hero .slide.active, .hero::before, .ptf-orb, .hero-copy h1 strong,
+  .marquee-track, .brand-marquee-track, .reveal.visible{
+    animation:none !important;
+  }
+  .service-card::after, .hero-panel::after{ display:none; }
+}
+
+/* ==========================================================================
+   v34.38.26 — جذاب‌تر و مدرن‌تر بدون تغییر محتوا — لایه دوم
+   ========================================================================== */
+
+/* ---------- 16. Cursor Spotlight ---------- */
+#ptf-cursor-spot{
+  position:fixed; inset:0; z-index:9997; pointer-events:none;
+  background:radial-gradient(520px 520px at var(--x,50%) var(--y,50%), rgba(239,75,26,.09), transparent 62%);
+  opacity:0; transition:opacity .35s ease;
+  mix-blend-mode:multiply;
+}
+body.ptf-spot-active #ptf-cursor-spot{ opacity:1; }
+@media (hover:none){ #ptf-cursor-spot{ display:none; } }
+
+/* ---------- 17. Parallax Layers ---------- */
+.hero-copy, .hero-panel{
+  will-change:transform;
+  transition:transform .1s linear;
+}
+.ptf-parallax-img{
+  will-change:transform;
+  transition:transform .1s linear;
+}
+
+/* ---------- 18. Section Gradient Dividers ---------- */
+.section::before{
+  content:''; display:block; height:1px; margin:0 auto 0;
+  max-width:1200px; width:calc(100% - 34px);
+  background:linear-gradient(90deg, transparent, rgba(239,75,26,.18), rgba(247,148,0,.18), transparent);
+  opacity:.0; transform:scaleX(.6); transition:opacity .6s ease, transform .6s ease;
+}
+.section.ptf-in-view::before{
+  opacity:1; transform:scaleX(1);
+}
+
+/* ---------- 19. Image Reveal Clip-Path ---------- */
+.about-images img, .service-card .card-img img{
+  clip-path:inset(0 0 0 0 round 24px);
+  transition:clip-path .8s cubic-bezier(.16,1,.3,1), transform .7s ease, filter .6s ease;
+}
+.ptf-img-reveal{
+  clip-path:inset(12% 8% 12% 8% round 28px) !important;
+  filter:blur(6px) brightness(.9);
+}
+.ptf-img-reveal.ptf-visible{
+  clip-path:inset(0 0 0 0 round 28px) !important;
+  filter:blur(0) brightness(1);
+}
+
+/* ---------- 20. Live RFQ Ticker Badge ---------- */
+#ptf-live-rfq{
+  position:fixed; right:18px; bottom:18px; z-index:44;
+  display:flex; align-items:center; gap:10px;
+  background:rgba(255,255,255,.92); border:1px solid rgba(15,23,42,.08);
+  backdrop-filter:blur(18px) saturate(1.2);
+  border-radius:999px; padding:8px 14px 8px 10px;
+  box-shadow:0 16px 32px rgba(15,23,42,.12);
+  font-size:12.5px; font-weight:900; color:#1e293b;
+  transform:translateY(18px); opacity:0; transition:all .42s cubic-bezier(.34,1.56,.64,1);
+  pointer-events:none;
+}
+#ptf-live-rfq.ptf-show{
+  transform:translateY(0); opacity:1; pointer-events:auto;
+}
+#ptf-live-rfq b{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:26px; height:26px; border-radius:999px;
+  background:linear-gradient(135deg,var(--red),var(--orange)); color:#fff;
+  font-size:11px; animation:ptf-pulse-dot 2.2s infinite;
+}
+#ptf-live-rfq a{
+  color:#0e7490; text-decoration:none; font-size:12px;
+}
+
+/* ---------- 21. Header Hide/Show ---------- */
+.site-header.ptf-hide{
+  transform:translateY(-100%);
+}
+.site-header{
+  transition:transform .32s cubic-bezier(.16,1,.3,1), background .25s ease, box-shadow .25s ease, backdrop-filter .25s ease;
+}
+
+/* ---------- 22. Custom Scrollbar ---------- */
+::-webkit-scrollbar{ width:10px; height:10px; }
+::-webkit-scrollbar-track{ background:#f1f5f9; }
+::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg, var(--red), var(--orange));
+  border-radius:999px; border:2px solid #f1f5f9;
+}
+::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(180deg, var(--red2), var(--orange));
+}
+*{
+  scrollbar-width:thin;
+  scrollbar-color:var(--red) #f1f5f9;
+}
+
+/* ---------- 23. Footer Wave ---------- */
+.footer{
+  position:relative; overflow:hidden; isolation:isolate;
+}
+.footer::before{
+  content:''; position:absolute; top:-1px; left:0; right:0; height:120px;
+  background:
+    radial-gradient(800px 80px at 20% 0%, rgba(239,75,26,.12), transparent 70%),
+    radial-gradient(600px 80px at 80% 0%, rgba(247,148,0,.10), transparent 70%);
+  pointer-events:none; z-index:0;
+}
+.ptf-footer-wave{
+  position:absolute; bottom:0; left:0; right:0; height:140px; z-index:0;
+  opacity:.06; pointer-events:none;
+  background:repeating-linear-gradient( -8deg,
+    transparent 0 28px,
+    rgba(255,255,255,.6) 28px 29px
+  );
+  animation:ptf-wave-move 22s linear infinite;
+}
+@keyframes ptf-wave-move{
+  from{ transform:translateX(0); }
+  to{ transform:translateX(-200px); }
+}
+
+/* ---------- 24. Preloader Modern ---------- */
+.preloader{
+  background:radial-gradient(800px 500px at 50% 20%, rgba(239,75,26,.08), #fff 60%) !important;
+}
+.preloader img{
+  animation:ptf-logo-float 1.6s ease-in-out infinite alternate !important;
+  filter:drop-shadow(0 22px 36px rgba(239,75,26,.18)) !important;
+}
+@keyframes ptf-logo-float{
+  from{ transform:translateY(0) scale(1); }
+  to{ transform:translateY(-8px) scale(1.04); }
+}
+.preloader::after{
+  content:''; position:absolute; bottom:32%; left:50%; transform:translateX(-50%);
+  width:120px; height:3px; border-radius:999px;
+  background:linear-gradient(90deg, var(--red), var(--orange));
+  animation:ptf-preload-bar 1.2s ease-in-out infinite;
+}
+@keyframes ptf-preload-bar{
+  0%{ transform:translateX(-50%) scaleX(.2); opacity:.6; }
+  50%{ transform:translateX(-50%) scaleX(1); opacity:1; }
+  100%{ transform:translateX(-50%) scaleX(.2); opacity:.6; }
+}
+
+/* ---------- 25. Section Orbs (dynamic injected) ---------- */
+.ptf-section-orb{
+  position:absolute; border-radius:50%; pointer-events:none; z-index:0;
+  filter:blur(28px); opacity:.22; mix-blend-mode:multiply;
+  animation:ptf-float 16s ease-in-out infinite;
+}
+#why-ptf, #services, #projects, #stats, #home-faq, #contact{
+  position:relative; overflow:hidden; isolation:isolate;
+}
+#why-ptf::after, #services::after, #contact::after{
+  content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:radial-gradient(700px 400px at var(--ox,70%) var(--oy,20%), rgba(239,75,26,.05), transparent 70%);
+  opacity:0; transition:opacity .5s ease;
+}
+#why-ptf.ptf-in-view::after, #services.ptf-in-view::after, #contact.ptf-in-view::after{ opacity:1; }
+
+/* ---------- 26. Glass + Glow for all modern cards ---------- */
+#journey a[data-ptf-event], #why-ptf [style*=background], .service-card,
+#stats [style*=border-top], .contact-grid-modern .contact-info a,
+.about-links a, .contact-cards a{
+  position:relative;
+}
+#journey a[data-ptf-event]::before, #why-ptf [style*=background]::after,
+.service-card::before, #stats [style*=border-top]::before{
+  content:''; position:absolute; inset:-1px; border-radius:inherit;
+  background:linear-gradient(135deg, rgba(239,75,26,.18), rgba(247,148,0,.18), rgba(14,116,144,.12));
+  opacity:0; transition:opacity .32s ease;
+  z-index:-1; pointer-events:none;
+  filter:blur(14px);
+}
+#journey a[data-ptf-event]:hover::before, #why-ptf [style*=background]:hover::after,
+.service-card:hover::before, #stats [style*=border-top]:hover::before{
+  opacity:1;
+}
+
+/* ---------- 27. Hero Live Badge ---------- */
+.ptf-hero-live{
+  display:inline-flex; align-items:center; gap:8px;
+  margin-top:14px; padding:8px 14px; border-radius:999px;
+  background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18);
+  backdrop-filter:blur(12px); color:#fff; font-size:12.5px; font-weight:800;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.ptf-hero-live i{
+  width:8px; height:8px; border-radius:50%; background:#22c55e;
+  box-shadow:0 0 0 6px rgba(34,197,94,.18);
+  animation:ptf-pulse-dot 2s infinite;
+}
+
+/* ---------- 28. Smooth FAQ height (JS sets --h) ---------- */
+.faq-list details{
+  --h:0px;
+}
+.faq-list details p{
+  overflow:hidden;
+  max-height:0; opacity:0; transform:translateY(-6px);
+  transition:max-height .42s cubic-bezier(.16,1,.3,1), opacity .32s ease, transform .32s ease;
+}
+.faq-list details[open] p{
+  max-height:var(--h, 300px); opacity:1; transform:translateY(0);
+  margin-top:10px;
+}
+
+/* ---------- 29. Image hover depth ---------- */
+.service-card .card-img{
+  position:relative; overflow:hidden;
+}
+.service-card .card-img::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(0deg, rgba(15,23,42,.28), transparent 60%);
+  opacity:0; transition:opacity .32s ease;
+}
+.service-card:hover .card-img::after{ opacity:1; }
+
+/* ---------- 30. Trust strip modern divider ---------- */
+.trust-strip{
+  position:relative;
+}
+.trust-strip::after{
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(15,23,42,.08), transparent);
+}
+

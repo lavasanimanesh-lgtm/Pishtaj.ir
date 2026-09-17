@@ -101,6 +101,18 @@
         var items = getData('ptf_crm_customers') || [];
         var rec = items.filter(function (x) { return x && x.cd === savedCd; })[0];
         if (!rec) return;
+        /* v34.38.25 (CONTACT-WIPE FIX): اگر rec به هر دلیل people خالی دارد ولی lastKnown پر است، حفظ کن */
+        try {
+          var known = window._ptfEntityLastKnown && window._ptfEntityLastKnown['ptf_crm_customers'];
+          if (known) {
+            var prev = known.filter(function(x){return x && x.cd===savedCd;})[0];
+            if (prev) {
+              if ((!rec.people || !rec.people.length) && prev.people && prev.people.length) rec.people = JSON.parse(JSON.stringify(prev.people));
+              if ((!rec.coTels || !rec.coTels.length) && prev.coTels && prev.coTels.length) rec.coTels = JSON.parse(JSON.stringify(prev.coTels));
+              if ((!rec.phones || !rec.phones.length) && prev.phones && prev.phones.length) rec.phones = JSON.parse(JSON.stringify(prev.phones));
+            }
+          }
+        } catch(ePres){}
         ptfNormalizeEntityPhones(rec, 'fa');
         if (window.ptfEntityUpsert) window.ptfEntityUpsert('ptf_crm_customers', rec);
         else setData('ptf_crm_customers', items);
@@ -122,6 +134,17 @@
         var items = getData('ptf_crm_suppliers') || [];
         var rec = items.filter(function (x) { return x && x.cd === savedCd; })[0];
         if (!rec) return;
+        try {
+          var known2 = window._ptfEntityLastKnown && window._ptfEntityLastKnown['ptf_crm_suppliers'];
+          if (known2) {
+            var prev2 = known2.filter(function(x){return x && x.cd===savedCd;})[0];
+            if (prev2) {
+              if ((!rec.people || !rec.people.length) && prev2.people && prev2.people.length) rec.people = JSON.parse(JSON.stringify(prev2.people));
+              if ((!rec.coTels || !rec.coTels.length) && prev2.coTels && prev2.coTels.length) rec.coTels = JSON.parse(JSON.stringify(prev2.coTels));
+              if ((!rec.phones || !rec.phones.length) && prev2.phones && prev2.phones.length) rec.phones = JSON.parse(JSON.stringify(prev2.phones));
+            }
+          }
+        } catch(ePres2){}
         var mode = (rec.origin === 'خارجی') ? 'en' : 'fa';
         ptfNormalizeEntityPhones(rec, mode);
         if (mode === 'en') {
