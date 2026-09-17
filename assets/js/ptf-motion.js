@@ -16,15 +16,16 @@
 
   /* ① هدر جمع‌شونده + داک هوشمند (مخفی در اسکرول نزولی، نمایان در صعودی) */
   function scrollUI() {
-    var header = doc.querySelector('.site-header'), dock = doc.getElementById('ptfDock');
+    var header = doc.querySelector('.site-header'), dock = doc.getElementById('ptfDock'), nav = doc.getElementById('mainNav');
     if (!header && !dock) return;
     var lastY = win.scrollY || 0, ticking = false;
     function upd() {
       var y = win.scrollY || root.scrollTop || 0;
       if (header) header.classList.toggle('is-compact', y > 90);
       if (dock && win.matchMedia('(max-width:790px)').matches) {
-        if (y > 380 && y > lastY + 8) dock.classList.add('is-hidden');
-        else if (y < lastY - 8 || y <= 380) dock.classList.remove('is-hidden');
+        var sheetOpen = nav && nav.classList.contains('open');
+        if (sheetOpen || y <= 380 || y < lastY - 8) dock.classList.remove('is-hidden');
+        else if (y > 380 && y > lastY + 8) dock.classList.add('is-hidden');
       } else if (dock) dock.classList.remove('is-hidden');
       lastY = y; ticking = false;
     }
@@ -104,6 +105,11 @@
         var r = el.getBoundingClientRect();
         el.style.setProperty('--mx', ((x - r.left) / r.width * 100).toFixed(1) + '%');
         el.style.setProperty('--my', ((y - r.top) / r.height * 100).toFixed(1) + '%');
+        if (el.classList.contains('service-card')) {
+          var rx = -( (y - r.top) / r.height - .5) * 5, ry = ((x - r.left) / r.width - .5) * 6;
+          el.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+          el.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+        }
       });
     }
     Array.prototype.forEach.call(doc.querySelectorAll(sel), function (el) {
@@ -120,12 +126,16 @@
       var open = nav.classList.contains('open');
       tog.classList.toggle('is-x', open);
       tog.setAttribute('aria-expanded', open ? 'true' : 'false');
+      var dm = doc.getElementById('ptfDockMenu');
+      if (dm) { dm.classList.toggle('is-x', open); dm.setAttribute('aria-expanded', open ? 'true' : 'false'); }
       if (bd) bd.classList.toggle('show', open);
       root.classList.toggle('ptf-lock', open);
     }
     if ('MutationObserver' in win) new MutationObserver(sync).observe(nav, { attributes: true, attributeFilter: ['class'] });
     else tog.addEventListener('click', function () { setTimeout(sync, 0); });
-    if (bd) bd.addEventListener('click', function () { nav.classList.remove('open'); tog.focus(); });
+    if (bd) bd.addEventListener('click', function () { nav.classList.remove('open'); });
+    var dm = doc.getElementById('ptfDockMenu');
+    if (dm) dm.addEventListener('click', function () { nav.classList.toggle('open'); });
     doc.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { nav.classList.remove('open'); tog.focus(); } });
   }
 
@@ -148,5 +158,31 @@
     });
   }
 
-  ready(function () { scrollUI(); splitWords(); counters(); spotlight(); drawer(); dock(); tilt(); });
+  /* ⑧ نمای روز/شب — ماندگار در کوکی (بدون localStorage طبق نگهبان A10) */
+  function theme() {
+    var btn = doc.getElementById('ptfThemeToggle'); if (!btn) return;
+    function set(dark, persist) {
+      root.classList.toggle('ptf-dark', dark);
+      btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      var mc = doc.querySelector('meta[name="theme-color"]:not([media])'); if (mc) mc.setAttribute('content', dark ? '#0a1120' : '#ffffff');
+      root.classList.add('ptf-theme-anim');
+      setTimeout(function () { root.classList.remove('ptf-theme-anim'); }, 480);
+      if (persist) { try { doc.cookie = 'ptf_theme=' + (dark ? 'dark' : 'light') + ';max-age=31536000;path=/;SameSite=Lax'; } catch (e) {} }
+    }
+    set(root.classList.contains('ptf-dark'), false);
+    btn.addEventListener('click', function () { set(!root.classList.contains('ptf-dark'), true); });
+  }
+
+  /* ⑨ فلش‌های مینیمال زنده: پیچیدن آخرین ←/→ داخل آیکن (متن دست‌نخورده با JS خاموش) */
+  function arrows() {
+    Array.prototype.forEach.call(doc.querySelectorAll('.text-link, a.btn, #journey em'), function (el) {
+      if (el.querySelector('.arw')) return;
+      var html = el.innerHTML;
+      if (/<\/(svg|span|b|strong)>/.test(html)) { /* keep markup, only suffix */ }
+      var m = html.match(/(←|→)\s*$/);
+      if (m) el.innerHTML = html.replace(/(←|→)\s*$/, '<i class="arw" aria-hidden="true">$1</i>');
+    });
+  }
+
+  ready(function () { scrollUI(); splitWords(); counters(); spotlight(); drawer(); dock(); tilt(); theme(); arrows(); });
 })();

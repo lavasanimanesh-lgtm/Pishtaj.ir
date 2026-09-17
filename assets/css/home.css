@@ -319,3 +319,199 @@ button,a{touch-action:manipulation}
 }
 /* ── ۱۴) چاپ ── */
 @media print{#ptfDock,#ptfNavBackdrop,#ptfScrollProgress{display:none!important}}
+
+/* ═══════════════════════════════════════════════════════════════════
+   v34.39.1 — HOME-ELECTRIC-3D (دستور کارفرما):
+   ① جریان برق رنگی روی لبهٔ کارت‌ها و دکمه‌ها  ② هاور رنگی زیبا
+   ③ حذف منوی بالای موبایل و انتقال به شیت پایین  ④ انیمیشن منوها
+   ④ نمای روز/شب (کلید بالا، ماندگار)  ⑤ RFQ از داک حذف؛ دکمهٔ منو وسط
+   ⑥ جلوه سه‌بعدی عمیق‌تر  ⑦ فلش‌های مینیمالِ متحرک  ⑧ اعداد فارسی پنل هیرو
+   ── همه display-only؛ صفر کتابخانه؛ gate شده با media(hover/reduced-motion)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── ① جریان برق: حلقهٔ نورانی لبه با ماسک padding/border-box ── */
+@keyframes ptfCur{from{background-position:220% 0}to{background-position:-240% 0}}
+.ptf-cur{position:relative;isolation:isolate}
+.ptf-cur::before{content:'';position:absolute;inset:0;z-index:5;pointer-events:none;border-radius:inherit;
+  padding:1.4px;background:linear-gradient(105deg,transparent 42%,rgba(255,214,120,.95) 48%,rgba(255,255,255,.9) 50%,rgba(239,75,26,.95) 52%,transparent 58%);
+  background-size:280% 100%;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+          mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
+  opacity:0;transition:opacity .3s ease}
+@media (prefers-reduced-motion: no-preference){
+  .btn-primary,.header-call,#ptfDock .dock-cta,#ptfDockChat,.ptf-finder button{border-radius:inherit}
+  .btn-primary::after{z-index:0}
+  .btn-primary::before,.header-call::before,#ptfDock .dock-cta::before,#ptfDockChat::before,.ptf-finder button::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
+    padding:1.4px;background:linear-gradient(105deg,transparent 42%,rgba(255,214,120,.95) 48%,rgba(255,255,255,.95) 50%,rgba(239,75,26,.95) 52%,transparent 58%);
+    background-size:280% 100%;
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+            mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
+    animation:ptfCur 3.4s linear infinite;opacity:.75}
+  .btn-primary,.header-call,#ptfDock .dock-cta,#ptfDockChat,.ptf-finder button{position:relative;isolation:isolate}
+  .btn-primary>*{position:relative;z-index:1}
+  #ptfDock .dock-cta>*,#ptfDockChat>*{position:relative;z-index:1}
+  .header-call{position:relative}
+  /* کارت‌ها: جریان هنگام هاور + درخشش داخلی */
+  .service-card::after,#journey a.reveal::after,#why-ptf div.reveal::after{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:inherit;
+    padding:1.4px;background:linear-gradient(105deg,transparent 42%,rgba(255,214,120,.95) 48%,rgba(255,255,255,.9) 50%,rgba(239,75,26,.95) 52%,transparent 58%);
+    background-size:280% 100%;opacity:0;
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+            mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude}
+  .service-card,#journey a.reveal,#why-ptf div.reveal{position:relative;isolation:isolate}
+  .service-card:hover::after,#journey a.reveal:hover::after,#why-ptf div.reveal:hover::after{opacity:.95;animation:ptfCur 2.2s linear infinite}
+}
+
+/* ── ② هاورِ رنگی — کارت‌ها و دکمه‌ها رنگ گرم برند می‌گیرند ── */
+@media (hover:hover){
+  .service-card{transition:transform .35s ease,box-shadow .35s ease,border-color .3s ease,background .45s ease}
+  .service-card:hover{background:linear-gradient(180deg,#fff,#fff6e9);border-color:rgba(247,148,0,.5);box-shadow:0 30px 62px rgba(247,148,0,.20),0 10px 26px rgba(239,75,26,.14)}
+  .service-card:hover .card-body h3{color:var(--red)}
+  .trust-item:hover{background:linear-gradient(180deg,#fff,#fff7ec);border-color:rgba(247,148,0,.42);color:var(--red2)}
+  #journey a.reveal:hover{background:linear-gradient(160deg,#fff,#fff3df)!important;border-color:rgba(247,148,0,.45)!important;box-shadow:0 26px 54px rgba(247,148,0,.17)!important}
+  #why-ptf div.reveal:hover{background:linear-gradient(160deg,#fff,#fff8ee)!important;border-color:rgba(247,148,0,.4)!important}
+  .btn-primary{transition:transform .26s ease,box-shadow .26s ease,filter .26s ease}
+  .btn-primary:hover{filter:saturate(1.12) brightness(1.05)}
+  .btn-ghost:hover{background:rgba(247,148,0,.30);border-color:#ffc97a;color:#fff2dd}
+  .header-call{transition:transform .24s ease,box-shadow .24s ease,filter .24s ease}
+  .header-call:hover{filter:saturate(1.15) brightness(1.06)}
+  .tab{transition:.24s}
+  .tab:hover{background:linear-gradient(135deg,#fff2e2,#ffe9cf);color:var(--red);border-color:rgba(247,148,0,.45)}
+}
+
+/* ── ③ سه‌بعدی عمیق‌تر ── */
+@media (hover:hover) and (pointer:fine){
+  .service-cards{perspective:1500px}
+  .service-card{transform-style:preserve-3d}
+  .service-card .card-img{transform-style:preserve-3d}
+  .service-card.ptf-lift{transform:perspective(1050px) rotateX(var(--rx,1.5deg)) rotateY(var(--ry,0deg)) translateY(-9px);box-shadow:0 34px 70px rgba(247,148,0,.22),0 12px 26px rgba(239,75,26,.16)}
+  .service-card.ptf-lift .card-body{transform:translateZ(26px)}
+  .hero-actions .btn,.header-call{transform-style:preserve-3d}
+  .hero-actions .btn:hover{transform:perspective(640px) rotateX(5deg) translateY(-3px) scale(1.015)}
+  .hero-actions .btn:active{transform:perspective(640px) rotateX(1.5deg) translateY(0) scale(.985)}
+}
+#ptfDock .dock-cta{box-shadow:0 12px 26px rgba(239,75,26,.45),inset 0 1.5px 0 rgba(255,255,255,.4),inset 0 -2px 6px rgba(120,30,0,.28)}
+
+/* ── ④ انیمیشن منوی دسکتاپ: ورود پلکانی + لیفت ظریف ── */
+@media(min-width:791px) and (prefers-reduced-motion:no-preference){
+  .main-nav>*{animation:ptfNavIn .5s cubic-bezier(.16,1,.3,1) both}
+  .main-nav>*:nth-child(2){animation-delay:.05s}.main-nav>*:nth-child(3){animation-delay:.10s}
+  .main-nav>*:nth-child(4){animation-delay:.15s}.main-nav>*:nth-child(5){animation-delay:.20s}
+  .main-nav>*:nth-child(6){animation-delay:.25s}.main-nav>*:nth-child(7){animation-delay:.30s}
+  .main-nav>*:nth-child(n+8){animation-delay:.35s}
+  .main-nav>a{transition:color .22s ease,background .22s ease,transform .22s ease,box-shadow .22s ease}
+  .main-nav>a:hover{transform:translateY(-1.5px)}
+}
+@keyframes ptfNavIn{from{opacity:0;transform:translateY(-9px)}to{opacity:1;transform:none}}
+
+/* ──  فلش‌های مینیمالِ زنده (wrapper توسط ptf-motion) ── */
+.arw{display:inline-block;font-style:normal;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .25s ease;opacity:.72}
+a:hover .arw,.btn:hover .arw{transform:translateX(-5px);opacity:1;color:inherit}
+
+/* ──  کلید روز/شب ─ */
+.theme-toggle{position:relative;width:44px;height:44px;flex:0 0 44px;border:1px solid var(--line);border-radius:999px;background:#fff;display:grid;place-items:center;cursor:pointer;color:#f59e0b;box-shadow:0 8px 20px rgba(15,23,42,.08);transition:transform .3s cubic-bezier(.34,1.56,.64,1),background .35s ease,color .35s ease,border-color .35s ease;overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.theme-toggle svg{position:absolute;width:21px;height:21px;transition:transform .45s cubic-bezier(.34,1.56,.64,1),opacity .3s ease}
+.theme-toggle .tt-moon{opacity:0;transform:translateY(120%) rotate(-60deg)}
+.theme-toggle:hover{transform:translateY(-2px) scale(1.05);color:#ff8a2a}
+.theme-toggle:active{transform:scale(.92)}
+html.ptf-dark .theme-toggle{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#9fc3ec}
+html.ptf-dark .theme-toggle .tt-sun{opacity:0;transform:translateY(-120%) rotate(60deg)}
+html.ptf-dark .theme-toggle .tt-moon{opacity:1;transform:none}
+html.ptf-theme-anim body,html.ptf-theme-anim .section,html.ptf-theme-anim .site-header,html.ptf-theme-anim .card-body,html.ptf-theme-anim #ptfDock,html.ptf-theme-anim #mainNav{transition:background-color .4s ease,color .4s ease,border-color .4s ease}
+
+/* ── ⑦ تم شب — صفحهٔ اول ── */
+html.ptf-dark body{background:#0a1120;color:#d7e0ef}
+html.ptf-dark .preloader{background:#0a1120}
+html.ptf-dark .site-header{background:rgba(9,15,27,.84);border-bottom-color:rgba(255,255,255,.07)}
+html.ptf-dark .site-header.scrolled{background:rgba(7,12,23,.95)}
+html.ptf-dark .brand b{color:#eef3fb}
+html.ptf-dark .main-nav a{color:#c3d0e6}
+html.ptf-dark .main-nav a:hover,html.ptf-dark .main-nav a.active{background:linear-gradient(135deg,rgba(239,75,26,.20),rgba(247,148,0,.16));color:#ffb033}
+html.ptf-dark .lang-switch{background:rgba(255,255,255,.09)!important;color:#c3d0e6!important}
+html.ptf-dark .services{background:linear-gradient(180deg,#0c1424,#0a1120)}
+html.ptf-dark .brands,html.ptf-dark .trust-strip{background:linear-gradient(180deg,#0b1322,#0a1120)}
+html.ptf-dark #journey{background:linear-gradient(180deg,#0d1628,#0b1322)!important}
+html.ptf-dark .section-copy h2,html.ptf-dark .section-head h2,html.ptf-dark .contact-info h2,html.ptf-dark #stats h2,html.ptf-dark #home-faq h2{color:#f1f5fb}
+html.ptf-dark .section-copy p,html.ptf-dark .section-head p,html.ptf-dark .contact-info p{color:#9db0ca}
+html.ptf-dark .service-card,html.ptf-dark .trust-item{background:#0f1a2e;border-color:rgba(255,255,255,.08);color:#d7e2f2}
+html.ptf-dark .service-card .card-body h3{color:#f1f5fb}
+html.ptf-dark .service-card .card-body p,html.ptf-dark .service-card .card-body li{color:#9db0ca}
+html.ptf-dark .feature-list li{background:#0f1a2e;color:#c9d6ea;border-color:rgba(255,255,255,.07)}
+html.ptf-dark .feature-list li:before{background:rgba(247,148,0,.16);color:#ffb033}
+html.ptf-dark [style*="background:#fff"]{background:#101b30!important}
+html.ptf-dark [style*="background:#f8fafc"],html.ptf-dark [style*="background:#f8f9fa"]{background:#0d1626!important}
+html.ptf-dark [style*="color:#1e293b"],html.ptf-dark [style*="color:#202228"],html.ptf-dark [style*="color:#24262b"]{color:#eef3fb!important}
+html.ptf-dark [style*="color:#64748b"],html.ptf-dark [style*="color:#646872"],html.ptf-dark [style*="color:#666"],html.ptf-dark [style*="color:#656973"],html.ptf-dark [style*="color:#4d5058"],html.ptf-dark [style*="color:#555"]{color:#9db0ca!important}
+html.ptf-dark [style*="color:#334155"]{color:#c3d0e6!important}
+html.ptf-dark .contact,html.ptf-dark #contact{background:linear-gradient(180deg,#0c1526,#0a1120)!important}
+html.ptf-dark #contactForm input,html.ptf-dark #contactForm textarea,html.ptf-dark #contactForm select{background:#0c1526!important;border-color:#24344c!important;color:#e6edf8!important}
+html.ptf-dark .text-link{color:#79b0e8}
+html.ptf-dark .text-link:hover{color:#ffb033}
+html.ptf-dark #journey em{color:#8dbdf0!important}
+html.ptf-dark .ptf-ico,html.ptf-dark .ptf-line-icon{background:linear-gradient(135deg,rgba(121,176,232,.13),rgba(239,75,26,.09))!important;color:#8dbdf0!important;border-color:rgba(121,176,232,.2)!important}
+html.ptf-dark .tab{background:#101b30;color:#c3d0e6;border-color:rgba(255,255,255,.09)}
+html.ptf-dark .marquee-shell{background:linear-gradient(135deg,#0e1a2e,#0b1526)!important;border-color:rgba(255,255,255,.08)!important}
+html.ptf-dark .marquee-track span{background:#101b30;border-color:#1f2f4c;color:#9fc3ec}
+html.ptf-dark #home-faq details{background:#0f1a2e;border-color:rgba(255,255,255,.08);color:#c9d6ea}
+html.ptf-dark #home-faq details[open]{background:#111e36;border-color:rgba(247,148,0,.35)}
+html.ptf-dark .float-img{border-color:#0a1120!important}
+html.ptf-dark .main-img,html.ptf-dark .float-img{box-shadow:0 22px 55px rgba(0,0,0,.55)}
+html.ptf-dark .brand-panel a,html.ptf-dark .client-logo{background:#f4f7fb!important}
+html.ptf-dark .brand-panel .brand-verify{background:linear-gradient(135deg,#131f38,#241a0e)!important}
+html.ptf-dark #stats [style*="box-shadow"]{box-shadow:0 10px 26px rgba(0,0,0,.4)!important}
+html.ptf-dark #ptfDock{background:rgba(9,15,27,.93);border-top-color:rgba(255,255,255,.09);box-shadow:0 -14px 40px rgba(0,0,0,.55)}
+html.ptf-dark #ptfDock a,html.ptf-dark #ptfDock button{color:#aebdd6}
+html.ptf-dark #ptfDock .dock-wa{color:#34d37c}
+html.ptf-dark #mainNav{background:rgba(12,20,36,.98);border-color:rgba(255,255,255,.09)}
+html.ptf-dark .nav-mega-col,html.ptf-dark .nav-mega{background:#0f1a2e}
+html.ptf-dark .nav-mega-col{border-color:rgba(255,255,255,.08)}
+html.ptf-dark #ptfNavBackdrop{background:rgba(2,6,14,.62)}
+html.ptf-dark .panel-grid div,html.ptf-dark .hero-panel{background:rgba(8,13,24,.55)}
+html.ptf-dark .ptf-finder{background:rgba(8,13,24,.5)}
+
+/* ── ⑧ موبایل: حذف منوی بالا → شیت پایین + داکِ منو‌محور ── */
+@media(max-width:790px){
+  .menu-toggle{display:none!important}
+  #mainNav{top:auto!important;bottom:calc(86px + env(safe-area-inset-bottom))!important;right:10px!important;left:10px!important;
+    max-height:min(60dvh,520px)!important;border-radius:26px;transform-origin:bottom center;
+    transform:translateY(26px) scale(.97);visibility:hidden;opacity:0;
+    box-shadow:0 -20px 60px rgba(2,8,23,.35),0 0 0 1px rgba(255,255,255,.06);
+    transition:transform .34s cubic-bezier(.16,1,.3,1),opacity .26s ease,visibility .26s;
+    -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+  #mainNav.open{transform:none;opacity:1;visibility:visible}
+  #mainNav.open>*{animation:ptfSheetItem .42s cubic-bezier(.16,1,.3,1) both}
+  #mainNav.open>*:nth-child(2){animation-delay:.04s}#mainNav.open>*:nth-child(3){animation-delay:.08s}
+  #mainNav.open>*:nth-child(4){animation-delay:.12s}#mainNav.open>*:nth-child(5){animation-delay:.16s}
+  #mainNav.open>*:nth-child(6){animation-delay:.20s}#mainNav.open>*:nth-child(7){animation-delay:.24s}
+  #mainNav.open>*:nth-child(n+8){animation-delay:.28s}
+  #mainNav a:active{transform:scale(.97);background:rgba(247,148,0,.14)}
+  #mainNav .nav-drop{display:grid}
+  #mainNav .nav-drop-menu{display:flex!important;flex-direction:row;flex-wrap:wrap;gap:6px;padding:0 4px 8px}
+  #mainNav .nav-drop-menu a{min-height:36px;font-size:12.5px!important;padding:7px 14px!important;background:#f1f5fb;border-radius:999px}
+  html.ptf-dark #mainNav .nav-drop-menu a{background:#131f38;color:#aebdd6}
+  #ptfDock .dm-bars{display:block;width:20px;height:14px;position:relative;margin-bottom:2px}
+  #ptfDock .dm-bars i{position:absolute;right:0;left:0;height:2px;border-radius:9px;background:currentColor;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .2s ease,top .3s cubic-bezier(.34,1.56,.64,1)}
+  #ptfDock .dm-bars i:nth-child(1){top:0}#ptfDock .dm-bars i:nth-child(2){top:6px}#ptfDock .dm-bars i:nth-child(3){top:12px}
+  #ptfDockMenu.is-x .dm-bars i:nth-child(1){top:6px;transform:rotate(45deg)}
+  #ptfDockMenu.is-x .dm-bars i:nth-child(2){opacity:0;transform:translateX(8px)}
+  #ptfDockMenu.is-x .dm-bars i:nth-child(3){top:6px;transform:rotate(-45deg)}
+  #ptfDockMenu{min-height:62px}
+}
+@keyframes ptfSheetItem{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* ── پنل شیشه‌ای هیرو: سه‌بعدی ملایم ── */
+@media (hover:hover) and (pointer:fine){
+  .hero{perspective:1400px}
+  .hero-panel{transform-style:preserve-3d;transition:transform .5s cubic-bezier(.16,1,.3,1)}
+  .hero-panel:hover{transform:rotateY(-3deg) rotateX(2deg) translateY(-4px)}
+}
+
+/* ── کاهش حرکت: خاموشی کامل حرکت‌های جدید ── */
+@media (prefers-reduced-motion: reduce){
+  .btn-primary::before,.header-call::before,#ptfDock .dock-cta::before,#ptfDockChat::before,.ptf-finder button::before{animation:none;opacity:.5}
+  .service-card:hover::after,#journey a.reveal:hover::after,#why-ptf div.reveal:hover::after{animation:none;opacity:.8}
+  .main-nav>*,#mainNav.open>*{animation:none!important}
+  #mainNav,.theme-toggle,#mainNav a:active{transition:none}
+}
+/* v34.39.1 — تعادل هدر موبایل با افزودن کلید تم (تماس در داک هست؛ اینجا حذف می‌شود) */
+@media(max-width:790px){.theme-toggle{width:40px;height:40px;flex-basis:40px}.theme-toggle svg{width:19px;height:19px}}
+@media(max-width:560px){.header-call{display:none!important}}

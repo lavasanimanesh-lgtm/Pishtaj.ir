@@ -16,10 +16,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.39.0', ver.crm_version === 'v34.39.0', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.39.0', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.0'") > -1);
-T('sw RELEASE = v34.39.0', sw.indexOf("RELEASE = 'v34.39.0'") > -1);
-T('storage.js cache-bust 34.39.0', idx.indexOf('storage.js?v=34.39.0') > -1);
+T('VERSION.json = v34.39.1', ver.crm_version === 'v34.39.1', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.39.1', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.1'") > -1);
+T('sw RELEASE = v34.39.1', sw.indexOf("RELEASE = 'v34.39.1'") > -1);
+T('storage.js cache-bust 34.39.1', idx.indexOf('storage.js?v=34.39.1') > -1);
 
 /* ---------- قرارداد شناسه در harvest ---------- */
 T('ptfHarvestFileKeys با ترتیب _id || cd',
