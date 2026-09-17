@@ -173,6 +173,12 @@
     if (stableKey) {
       var prior = notifs.filter(function (n) { return n && n.dkey === stableKey && !n.done; })[0];
       if (prior) return prior;
+      /* v34.38.24 (NOTIF-FRESH): کارتِ بایگانیِ سنی (done+ageArchived) با همان dkey
+         پایدار هم شلیق دوباره را suppress می‌کند — منبعِ کهنه هر روز/هر تیک کارت
+         «بسیار قدیمیِ» تازه نسازد. با حل یا تعویقِ منبع، resolver کارت را سخت حذف
+         و dkey را آزاد می‌کند؛ شلیق واقعیِ بعدی کارت تازه می‌سازد. */
+      var priorArchived = notifs.filter(function (n) { return n && n.dkey === stableKey && n.done && n.ageArchived; })[0];
+      if (priorArchived) return priorArchived;
     }
     var rec = {
       cd: genCode('NTF'), t: faDateTime(), iso: new Date().toISOString(),
@@ -294,6 +300,12 @@
   function checkOfferExpiry() {
     var s = curSession();
     if (!s.user) return false;
+    /* v34.38.24 (NOTIF-FRESH / STALE-BOOT-GUARD — RCA 2026-09-08 §7): تا snapshot
+       اولیهٔ sync قطع نشده (bootstrapped)، از کش کهنهٔ ۳۰ثانیه‌ای فاز B کارت نساز —
+       وگرنه بوت/تیکِ زودهنگام برای منبعی که دستگاه دیگری بسته/انجام داده، کارت
+       «بسیار قدیمی» می‌سازد و upsert می‌کند (احیای کارِ مختومه). تیک بعدیِ poll
+       پس از bootstrap همان بررسی را انجام می‌دهد. */
+    if (typeof window.ptfSyncPullNow === 'function' && !window._ptfSyncBootstrapped) return false;
     var offers = getData('ptf_crm_offers');
     var today = new Date().toISOString().slice(0, 10);
     var warn = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
@@ -321,6 +333,12 @@
   function checkRfqDue() {
     var s = curSession();
     if (!s.user) return false;
+    /* v34.38.24 (NOTIF-FRESH / STALE-BOOT-GUARD — RCA 2026-09-08 §7): تا snapshot
+       اولیهٔ sync قطع نشده (bootstrapped)، از کش کهنهٔ ۳۰ثانیه‌ای فاز B کارت نساز —
+       وگرنه بوت/تیکِ زودهنگام برای منبعی که دستگاه دیگری بسته/انجام داده، کارت
+       «بسیار قدیمی» می‌سازد و upsert می‌کند (احیای کارِ مختومه). تیک بعدیِ poll
+       پس از bootstrap همان بررسی را انجام می‌دهد. */
+    if (typeof window.ptfSyncPullNow === 'function' && !window._ptfSyncBootstrapped) return false;
     var rfqs = getData('ptf_crm_rfqs');
     var changed = false, added = false;
     rfqs.forEach(function (r) {
@@ -358,6 +376,12 @@
   function checkDealDue() {
     var s = curSession();
     if (!s.user) return false;
+    /* v34.38.24 (NOTIF-FRESH / STALE-BOOT-GUARD — RCA 2026-09-08 §7): تا snapshot
+       اولیهٔ sync قطع نشده (bootstrapped)، از کش کهنهٔ ۳۰ثانیه‌ای فاز B کارت نساز —
+       وگرنه بوت/تیکِ زودهنگام برای منبعی که دستگاه دیگری بسته/انجام داده، کارت
+       «بسیار قدیمی» می‌سازد و upsert می‌کند (احیای کارِ مختومه). تیک بعدیِ poll
+       پس از bootstrap همان بررسی را انجام می‌دهد. */
+    if (typeof window.ptfSyncPullNow === 'function' && !window._ptfSyncBootstrapped) return false;
     var deals = getData('ptf_crm_deals');
     var today = new Date().toISOString().slice(0, 10);
     var changed = false, added = false;
@@ -407,6 +431,12 @@
   function checkDueReminders() {
     var s = curSession();
     if (!s.user) return false;
+    /* v34.38.24 (NOTIF-FRESH / STALE-BOOT-GUARD — RCA 2026-09-08 §7): تا snapshot
+       اولیهٔ sync قطع نشده (bootstrapped)، از کش کهنهٔ ۳۰ثانیه‌ای فاز B کارت نساز —
+       وگرنه بوت/تیکِ زودهنگام برای منبعی که دستگاه دیگری بسته/انجام داده، کارت
+       «بسیار قدیمی» می‌سازد و upsert می‌کند (احیای کارِ مختومه). تیک بعدیِ poll
+       پس از bootstrap همان بررسی را انجام می‌دهد. */
+    if (typeof window.ptfSyncPullNow === 'function' && !window._ptfSyncBootstrapped) return false;
     var rems = getData('ptf_crm_reminders');
     var notifs = getData('ptf_crm_notifs');
     var haveCard = {}; /* 'cd:user' → کارت زنده (نه done) */
@@ -2384,6 +2414,15 @@
     try { sweepDuplicateReminderNotifs(); } catch (eSweep) {} /* v34.8.17: پاکسازی کارت‌های تکراری قبل از فیکس */
     checkDueReminders();
     updateInboxBadge();
+    /* v34.38.24 (NOTIF-FRESH): سیاست سنی در بوت — کارتابل تازه بماند. با همان
+       STALE-BOOT-GUARD: پیش از قطع‌شدنِ snapshot، روی کش کهنه prune/upsert اجرا
+       نمی‌شود (احیای کارتِ حذف‌شدهٔ سرور). notify() هم در هر شلیک prune می‌کند.
+       عمدی پس از جارو/سازنده‌ها: ترتیبِ «جارو → checkDueReminders» قراردادِ
+       تستر۵۲۱ (v34.8.34 CARTABLE-LOOP) است. */
+    try {
+      if (typeof window.ptfPruneStaleNotifs === 'function' &&
+          (typeof window.ptfSyncPullNow !== 'function' || window._ptfSyncBootstrapped)) window.ptfPruneStaleNotifs();
+    } catch (ePruneBoot) {}
     if (!window._ptfPollT) {
       // v33.0.1: no unauthenticated 401 polling loops.
       window._ptfPolling = false;

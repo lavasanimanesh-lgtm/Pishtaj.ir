@@ -1994,6 +1994,23 @@
             } catch(e) { if (/local_projection_write_failed/.test(String(e && e.message || ''))) throw e; }
             return;
           }
+          /* v34.38.24 (NOTIF-FRESH — READ-RESURRECTION): notifs کلید اتحاد است
+             (isSharedUnionKey)؛ «جایگزینی مستقیم» pull برای آن یعنی readBy محلیِ
+             تازه — که فرمان entity_upsertش mid-flight با هارد رفرش گم شده و کلید
+             dirty نیست — بی‌صدا پاک شود و همان اعلان‌های خوانده‌شدهٔ قدیمی برگردند.
+             همیشه merge اتحاد (readBy/done/repeat + dedupe dkey ارجاع) اعمال می‌شود؛
+             tombstone پس از merge کارت‌های سخت‌حذف‌شدهٔ سرور را زنده نمی‌کند؛ اگر
+             نتیجه چیزی بیش از نسخهٔ سرور دارد (خواندِ commitنشده) → dirty تا push
+             با merge کانونیک سرور (v34.8.34) همگرا کند. */
+          if (k === 'ptf_crm_notifs' && curStr && typeof window.ptfSmartMerge === 'function') {
+            try {
+              var unionStr = window.ptfSmartMerge(k, curStr, newStr);
+              if (typeof window.ptfApplyDeletionTombstones === 'function') unionStr = window.ptfApplyDeletionTombstones(k, unionStr, (d.data || {})['ptf_crm_deleted_archive']);
+              if (unionStr !== curStr) pullWrite(k, unionStr);
+              if (unionStr !== newStr) { state.dirty[k] = true; saveDirty(); try { schedulePush(); } catch (eSPush) {} }
+            } catch (eUnion) { if (/local_projection_write_failed/.test(String(eUnion && eUnion.message || ''))) throw eUnion; }
+            return;
+          }
           /* v34.38.2 (COST-RESURRECTION): مسیر «جایگزینی مستقیم» pull برای پرونده‌ها
              نباید tombstone هزینهٔ حذف‌شدهٔ محلی را رونویسی کند — اجتماع _costTomb
              محلی/سروری روی costEvents نسخهٔ سرور اعمال می‌شود؛ هیچ فیلد دیگری دست نمی‌خورد. */
@@ -2139,6 +2156,23 @@
       wr(k, String(str == null ? '' : str));
     } catch (eSW) {}
     finally { state.pulling = false; }
+  };
+  /* ═══ v34.38.24 (INFLIGHT-JOURNAL — مالکِ ذخیره: لایهٔ دادهٔ sync) ═══
+     ژورنال فرمان‌های اتمیکِ در پرواز (sales-domain-v2.js) باید روی pagehide
+     «همگام و پایدار» نوشته شود و در بوت همگام خوانده/پاک شود؛ به همین دلیل
+     localStorage مستقیم است — اما فقط اینجا، چون اصل E2/A10 نگهبان معماری اجازهٔ
+     دست‌زدنِ مستقیمِ فایل‌های نازک (مثل sales-domain-v2) به storage را نمی‌دهد و
+     sync.js لایهٔ مجازِ همگام‌سازی/صف است (هم‌خانوادهٔ صف dirty پایدارِ بالا).
+     کلید: ptf_sd_inflight — محتوای آن توسط sales-domain-v2 تولید/مصرف می‌شود. */
+  var INFLIGHT_JOURNAL_KEY = 'ptf_sd_inflight';
+  window.ptfSyncInflightJournalWrite = function (str) {
+    try { localStorage.setItem(INFLIGHT_JOURNAL_KEY, String(str == null ? '' : str)); } catch (eIfJW) {}
+  };
+  window.ptfSyncInflightJournalRead = function () {
+    try { return localStorage.getItem(INFLIGHT_JOURNAL_KEY); } catch (eIfJR) { return null; }
+  };
+  window.ptfSyncInflightJournalClear = function () {
+    try { localStorage.removeItem(INFLIGHT_JOURNAL_KEY); } catch (eIfJC) {}
   };
   /* ============ v34.8.31 (T3-1): خواندن سرور-محور ============
      collectionQuery: فیلتر/مرتب/صفحهٔ سروری — مصرف اصلی بوت دستگاه جدید و
@@ -2340,6 +2374,10 @@
         state.bootstrapped = true; window._ptfSyncBootstrapped = true;
         /* خطای auth/network هرگز readiness کاذب تولید نمی‌کند. */
         if (res && res.ok !== false) announceSnapshotReady(res);
+        /* v34.38.24 (INFLIGHT-JOURNAL): بازپخش فرمان‌های اتمیکِ نیمه‌کارهٔ نشست قبل —
+           «خواندم»/کارت‌هایی که mid-flight با هارد رفرش گم شده بودند (همان
+           idempotencyKey → WAL سرور اثر دوباره ندارد). */
+        try { if (typeof window.ptfSalesDomainReplayInflight === 'function') window.ptfSalesDomainReplayInflight(); } catch (eReplayB1) {}
       }, true);
       return;
     }
@@ -2378,6 +2416,11 @@
       state.initialReconcile = false;
       state.bootstrapped = true; window._ptfSyncBootstrapped = true;
       state.bootstrapAttempt = 0;
+      /* v34.38.24 (INFLIGHT-JOURNAL): بازپخش فرمان‌های اتمیکِ نیمه‌کارهٔ نشست قبل —
+         ریشهٔ «خواندم زدم، هارد رفرش کردم، همان اعلان قدیمی برگشت»: entity_upsert
+         در پرواز با unload صفحه گم می‌شد (نه dirty، نه صف پایدار). همان
+         idempotencyKey → اگر سرور commit کرده بود رسید می‌دهد، وگرنه حالا commit می‌کند. */
+      try { if (typeof window.ptfSalesDomainReplayInflight === 'function') window.ptfSalesDomainReplayInflight(); } catch (eReplayB2) {}
       state.lastBootstrapNotice = null;
       /* کلید ناخوانای سرور نباید بی‌صدا بماند: کاربر باید بداند کدام بخش قدیمی است. */
       var degradedMsg = '';
@@ -3441,6 +3484,9 @@
           (ex.readBy || []).concat(item.readBy || []).forEach(function (u) { if (u) rb[u] = 1; });
           ex.readBy = Object.keys(rb);
           ex.done = !!(ex.done || item.done);
+          /* v34.38.24 (NOTIF-FRESH): پرچم بایگانی سنی هم اتحاد می‌شود — کارت بایگانی‌شده
+             در دستگاه دیگر بدون پرچم ادغام و در prune بعدی زودهنگام حذف می‌شد. */
+          if (item.ageArchived && !ex.ageArchived) { ex.ageArchived = 1; if (item.ageArchivedAt) ex.ageArchivedAt = item.ageArchivedAt; }
           if ((item.repeat || 1) > (ex.repeat || 1)) { ex.repeat = item.repeat; ex.lastT = item.lastT || ex.lastT; ex.lastISO = item.lastISO || ex.lastISO; }
         });
         var nOut = Object.keys(nMap).map(function (k2) { return nMap[k2]; });
@@ -3455,6 +3501,7 @@
           var keep = byTask[dk], rb2 = {};
           (keep.readBy || []).concat(item.readBy || []).forEach(function (u) { if (u) rb2[u] = 1; });
           keep.readBy = Object.keys(rb2); keep.done = !!(keep.done || item.done);
+          if (item.ageArchived && !keep.ageArchived) { keep.ageArchived = 1; if (item.ageArchivedAt) keep.ageArchivedAt = item.ageArchivedAt; } /* v34.38.24 */
           if (String(item.iso || '') && (!keep.iso || String(item.iso) < String(keep.iso))) { keep.t = item.t; keep.iso = item.iso; }
         });
         nDedup.sort(function (a, b) { return String(b.iso || '').localeCompare(String(a.iso || '')); });

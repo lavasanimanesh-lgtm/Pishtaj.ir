@@ -35,7 +35,7 @@ if (!phpBin) {
   done();
 } else {
   var crypto = require('crypto');
-  // v34.38.21: خودکفایی محیطی — secret به مسیر کنترل‌شدهٔ همین تست (نه بقیه‌ماندهٔ /tmp):
+  // v34.38.24: خودکفایی محیطی — secret به مسیر کنترل‌شدهٔ همین تست (نه بقیه‌ماندهٔ /tmp):
   // docroot یک سطح پایین‌تر (www) تا ptf_secret_config_paths() = dirname(docroot/api, 2)
   // بر دایرکتوری اختصاصی این اجرا بیفتد؛ کل‌چیز با rmSync(root) پاک می‌شود.
   var root = fs.mkdtempSync(path.join(os.tmpdir(), 'ptf-e2e-'));
@@ -70,7 +70,7 @@ if (!phpBin) {
       T('users_get بدون توکن 200 و بدون passhash', rUsers.status === 200 &&
         jUsers.ok === true && JSON.stringify(jUsers).indexOf('passhash') === -1);
 
-      /* v34.38.21: قرارداد runtime — auth_login رمز متن‌ساده می‌گیرد (فیلد password) و
+      /* v34.38.24: قرارداد runtime — auth_login رمز متن‌ساده می‌گیرد (فیلد password) و
          همان سرور هش sha256/bcrypt را مقایسه می‌کند؛ فرستادن خودِ هش دیگر قرارداد نیست. */
       var rLogin = await fetch(B, { method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

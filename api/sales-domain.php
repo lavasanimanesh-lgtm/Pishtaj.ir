@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.38.21';
+const SD_SERVICE_VERSION = '34.38.24';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -2881,6 +2881,20 @@ try {
                     if ($pk === 'createdAt' || $pk === 'createdBy' || $pk === 'updatedAt' || $pk === 'updatedBy') continue;
                     if (array_key_exists($pk, $row)) continue;
                     $row[$pk] = $pv;
+                }
+                /* v34.38.24 (NOTIF-FRESH): کارتابل کلید اتحاد است — readBy/done هرگز با
+                   snapshot کهنهٔ یک دستگاه wholesale بازنویسی نشود (upsert کل رکورد،
+                   readBy کاربرِ دیگر را که تازه‌تر خوانده بود پاک می‌کرد و اعلانِ
+                   خوانده‌شده برمی‌گشت). قاعدهٔ همسانِ merge کانونیک v34.8.34 در data_push:
+                   اجتماع readBy و OR شدن done. */
+                if ($collection === 'ptf_crm_notifs') {
+                    if (isset($row['readBy']) && is_array($row['readBy']) && isset($prev['readBy']) && is_array($prev['readBy'])) {
+                        $rbU = [];
+                        foreach ($prev['readBy'] as $rbUu) { if ($rbUu) { $rbU[(string)$rbUu] = 1; } }
+                        foreach ($row['readBy'] as $rbUu) { if ($rbUu) { $rbU[(string)$rbUu] = 1; } }
+                        $row['readBy'] = array_values(array_keys($rbU));
+                    }
+                    if (!empty($prev['done'])) { $row['done'] = true; }
                 }
                 $row['updatedAt'] = $now; $row['updatedBy'] = $user;
                 $rows[$found] = $row; $created = false; $stored = $row;

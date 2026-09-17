@@ -19,10 +19,10 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var surplus = read('crm/surplus.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.38.21', ver.crm_version === 'v34.38.21', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.38.21', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.21'") > -1);
-T('sw RELEASE = v34.38.21', sw.indexOf("RELEASE = 'v34.38.21'") > -1);
-T('careers.js cache-bust 34.38.21', /careers\.js\?v=34\.38\.21/.test(idx));
+T('VERSION.json = v34.38.24', ver.crm_version === 'v34.38.24', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.38.24', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.38.24'") > -1);
+T('sw RELEASE = v34.38.24', sw.indexOf("RELEASE = 'v34.38.24'") > -1);
+T('careers.js cache-bust 34.38.24', /careers\.js\?v=34\.38\.24/.test(idx));
 
 /* ---------- فیلد الزامی: datePosted ---------- */
 T('LD شامل datePosted است', php.indexOf("'datePosted' => date('Y-m-d', $postedTs)") > -1);
