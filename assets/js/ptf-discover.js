@@ -14,6 +14,7 @@
   function ensureSearchLink() {
     var nav = document.getElementById("mainNav");
     if (!nav || nav.querySelector(".nav-search")) return;
+    if (document.querySelector(".site-header .hdr-search")) return; /* header already has magnifier icon — text pill is redundant */
     var a = document.createElement("a");
     a.className = "nav-search";
     a.href = prefix() + "search/";

@@ -85,7 +85,7 @@
   /* ④ اسپات‌لایت نشانگر روی کارت‌ها (ف */
   function spotlight() {
     if (!FINE || RM) return;
-    var sel = '.service-card,.trust-item,#journey a.reveal,#why-ptf .reveal';
+    var sel = '.service-card,.trust-item,#journey a.reveal,#why-ptf .reveal,.ptf-record-card';
     var raf = false, ev = null;
     function mv(e) {
       ev = e;
