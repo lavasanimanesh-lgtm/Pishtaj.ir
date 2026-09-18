@@ -27,7 +27,7 @@ HEAD_ICONS = """<link rel="icon" type="image/png" sizes="32x32" href="../assets/
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />"""
 
 MENU_JS = """<script>(function(){var b=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(b&&n)b.onclick=function(){var o=n.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');};})();</script>
-<script src="../assets/js/ptf-discover.js?v=34.39.16" defer></script>
+<script src="../assets/js/ptf-discover.js?v=34.39.14" defer></script>
 <script src="../assets/js/ptf-analytics.js" defer></script>"""
 
 LANGS_FOOT = """<a href="../">فارسی</a>
