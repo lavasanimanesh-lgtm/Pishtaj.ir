@@ -1,0 +1,401 @@
+{
+  "_doc": "سیاههٔ URLهای تاریخچهٔ دامنه — منبع: Wayback CDX (matchType=domain)",
+  "_note": "هر URL عمومیِ دوران ASP.NET (~۲۰۱۳) و وردپرس (تا ۲۰۲۶-۰۱). قاعده: 301 = معادل زنده دارد؛ 410 = واقعاً مرده. بازبینی: python3 _tools/seo_redirect_audit.py",
+  "_why": "در GSC تعداد ۲۰۶۰ نشانی در وضعیت Not indexed مانده بود؛ ریشهٔ اصلی همین URLهای نسل قبلی است که ۴۰۴ می‌دادند.",
+  "pattern": true,
+  "_generated": "2026-09-19",
+  "entries": [
+    {
+      "url": "/about-us/",
+      "expect": "301",
+      "to": "/about/",
+      "instances": 1,
+      "kind": "wordpress-page"
+    },
+    {
+      "url": "/aboutus",
+      "expect": "301",
+      "to": "/about/",
+      "instances": 1,
+      "kind": "wordpress-page"
+    },
+    {
+      "url": "/our-services/",
+      "expect": "301",
+      "to": "/services/",
+      "kind": "wordpress-page"
+    },
+    {
+      "url": "/contact-us/",
+      "expect": "301",
+      "to": "/#contact",
+      "kind": "wordpress-page"
+    },
+    {
+      "url": "/contactus",
+      "expect": "301",
+      "to": "/#contact",
+      "kind": "wordpress-page"
+    },
+    {
+      "url": "/faqs/",
+      "expect": "301",
+      "to": "/#home-faq",
+      "kind": "wordpress-page"
+    },
+    {
+      "url": "/logo/",
+      "expect": "301",
+      "to": "/about/logo-philosophy/",
+      "kind": "wordpress-page"
+    },
+    {
+      "url": "/کالاهای-پایپینگ/",
+      "expect": "301",
+      "to": "/services/piping-supply.html",
+      "kind": "wordpress-fa-page"
+    },
+    {
+      "url": "/2-ابزار-دقیق/",
+      "expect": "301",
+      "to": "/services/instrumentation-supply.html",
+      "kind": "wordpress-fa-page"
+    },
+    {
+      "url": "/پمپ-و-الکترو-موتور/",
+      "expect": "301",
+      "to": "/services/pumps/",
+      "kind": "wordpress-fa-page"
+    },
+    {
+      "url": "/چارت-سازمانی/",
+      "expect": "301",
+      "to": "/about/organizational-chart/",
+      "kind": "wordpress-fa-page"
+    },
+    {
+      "url": "/قرار-ملاقات/",
+      "expect": "301",
+      "to": "/#contact",
+      "kind": "wordpress-fa-page"
+    },
+    {
+      "url": "/ابزارهای-صنعتی-نوآورانه-که-فضاهای-کار/",
+      "expect": "301",
+      "to": "/blog/",
+      "kind": "wordpress-post"
+    },
+    {
+      "url": "/درباره-ما/",
+      "expect": "301",
+      "to": "/about/",
+      "kind": "wordpress-fa-page"
+    },
+    {
+      "url": "/تماس-با-ما/",
+      "expect": "301",
+      "to": "/#contact",
+      "kind": "wordpress-fa-page"
+    },
+    {
+      "url": "/en/ابزار-دقیق/",
+      "expect": "301",
+      "to": "/en/services.html",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/en/برق-و-اتوماسیون-صنعتی/",
+      "expect": "301",
+      "to": "/en/services.html",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/en/کالاهای-پایپینگ/",
+      "expect": "301",
+      "to": "/en/services.html",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/en/تماس-با-ما/",
+      "expect": "301",
+      "to": "/en/about.html",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/en/سوالات-متداول/",
+      "expect": "301",
+      "to": "/en/about.html",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/en/قرار-ملاقات/",
+      "expect": "301",
+      "to": "/en/about.html",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/en/چارت-سازمانی/",
+      "expect": "301",
+      "to": "/en/about.html",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/en/وبلاگ/",
+      "expect": "301",
+      "to": "/en/",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/en/ویدیوهای-آموزشی/",
+      "expect": "301",
+      "to": "/en/",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/en/درباره-ما/",
+      "expect": "301",
+      "to": "/en/about.html",
+      "kind": "wordpress-en-page"
+    },
+    {
+      "url": "/Product",
+      "expect": "301",
+      "to": "/services/products/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/project",
+      "expect": "301",
+      "to": "/projects/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/Recruitment",
+      "expect": "301",
+      "to": "/careers/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/order",
+      "expect": "301",
+      "to": "/rfq/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/Service",
+      "expect": "301",
+      "to": "/services/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/Service/2/تامین-قطعات-و-تجهیزات-پتروشیمی",
+      "expect": "301",
+      "to": "/services/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/Service/3/تامین-قطعات-و-تجهیزات-سفارشی",
+      "expect": "301",
+      "to": "/services/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/Service/4/تامین-قطعات-و-تجهیزات-نیروگاهی",
+      "expect": "301",
+      "to": "/services/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/Service/5/تامین-قطعات-و-تجهیزات-پالایشگاه-نفت-و-گاز",
+      "expect": "301",
+      "to": "/services/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/Weblog",
+      "expect": "301",
+      "to": "/blog/",
+      "kind": "aspnet-page"
+    },
+    {
+      "url": "/Weblog/1/فاز-نخست-مینی-پالایشگاه-پلدختر-افتتاح-شد",
+      "expect": "301",
+      "to": "/blog/",
+      "kind": "aspnet-post"
+    },
+    {
+      "url": "/Weblog/9/توسعه-میادین-غرب-کارون-با-احداث-خط-لوله-گوره-به-جاسک",
+      "expect": "301",
+      "to": "/blog/",
+      "kind": "aspnet-post"
+    },
+    {
+      "url": "/Weblog/19/بهره-برداری-از-۵-طرح-پتروشیمی-در-بهار-۱۴۰۰",
+      "expect": "301",
+      "to": "/blog/",
+      "kind": "aspnet-post"
+    },
+    {
+      "url": "/Weblog/162/مروارید-مکران",
+      "expect": "301",
+      "to": "/blog/",
+      "kind": "aspnet-post"
+    },
+    {
+      "url": "/Weblog/163/طرح-پتروشیمی-گچساران",
+      "expect": "301",
+      "to": "/blog/",
+      "kind": "aspnet-post"
+    },
+    {
+      "url": "/Weblog/164/چاه‌های-کم‌بازده",
+      "expect": "301",
+      "to": "/blog/",
+      "kind": "aspnet-post"
+    },
+    {
+      "url": "/services/piping-equipment/",
+      "expect": "301",
+      "to": "/services/piping-supply.html",
+      "kind": "redirect-stub"
+    },
+    {
+      "url": "/services/instrumentation-equipment/",
+      "expect": "301",
+      "to": "/services/instrumentation-supply.html",
+      "kind": "redirect-stub"
+    },
+    {
+      "url": "/services/electrical-equipment/",
+      "expect": "301",
+      "to": "/services/electrical-supply.html",
+      "kind": "redirect-stub"
+    },
+    {
+      "url": "/suppliers/valve-supplier.html",
+      "expect": "301",
+      "to": "/services/valves-supply.html",
+      "kind": "redirect-stub"
+    },
+    {
+      "url": "/?p=1299",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/?p=143",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/?p=630",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/en/?p=1673",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/en/?p=1717",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/feed/",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/comments/feed/",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/en/feed/",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/en/comments/feed/",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/xmlrpc.php",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/author/admin/",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/wp-json/wp/v2/pages/1673",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/en/wp-json/oembed/1.0/embed",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/admin/",
+      "expect": "410",
+      "kind": "aspnet-machinery"
+    },
+    {
+      "url": "/Admin/LogIn",
+      "expect": "410",
+      "kind": "aspnet-machinery"
+    },
+    {
+      "url": "/Home/Page/2",
+      "expect": "410",
+      "kind": "aspnet-machinery"
+    },
+    {
+      "url": "/Home/Page/15",
+      "expect": "410",
+      "kind": "aspnet-machinery"
+    },
+    {
+      "url": "/Areas/Admin/css/styles.css",
+      "expect": "410",
+      "kind": "aspnet-asset"
+    },
+    {
+      "url": "/css/bootstrap.min.css",
+      "expect": "410",
+      "kind": "aspnet-asset"
+    },
+    {
+      "url": "/img/Blog/21be2fa9-1e59-48ae-b1bf-85a1439980a6.jpg",
+      "expect": "410",
+      "kind": "aspnet-asset"
+    },
+    {
+      "url": "/js/main.js",
+      "expect": "410",
+      "kind": "aspnet-asset"
+    },
+    {
+      "url": "/ساده-سازی-عملیات-مزایای-اجاره-ماشین-آل/",
+      "expect": "410",
+      "kind": "offtopic-spam"
+    },
+    {
+      "url": "/ابزارهای-صنعتی-نوآورانه-که-فضاهای-کار/feed/",
+      "expect": "410",
+      "kind": "wordpress-machinery"
+    },
+    {
+      "url": "/bingo-bonga-casino-no-deposit-bonus-100-free-spins/",
+      "expect": "410",
+      "kind": "injected-spam"
+    }
+  ]
+}

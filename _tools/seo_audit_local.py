@@ -280,6 +280,13 @@ def audit_page(rel: str, smap: dict) -> dict:
         'sitemap': smaps,
         'size_kb': round(os.path.getsize(path) / 1024, 1),
         'issues': '|'.join(issues),
+        # SEO-2026-09-19: «استابِ ریدایرکت» = صفحه‌ای که در ادغام‌ها بازنشسته شده،
+        # خودش را به نشانیِ دیگری canonical می‌کند و noindex است؛ قاعدهٔ ۳۰۱ سروری
+        # در .htaccess هم دارد. این ستون اجازه می‌دهد شمارِ پرچم‌های
+        # canonical-mismatch / noindex / thin-content با احتسابِ این استاب‌ها خوانده شود.
+        'redirect_stub': 1 if (can and 'noindex' in rob
+                               and can.rstrip('/') != url.rstrip('/')
+                               and can.rstrip('/') != url.replace('/index.html', '').rstrip('/')) else 0,
     }
 
 
@@ -370,6 +377,17 @@ def main():
     }
     for k, v in iss.most_common():
         print('  %-42s %4d  (%d%%)' % (labels.get(k, k), v, round(v * 100 / n)))
+    n_stub = sum(1 for r in rows if r.get('redirect_stub'))
+    if n_stub:
+        print()
+        print('  ℹ️  از این پرچم‌ها، %d صفحه «استابِ ریدایرکتِ عمدی» است (بازنشسته در ادغام‌ها):' % n_stub)
+        print('     noindex + canonicalِ بیرونی + قاعدهٔ ۳۰۱ سروری در .htaccess؛')
+        print('     یعنی برای کاربر و گوگل هیچ‌وقت به‌عنوان صفحهٔ مستقل دیده نمی‌شوند.')
+        for key in ('canonical-mismatch', 'noindex', 'not-in-sitemap', 'thin-content'):
+            st = sum(1 for r in rows if r.get('redirect_stub') and key in r['issues'])
+            if st:
+                print('       %-42s %4d  → مؤثر: %d' % (labels.get(key, key), iss.get(key, 0), iss.get(key, 0) - st))
+        print('     بازبینی خودکار: python3 _tools/seo_redirect_audit.py')
     print()
     print('--- وضعیت هر پوشه ---')
     print('  %-28s %5s %8s %8s %7s' % ('پوشه', 'تعداد', 'در نقشه', 'کم‌حجم', 'میانگین واژه'))

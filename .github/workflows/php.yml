@@ -58,3 +58,11 @@ jobs:
           done < <(find crm -name '*.js' -print0)
           [ "$fail" -eq 0 ] || exit 1
           echo "node --check: سالم"
+
+      # SEO-2026-09-19: تا امروز ۳۰۰ قاعدهٔ RewriteRule در .htaccess بدون هیچ
+      # بازبینیِ خودکار نوشته می‌شد؛ یک مقصدِ ناموجود یا زنجیرهٔ ۳۰۱ یعنی
+      # هدررفت اعتبار و خزش. این گام، مقصدها/زنجیره/حلقه، پوششِ سیاههٔ
+      # URLهای مرده (_tools/legacy-url-inventory.json) و یکپارچگیِ لینکِ
+      # داخلی را چک می‌کند و روی هر ایراد غیرصفر خارج می‌شود.
+      - name: SEO redirect audit (.htaccess)
+        run: python3 _tools/seo_redirect_audit.py --strict
