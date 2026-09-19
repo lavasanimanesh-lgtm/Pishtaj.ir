@@ -130,10 +130,16 @@ RewriteRule ^about/organizational-chart\.html$ /about/organizational-chart/ [R=3
 
 RewriteRule ^services/boilers\.html$ /services/boilers/ [R=301,L]
 RewriteRule ^services/compressors\.html$ /services/compressors/ [R=301,L]
-RewriteRule ^services/electrical-equipment\.html$ /services/electrical-equipment/ [R=301,L]
 RewriteRule ^services/industrial-equipment\.html$ /services/industrial-equipment/ [R=301,L]
-RewriteRule ^services/instrumentation-equipment\.html$ /services/instrumentation-equipment/ [R=301,L]
-RewriteRule ^services/piping-equipment\.html$ /services/piping-equipment/ [R=301,L]
+# SEO-2026-09-19 (P0-COMPLETE): سه صفحهٔ «استاب» خدمات تا امروز فقط با
+# متا-رفرشِ سمتِ کلاینت هدایت می‌شدند: سرور ۲۰۰ می‌داد و گوگل آن‌ها را
+# «ایندکس‌شده با canonical متفاوت» نگه می‌داشت (۴۶ پرچم در اسکن ۰۹-۱۲).
+# اکنون هم نشانیِ .html و هم نشانیِ پوشه‌ای مستقیماً ۳۰۱ سروری می‌شوند و
+# هیچ زنجیرهٔ میانی‌ای ساخته نمی‌شود. فایل استاب به‌عنوان پشتیبان باقی است.
+RewriteRule ^services/electrical-equipment(/.*)?$      /services/electrical-supply.html [R=301,L]
+RewriteRule ^services/instrumentation-equipment(/.*)?$ /services/instrumentation-supply.html [R=301,L]
+RewriteRule ^services/piping-equipment(/.*)?$          /services/piping-supply.html [R=301,L]
+RewriteRule ^suppliers/valve-supplier\.html$           /services/valves-supply.html [R=301,L]
 RewriteRule ^services/pumps\.html$ /services/pumps/ [R=301,L]
 
 RewriteRule ^industries/cement\.html$ /industries/cement/ [R=301,L]
@@ -158,6 +164,88 @@ RewriteRule "^ساختار-سازمانی/?$" /about/organizational-chart/ [R=30
 RewriteRule "^خدمات-ما/?$" /services/ [R=301,L]
 RewriteRule "^وبلاگ/?$" /blog/ [R=301,L]
 RewriteRule "^en/درباره-ما/?$" /en/about.html [R=301,L]
+
+# ==================================================================
+# SEO-2026-09-19 (INDEX-CLEANUP-01) — سیاههٔ کاملِ URLهای تاریخچهٔ دامنه
+#
+# مسئله: در GSC، ۲٬۰۶۰ نشانی در وضعیت «Not indexed» مانده‌اند. منبعِ
+# اصلی، URLهای دو نسلِ قبلی سایت است (ASP.NET تا ~۲۰۱۳ و وردپرس تا
+# ۲۰۲۶-۰۱) که امروز ۴۰۴ می‌دهند. ۴۰۴ برای محتوای واقعاً حذف‌شده کندتر
+# از ۴۱۰ پاک می‌شود و خزش را هدر می‌دهد؛ و رهاکردنشان باعث می‌شود گوگل
+# به‌جای صفحات تازه، هر بار همان مرده‌ها را دوباره بخزد.
+#
+# منبعِ سیاهه: Wayback CDX (matchType=domain) — همهٔ URLهای عمومیِ دو نسلِ
+# قبلیِ دامنه. قاعدهٔ تصمیم:
+#   • معادلِ زنده دارد → 301  (انتقال اعتبار، بدون زنجیره)
+#   • محتوایش واقعاً مرده است (ماشین‌آلاتِ وردپرس/ASP، آرشیو، پارامتر) → 410
+# هیچ‌کدام به صفحهٔ اصلی ریدایرکت نمی‌شوند (آن الگو خودش soft-404 است).
+#
+# بازبینی خودکار: python3 _tools/seo_redirect_audit.py
+# سیاههٔ ماشین‌خوان: _tools/legacy-url-inventory.json
+# ==================================================================
+
+# --- (الف) ۳۰۱ به نزدیک‌ترین معادلِ زنده ---
+# وردپرس: برگه‌های لاتینِ «درباره ما / تماس / خدمات»
+RewriteRule ^about-?us/?$          /about/ [R=301,L]
+RewriteRule ^contact-?us/?$        /#contact [R=301,NE,L]
+RewriteRule ^our-services/?$       /services/ [R=301,L]
+RewriteRule ^faqs?/?$              /#home-faq [R=301,NE,L]
+
+# ASP.NET: برگه‌های اصلی با حرف بزرگ (case-sensitive — /services/ آسیب نمی‌بیند)
+RewriteRule ^Product/?$            /services/products/ [R=301,L]
+RewriteRule ^project/?$            /projects/ [R=301,L]
+RewriteRule ^Recruitment/?$        /careers/ [R=301,L]
+RewriteRule ^order/?$              /rfq/ [R=301,L]
+RewriteRule ^Service/?$            /services/ [R=301,L]
+RewriteRule ^Service/\d+/.+$       /services/ [R=301,L]
+RewriteRule ^Weblog/?$             /blog/ [R=301,L]
+RewriteRule ^Weblog/\d+/.+$        /blog/ [R=301,L]
+
+# وردپرس: برگه‌های فارسیِ سطحِ ریشه
+RewriteRule "^کالاهای-پایپینگ/?$"                      /services/piping-supply.html [R=301,L]
+RewriteRule "^2-ابزار-دقیق/?$"                         /services/instrumentation-supply.html [R=301,L]
+RewriteRule "^پمپ-و-الکترو-موتور/?$"                   /services/pumps/ [R=301,L]
+RewriteRule "^چارت-سازمانی/?$"                          /about/organizational-chart/ [R=301,L]
+RewriteRule "^قرار-ملاقات/?$"                           /#contact [R=301,NE,L]
+RewriteRule "^ابزارهای-صنعتی-نوآورانه-که-فضاهای-کار/?$" /blog/ [R=301,L]
+
+# نسخهٔ انگلیسی با اسلاگ فارسی (نشانی فارسی ولی در مسیر /en/)
+RewriteRule "^en/ابزار-دقیق/?$"             /en/services.html [R=301,L]
+RewriteRule "^en/برق-و-اتوماسیون-صنعتی/?$"  /en/services.html [R=301,L]
+RewriteRule "^en/کالاهای-پایپینگ/?$"         /en/services.html [R=301,L]
+RewriteRule "^en/تماس-با-ما/?$"              /en/about.html [R=301,L]
+RewriteRule "^en/سوالات-متداول/?$"           /en/about.html [R=301,L]
+RewriteRule "^en/قرار-ملاقات/?$"             /en/about.html [R=301,L]
+RewriteRule "^en/چارت-سازمانی/?$"            /en/about.html [R=301,L]
+RewriteRule "^en/وبلاگ/?$"                   /en/ [R=301,L]
+RewriteRule "^en/ویدیوهای-آموزشی/?$"         /en/ [R=301,L]
+
+# --- (ب) ۴۱۰ Gone — محتوایی که واقعاً وجود ندارد و معادلی هم ندارد ---
+# وردپرس: آدرس پارامتردارِ پست‌ها (/?p=ID) — بی‌شمار و بدون معادل
+RewriteCond %{QUERY_STRING} (^|&)p=\d+(&|$)
+RewriteRule ^(?:en/)?$ - [G,L]
+
+# وردپرس: فیدهای RSS/Atom و کامنت‌ها — در ریشه، در /en/ و زیرِ هر پست
+# (الگوی «هر مسیری که به feed/ ختم شود» — هیچ صفحهٔ محتواییِ سایت چنین اسلاگی ندارد)
+RewriteRule ^(?:.*/)?feed/?$ - [G,L]
+
+# وردپرس: سرویس‌ها، اسکریپت‌ها و آرشیوهای نویسنده/دسته/برچسب
+RewriteRule ^xmlrpc\.php$ - [G,L]
+RewriteRule ^(?:en/)?wp-(?:admin|login|content|includes|json|cron|registration|trackback) - [G,NC,L]
+RewriteRule ^(?:en/)?author/ - [G,L]
+RewriteRule ^(?:en/)?tag/ - [G,L]
+RewriteRule ^(?:en/)?category/ - [G,L]
+
+# ASP.NET: پنل مدیریت، پیجینیشنِ صفحهٔ اول و دارایی‌های نسخهٔ قدیم
+RewriteRule ^Admin(?:/|$)     - [G,NC,L]
+RewriteRule ^Areas/           - [G,L]
+RewriteRule ^Home/Page/\d+/?$ - [G,L]
+RewriteRule ^css/             - [G,L]
+RewriteRule ^img/             - [G,L]
+RewriteRule ^js/              - [G,L]
+
+# وردپرس: پستِ بی‌ارتباطِ بازمانده (اجارهٔ خودرو) — نه موضوعِ شرکت، نه معادل
+RewriteRule "^ساده-سازی-عملیات-مزایای-اجاره-ماشین-آل/?$" - [G,L]
 
 RewriteRule ^blog/boiler-steam-equipment\.html$ /blog/boiler-steam-equipment/ [R=301,L]
 RewriteRule ^blog/compressors-air-systems\.html$ /blog/compressors-air-systems/ [R=301,L]
