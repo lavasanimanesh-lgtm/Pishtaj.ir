@@ -1,0 +1,50 @@
+{
+  "services/products/temperature-transmitter.html": {
+    "sha256": "502fbe785f5f47bac7fbf3495560e47111105b4801164273c6ceebe07577f3aa",
+    "date": "2026-09-20",
+    "reason": "Existing temperature-page SEO improvement; shared header/footer unchanged.",
+    "report": "docs/existing-temperature-seo-2026-09-20.md"
+  },
+  "services/products/thermowell.html": {
+    "sha256": "95e3239449fbdfc13292287db3ac6d1fe18401f3689faaf0826a91431a9961ba",
+    "date": "2026-09-20",
+    "reason": "Existing temperature-page SEO improvement; shared header/footer unchanged.",
+    "report": "docs/existing-temperature-seo-2026-09-20.md"
+  },
+  "services/products/pressure-gauge.html": {
+    "sha256": "449059a898f81d9d42e5c72c9ccf07c82ad30127e6d958a9e81d62a61c7133f0",
+    "date": "2026-09-20",
+    "reason": "Existing gauge-page SEO improvement; shared header/footer unchanged.",
+    "report": "docs/existing-gauge-seo-2026-09-20.md"
+  },
+  "services/products/flowmeter.html": {
+    "sha256": "8534909a8c3cadd87481b04bd15cdf240601a5a70aab029ce477080499a519c5",
+    "date": "2026-09-20",
+    "reason": "Existing flowmeter selection-page SEO improvement; shared header/footer unchanged.",
+    "report": "docs/existing-flowmeter-seo-2026-09-20.md"
+  },
+  "services/products/magnetic-flowmeter.html": {
+    "sha256": "c9c7274dbafdc5566a93d4f9e5fee7ef464c3f37d7b186a0c110bbcc0e8cc07b",
+    "date": "2026-09-20",
+    "reason": "Existing magnetic-flowmeter SEO improvement; shared header/footer unchanged.",
+    "report": "docs/existing-magmeter-seo-2026-09-20.md"
+  },
+  "services/products/coriolis-flowmeter.html": {
+    "sha256": "464d1630f997ea6f3601347a376d13e25373289d36c5576c34ef616d3015ca7a",
+    "date": "2026-09-20",
+    "reason": "Existing Coriolis page SEO improvement; shared header/footer unchanged.",
+    "report": "docs/existing-coriolis-seo-2026-09-20.md"
+  },
+  "services/products/vortex-flowmeter.html": {
+    "sha256": "760d48355a552b75f066256d3dc00dea1eb2da4bfa47d762e5052c829309a905",
+    "date": "2026-09-20",
+    "reason": "Existing vortex page SEO improvement; shared header/footer unchanged.",
+    "report": "docs/existing-vortex-seo-2026-09-20.md"
+  },
+  "services/products/radar-level-transmitter.html": {
+    "sha256": "5b1bc7e358ae556dd649ba179546615491b721350ad5e0c8a9b5a697920a694f",
+    "date": "2026-09-20",
+    "reason": "Existing radar level page SEO improvement; shared header/footer unchanged.",
+    "report": "docs/existing-radar-seo-2026-09-20.md"
+  }
+}

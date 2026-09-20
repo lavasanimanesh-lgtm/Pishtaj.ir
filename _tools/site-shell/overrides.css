@@ -1,0 +1,61 @@
+/* Shared layout isolation: page-specific .container / .brand rules must not
+   change the homepage shell. All rules are confined to the two landmarks. */
+#top[data-ptf-shell="header"],#ptf-site-footer{font-family:Vazirmatn,Tahoma,Arial,sans-serif;font-size:14px;font-weight:400;line-height:1.9;--red:#ef4b1a;--orange:#f79400}
+#top[data-ptf-shell="header"] *,#ptf-site-footer *{box-sizing:border-box}
+#top[data-ptf-shell="header"]{z-index:10060;isolation:isolate}
+#top[data-ptf-shell="header"] a,#ptf-site-footer a{text-decoration:none}
+#top[data-ptf-shell="header"] button{font-family:inherit;cursor:pointer}
+#top[data-ptf-shell="header"] .container{width:min(1440px,calc(100% - 16px))!important;max-width:1440px!important;margin-inline:auto;padding:0}
+#top[data-ptf-shell="header"] .nav-wrap{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#top[data-ptf-shell="header"] .brand{display:flex;align-items:center;gap:12px;flex-shrink:0}
+#top[data-ptf-shell="header"] .brand img{width:54px;height:54px;object-fit:contain;margin:0;padding:0;border:0;background:none;border-radius:0}
+#top[data-ptf-shell="header"] .brand b{font-size:18px;font-weight:900;line-height:1.9;margin:0}
+#top[data-ptf-shell="header"] .brand small{font-size:12px;font-weight:800;line-height:1.9}
+#top[data-ptf-shell="header"] .hdr-actions{display:flex;align-items:center;gap:4px}
+#top[data-ptf-shell="header"] .main-nav>*{animation:none!important}
+#top[data-ptf-shell="header"] .nav-drop:focus-within>.nav-drop-menu{opacity:1;visibility:visible;pointer-events:auto}
+#top[data-ptf-shell="header"] .nav-products:focus-within>.nav-mega{opacity:1;visibility:visible;pointer-events:auto;transform:none}
+#top[data-ptf-shell="header"] .shell-subnav-toggle{display:none}
+#top[data-ptf-shell="header"] a:focus-visible,#top[data-ptf-shell="header"] button:focus-visible,#ptf-site-footer a:focus-visible{outline:3px solid #f79400;outline-offset:3px}
+#ptf-site-footer{background:linear-gradient(180deg,#16283d,#101d2d 55%,#0a1420)!important;padding:4.5rem 0 2rem!important;border-top:4px solid #ef4b1a!important;color:#cbd5e1;clear:both}
+#ptf-site-footer>.container{width:min(1200px,calc(100% - 34px));max-width:1200px;margin-inline:auto;padding-inline:0}
+#ptf-site-footer>.container:first-child{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:35px;margin-bottom:3.5rem;text-align:start}
+#ptf-site-footer .shell-footer-heading{color:#fff;font-size:16px;display:block;margin-bottom:16px;border-bottom:2px solid rgba(255,255,255,.1);padding-bottom:8px}
+#ptf-site-footer .shell-footer-links{display:grid;gap:10px;font-size:14px}
+#ptf-site-footer p{font-size:13.5px;line-height:1.8;color:#94a3b8}
+#ptf-site-footer a{overflow-wrap:anywhere}
+#ptf-site-footer .ptf-line-icon svg{width:18px;height:18px}
+@media(min-width:791px){
+ #top[data-ptf-shell="header"] #mainNav{position:static!important;display:flex!important;flex-wrap:nowrap;opacity:1;visibility:visible;transform:none;background:transparent;border:0;box-shadow:none;padding:0;max-height:none}
+ #top[data-ptf-shell="header"] .menu-toggle{display:none!important}
+}
+@media(max-width:790px){
+ #top[data-ptf-shell="header"] .nav-wrap{height:76px!important;gap:6px}
+ #top[data-ptf-shell="header"] .brand{min-width:0;gap:6px}
+ #top[data-ptf-shell="header"] .brand b{font-size:14px}
+ #top[data-ptf-shell="header"] .brand small{font-size:10px}
+ #top[data-ptf-shell="header"] .brand img{width:42px;height:42px}
+ #top[data-ptf-shell="header"] .menu-toggle{display:block!important;flex:0 0 44px;width:44px;height:44px}
+ #top[data-ptf-shell="header"] .hdr-search,#top[data-ptf-shell="header"] .lang-switch{width:36px;height:44px;min-width:36px}
+ #top[data-ptf-shell="header"] #mainNav{position:fixed!important;inset:76px 8px auto!important;width:auto!important;max-height:calc(100dvh - 90px);overflow-y:auto;overscroll-behavior:contain;display:grid!important;gap:4px;padding:14px;border-radius:20px;background:#fff;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-10px);z-index:10065}
+ #top[data-ptf-shell="header"] #mainNav.open{opacity:1;visibility:visible;pointer-events:auto;transform:none}
+ #top[data-ptf-shell="header"] #mainNav a{text-align:start!important}
+ #top[data-ptf-shell="header"] #mainNav .nav-drop:not(.nav-products){display:grid;grid-template-columns:1fr 44px}
+ #top[data-ptf-shell="header"] .shell-subnav-toggle{display:block;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#c73616;font-size:22px;min-height:44px}
+ #top[data-ptf-shell="header"] #mainNav .nav-drop-menu{grid-column:1/-1;position:static;transform:none}
+ #top[data-ptf-shell="header"] #mainNav .nav-drop.open>.nav-drop-menu{max-height:240px;visibility:visible;opacity:1}
+ #top[data-ptf-shell="header"] #mainNav .nav-drop:not(.open)>.nav-drop-menu{max-height:0;visibility:hidden;opacity:0}
+ #top[data-ptf-shell="header"] #mainNav .nav-drop>a[aria-haspopup]::after{display:none}
+ html.ptf-dark #top[data-ptf-shell="header"] #mainNav{background:#0f1a2e}
+}
+@media(max-width:370px){#top[data-ptf-shell="header"] .brand small{display:none}#top[data-ptf-shell="header"] .brand b{font-size:12px}#top[data-ptf-shell="header"] .brand img{width:34px;height:34px}}
+@media(prefers-reduced-motion:reduce){#top[data-ptf-shell="header"] *,#ptf-site-footer *{animation:none!important;transition:none!important}}
+/* The sitemap previously had no fixed header. */
+body:has(> #top[data-ptf-shell="header"])>main.sm{padding-top:110px}
+/* Some legacy pages set a white !important header; theme must win locally. */
+html.ptf-dark #top[data-ptf-shell="header"],html.ptf-dark #top[data-ptf-shell="header"].scrolled{background:rgba(10,17,32,.985)!important;border-bottom-color:rgba(255,255,255,.08)!important}
+@media(min-width:791px) and (max-width:1020px){
+ #top[data-ptf-shell="header"] .brand>span{display:none}
+ #top[data-ptf-shell="header"] .brand{min-width:0}
+ #top[data-ptf-shell="header"] .main-nav>a,#top[data-ptf-shell="header"] .main-nav>.nav-drop>a{padding-inline:7px!important;font-size:12px!important}
+}

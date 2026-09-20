@@ -111,6 +111,7 @@
 
   /* ⑤ کشوی موبایل: هماهام‌سازی با togg */
   function drawer() {
+    if (doc.querySelector('[data-ptf-shell="header"]')) return; // shared controller owns this shell
     var nav = doc.getElementById('mainNav'), tog = doc.getElementById('menuToggle'), bd = doc.getElementById('ptfNavBackdrop');
     if (!nav || !tog) return;
     tog.setAttribute('aria-expanded', 'false');
@@ -190,6 +191,7 @@
   var memManual = '';
   function manualTheme() { if (memManual) return memManual; var m = /(?:^|; )ptf_theme=(dark|light)/.exec(doc.cookie || ''); return m ? m[1] : ''; }
   function theme() {
+    if (doc.querySelector('[data-ptf-shell="header"]')) return; // shared controller owns this shell
     var btn = doc.getElementById('ptfThemeToggle'); if (!btn) return;
     var txt = btn.querySelector('.tt-txt');
     function syncBtn(dark) {

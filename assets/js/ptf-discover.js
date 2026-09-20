@@ -297,7 +297,7 @@
     /* top-level nav pills (all widths) */
     ".site-header .main-nav>a,.site-header .main-nav>.nav-drop>a,.site-header .main-nav>.nav-products>a{display:inline-flex!important;align-items:center;justify-content:center;height:32px!important;min-height:32px!important;max-height:32px!important;padding:0 11px!important;line-height:1!important;box-sizing:border-box;border-radius:999px;white-space:nowrap}" +
     /* desktop: hover / focus dropdown panel */
-    "@media(min-width:851px){" +
+    "@media(min-width:791px){" +
     ".nav-drop.nav-products{position:relative}" +
     ".nav-products .nav-mega{position:fixed;top:84px;right:16px;left:16px;z-index:95;width:auto;max-width:1180px;margin:0 auto;display:none}" +
     ".nav-products:hover>.nav-mega,.nav-products:focus-within>.nav-mega,.nav-products.is-open>.nav-mega{display:block}" +
@@ -313,7 +313,7 @@
     ".nav-mega-trigger{display:none!important}" +
     "}" +
     /* mobile: accordion inside the burger panel */
-    "@media(max-width:850px){" +
+    "@media(max-width:790px){" +
     ".main-nav{row-gap:6px!important;max-height:calc(100vh - 108px)!important;max-height:calc(100dvh - 108px)!important;overflow-y:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}" +
     ".site-header .main-nav>a,.site-header .main-nav>.nav-drop>a,.site-header .main-nav>.nav-products>a{height:auto!important;min-height:44px!important;max-height:none!important;font-size:15px!important;padding:10px 14px!important;justify-content:flex-start!important;border-radius:14px!important}" +
     ".nav-drop.nav-products{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;justify-items:stretch;align-items:center}" +
@@ -420,11 +420,13 @@
         wrap.setAttribute("data-mega-bound", "1");
         var hideTimer = null;
         function open() {
+          if (isMobileNav()) return;
           clearTimeout(hideTimer);
           wrap.classList.add("is-open");
           wrap.setAttribute("data-hover-open", "1");
         }
         function closeSoon() {
+          if (isMobileNav()) return;
           clearTimeout(hideTimer);
           hideTimer = setTimeout(function () {
             wrap.classList.remove("is-open");
@@ -442,9 +444,9 @@
   }
 
   /* ------------------------------------------------------------------ *
-   *  Mobile accordion behaviour (≤850px)                                *
+   *  Mobile accordion behaviour (≤790px)                                *
    * ------------------------------------------------------------------ */
-  var mqMobile = window.matchMedia ? window.matchMedia("(max-width:850px)") : { matches: false };
+  var mqMobile = window.matchMedia ? window.matchMedia("(max-width:790px)") : { matches: false };
   function isMobileNav() {
     return !!mqMobile.matches;
   }
