@@ -18,22 +18,9 @@ Disallow: /.well-known/
 # Avoid indexing parameterised duplicates of the RFQ form
 Disallow: /rfq/?*
 
-# Explicitly welcome the main crawlers
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-# AI / answer engines — allow (brand visibility in LLM answers)
-User-agent: GPTBot
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
+# One shared group: named Allow-only groups would override these exclusions.
+# Public pages and rendering assets remain crawlable for all compliant bots.
+# robots.txt controls crawling, not authentication or guaranteed deindexing.
 
 # Sitemap
 Sitemap: https://pishtaj.ir/sitemap-index.xml

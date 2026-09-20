@@ -1,4 +1,4 @@
-const preloader=document.getElementById('preloader');window.addEventListener('load',()=>setTimeout(()=>preloader.classList.add('hide'),450));
+const preloader=document.getElementById('preloader');window.addEventListener('load',()=>setTimeout(()=>preloader&&preloader.classList.add('hide'),450));
 const header=document.querySelector('.site-header');window.addEventListener('scroll',()=>header.classList.toggle('scrolled',scrollY>28));
 const menuToggle=document.getElementById('menuToggle'),mainNav=document.getElementById('mainNav');menuToggle.addEventListener('click',()=>mainNav.classList.toggle('open'));document.querySelectorAll('.main-nav a').forEach(a=>a.addEventListener('click',()=>mainNav.classList.remove('open')));
 /* v34.39.0 — hero slider: swipe + auto-pause on hidden tab (battery/perf) */
