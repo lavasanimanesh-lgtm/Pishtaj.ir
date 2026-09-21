@@ -2559,7 +2559,7 @@
       });
     } catch (e1) { out.ok = false; return out; }
     if (!dupPairs.length) { out.kept = list.length; return out; }
-    /* v34.39.20 (RESTORE-TOMBSTONE-REKILL — گام ⑤): قصد «به جریان انداختن» برنده است.
+    /* v34.39.21 (RESTORE-TOMBSTONE-REKILL — گام ⑤): قصد «به جریان انداختن» برنده است.
        نسخهٔ زنده‌ای که restoredFrom همان رکورد بایگانی را نشان می‌دهد (به‌جریان‌افتادهٔ
        واقعی یا بازماندهٔ دستگاه stale)، مالک قطعی پرونده است؛ رکورد بایگانیِ زامبی
        (رستاخیزیافته از دستگاه کهنه) حذف می‌شود، نه پروندهٔ به‌جریان‌افتاده. رفتار قبلی
@@ -2652,7 +2652,7 @@
         if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arch, { reason: 'sf-restore', prevArr: before });
         else setData('ptf_crm_deleted_archive', arch);
       } catch (eS) {}
-      /* v34.39.20 (RESTORE-TOMBSTONE-REKILL): ذخیرهٔ سطری per-row روی _id (هویت سرورِ
+      /* v34.39.21 (RESTORE-TOMBSTONE-REKILL): ذخیرهٔ سطری per-row روی _id (هویت سرورِ
          آرشیو حذف) — مستقل از diff روتر؛ ردیف‌های کهنهٔ بی‌cd دیگر نمی‌توانند خنثی‌سازی
          را به legacyFallback بیندازند. upsert ناقص/نرسیده → failDirty → push انبوه fallback. */
       arch.forEach(function (a, ai) {
@@ -2673,7 +2673,7 @@
           }
         } catch (eRow) {}
       });
-      /* v34.39.20 (گام ①): فرمان اتمیک سروری entity_tombstones_neutralize — قرینهٔ گام ②
+      /* v34.39.21 (گام ①): فرمان اتمیک سروری entity_tombstones_neutralize — قرینهٔ گام ②
          entity_restore (kind → restored:<kind>). پیش از این خنثی‌سازی فقط محلی بود و
          سنگ‌قبر archive_purge روی سرور فعال می‌ماند؛ اولین push/pull با ردیفِ بدون تاریخ
          ساخت، پروندهٔ بازگردانده‌شده را دوباره می‌کشت («پیشنهاد بدون پرونده» + حذف کامل). */
@@ -2766,7 +2766,7 @@
     try { who = (curSession() || {}).name || ''; } catch (eW) {}
     var tl = (p.originTimeline || []).slice();
     tl.push({ t: faDateTime(), by: who, tx: '↩️ به جریان افتادن از بایگانی — پروندهٔ فروش دوباره فعال شد (رکورد بایگانی ' + String(arcNo) + ' حذف؛ نوع مختومه قبلی: ' + (p.closeKind === 'lost' ? 'بدون فاکتور — ' + (p.closeWhy || '-') : 'تسویه کامل') + ')' });
-    /* v34.39.20 (RESTORE-TOMBSTONE-REKILL — گزارش کارفرما: «بازگرداندم و در پرونده‌های فروش
+    /* v34.39.21 (RESTORE-TOMBSTONE-REKILL — گزارش کارفرما: «بازگرداندم و در پرونده‌های فروش
        دیده شد؛ بعد از مدتی پیشنهاد بدون پرونده بود و کلاً پرونده از داده‌ها پاک شده بود»):
        تاریخ ساختِ قابل‌اثبات (ISO — هم‌سان sd_now سرور) + فهرست پیشنهادها روی رکوردِ بازگشت.
        بدون createdAt، sync_tombstone_outranks_row هر ردیفِ بدون تاریخ را بازندهٔ هر سنگ‌قبرِ

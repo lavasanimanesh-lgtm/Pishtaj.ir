@@ -186,15 +186,19 @@
     cmpOpen(rec.id);
   };
 
-  /* ---------- جدول مقایسه ---------- */
-  window.cmpOpen = function (id, opts) {
+  /* ---------- جدول مقایسه ----------
+     v34.39.21 (UI-STABILITY R3 — ریشهٔ «فلش/پرش کل پنجره بعد از هر ثبت قیمت»):
+     قبلاً بعد از هر ثبت/حذف، همهٔ md-b های visible حذف و کل مودال مقایسه با
+     insertAdjacentHTML از نو ساخته می‌شد → نابودی و بازسازی گره مودال = پرش
+     اسکرول/ارتفاع و فلش کامل پنجره. حالا محتوای «همان» گره مودال درجا بازنویسی
+     می‌شود (cmpInnerHtml مشترک + cmpRefreshModal با حفظ scrollTop). */
+  window.cmpInnerHtml = function (id, locked) {
     var c = cmpAll().filter(function (x) { return x.id === id; })[0];
-    if (!c) return;
+    if (!c) return '';
     var won = isWonInq(c.inqNo);
     /* v17.2 (US-412 — کیس استادی R8): حالت قفل‌شده مسیر پرونده فروش —
        قیمت‌های استعلامی (دور۱/۲) فقط‌خواندنی؛ استعلام جدید فقط از سامانه استعلام تامین */
-    var locked = !!(opts && opts.realbuy);
-    window._cmpRealbuyMode = locked; /* برای cmpBuy: منبع قیمت + تسعیر الزامی */
+    locked = !!locked;
     // تامین‌کنندگانی که قیمت داده‌اند (ستون‌ها)
     var sups = [];
     (c.quotes || []).forEach(function (q) { if (sups.indexOf(q.sup) < 0) sups.push(q.sup); });
@@ -234,8 +238,7 @@
       return '<tr><td style="text-align:right;font-size:12px"><b>' + escP(it.nm) + '</b>' + qtySummary + '</td><td>' + (it.qty || 1) + ' ' + escP(it.un || '') + '</td>' + cells +
         '<td style="font-size:11.5px;color:#059669">' + (best !== null ? escP(bestSup) + '<br>' + fmtP(best) : '—') + '</td>' + puCell + '</tr>';
     }).join('');
-    var html = '<div class="md-b" id="cmpModal_' + escP(id) + '" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:960px;max-height:94vh;overflow:auto">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+    return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
       '<h3 style="margin:0">📊 مقایسه قیمت خرید — <span style="direction:ltr;display:inline-block">' + escP(c.inqNo) + '</span></h3>' +
       '<div data-noix style="width:100%;font-size:11.5px;color:#64748b;margin-top:2px">قیمت‌های دور۱/دور۲ = <b>استعلامی (کشف قیمت)</b> | ستون «خرید نهایی» = <b>خرید واقعی</b> که مبنای سود پروژه است (US-392)</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
@@ -250,8 +253,28 @@
       '</div></div>' +
       (won ? '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:10px;padding:6px 12px;font-size:12px;color:#047857;margin:8px 0">🏆 CO این درخواست برنده شده — می‌توانید از تامین‌کنندگان جدید هم قیمت دور ۲ بگیرید و بهترین را انتخاب کنید.</div>' : '') +
       '<div class="tb2" style="margin-top:8px"><table>' + head + rows + '</table></div>' +
-      '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="hideModal()">بستن</button></div></div></div>';
+      '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="hideModal()">بستن</button></div>';
+  };
+  window.cmpOpen = function (id, opts) {
+    var c = cmpAll().filter(function (x) { return x.id === id; })[0];
+    if (!c) return;
+    var locked = !!(opts && opts.realbuy);
+    window._cmpRealbuyMode = locked; /* برای cmpBuy: منبع قیمت + تسعیر الزامی */
+    var html = '<div class="md-b" id="cmpModal_' + escP(id) + '" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:960px;max-height:94vh;overflow:auto">' +
+      cmpInnerHtml(id, locked) + '</div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  /* بازنویسی درجای محتوای مودال مقایسه (بدون destroy/recreate گره مودال) —
+     false = مودال باز نیست → فراخوان باید fallback کند به cmpOpen. */
+  window.cmpRefreshModal = function (id) {
+    var b = document.getElementById('cmpModal_' + id);
+    if (!b) return false;
+    var md = b.querySelector ? b.querySelector('.md') : null;
+    if (!md) return false;
+    var sc = md.scrollTop;
+    md.innerHTML = cmpInnerHtml(id, window._cmpRealbuyMode);
+    try { md.scrollTop = sc; } catch (eSc) {}
+    return true;
   };
 
   /* ---------- ثبت قیمت (دور ۱ یا ۲) ---------- */
@@ -294,9 +317,11 @@
     cmpSave(list);
     audit('قیمت خرید', 'ثبت ' + added + ' قیمت دور ' + round + ' از ' + sup + ' برای ' + c.inqNo, id);
     btn.closest('.md-b').remove();
-    document.querySelectorAll('.md-b').forEach(function (m) { if ((m.style || {}).display !== 'none') m.remove(); }); /* v16.2 BUG-017: مینیمایزها محفوظ */
     renderBuyQuotes();
-    cmpOpen(id);
+    /* v34.39.21 (UI-STABILITY R3): فقط دیالوگ «ثبت قیمت» بسته شد (BUG-017 قبلاً همهٔ
+       md-b های visible را می‌کشت و کل مودال مقایسه destroy/recreate می‌شد → پرش/فلش).
+       حالا محتوای مودال مقایسه درجا refresh می‌شود. */
+    if (!cmpRefreshModal(id)) cmpOpen(id);
     if (typeof ptfToast === 'function') ptfToast('✅ ' + added + ' قیمت دور ' + round + ' ثبت شد', 'ok');
   };
 
@@ -699,9 +724,9 @@
     var dlg = document.getElementById('blkDlg'); if (dlg) dlg.remove();
     if (typeof ptfToast === 'function') ptfToast('🛒 ' + res.done + ' خرید ثبت شد' + (res.skipped ? ' — ' + res.skipped + ' ردیف ناقص رها شد' : ''), 'ok');
     var wasRealbuy = window._cmpRealbuyMode;
-    var oldCmp = document.getElementById('cmpModal_' + id); if (oldCmp) oldCmp.remove();
     renderBuyQuotes();
-    cmpOpen(id, wasRealbuy ? { realbuy: true } : undefined);
+    /* v34.39.21 (UI-STABILITY R3): refresh درجای ماتریس خرید با حفظ حالت قفل — نه destroy/recreate */
+    if (!cmpRefreshModal(id)) cmpOpen(id, wasRealbuy ? { realbuy: true } : undefined);
   };
 
   window.cmpPurchaseStockOpen = function (id, idx, purchaseCd) {
@@ -836,9 +861,10 @@
     if(failed){c.purchases=(c.purchases||[]).filter(function(p){return !newPurchases.some(function(n){return n.cd===p.cd;});}).concat(oldPurchases);linked.forEach(function(cd){if(typeof window.slVoidRealPurchaseFinance==='function')window.slVoidRealPurchaseFinance(cd,'بازگشت تقسیم خرید ناموفق');});cmpSave(list);alert('⛔ تقسیم خرید بازگردانده شد چون گردش تأمین‌کننده کامل ثبت نشد.');return;}
     oldPurchases.forEach(function(p){if(typeof window.slVoidRealPurchaseFinance==='function')window.slVoidRealPurchaseFinance(p.cd,'جایگزینی تقسیم خرید');});cmpSave(list); try { audit('قیمت خرید', 'تقسیم خرید قلم ' + (item.nm || '') + ' بین ' + st.rows.length + ' تامین‌کننده', c.inqNo); } catch (e) {}
     var dlg = document.getElementById('cmpSplitDlg'); if (dlg) dlg.remove();
-    var baseDlg = document.getElementById('cmpModal_' + c.id); if (baseDlg) baseDlg.remove();
     window._cmpSplitState = null;
-    cmpOpen(c.id, { realbuy: true });
+    window._cmpRealbuyMode = true; /* حفظ قرارداد قبلی: پس از تقسیم خرید، ماتریس در حالت خرید واقعی */
+    /* v34.39.21 (UI-STABILITY R3): refresh درجا به‌جای destroy/recreate مودال */
+    if (!cmpRefreshModal(c.id)) cmpOpen(c.id, { realbuy: true });
   };
 
   /* ---------- انتخاب تامین‌کننده خرید نهایی per آیتم ---------- */
@@ -976,9 +1002,9 @@
         audit('قیمت خرید', 'خرید واقعی آیتم «' + ((c2.items[idx] || {}).nm || '') + '» از ' + supName + ' — ' + fmtP(buyPrice) + ' ریال' + (priceFx ? ' (تسعیرشده)' : ''), c2.inqNo);
         notify({ toRoles: SENIOR_ROLES, title: '🛍 خرید واقعی: ' + ((c2.items[idx] || {}).nm || '') + ' از ' + supName + ' (' + fmtP(buyPrice) + ' ریال' + (priceFx ? ' — تسعیرشده' : '') + ')' + (v.dueISO ? ' — تعهد تحویل: ' + v.dueISO : ''), kind: 'buyq', channels: ['cart'], link: { panel: 'deals' } });
         var wasRealbuy = window._cmpRealbuyMode;
-        var oldCmp = document.getElementById('cmpModal_' + id); if (oldCmp) oldCmp.remove(); /* v18.6: فقط ماتریس خرید بازسازی می‌شود؛ پرونده فروش/استعلام تامین بسته نمی‌شود */
         renderBuyQuotes();
-        cmpOpen(id, wasRealbuy ? { realbuy: true } : undefined); /* v17.2: حالت قفل حفظ شود */
+        /* v34.39.21 (UI-STABILITY R3): refresh درجای ماتریس خرید با حفظ حالت قفل — نه destroy/recreate */
+        if (!cmpRefreshModal(id)) cmpOpen(id, wasRealbuy ? { realbuy: true } : undefined); /* v17.2: حالت قفل حفظ شود */
         if (wasRealbuy) {
           setTimeout(function () { if (confirm('رسید پرداخت این خرید واقعی را پیوست می‌کنید؟')) ptfRealBuyReceiptUpload(id, idx, pcd); }, 80);
           setTimeout(function () { if (confirm('هزینه مستقیم دیگری برای این پرونده ثبت می‌کنید؟ (حمل، گمرک، ترخیص، بازرسی و...)')) ptfProjectCostOpen(c2.inqNo); }, 180);

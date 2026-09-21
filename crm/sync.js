@@ -2832,7 +2832,7 @@
   window.ptfTombstoneOutranksRow = ptfTombstoneOutranksRow;
   window.ptfApplyDeletionTombstones = function (key, jsonStr, extraArchiveStr) {
     if (key === 'ptf_crm_deleted_archive') {
-      /* v34.39.20 (RESTORE-TOMBSTONE-REKILL — قرینهٔ v34.37.0 ③): alias-strip فقط برای
+      /* v34.39.21 (RESTORE-TOMBSTONE-REKILL — قرینهٔ v34.37.0 ③): alias-strip فقط برای
          «پاک‌سازی گراف کل پروژه» (archive_purge بدون collection)؛ خودِ سنگ‌قبرها + ردیف‌های
          restored: + recycle هرگز قربانی strpos زیررشته‌ای نمی‌شوند — سوختن خنثی‌سازیِ
          بازگشت/سطل بازیافت در push، ریشهٔ «پرونده پس از به جریان افتادن، بعد از مدتی

@@ -21,8 +21,8 @@ var discover = read('assets/js/ptf-discover.js');
 var version = JSON.parse(read('VERSION.json'));
 
 console.log('\n── نسخه و کش ──');
-T('نسخه عمومی v34.39.14 و نسخه CRM بدون تغییر v34.39.20 است',
-  version.site_public_version === 'v34.39.14' && version.crm_version === 'v34.39.20');
+T('نسخه عمومی v34.39.14 و نسخه CRM بدون تغییر v34.39.21 است',
+  version.site_public_version === 'v34.39.14' && version.crm_version === 'v34.39.21');
 T('هر چهار دارایی تغییرکرده cache-bust یکسان v34.39.14 دارند',
   /home\.css\?v=34\.39\.14/.test(idx) &&
   /home-enhancements\.css\?v=34\.39\.14/.test(idx) &&

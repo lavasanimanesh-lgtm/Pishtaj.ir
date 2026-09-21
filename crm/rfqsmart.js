@@ -558,11 +558,17 @@
     rfqsRenderAccordion(no);
   };
 
-  /* v14.3 (US-373): blur فیلد → رندر رنگ‌بندی (فوکوس دیگر داخل جدول نیست) */
+  /* v14.3 (US-373): blur فیلد → رندر رنگ‌بندی (فوکوس دیگر داخل جدول نیست)
+     v34.39.21 (UI-STABILITY R4): نگهبان قبلی فقط فیلدهای data-rqsprice را می‌شناخت؛
+     رفتن از «قیمت» به «تحویل (روز)» یا هر کنترل دیگرِ همین آکاردئون → ۱۲۰ms بعد
+     کل آکاردئون بازسازی می‌شد و وسط تایپ، DOM زیر پای کاربر عوض می‌شد (پرش/از‌دست
+     رفتن ورودی). حالا تا وقتی فوکوس داخل همان آکاردئون است رندر مجدد انجام نمی‌شود. */
   window.rfqsPriceBlur = function(no) {
     setTimeout(function () {
       var ae = document.activeElement;
-      if (ae && ae.getAttribute && ae.getAttribute('data-rqsprice') === no) return; /* هنوز در جدول است */
+      if (ae && ae.getAttribute && ae.getAttribute('data-rqsprice') === no) return; /* هنوز در جدول قیمت است */
+      var acc = document.getElementById('rfqAcc_' + no);
+      if (acc && ae && ae !== document.body && acc.contains && acc.contains(ae)) return; /* هنوز داخل همین آکاردئون */
       rfqsRenderAccordion(no);
     }, 120);
   };

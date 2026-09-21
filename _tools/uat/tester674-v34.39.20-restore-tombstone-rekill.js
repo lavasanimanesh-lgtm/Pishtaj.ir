@@ -1,6 +1,6 @@
 'use strict';
 /* ─────────────────────────────────────────────────────────────────────────────
-   tester674 — v34.39.20 (RESTORE-TOMBSTONE-REKILL)
+   tester674 — v34.39.21 (RESTORE-TOMBSTONE-REKILL)
 
    گزارش کارفرما: «پرونده‌ای را بایگانی کردم؛ بعداً به جریان انداختم و پرونده به
    پرونده‌های فروش منتقل شد. اما پس از مدتی پیشنهاد آن پرونده به‌عنوان «پیشنهاد
@@ -112,7 +112,7 @@ var BASE = function (p) { return path.resolve(__dirname, '../../crm', p); };
 
 /* ── پورت وفادار لایهٔ سرور (api/crm.php sync_apply_tombstones + entity_*) ──
    قواعد kill (تاریخ‌نگاری/identities) عین فایل است؛ فیلتر alias آرشیو حذف به قرارداد
-   v34.39.20 (قرینهٔ v34.37.0 ③) برگردانده شده و با grep های S7/S8 روی هر دو فایل پین است. */
+   v34.39.21 (قرینهٔ v34.37.0 ③) برگردانده شده و با grep های S7/S8 روی هر دو فایل پین است. */
 function portTombstoneEpoch(d) {
   if (!d || typeof d !== 'object') return 0;
   var fields = ['deletedAt', 'purgedAt', 'iso', 'at', 'ts'];
@@ -160,7 +160,7 @@ function portApplyTombstones(key, json, serverArchiveJson, incomingArchiveJson) 
   serverArchiveJson = serverArchiveJson || '[]';
   incomingArchiveJson = incomingArchiveJson || '[]';
   if (key === 'ptf_crm_deleted_archive') {
-    /* v34.39.20: alias-strip فقط برای پاک‌سازی گراف (archive_purge بدون collection)؛
+    /* v34.39.21: alias-strip فقط برای پاک‌سازی گراف (archive_purge بدون collection)؛
        خود سنگ‌قبرها + restored: + recycle هرگز سوخته نمی‌شوند. */
     var gAliases = {};
     portDecodeArchive(serverArchiveJson).concat(portDecodeArchive(incomingArchiveJson)).forEach(function (d) {
@@ -581,14 +581,14 @@ setTimeout(function () {
       JSON.parse(portApplyTombstones('ptf_crm_deals', rowNoDate, tombNow, '[]')).length === 0);
 
     console.log('\n── پین‌های انتشار ──');
-    test('P1: نسخهٔ انتشار v34.39.20 است', version === 'v34.39.20', version);
+    test('P1: نسخهٔ انتشار v34.39.21 است', version === 'v34.39.21', version);
     test('P2: Service Worker / index.html بامپ شده‌اند',
-      sw.indexOf('v34.39.20') > -1 && indexHtml.indexOf("PTF_CRM_RELEASE = 'v34.39.20'") > -1);
+      sw.indexOf('v34.39.21') > -1 && indexHtml.indexOf("PTF_CRM_RELEASE = 'v34.39.21'") > -1);
     test('P3: تستر در گیت CI ثبت است', gate.indexOf('tester674-v34.39.20-restore-tombstone-rekill.js') > -1);
-    test('P4: پین tester621 به نسخهٔ جدید به‌روز شده', tester621Src.indexOf("'v34.39.20'") > -1 && tester621Src.indexOf('v34.39.20') > -1);
+    test('P4: پین tester621 به نسخهٔ جدید به‌روز شده', tester621Src.indexOf("'v34.39.21'") > -1 && tester621Src.indexOf('v34.39.21') > -1);
 
     console.log('');
     if (failures) { console.log('=== tester674: ' + failures + ' FAIL ==='); process.exit(1); }
-    console.log('PASS tester674-v34.39.20-restore-tombstone-rekill');
+    console.log('PASS tester674-v34.39.21-restore-tombstone-rekill');
   }, 30);
 }, 30);

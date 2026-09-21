@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester667 — v34.39.20 (HOME-ICONMIN)
+   tester667 — v34.39.21 (HOME-ICONMIN)
    گزارش کارفرما:
      «جستجو از منو حذف شود؛ در موبایل کادر دور کلید شب/روز حذف و فقط آیکون شود؛
      انتخابِ دستیِ روز در شب بعد از چند ثانیه به شب برمی‌گشت (باگ)؛ تماس/واتس‌اپ
@@ -34,7 +34,7 @@ SECTION('۰. لایه');
 T('۰.۱ لایهٔ HOME-ICONMIN پس از ۳۹.۴ است', i0 > -1 && i0 > home.indexOf('v34.39.4 — HOME-ACCORD-NIGHTMEGA'));
 
 SECTION('① حذف جستجو از شیت');
-T('۱.۱ مخفیِ سراسریِ .nav-search (v34.39.20 هدر دسکتاپ هم پوشش داده شد)',
+T('۱.۱ مخفیِ سراسریِ .nav-search (v34.39.21 هدر دسکتاپ هم پوشش داده شد)',
   /\.nav-search\{display:none!important\}/.test(home));
 T('۱.۲ DOM/تزریق‌کننده دست‌نخورده (پیمایش دسکتاپِ جستجو باقی است)',
   read('assets/js/ptf-discover.js').indexOf('a.className = "nav-search"') > -1 &&
@@ -93,8 +93,8 @@ T('۵.۵ نگهبان بی‌تغییری: h1/canonical/۱۰‌بخش/صفر CDN
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   !/<(script|link)[^>]+src="https?:/.test(idx));
-T('۵.۶ VERSION.json = v34.39.20', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.20');
+T('۵.۶ VERSION.json = v34.39.21', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.21');
 
-DONE('tester667-v34.39.20-iconmin');
+DONE('tester667-v34.39.21-iconmin');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

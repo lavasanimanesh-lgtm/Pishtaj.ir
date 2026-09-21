@@ -1038,7 +1038,7 @@ function sync_tombstone_mark(array &$ids, $id, $epoch) {
 }
 function sync_apply_tombstones($key, $json, $serverArchiveJson = '', $incomingArchiveJson = '') {
     if ($key === 'ptf_crm_deleted_archive') {
-        /* v34.39.20 (RESTORE-TOMBSTONE-REKILL — هم‌راستا با قرارداد v34.37.0 ③): alias-strip
+        /* v34.39.21 (RESTORE-TOMBSTONE-REKILL — هم‌راستا با قرارداد v34.37.0 ③): alias-strip
            فقط برای «پاک‌سازی گراف کل پروژه» (archive_purge بدون collection)؛ خودِ سنگ‌قبرها +
            ردیف‌های restored: + recycle هرگز قربانی strpos زیررشته‌ای نمی‌شوند. پیش از این
            alias سنگ‌قبرهای تک‌رکوردی (entity_delete بایگانی) هم جمع می‌شد و ردیف‌های
