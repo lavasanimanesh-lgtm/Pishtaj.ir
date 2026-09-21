@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.11';
+const SD_SERVICE_VERSION = '34.39.19';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -455,7 +455,12 @@ function sd_preserve_rfq_assignee(array $row, array $prev, array &$stats = null)
     $clear = !empty($row['_clearAssignee']);
     if (array_key_exists('_clearAssignee', $row)) unset($row['_clearAssignee']);
     if ($clear) {
-        unset($row['assignee'], $row['assigneeAtISO']);
+        /* v34.39.19-fix (ASSIGNEE-CLEAR-NULLED): null به‌جای unset — merge CARTABLE-LOOP
+           «کلید غایب = حفظ prev» است و با unset، assignee پاک‌شده بلافاصله از $prev
+           زنده می‌شد (پاک‌سازیِ صریح بی‌اثر). null کلید حاضر نگه می‌دارد ⇒ merge رد می‌کند
+           و رکورد با assignee خالی ذخیره می‌شود (کلاینت null = بدون مسئول). */
+        $row['assignee'] = null;
+        $row['assigneeAtISO'] = null;
         if (is_array($stats)) { $stats['assigneeCleared'] = true; }
         return $row;
     }
