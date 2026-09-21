@@ -175,6 +175,33 @@
         });
       } catch (e) {}
     }
+    /* v34.39.16 (REALBUY-FINANCE-GAP): خرید واقعی بدون لینک به حساب تأمین —
+       همان ریشهٔ «خرید ثبت شد ولی در تراز/سود نیست». فقط افشا؛ ترمیم از slRepair. */
+    try {
+      var gapFn = window.ptfRealBuyFinanceGap || null;
+      var gap = gapFn ? gapFn() : null;
+      if (gap && gap.unlinked > 0) {
+        (gap.items || []).forEach(function (it) {
+          add(q, 'realbuy-finance-unlinked',
+            'خرید واقعی بدون ثبت در حساب تأمین‌کننده (از تراز/COGS غایب)',
+            (it.inqNo || '') + ' / ' + (it.purchaseCd || ''),
+            it.amount,
+            {
+              type: 'realbuy-finance',
+              inqNo: it.inqNo || '',
+              purchaseCd: it.purchaseCd || '',
+              cmpId: it.cmpId || '',
+              label: 'درخواست ' + (it.inqNo || '—') + ' — ' + (it.item || it.purchaseCd || 'خرید') +
+                (it.sup ? ' — ' + it.sup : '') +
+                (it.pay === 'credit' ? ' (اعتباری)' : ' (نقدی)') +
+                (!it.supplierCd ? ' ⚠ بدون تأمین‌کننده یکتا' : ''),
+              amount: it.amount,
+              orphan: !it.supplierCd
+            });
+        });
+      }
+    } catch (eRbGap) {}
+
     /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
        فاکتور فروش رسمی مبنی بر پیش‌فاکتور ارزی که مبلغ ریالی‌اش با معادل
        واقعی (ارز خام × نرخ تسعیر مرجع) به‌شدت مغایرت دارد — نشانه‌ی
@@ -206,7 +233,14 @@
       var action = '';
       if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpexEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح هزینه</button>';
       else if ((d.type === 'supplier-invoice' || d.type === 'supplier-amount') && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح فاکتور خرید</button>' + (d.type === 'supplier-amount' && typeof slAckLinkFromQuality === 'function' ? ' <button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px;color:#7c3aed" onclick="slAckLinkFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">برداشتن اخطار</button>' : '');
-      else if (d.type === 'cheque' && typeof window.ptfChequeEditFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfChequeEditFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح چک</button>';
+      else if (d.type === 'realbuy-finance') {
+        action = (typeof window.slRepairRealPurchaseLedger === 'function' || typeof window.slRepairCashPurchaseLedger === 'function')
+          ? '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px;background:#fff7ed;border-color:#fdba74;color:#9a3412" onclick="(window.slRepairRealPurchaseLedger||window.slRepairCashPurchaseLedger)({inqNo:\'' + ptfOnClickArg(d.inqNo || '') + '\'});if(typeof ptfDataQualityRender===\'function\')ptfDataQualityRender();">🔧 ترمیم گردش این درخواست</button>'
+          : '';
+        if (typeof window.ptfRealBuyOpen === 'function' && d.inqNo) {
+          action += ' <button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfRealBuyOpen(\'' + ptfOnClickArg(d.inqNo) + '\')">🛍 باز کردن خرید</button>';
+        }
+      } else if (d.type === 'cheque' && typeof window.ptfChequeEditFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfChequeEditFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح چک</button>';
       else if (d.type === 'treasury' && typeof window.ptfTreasuryOpenFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfTreasuryOpenFromQuality(\'' + ptfOnClickArg(d.kind || 'crm') + '\',\'' + ptfOnClickArg(d.cd) + '\')">🏦 باز کردن همین ردیف در خزانه</button>';
       else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpenProcurementLinkAudit(\'' + ptfOnClickArg(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور و اقلام</button>';
       else if (d.type === 'salary-gap' && typeof window.finHubSet === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="finHubSet(\'share\')">👥 باز کردن تب سهامداران</button>';
@@ -251,7 +285,23 @@
       (typeof window.ptfArReconcileOpen === 'function' ? '<button type="button" class="bt bt-o quality-action quality-ar" title="تسویهٔ مطالبات، حساب مشتری و پرونده" aria-label="تسویهٔ مطالبات" onclick="ptfArReconcileOpen()"><span class="quality-action-icon">🧮</span><span class="quality-action-label">تسویهٔ مطالبات</span></button>' : '') +
       '<button type="button" class="bt bt-o quality-action quality-history" title="تاریخچهٔ ادغام کالا" aria-label="تاریخچهٔ ادغام کالا" onclick="ptfCatalogMergeHistory()"><span class="quality-action-icon">' + qualityIcon('history') + '</span><span class="quality-action-label">تاریخچهٔ ادغام</span></button>' +
       '</div>';
-    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div class="quality-head" style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div class="quality-copy"><h4 class="quality-title" style="margin:0"><span class="quality-title-icon">' + qualityIcon('quality') + '</span>کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div>' + qualityActions + '</div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
+    /* KPI فاصلهٔ لینک مالی خرید واقعی */
+    var gapStrip = '';
+    try {
+      var gK = (typeof window.ptfRealBuyFinanceGap === 'function') ? window.ptfRealBuyFinanceGap() : null;
+      if (gK && gK.total > 0) {
+        var gOk = !(gK.unlinked > 0);
+        var gBg = gOk ? '#ecfdf5;border:1px solid #bbf7d0;color:#065f46' : '#fff7ed;border:1px solid #fed7aa;color:#9a3412';
+        var gBtn = (!gOk && (typeof window.slRepairRealPurchaseLedger === 'function' || typeof window.slRepairCashPurchaseLedger === 'function'))
+          ? ' <button type="button" class="bt bt-o" style="font-size:11px;padding:3px 8px;margin-right:6px" onclick="(window.slRepairRealPurchaseLedger||window.slRepairCashPurchaseLedger)({});if(typeof ptfDataQualityRender===\'function\')ptfDataQualityRender();">🔧 ترمیم امن همه</button>'
+          : '';
+        gapStrip = '<div style="margin:8px 0;background:' + gBg + ';border-radius:10px;padding:8px 11px;font-size:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">' +
+          '<span><b>🛒 پوشش لینک مالی خرید واقعی:</b> ' + gK.linked + '/' + gK.total + ' (' + gK.coveragePct + '٪)' +
+          (gOk ? ' — همه در حساب تأمین' : ' — ⚠ ' + gK.unlinked + ' بدون گردش (' + (+gK.unlinkedAmount || 0).toLocaleString('fa-IR') + ' ریال) در ' + gK.inqCount + ' درخواست' + (gK.orphanSup ? '؛ ' + gK.orphanSup + ' بدون تأمین‌کننده یکتا' : '')) +
+          '</span>' + gBtn + '</div>';
+      }
+    } catch (eGs) {}
+    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div class="quality-head" style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div class="quality-copy"><h4 class="quality-title" style="margin:0"><span class="quality-title-icon">' + qualityIcon('quality') + '</span>کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div>' + qualityActions + '</div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div>' + gapStrip + '<div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
   };
   window.ptfDataQualityRender = function () { var el = document.getElementById('qualityBox'); if (el) { var html = window.ptfDataQualityHtml(); var tmp = document.createElement('div'); tmp.innerHTML = html; var next = tmp.firstElementChild; el.replaceWith(next); } };
 

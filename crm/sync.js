@@ -3050,6 +3050,40 @@
       return canonicalOffer;
     }
     var out = ptfMergeAttachmentFields(ptfMergePlainObject(winner, loser), winner, loser);
+    /* v34.39.19 (RFQ-ASSIGNEE-MERGE): ارجاع روی assignee/atISO مهر می‌خورد.
+       merge عمومی با completeness ممکن است نسخهٔ بدون-assignee (کامل‌تر در فیلدهای
+       دیگر) را برنده کند و مسئول را پاک کند. نسخهٔ تازه‌تر assignee برنده است. */
+    if (key === 'ptf_crm_rfqs') {
+      function asgTs(r) {
+        r = r || {};
+        var a = r.assignee;
+        return String((a && (a.atISO || a.t)) || r.assigneeAtISO || '') || '';
+      }
+      function asgOk(r) {
+        var a = r && r.assignee;
+        if (!a) return false;
+        if (typeof a === 'string') return !!String(a).trim();
+        return !!(a.user || a.name || a.nm);
+      }
+      var aOk = asgOk(a), bOk = asgOk(b);
+      if (aOk || bOk) {
+        var pick = null;
+        if (aOk && !bOk) pick = a;
+        else if (bOk && !aOk) pick = b;
+        else {
+          var ta = asgTs(a), tb = asgTs(b);
+          if (ta && tb) pick = (tb >= ta) ? b : a;
+          else if (tb && !ta) pick = b;
+          else if (ta && !tb) pick = a;
+          else pick = asgOk(winner) ? winner : (aOk ? a : b);
+        }
+        if (pick && pick.assignee) {
+          out.assignee = pick.assignee;
+          if (pick.assigneeAtISO) out.assigneeAtISO = pick.assigneeAtISO;
+          else if (pick.assignee && pick.assignee.atISO) out.assigneeAtISO = pick.assignee.atISO;
+        }
+      }
+    }
     /* v34.29.8 (COST-EVENT-TOMB — گزارش کارفرما: «هزینه‌های مستقیم پرونده چندباره محاسبه
        می‌شوند و با حذف برمی‌گردند؛ هزینهٔ تنخواهِ پروندهٔ دیگر هم در این پرونده است»):
        costEvents تا حالا با ptfMergeArrayUnique (امضای کامل-JSON) اجتماع می‌شد —
@@ -3551,9 +3585,28 @@
           map[item[idF]] = item;
         } else {
           // Exists in both, pick the one with newer timestamp if available, else local
-          var lTs = item.iso || item.ts || item.t || item.date || '';
-          var rTs = map[item[idF]].iso || map[item[idF]].ts || map[item[idF]].t || map[item[idF]].date || '';
-          if (lTs > rTs) map[item[idF]] = item;
+          /* v34.39.12 (CONTACT-STALE-PARTIAL-WIPE): مشتریان/تامین‌کنندگان historically
+             iso/ts/t/date ندارند (updatedAtISO سرور + crAtISO کلاینت). مقایسهٔ قبلی
+             هر دو را خالی می‌دید و همیشه remote برنده می‌شد → ویرایش محلیِ dirty
+             در pull/conflict بی‌صدا دور ریخته می‌شد. حالا updatedAtISO/updatedAt/
+             crAtISO هم در مقایسه هستند؛ و برای cust/sup اگر تماس‌ها اختلاف دارند
+             اتحاد سطح-تماس اعمال می‌شود (نه LWW کور). */
+          var lTs = item.updatedAtISO || item.updatedAt || item.iso || item.ts || item.t || item.date || item.crAtISO || item.crAt || '';
+          var rTs = map[item[idF]].updatedAtISO || map[item[idF]].updatedAt || map[item[idF]].iso || map[item[idF]].ts || map[item[idF]].t || map[item[idF]].date || map[item[idF]].crAtISO || map[item[idF]].crAt || '';
+          var remoteRec = map[item[idF]];
+          var pickLocal = (lTs && rTs) ? (String(lTs) > String(rTs)) : (lTs && !rTs);
+          var winner = pickLocal ? item : remoteRec;
+          if ((key === 'ptf_crm_customers' || key === 'ptf_crm_suppliers') &&
+              typeof window.ptfMergeCustContactsFromLive === 'function') {
+            try {
+              /* اتحاد دوطرفهٔ تماس: برندهٔ فیلدهای غیرتماسی = timestamp؛ تماس = union */
+              var baseWin = JSON.parse(JSON.stringify(winner));
+              var other = pickLocal ? remoteRec : item;
+              window.ptfMergeCustContactsFromLive(baseWin, other);
+              winner = baseWin;
+            } catch (eM) {}
+          }
+          map[item[idF]] = winner;
         }
       });
       

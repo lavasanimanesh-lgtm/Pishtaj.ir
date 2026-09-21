@@ -1286,6 +1286,32 @@
       }
     } catch (e) {}
     var rb = (typeof ptfRealBuyStatus === 'function') ? ptfRealBuyStatus(r.inqNo) : { total: 0, done: 0, has: false };
+    /* v34.39.15 (REALBUY-FINANCE-BADGE): وضعیت لینک مالی خرید — فقط نمایش؛
+       ریشهٔ «خرید ثبت شد ولی در تراز نیست» را روی نوار پرونده شفاف می‌کند. */
+    var rf = { total: 0, linked: 0, unlinked: 0, unlinkedAmount: 0 };
+    try { if (typeof window.ptfRealBuyFinanceStatus === 'function' && r.inqNo) rf = window.ptfRealBuyFinanceStatus(r.inqNo) || rf; } catch (eRf) {}
+    var buyBadge;
+    if (!rb.has) {
+      buyBadge = '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534">🛒 خرید واقعی: <b>هنوز شروع نشده</b></span>';
+    } else {
+      var qtyTxt = (rb.full || 0) + ' / ' + rb.total + ' قلم کامل' + (rb.partial ? ' — ' + rb.partial + ' قلم ناقص' : '');
+      var finTxt = '';
+      var finStyle = 'background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534';
+      if (rf.total > 0) {
+        if (rf.unlinked > 0) {
+          finStyle = 'background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:4px 8px;color:#9a3412';
+          finTxt = ' | ⚠ ' + rf.linked + '/' + rf.total + ' لینک مالی — ' + rf.unlinked + ' بدون گردش (' + (+rf.unlinkedAmount || 0).toLocaleString('fa-IR') + ' ریال)';
+        } else {
+          finTxt = ' | ✅ ' + rf.linked + '/' + rf.total + ' لینک به حساب تأمین';
+        }
+      }
+      buyBadge = '<span style="' + finStyle + '">🛒 خرید واقعی: <b>' + qtyTxt + finTxt + '</b></span>';
+      /* دکمهٔ ترمیم یک‌کلیکی فقط وقتی خرید بدون لینک وجود دارد */
+      if (rf.unlinked > 0 && typeof window.slRepairCashPurchaseLedger === 'function') {
+        var inqArg = (typeof ptfOnClickArg === 'function') ? ptfOnClickArg(r.inqNo || '') : String(r.inqNo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        buyBadge += '<button type="button" class="bt bt-o" style="font-size:11px;padding:3px 8px;background:#fff7ed;border-color:#fdba74;color:#9a3412" title="ثبت خریدهای بدون لینک در حساب تأمین‌کننده" onclick="event.stopPropagation();if(typeof slRepairCashPurchaseLedger===\'function\'){slRepairCashPurchaseLedger({inqNo:\'' + inqArg + '\'});}if(typeof renderDeals===\'function\')renderDeals();">🔧 ترمیم گردش</button>';
+      }
+    }
     var costSum = (typeof window.ptfDealCostSumIRR === 'function')
       ? window.ptfDealCostSumIRR(r)
       : (function (evs) {
@@ -1309,7 +1335,7 @@
     return '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin:8px 0 10px;font-size:12px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
       '<span style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:4px 8px;color:' + advState + '">💰 دریافت قطعی مشتری: <b>' + escP(advTxt) + '</b></span>' +
-      '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534">🛒 خرید واقعی: <b>' + (rb.has ? ((rb.full || 0) + ' / ' + rb.total + ' قلم کامل' + (rb.partial ? ' — ' + rb.partial + ' قلم ناقص' : '')) : 'هنوز شروع نشده') + '</b></span>' +
+      buyBadge +
       '<span style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;color:#92400e">➕ هزینه‌های مستقیم: <b>' + costSum.toLocaleString('fa-IR') + ' ریال</b></span>' +
       '<span style="background:#fff;border:1px solid #e9d5ff;border-radius:8px;padding:4px 8px;color:#6d28d9">🧾 فاکتورها: <b>' + invCount + '</b>' + (openAmt > 0 ? ' | باز: ' + openAmt.toLocaleString('fa-IR') + ' ریال' : ' | تسویه: کامل') + '</span>' +
       '<span style="background:' + (ready ? '#ecfdf5;color:#166534;border:1px solid #86efac' : '#fff7ed;color:#9a3412;border:1px solid #fdba74') + ';border-radius:8px;padding:4px 8px">🏁 آمادگی بایگانی: <b>' + (ready ? 'آماده' : 'نیازمند بررسی') + '</b></span>' +
@@ -1927,9 +1953,28 @@
         else if (!rb.has) out.warns.push({ id: 'realbuy-none', lb: '🛒 هنوز هیچ خرید واقعی برای این پرونده ثبت نشده است.' });
       }
     } catch (eRB) {}
+    /* ③-ب v34.39.14 (REALBUY-FINANCE-LINK): خرید واقعی بدون گردش تأمین = ازقلم‌افتادن
+       از تراز/سود. قبل از بایگانی باید لینک مالی برقرار باشد (ترمیم خودکار یا دستی).
+       بدهی باز تأمین (UR-12) همچنان مانع بایگانی نیست — فقط «بدون سند مالی» مانع است. */
+    try {
+      if (r.inqNo && typeof window.ptfRealBuyFinanceStatus === 'function') {
+        var rf = window.ptfRealBuyFinanceStatus(r.inqNo);
+        out.realBuyFinance = rf;
+        if (rf.unlinked > 0) {
+          var amtTxt = (rf.unlinkedAmount || 0).toLocaleString('fa-IR');
+          var ovrF = r.closeOverride || {};
+          if (ovrF.realbuyFinanceConfirmed) {
+            out.warns.push({ id: 'realbuy-finance-override', lb: '🧾 ' + rf.unlinked + ' خرید واقعی بدون گردش (جمع ' + amtTxt + ' ریال) با تأیید صریح ' + (ovrF.by || '') + (ovrF.reason ? ' — ' + ovrF.reason : '') + ' — از محاسبات مالی غایب می‌ماند' });
+          } else {
+            out.blockers.push({ id: 'realbuy-finance', lb: '🧾 ' + rf.unlinked + ' خرید واقعی بدون ثبت در حساب تأمین‌کننده (جمع ' + amtTxt + ' ریال' + (rf.orphanSup ? ' — ' + rf.orphanSup + ' بدون تأمین‌کننده یکتا' : '') + ') — ابتدا «ترمیم گردش خرید» را بزنید یا فاکتور تأمین ثبت کنید؛ بدون این کار هزینه از تراز/سود می‌افتد. در صورت اصرار، تأیید صریح با ذکر دلیل لازم است.' });
+          }
+        }
+      }
+    } catch (eRF) {}
     /* ④ (UR-12): بدهی باز تامین‌کنندگان پرونده — طبق تصمیم کارفرما «بستن پرونده فروش لزوماً به معنای
        بستن حساب تامین‌کنندگان آن درخواست نیست» → حساب تامین‌کننده از مختومهٔ پرونده مستقل است و
-       هیچ اثری در کنترل مختومه ندارد (نه blocker و نه هشدار). پیگیری بدهی در پنل تامین‌کنندگان انجام می‌شود. */
+       هیچ اثری در کنترل مختومه ندارد (نه blocker و نه هشدار). پیگیری بدهی در پنل تامین‌کنندگان انجام می‌شود.
+       توجه v34.39.14: این بند دربارهٔ بدهی *باز* است، نه دربارهٔ خرید *بدون سند* (آن blocker است). */
     /* ⑤ QC عدم انطباق بدون رویداد زیان/رفع بعدی */
     try {
       var ncs = (r.qcEvents || []).filter(function (q) { return q.conf === 'nonconform'; });
@@ -2154,11 +2199,35 @@
         '<label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsGuar" onchange="sfClsCheckGo()"> استرداد ضمانت پس از مختومه پیگیری می‌شود (با مسئولیت ثبت‌کننده)</label>' +
         '<input id="sfClsGuarReason" type="text" placeholder="دلیل/توضیح (اختیاری)" style="width:100%;margin-top:6px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px"></div>';
     }
+    /* v34.39.14: خرید واقعی بدون گردش مالی — ترمیم یک‌کلیکی + تأیید صریح */
+    var financeOvr = '';
+    if (au.blockers.some(function (b) { return b.id === 'realbuy-finance'; })) {
+      var rf0 = au.realBuyFinance || {};
+      financeOvr = '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 11px;margin-bottom:8px">' +
+        '<div style="font-size:12px;color:#9a3412;margin-bottom:6px">🧾 ' + (rf0.unlinked || 0) + ' خرید بدون گردش (جمع ' + (+(rf0.unlinkedAmount || 0)).toLocaleString('fa-IR') + ' ریال). بدون ثبت در حساب تأمین، از تراز و سود غایب می‌ماند.</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
+        '<button type="button" class="bt" style="font-size:12px;background:#b45309" onclick="sfClsRepairRealBuyFinance(\'' + (typeof ptfOnClickArg === 'function' ? ptfOnClickArg(r.inqNo || '') : String(r.inqNo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")) + '\',\'' + (typeof ptfOnClickArg === 'function' ? ptfOnClickArg(cd) : String(cd).replace(/'/g, "\\'")) + '\')">🔧 ترمیم گردش خرید</button>' +
+        '</div>' +
+        '<label style="display:flex;gap:7px;align-items:flex-start;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsFin" onchange="sfClsCheckGo()" style="margin-top:3px"> می‌دانم این خریدها بدون سند مالی بایگانی می‌شوند و از محاسبات مالی غایب می‌مانند (با مسئولیت ثبت‌کننده)</label>' +
+        '<input id="sfClsFinReason" type="text" placeholder="دلیل اجباری برای عبور بدون ترمیم" style="width:100%;margin-top:6px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px"></div>';
+    }
+    window.sfClsRepairRealBuyFinance = function (inqNo, dealCd) {
+      if (typeof window.slRepairCashPurchaseLedger !== 'function') { alert('ماژول حساب تأمین بارگذاری نشده — صفحه را تازه کنید.'); return; }
+      var res = window.slRepairCashPurchaseLedger({ inqNo: inqNo });
+      /* مودال را از نو باز کن تا blockerها تازه شوند */
+      try {
+        var dlg = document.getElementById('sfClsDlg'); if (dlg) dlg.remove();
+      } catch (e) {}
+      if (typeof sfCloseModal === 'function') sfCloseModal(dealCd);
+      else if (typeof window.sfClose === 'function') window.sfClose(dealCd);
+    };
     window.sfClsCheckGo = function () {
       var go = document.getElementById('sfClsGoBtn'); if (!go) return;
       var delivOk = !document.getElementById('sfClsDeliv') || document.getElementById('sfClsDeliv').checked;
       var guarOk = !document.getElementById('sfClsGuar') || document.getElementById('sfClsGuar').checked;
-      go.disabled = !(delivOk && guarOk);
+      var finEl = document.getElementById('sfClsFin');
+      var finOk = !finEl || finEl.checked;
+      go.disabled = !(delivOk && guarOk && finOk);
     };
     var settleChk = au.openInvs.length
       ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsSettle" checked> مانده ' + au.remainSum.toLocaleString('fa-IR') + ' ریال مطالبات «تسویه‌شده» ثبت شود — بدون تیک: مطالبات باز می‌ماند</label><textarea id="sfClsSettleReason" rows="2" style="width:100%;margin-top:7px" placeholder="دلیل تسویه خودکار را وارد کنید — اجباری"></textarea></div>'
@@ -2167,7 +2236,7 @@
       '<h3>🏁 کنترل پیش از مختومه — ' + escP(r.inqNo || cd) + '</h3>' +
       '<div style="font-size:12px;color:#475569;margin-bottom:8px">US-437: مختومه فقط پس از <b>تحویل موفق</b> و <b>تسویه کامل</b> — همه اسناد پیش از بایگانی کنترل می‌شوند و کل پرونده (سند برد، QC، ارسال، هزینه‌ها، زیان‌ها) به بایگانی منتقل می‌شود.</div>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:9px 12px;font-size:12.5px;margin-bottom:8px"><b>🧭 مرحله فعلی: ' + escP(typeof sfStageLabel === 'function' ? sfStageLabel(r) : '') + '</b> (' + au.stage + '/12)' + docsHtml + '</div>' +
-      blocksHtml + warnsHtml + deliveryOvr + guarOvr + settleChk +
+      blocksHtml + warnsHtml + deliveryOvr + guarOvr + financeOvr + settleChk +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
       (canClose
@@ -2213,6 +2282,24 @@
         rrG.closeOverride.t = faDateTime();
         sfSave(listG);
         r = rrG;
+      }
+    }
+    /* v34.39.14: تأیید صریح عبور از خرید بدون گردش مالی */
+    var finChk = document.getElementById('sfClsFin');
+    if (finChk && finChk.checked) {
+      var finReason = ((document.getElementById('sfClsFinReason') || {}).value || '').trim();
+      if (!finReason) { alert('⛔ برای عبور بدون ترمیم گردش خرید، ذکر دلیل الزامی است.'); return; }
+      var listF = sfAll(); var rrF = listF.filter(function (x) { return x.cd === cd; })[0];
+      if (rrF) {
+        rrF.closeOverride = rrF.closeOverride || {};
+        rrF.closeOverride.realbuyFinanceConfirmed = true;
+        rrF.closeOverride.realbuyFinanceReason = finReason;
+        rrF.closeOverride.reason = rrF.closeOverride.reason || finReason;
+        rrF.closeOverride.by = curSession().name;
+        rrF.closeOverride.t = faDateTime();
+        sfSave(listF);
+        r = rrF;
+        try { audit('پرونده‌های فروش', 'تأیید صریح بایگانی با خرید بدون گردش مالی — ' + finReason, cd); } catch (eAf) {}
       }
     }
     var au = sfCloseAudit(r);
@@ -2380,8 +2467,8 @@
       no: 'ARC-' + (r.inqNo || r.cd),
       dealCd: r.cd || '', /* AUD-07: مرجع پرونده‌ی اصلی برای یافتن بایگانی از روی cd سابق (sfReverseAutoSettle) */
       buyerCo: r.buyerCo || '',
-      offerNo: r.wonOffer || (d.offers[0] || {}).no || r.offerNo || '',
-      wonOffer: r.wonOffer || '',
+      offerNo: r.wonOffer || (d.offers.filter(function(o){return o&&o.st==='won';})[0] || d.offers[0] || {}).no || r.offerNo || '',
+      wonOffer: r.wonOffer || (d.offers.filter(function(o){return o&&o.st==='won';})[0] || {}).no || r.offerNo || '',
       inqNo: r.inqNo || '',
       state: 'archived',
       origin: 'salesfile',
@@ -2412,7 +2499,15 @@
                lossIrr: (typeof ptfProjectLossTotal === 'function' ? ptfProjectLossTotal(r) : (r.lossEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0)) /* v18.0 US-421 */ },
       docs: keepDocs ? (r.docs || []).map(function (m) { return { folder: 'misc', name: m.name, key: m.key || null, t: m.t, by: m.by }; }) : [],
       docSnap: docSnap, /* BUG-ARCHIVE: فهرست کامل اسناد بایگانی‌شده */
-      offerNos: d.offers.map(function (o) { return o.no; }),
+      /* v34.39.18: offerNos باید حداقل شمارهٔ برنده را داشته باشد حتی اگر sfDocsOf خالی باشد */
+      offerNos: (function () {
+        var nos = (d.offers || []).map(function (o) { return o && o.no; }).filter(Boolean);
+        var won = r.wonOffer || r.offerNo || '';
+        if (won && nos.indexOf(won) < 0) nos.unshift(won);
+        return nos;
+      })(),
+      rootOfferId: r.rootOfferId || '',
+      linkedOffers: (r.linkedOffers || []).slice(),
       /* v34.38.14 (RESTORE): تایم‌لاین اصلی پرونده و وضعیت پیش از مختومه همراه آرشیو
          نگه داشته می‌شود تا «به جریان انداختن» از بایگانی، پرونده را با حافظهٔ کامل
          برگرداند (پیش از این تایم‌لاین با بایگانی برای همیشه از دست می‌رفت). */

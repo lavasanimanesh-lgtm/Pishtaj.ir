@@ -1032,6 +1032,11 @@
         try { var u2 = (getData('ptf_crm_users')||[]).filter(function(x){return x.username===cr||x.user===cr;})[0]; if(u2) nm=u2.name||u2.nm||cr; } catch(e){}
         return '<div style="font-size:12px;color:#475569;margin:-4px 0 10px">📝 ثبت: <b>' + escP(nm||'—') + '</b>' + (crAt ? ' — ' + escP(crAt) : '') + '</div>';
       })() +
+      (function () {
+        if (!r.assignee) return '';
+        var htmlA = (typeof window.ptfRfqAssigneeHtml === 'function') ? window.ptfRfqAssigneeHtml(r) : ('👤 ' + escP(r.assignee.name || r.assignee.user || ''));
+        return '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 12px;font-size:12.5px;color:#1e3a8a;margin-bottom:10px"><b>👤 مسئول رسیدگی فعلی</b><div style="margin-top:4px">' + htmlA + '</div></div>';
+      })() +
       '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:8px 12px;font-size:12px;color:#166534;margin-bottom:10px">قفل ویرایش برداشته شده است؛ شما می‌توانید مشخصات استعلام یا وضعیت آن را آزادانه ویرایش و ذخیره کنید.</div>' +
       '<div style="text-align:center;margin-bottom:12px"><span class="bd" style="background:' + wfInfo.cl + ';font-size:13px;padding:7px 16px">' + escP(wfInfo.lb) + '</span></div>' +
       '<div class="fld"><label>نام شرکت / مشتری</label><input type="text" id="er_co" value="' + escP(r.co||'') + '"></div>' +
@@ -1308,7 +1313,10 @@
         '#rTb tr.rfq-row-hide,#rTb tr.rfq-row-hide[style]{display:none!important}' +
         '#rTb td:last-child button{width:34px!important;height:34px!important;min-width:34px!important;padding:0!important;display:inline-grid!important;place-items:center;font-size:15px!important;line-height:1;border-radius:10px}' +
         '#rTb td:last-child .bd{display:none}' +
-        '@media(max-width:768px){.rfq-offer-bar{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.rfq-offer-chip{width:100%;min-width:0;padding:8px 4px;font-size:11px;text-align:center}#rTb tr.rfq-row-hide{display:none!important}}';
+        '.rfq-assignee-badge{display:inline-block;margin:2px 0;padding:2px 8px;border-radius:999px;font-size:11px;line-height:1.6;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+        '.rfq-assignee-cell{padding:2px 0}' +
+        '#rTb td.rfq-assignee-td{vertical-align:top;background:linear-gradient(180deg,#f8fbff 0%,transparent 100%)}' +
+        '@media(max-width:768px){.rfq-offer-bar{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.rfq-offer-chip{width:100%;min-width:0;padding:8px 4px;font-size:11px;text-align:center}#rTb tr.rfq-row-hide{display:none!important}#rTb td.rfq-assignee-td{background:#eff6ff;border-radius:10px;padding:8px!important;margin:4px 0}}';
       document.head.appendChild(st);
     }
     return '<div id="rfqPendWrap"></div>' +
@@ -1331,6 +1339,8 @@
       '<button type="button" class="rfq-offer-chip" data-v="" onclick="ptfRfqOfferFlt(\'\')">همه</button>' +
       '<button type="button" class="rfq-offer-chip" data-v="none" onclick="ptfRfqOfferFlt(\'none\')">بدون پیشنهاد</button>' +
       '<button type="button" class="rfq-offer-chip" data-v="has" onclick="ptfRfqOfferFlt(\'has\')">دارای پیشنهاد</button>' +
+      '<button type="button" class="rfq-offer-chip" data-v="mine" onclick="ptfRfqOfferFlt(\'mine\')" title="درخواست‌هایی که به شما ارجاع شده">👤 ارجاع به من</button>' +
+      '<button type="button" class="rfq-offer-chip" data-v="assigned" onclick="ptfRfqOfferFlt(\'assigned\')" title="دارای مسئول رسیدگی">📌 با مسئول</button>' +
       '</div>' +
       '<div class="tb2"><table><thead><tr>' +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'cd', 'کد') : '<th>کد</th>') +
@@ -1406,6 +1416,8 @@
       ch.classList.toggle('is-on', v === ofFlt);
       if (v === 'none') ch.textContent = 'بدون پیشنهاد' + (noneN != null ? ' (' + noneN + ')' : '');
       if (v === 'has') ch.textContent = 'دارای پیشنهاد' + (hasN != null ? ' (' + hasN + ')' : '');
+      if (v === 'mine') ch.textContent = '👤 ارجاع به من';
+      if (v === 'assigned') ch.textContent = '📌 با مسئول';
       if (v === '') ch.textContent = 'همه';
     });
   }
@@ -1430,6 +1442,8 @@
       var ok = true;
       if (ofFlt === 'none' && has) ok = false;
       if (ofFlt === 'has' && !has) ok = false;
+      if (ofFlt === 'mine' && tr.getAttribute('data-assignee-mine') !== '1') ok = false;
+      if (ofFlt === 'assigned' && tr.getAttribute('data-assignee') !== '1') ok = false;
       if (q && (tr.getAttribute('data-search') || '').indexOf(q) < 0) ok = false;
       if (typeof window.ptfSetRowVisible === 'function') window.ptfSetRowVisible(tr, ok);
       else { tr.classList.toggle('ptf-filter-hidden', !ok); tr.hidden = !ok; tr.style.display = ok ? '' : 'none'; }
@@ -1444,7 +1458,7 @@
         tb.appendChild(empty);
       }
       if (typeof window.ptfSetRowVisible === 'function') window.ptfSetRowVisible(empty, true); else { empty.classList.remove('ptf-filter-hidden'); empty.hidden = false; }
-      empty.querySelector('td').textContent = ofFlt === 'none' ? 'درخواستی بدون پیشنهاد نیست' : (q || ofFlt ? 'موردی با این فیلتر نیست' : 'استعلامی ثبت نشده');
+      empty.querySelector('td').textContent = ofFlt === 'none' ? 'درخواستی بدون پیشنهاد نیست' : (ofFlt === 'mine' ? 'درخواستی به شما ارجاع نشده' : (ofFlt === 'assigned' ? 'درخواست ارجاع‌شده‌ای نیست' : (q || ofFlt ? 'موردی با این فیلتر نیست' : 'استعلامی ثبت نشده')));
     } else if (empty) { if (typeof window.ptfSetRowVisible === 'function') window.ptfSetRowVisible(empty, false); else { empty.classList.add('ptf-filter-hidden'); empty.hidden = true; } }
     return true;
   };
@@ -1481,6 +1495,50 @@
     if (r.dueISO <= warn) return { cl: '#d97706', bg: '#fffbeb', lb: '⏳ مهلت: ' + _dueFa, over: false };
     return { cl: '#64748b', bg: '', lb: '⏳ مهلت: ' + _dueFa, over: false };
   };
+
+  /* v34.39.19 (RFQ-REFERRAL-ASSIGNEE-UI): نمایش واحد مسئول رسیدگی — لیست/کانبان/جزئیات.
+     ریشهٔ شکایت: ارجاع SMS/اعلان می‌فرستد ولی در ردیف درخواست «مسئول کیست» واضح نیست. */
+  window.ptfRfqAssigneeLabel = function (r) {
+    if (!r || !r.assignee) return '';
+    var a = r.assignee;
+    if (typeof a === 'string') return String(a).trim();
+    var nm = String(a.name || a.nm || a.user || '').trim();
+    return nm;
+  };
+  window.ptfRfqAssigneeHtml = function (r, opts) {
+    opts = opts || {};
+    var a = r && r.assignee;
+    if (!a || (typeof a === 'object' && !window.ptfRfqAssigneeLabel(r) && !a.user && !a.act)) {
+      return opts.emptyHtml != null ? opts.emptyHtml : '<span style="color:#cbd5e1">—</span>';
+    }
+    var nm = window.ptfRfqAssigneeLabel(r) || (a.user || '—');
+    var act = (a && a.act) ? String(a.act) : '';
+    var by = (a && a.by) ? String(a.by) : '';
+    var tm = (a && a.t) ? String(a.t) : '';
+    var tip = ['مسئول رسیدگی: ' + nm];
+    if (act) tip.push('اقدام: ' + act);
+    if (by) tip.push('ارجاع‌دهنده: ' + by);
+    if (tm) tip.push(tm);
+    var compact = !!opts.compact;
+    var esc = (typeof escP === 'function') ? escP : function (s) { return String(s || '').replace(/[&<>"']/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); };
+    if (compact) {
+      return '<span class="bd rfq-assignee-badge" title="' + esc(tip.join(' | ')) + '" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:800">👤 ' + esc(nm) + (act ? ' · ' + esc(act) : '') + '</span>';
+    }
+    return '<div class="rfq-assignee-cell" title="' + esc(tip.join(' | ')) + '" style="line-height:1.55">' +
+      '<div style="font-weight:800;color:#1e3a8a;font-size:12.5px">👤 ' + esc(nm) + '</div>' +
+      (act ? '<div style="font-size:11px;color:#64748b">' + esc(act) + '</div>' : '') +
+      (by || tm ? '<div style="font-size:10.5px;color:#94a3b8">' + (by ? ('از ' + esc(by)) : '') + (tm ? ((by ? ' — ' : '') + esc(tm)) : '') + '</div>' : '') +
+      '</div>';
+  };
+  window.ptfRfqIsAssignedToMe = function (r) {
+    try {
+      var me = (typeof curSession === 'function' ? curSession() : null) || {};
+      var u = String(me.user || me.username || '').trim();
+      if (!u || !r || !r.assignee) return false;
+      return String(r.assignee.user || '').trim() === u;
+    } catch (e) { return false; }
+  };
+
   window.renderRfq = function () {
     /* v34.23.0: خودترمیمی پیوست‌های گم‌شدهٔ درخواست‌های سایت (نتیجهٔ زدودن files در
        پاک‌ساز قدیمی سرور) — idempotent؛ فقط وقتی می‌نویسد که رکوردی درمان شود. */
@@ -1575,12 +1633,15 @@
         customerInqLine = '<div style="font-size:10.5px;color:#0e7490;margin-top:2px">↳ درخواست کارفرما: <span dir="ltr">' + escP(String(r.inqNo).trim()) + '</span></div>';
       }
       var hasOff = ptfRfqHasOffer(r, offers, offerInq);
-      var searchBlob = ((r.cd || '') + ' ' + (r.inqNo || '') + ' ' + (r.co || '') + ' ' + (r.con || '') + ' ' + (r.ca || '') + ' ' + (r.subj || '') + ' ' + (r.stxt || '')).toLowerCase().replace(/"/g, '');
-      h += '<tr data-has-offer="' + (hasOff ? '1' : '0') + '" data-search="' + escP(searchBlob) + '"' + (rowBg ? ' style="background:' + rowBg + '"' : '') + '><td><strong>' + escP(r.cd) + '</strong>' + wlBadge + srcBadge + dueBadge + attBadge + customerInqLine + crLine + '</td><td>' + escP(r.co) +
+      var asgNm = (typeof window.ptfRfqAssigneeLabel === 'function') ? window.ptfRfqAssigneeLabel(r) : ((r.assignee && (r.assignee.name || r.assignee.user)) || '');
+      var asgBadge = asgNm ? (' ' + (typeof window.ptfRfqAssigneeHtml === 'function' ? window.ptfRfqAssigneeHtml(r, { compact: true }) : ('<span class="bd" style="background:#eff6ff;color:#1d4ed8">👤 ' + escP(asgNm) + '</span>'))) : '';
+      var mineAsg = (typeof window.ptfRfqIsAssignedToMe === 'function' && window.ptfRfqIsAssignedToMe(r)) ? '1' : '0';
+      var searchBlob = ((r.cd || '') + ' ' + (r.inqNo || '') + ' ' + (r.co || '') + ' ' + (r.con || '') + ' ' + (r.ca || '') + ' ' + (r.subj || '') + ' ' + (r.stxt || '') + ' ' + asgNm + ' ' + ((r.assignee && r.assignee.act) || '')).toLowerCase().replace(/"/g, '');
+      h += '<tr data-has-offer="' + (hasOff ? '1' : '0') + '" data-assignee="' + (asgNm ? '1' : '0') + '" data-assignee-mine="' + mineAsg + '" data-search="' + escP(searchBlob) + '"' + (rowBg ? ' style="background:' + rowBg + '"' : '') + '><td><strong>' + escP(r.cd) + '</strong>' + wlBadge + srcBadge + dueBadge + attBadge + asgBadge + customerInqLine + crLine + '</td><td>' + escP(r.co) +
         (r.con ? ' <small style="color:#94a3b8">(' + escP(r.con) + ')</small>' : '') + '</td>' +
         '<td>' + escP(r.ca || '-') + '</td><td>' + escP(r.dt || '—') + '</td>' +
         '<td><span class="bd b-' + (r.st || 'st1') + '">' + escP(r.stxt || 'دریافت اولیه') + '</span>' + rfqWaitBadge(r, offers) + '</td>' +
-        '<td style="font-size:12px">' + (r.assignee ? '👤 ' + escP(r.assignee.name) + ' <small style="color:#94a3b8">(' + escP(r.assignee.act) + ')</small>' : '<span style="color:#cbd5e1">—</span>') + '</td>' +
+        '<td class="rfq-assignee-td" style="font-size:12px;min-width:120px">' + (typeof window.ptfRfqAssigneeHtml === 'function' ? window.ptfRfqAssigneeHtml(r) : (r.assignee ? '👤 ' + escP(r.assignee.name || r.assignee.user || '') : '—')) + '</td>' +
         '<td><button class="bt bt-o" data-rfq-action="ptfViewRfq" style="width:32px;height:32px;padding:0;font-size:13px" onclick="ptfViewRfq(\'' + ptfOnClickArg(r.cd) + '\')" title="مشاهده درخواست" aria-label="مشاهده درخواست">👁️</button> ' +
         '<button class="bt bt-o" data-rfq-action="editRfq" style="width:32px;height:32px;padding:0;font-size:13px" onclick="editRfq(\'' + ptfOnClickArg(r.cd) + '\')" title="ویرایش / حذف" aria-label="ویرایش یا حذف درخواست">✏️</button> ' +
         '<button class="bt bt-o" data-rfq-action="showRefModal" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="showRefModal(\'' + ptfOnClickArg(r.cd) + '\')" title="ارجاع" aria-label="ارجاع درخواست">📨</button>' +
@@ -2279,22 +2340,39 @@
     var toU = document.getElementById('refTo').value;
     var act = document.getElementById('refAct').value;
     var note = document.getElementById('refNote').value.trim();
-    var toUser = salesUsers().filter(function (u) { return u.username === toU; })[0];
+    /* v34.39.19: گیرنده از کل کاربران (نه فقط salesUsers) — مودال همه نقش‌ها را نشان می‌دهد
+       و lookup محدود باعث «گیرنده را انتخاب کنید» یا name خالی می‌شد. */
+    var toUser = (getData('ptf_crm_users') || []).filter(function (u) { return u && (u.username === toU || u.user === toU); })[0]
+      || salesUsers().filter(function (u) { return u.username === toU; })[0];
+    if (!toUser && toU === 'admin') toUser = { username: 'admin', name: 'ادمین سیستم', role: 'admin', roleId: 'admin' };
     if (!toUser) { alert('گیرنده را انتخاب کنید'); return; }
     var me = curSession();
     // v85: گارد ارجاع به خود (حتی اگر UI دستکاری شود)
     if (toU === me.user) { alert('⛔ ارجاع به خودتان ممکن نیست — گیرنده دیگری انتخاب کنید'); return; }
-    var rfqs = getData('ptf_crm_rfqs');
+    var toName = String(toUser.name || toUser.nm || toUser.username || toU).trim() || toU;
+    var asgAt = (typeof faDateTime === 'function' ? faDateTime() : '');
+    var asgISO = '';
+    try { asgISO = new Date().toISOString(); } catch (eIso) { asgISO = String(Date.now()); }
+    var rfqs = (getData('ptf_crm_rfqs') || []).slice();
     var target = null;
-    rfqs.forEach(function (r) { if (r.cd === cd) { target = r; r.assignee = { user: toU, name: toUser.name, act: act, by: me.name, t: faDateTime() }; } });
-    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
-    var title = 'درخواست ' + cd + (target ? ' (' + target.co + ')' : '') + ' جهت «' + act + '» به ' + toUser.name + ' ارجاع شد' + (note ? ' — ' + note : '');
+    rfqs = rfqs.map(function (r) {
+      if (!r || r.cd !== cd) return r;
+      /* clone تا lastKnown/entity-diff mutation درجا را از دست ندهد */
+      var copy;
+      try { copy = JSON.parse(JSON.stringify(r)); } catch (eC) { copy = Object.assign({}, r); }
+      copy.assignee = { user: toU, name: toName, act: act, by: (me && me.name) || me.user || '', t: asgAt, atISO: asgISO };
+      copy.assigneeAtISO = asgISO;
+      target = copy;
+      return copy;
+    });
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'rfq-referral' }); else setData('ptf_crm_rfqs', rfqs);
+    var title = 'درخواست ' + cd + (target ? ' (' + target.co + ')' : '') + ' جهت «' + act + '» به ' + toName + ' ارجاع شد' + (note ? ' — ' + note : '');
     // v34.5.5: اعلان عمومی به همه فروش حذف شد — فقط گیرنده کارتابل می‌گیرد.
     var taskType = act === 'صدور پیشنهاد مالی (CO)' ? 'create_offer' : act === 'صدور پیشنهاد فنی (TO)' ? 'create_technical_offer' : act === 'استعلام قیمت از تامین‌کننده' ? 'create_supplier_rfq' : 'rfq_review';
     notify({ toUsers: [toU], title: '⭐ اقدام شما لازم است: ' + title, kind: 'referral', channels: ['cart'], link: { panel: 'rfq' }, actionable: true,
       refCd: cd, taskType: taskType, dkey: 'referral|' + cd + '|' + toU + '|' + taskType });
     // رویداد سروری برای رسیدن لحظه‌ای به مرورگر گیرنده (دینگ)
-    pushEvent('referral', title, { to: toU, toName: toUser.name, act: act, code: cd, taskType: taskType });
+    pushEvent('referral', title, { to: toU, toName: toName, act: act, code: cd, taskType: taskType });
     // US-150 AC6: پیامک به گیرنده ارجاع (در صورت تیک)
     if ((document.getElementById('refSms') || {}).checked && typeof smsSendSingle === 'function') {
       var mob = typeof smsUserMobile === 'function' ? smsUserMobile(toU) : '';
@@ -2303,10 +2381,10 @@
         smsSendSingle(mob,
           roleLb + ' محترم شرکت پیشرو تجهیز فرتاک،\n' +
           'درخواست ' + cd + (target ? ' (' + target.co + ')' : '') + ' جهت «' + act + '» به کارتابل شما ارجاع شد. لطفاً از طریق سامانه مدیریت یکپارچه رسیدگی فرمایید.\n' + 'crm.pishtaj.ir'.replace('crm.pishtaj.ir', 'https://pishtaj.ir/crm/'),
-          function (d) { addLog(d.ok && d.sent ? 'پیامک ارجاع به ' + toUser.name + ' ارسال شد' : 'پیامک ارجاع در صف ارسال قرار گرفت'); });
+          function (d) { addLog(d.ok && d.sent ? 'پیامک ارجاع به ' + toName + ' ارسال شد' : 'پیامک ارجاع در صف ارسال قرار گرفت'); });
       } else addLog('⚠️ موبایل گیرنده ثبت نشده — پیامک ارسال نشد');
     }
-    if (typeof audit === 'function') audit('استعلامات', 'ارجاع به ' + toUser.name + ' — ' + act, cd);
+    if (typeof audit === 'function') audit('استعلامات', 'ارجاع به ' + toName + ' — ' + act, cd);
     hideModal();
     renderRfq();
     updateInboxBadge();

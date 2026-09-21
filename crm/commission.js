@@ -103,10 +103,24 @@
          وصولی فقط شرط آزادسازی و تعیین ماه است، نه مبلغ مبنای پورسانت.
        - ماه انتساب = ماه ثبت آخرین وصولی تکمیل‌کننده (ماه تسویه کامل).
        - فاکتور یتیم (بدون پرونده) از محاسبه حذف می‌شود (تصمیم کارفرما).
-       - مبنای «CO برنده» حذف شده است. */
+       - مبنای «CO برنده» حذف شده است.
+       ═══ v34.39.13 (COMMISSION-ARCHIVE-ZERO — گزارش کارفرما) ═══
+       sfArchive پرونده را از ptf_crm_deals حذف و به ptf_crm_projects
+       (state:archived, origin:salesfile) منتقل می‌کند. calc قبلی فقط deals را
+       می‌دید ⇒ بعد از مختومه/بایگانی، dealOf=null و پورسانت صفر می‌شد — درست
+       وقتی که از نظر کسب‌وکار باید قطعی و قابل تصویب بماند تا تسویهٔ پرداخت
+       پورسانت. حالا پروندهٔ بایگانی‌شدهٔ settled هم پروندهٔ معتبر است. */
     var offersByNo = {};
     data('ptf_crm_offers').forEach(function (o) { if (o && o.no) offersByNo[o.no] = o; });
     var deals = data('ptf_crm_deals');
+    /* پرونده‌های بایگانی‌شدهٔ فروش (مختومهٔ settled) — هم‌سنگ archivedCaseForOffer */
+    var archivedCases = data('ptf_crm_projects').filter(function (p) {
+      if (!p || p.origin !== 'salesfile') return false;
+      if (String(p.state || '').toLowerCase() !== 'archived') return false;
+      /* lost = مختومه بدون فاکتور/برد — پورسانت ندارد */
+      if (String(p.closeKind || '') === 'lost') return false;
+      return true;
+    });
     /* v35: دریافت پرونده و تخصیص FIFO خارج از payments[] فاکتور نگهداری می‌شود. */
     var caseReceiptsById = {}, invoiceAllocations = {};
     data('ptf_crm_case_receipts').forEach(function (r) { if (r && r.status === 'posted' && !r.voided) caseReceiptsById[String(r._id || r.cd || '')] = r; });
@@ -116,15 +130,32 @@
       (invoiceAllocations[k] = invoiceAllocations[k] || []).push(a);
     });
 
+    /* کلید پایدار گروه‌بندی: dealCd اصلی (برای بایگانی ARC-*) یا cd زنده */
+    function dealGroupKey(d) {
+      if (!d) return '';
+      return String(d.dealCd || d.cd || d.no || '');
+    }
+    function matchCase(x, inv, o) {
+      if (!x) return false;
+      var offerNo = o && o.no ? String(o.no) : '';
+      var won = String(x.wonOffer || x.offerNo || '');
+      if (offerNo && (won === offerNo)) return true;
+      if (offerNo && Array.isArray(x.offerNos) && x.offerNos.some(function (n) { return n != null && String(n) === offerNo; })) return true;
+      if (o && o.inqNo && x.inqNo && String(x.inqNo) === String(o.inqNo)) return true;
+      var invDeal = String(inv.dealCd || inv.dealRef || inv.projectCd || inv.caseId || '');
+      if (invDeal) {
+        if (String(x.cd || '') === invDeal || String(x.dealCd || '') === invDeal || String(x.no || '') === invDeal) return true;
+      }
+      if (inv.inqNo && x.inqNo && String(x.inqNo) === String(inv.inqNo)) return true;
+      return false;
+    }
     function dealOf(inv) {
       var o = offersByNo[inv.offerNo] || {};
-      var d = deals.filter(function (x) {
-        return x && ((o.no && (x.wonOffer === o.no || x.offerNo === o.no)) || (o.inqNo && x.inqNo === o.inqNo));
-      })[0];
+      /* ۱) پروندهٔ زنده در deals اولویت دارد */
+      var d = deals.filter(function (x) { return matchCase(x, inv, o); })[0];
       if (d) return d;
-      d = deals.filter(function (x) { return x && x.cd && (inv.dealCd === x.cd || inv.dealRef === x.cd || inv.projectCd === x.cd); })[0];
-      if (d) return d;
-      if (inv.inqNo) d = deals.filter(function (x) { return x && x.inqNo === inv.inqNo; })[0];
+      /* ۲) پروندهٔ بایگانی‌شدهٔ settled (پس از sfArchive) — تا تسویهٔ پورسانت صفر نشود */
+      d = archivedCases.filter(function (x) { return matchCase(x, inv, o); })[0];
       return d || null;
     }
 
@@ -140,7 +171,18 @@
       var d = dealOf(inv);
       if (!d) return; /* فاکتور بدون پرونده = از محاسبه حذف */
       var o = offersByNo[inv.offerNo] || {};
-      var g = groups[d.cd] || (groups[d.cd] = { deal: d, owner: ownerOf(o), invoices: [] });
+      var gk = dealGroupKey(d);
+      if (!gk) return;
+      var g = groups[gk] || (groups[gk] = {
+        deal: d,
+        owner: ownerOf(o),
+        invoices: [],
+        archived: !!(d.origin === 'salesfile' && String(d.state || '').toLowerCase() === 'archived')
+      });
+      /* اگر همزمان live و archive به هر دلیل match شوند، live برنده است */
+      if (g.archived && !(d.origin === 'salesfile')) {
+        g.deal = d; g.archived = false; g.owner = ownerOf(o) || g.owner;
+      }
       g.invoices.push(inv);
     });
 
@@ -153,7 +195,12 @@
         var paid = pays.reduce(function (s, p) { return s + payAmt(p); }, 0);
         var v2Allocs = invoiceAllocations[String(inv._id || inv.cd || '')] || [];
         paid += v2Allocs.reduce(function (s, a) { return s + (+a.amountIRR || 0); }, 0);
-        if (inv.amount - paid > 0.5) { allPaid = false; return; }
+        /* مبلغ قابل‌مقایسه با وصولی: AR-SSOT اگر هست، وگرنه amount فاکتور */
+        var invDue = num(inv.amount != null ? inv.amount : inv.totalAmountIRR);
+        if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceNetAfterReturnsIRR === 'function') {
+          try { invDue = window.PTF.ar.invoiceNetAfterReturnsIRR(inv); } catch (eNet) {}
+        }
+        if (invDue - paid > 0.5) { allPaid = false; return; }
         /* مبنای عددی: پایهٔ فاکتور پس از مرجوعی و بدون VAT. شرط تسویه در بالا
            عمداً با مبلغ کل فاکتور می‌ماند تا مالیات هم واقعاً وصول شده باشد. */
         var _commissionBase = commissionBaseAfterReturns(inv);
@@ -162,10 +209,23 @@
         v2Allocs.forEach(function (a) { var r = caseReceiptsById[String(a.receiptId || '')] || {}; var iso = toIso(r.receivedAt || r.dateISO || r.t || ''); if (iso > lastWhen) lastWhen = iso; });
       });
       if (!allPaid || base <= 0) return;
-      if (!inBounds(lastWhen, b)) return;
+      /* اگر تاریخ وصولی قابل استخراج نبود ولی پرونده بایگانی settled است،
+         از closedAt بایگانی به‌عنوان ماه آزادسازی استفاده کن (auto-settle بدون ISO). */
+      if (!lastWhen && g.archived) {
+        lastWhen = toIso(g.deal.closedAt || g.deal.t || g.deal.autoSettleDate || '') || '';
+      }
+      if (!lastWhen || !inBounds(lastWhen, b)) return;
       var r = row(g.owner);
       r.base += base;
-      r.lines.push({ type: 'settled', ref: g.deal.inqNo || g.deal.cd || '', offer: g.deal.wonOffer || '', buyer: g.deal.buyerCo || '', amount: base, date: lastWhen });
+      r.lines.push({
+        type: 'settled',
+        ref: g.deal.inqNo || g.deal.dealCd || g.deal.cd || '',
+        offer: g.deal.wonOffer || g.deal.offerNo || '',
+        buyer: g.deal.buyerCo || '',
+        amount: base,
+        date: lastWhen,
+        archived: !!g.archived
+      });
     });
 
     var rows = Object.keys(map).map(function (k) { var r = map[k]; r.commission = Math.round(r.base * r.pct / 100); return r; }).filter(function (r) { return r.base > 0 || r.user === '_unassigned'; }).sort(function (a, b2) { return b2.commission - a.commission; });
@@ -279,7 +339,7 @@
     });
   };
   function configRows(c) { return users().map(function (u) { var id = u.username || u.user || ''; if (!id) return ''; var pct = c.byUser[id] == null ? '' : c.byUser[id]; return '<tr><td>' + esc(u.name || u.nm || id) + '<small style="color:#64748b"> ' + esc(id) + '</small></td><td><input id="cmPct_' + esc(id) + '" value="' + esc(pct) + '" inputmode="decimal" placeholder="' + c.defaultPct + '" style="width:74px;direction:ltr"></td></tr>'; }).join(''); }
-  function reportRows(res) { return res.rows.map(function (r) { var lines = r.lines.slice(0, 5).map(function (x) { return '<div class="cm-line">' + esc(x.date) + ' · ' + esc(x.ref) + (x.buyer ? ' · ' + esc(x.buyer) : '') + ' · ' + money(x.amount) + '</div>'; }).join('') || '<div class="cm-line">رکورد قابل محاسبه‌ای نیست</div>'; return '<details class="cm-row"><summary><span><b>' + esc(r.label) + '</b><small>' + esc(r.user === '_unassigned' ? 'مالک مشخص نشده' : r.user) + ' · ' + r.pct + '٪</small></span><span><small>مبنا: ' + money(r.base) + '</small><b>' + money(r.commission) + '</b></span></summary><div class="cm-lines">' + lines + (r.lines.length > 5 ? '<div class="cm-line">… ' + (r.lines.length - 5) + ' ردیف دیگر</div>' : '') + '</div></details>'; }).join('') || '<div class="cm-empty">در این دوره، وصولی/برد قابل محاسبه‌ای پیدا نشد.</div>'; }
+  function reportRows(res) { return res.rows.map(function (r) { var lines = r.lines.slice(0, 5).map(function (x) { return '<div class="cm-line">' + esc(x.date) + ' · ' + esc(x.ref) + (x.buyer ? ' · ' + esc(x.buyer) : '') + (x.archived ? ' · 📦 بایگانی' : '') + ' · ' + money(x.amount) + '</div>'; }).join('') || '<div class="cm-line">رکورد قابل محاسبه‌ای نیست</div>'; return '<details class="cm-row"><summary><span><b>' + esc(r.label) + '</b><small>' + esc(r.user === '_unassigned' ? 'مالک مشخص نشده' : r.user) + ' · ' + r.pct + '٪</small></span><span><small>مبنا: ' + money(r.base) + '</small><b>' + money(r.commission) + '</b></span></summary><div class="cm-lines">' + lines + (r.lines.length > 5 ? '<div class="cm-line">… ' + (r.lines.length - 5) + ' ردیف دیگر</div>' : '') + '</div></details>'; }).join('') || '<div class="cm-empty">در این دوره، وصولی/برد قابل محاسبه‌ای پیدا نشد.</div>'; }
   function styleOnce() {
     if (document.getElementById('cmHubCss')) return;
     var s = document.createElement('style'); s.id = 'cmHubCss'; s.textContent = '#commissionBox{background:var(--crd,#fff);border:1px solid var(--brd);border-radius:16px;padding:14px;margin-top:12px}.cm-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}.cm-kpis{display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:8px;margin:12px 0}.cm-kpi{padding:10px;border:1px solid var(--brd);border-radius:12px;background:var(--bg,#f8fafc)}.cm-kpi small,.cm-row small,.cm-line{display:block;color:#64748b;font-size:11px;margin-top:3px}.cm-row{border:1px solid var(--brd);border-radius:12px;padding:9px 11px;margin:7px 0;background:var(--crd,#fff)}.cm-row summary{display:flex;justify-content:space-between;gap:10px;cursor:pointer;list-style:none}.cm-row summary::-webkit-details-marker{display:none}.cm-row summary>span:last-child{text-align:left}.cm-row summary b:last-child{display:block;color:#0e7490;margin-top:3px}.cm-lines{border-top:1px dashed var(--brd);margin-top:8px;padding-top:5px}.cm-empty{padding:20px;text-align:center;color:#64748b;border:1px dashed var(--brd);border-radius:12px}.cm-controls{display:flex;gap:7px;flex-wrap:wrap;align-items:end}.cm-controls input,.cm-controls select,#cmConfig input{border:1px solid var(--brd);border-radius:9px;padding:7px;background:var(--crd,#fff);color:var(--tx,#111)}@media(max-width:600px){.cm-kpis{grid-template-columns:1fr}.cm-row summary{align-items:flex-start}.cm-controls{width:100%}.cm-controls .fld{flex:1 1 130px}}'; document.head.appendChild(s);
@@ -305,7 +365,7 @@
     if (!isSenior()) return '';
     styleOnce(); var c = cfg(), month = normMonth(window._cmMonth || faMonth()), res = window.ptfCommissionCalc({ month: month });
     var unassigned = res.rows.filter(function (r) { return r.user === '_unassigned' && r.base > 0; })[0];
-    return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف: مبلغ پایهٔ فاکتور، بدون ارزش افزوده و پس از مرجوعی — فقط پس از تسویه کامل پرونده</small></div><div class="cm-controls"><div class="fld"><label>دوره ماهانه شمسی</label>' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('cmMonth', month) : '<input id="cmMonth" value="' + esc(month) + '" placeholder="۱۴۰۵/۰۵" inputmode="numeric">') + '</div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +
+    return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف: مبلغ پایهٔ فاکتور، بدون ارزش افزوده و پس از مرجوعی — پس از تسویه کامل پرونده (حتی بایگانی‌شده؛ تا تصویب/پرداخت پورسانت صفر نمی‌شود)</small></div><div class="cm-controls"><div class="fld"><label>دوره ماهانه شمسی</label>' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('cmMonth', month) : '<input id="cmMonth" value="' + esc(month) + '" placeholder="۱۴۰۵/۰۵" inputmode="numeric">') + '</div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +
       '<div class="cm-kpis"><div class="cm-kpi"><small>مبنای محاسبه</small><b>' + money(res.totalBase) + '</b></div><div class="cm-kpi"><small>جمع پورسانت پیشنهادی</small><b style="color:#0e7490">' + money(res.totalCommission) + '</b></div><div class="cm-kpi"><small>کارشناسان دارای رکورد</small><b>' + res.rows.filter(function (r) { return r.user !== '_unassigned'; }).length.toLocaleString('fa-IR') + '</b></div></div>' +
       (unassigned ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 10px;font-size:12px;color:#92400e">⚠️ ' + money(unassigned.base) + ' مبنای پورسانت مالک مشخص ندارد؛ مالک مشتری یا صادرکننده پیشنهاد را اصلاح کنید.</div>' : '') +
       '<div id="cmRows">' + reportRows(res) + '</div>' + obligationsHtml() + '</section>';

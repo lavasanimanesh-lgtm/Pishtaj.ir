@@ -106,6 +106,104 @@ function ptfCustHadContacts(r) {
 }
 window.ptfCustHadContacts = ptfCustHadContacts;
 
+/* ═══ v34.39.12 (CONTACT-STALE-PARTIAL-WIPE — RCA 2026-09-21) ═══
+   اتحاد کلاینتی people/coTels/phones با رکورد کش‌شدهٔ تازه (هم‌سنگ
+   sd_contact_stale_merge سرور). اگر بین بازشدن مودال و ذخیره، pull شماره‌ای
+   آورده که در _cbState نیست، پیش از upsert به payload برگردانده می‌شود تا
+   حتی قبل از رسیدن به سرور هم از دست نرود. حذف عمدی (_ccClear) اتحاد را
+   دور می‌زند. */
+function ptfContactDigits(v) {
+  var s = String(v == null ? '' : v);
+  if (typeof window.ptfToEnDigits === 'function') try { s = window.ptfToEnDigits(s); } catch (e) {}
+  return s.replace(/\D+/g, '');
+}
+function ptfContactChanKey(t) {
+  if (t == null) return '';
+  if (typeof t === 'string') {
+    var d0 = ptfContactDigits(t);
+    return d0 ? ('n:' + d0) : ('s:' + String(t).trim().toLowerCase());
+  }
+  if (typeof t !== 'object') return '';
+  var n = String(t.n || '').trim();
+  if (!n) return '';
+  var d = ptfContactDigits(n);
+  return d ? ('n:' + d) : ('s:' + n.toLowerCase());
+}
+function ptfMergeContactChanList(incoming, stored) {
+  var out = [], seen = {};
+  function push(t) {
+    if (t == null) return;
+    if (typeof t === 'string') t = { n: t };
+    if (typeof t !== 'object') return;
+    var k = ptfContactChanKey(t);
+    if (!k || seen[k]) return;
+    seen[k] = 1;
+    out.push(t);
+  }
+  (Array.isArray(incoming) ? incoming : []).forEach(push);
+  (Array.isArray(stored) ? stored : []).forEach(push);
+  return out;
+}
+function ptfContactPersonKey(p) {
+  if (!p || typeof p !== 'object') return '';
+  var nm = String(p.nm || '').trim().toLowerCase();
+  if (nm) return 'nm:' + nm;
+  var bits = [];
+  ['tels', 'mobs', 'mails'].forEach(function (ch) {
+    (Array.isArray(p[ch]) ? p[ch] : []).forEach(function (t) {
+      var k = ptfContactChanKey(t);
+      if (k) bits.push(k);
+    });
+  });
+  if (!bits.length) return '';
+  bits.sort();
+  return 'ch:' + bits.join('|');
+}
+function ptfMergeContactPeople(incoming, stored) {
+  var out = [], byKey = {};
+  function ingest(p, isIncoming) {
+    if (!p || typeof p !== 'object') return;
+    var k = ptfContactPersonKey(p);
+    if (!k) { if (isIncoming) out.push(p); return; }
+    if (byKey[k] === undefined) { byKey[k] = out.length; out.push(p); return; }
+    var idx = byKey[k], base = out[idx];
+    ['tels', 'mobs', 'mails'].forEach(function (ch) {
+      base[ch] = ptfMergeContactChanList(base[ch] || [], p[ch] || []);
+    });
+    ['nm', 'nmEn', 'role', 'dept', 'note', 'src'].forEach(function (f) {
+      if (!String(base[f] || '').trim() && String(p[f] || '').trim()) base[f] = p[f];
+    });
+    if (!base.primary && p.primary) base.primary = true;
+    out[idx] = base;
+  }
+  (Array.isArray(incoming) ? incoming : []).forEach(function (p) { ingest(p, true); });
+  (Array.isArray(stored) ? stored : []).forEach(function (p) { ingest(p, false); });
+  return out;
+}
+/* liveBase = تازه‌ترین رکورد کش (پس از pull احتمالی)؛ formRec = payload فرم.
+   بدون _ccClear، شماره‌های فقط-live به form برمی‌گردند. */
+function ptfMergeCustContactsFromLive(formRec, liveBase) {
+  if (!formRec || !liveBase || formRec._ccClear) return formRec;
+  if (Object.prototype.hasOwnProperty.call(formRec, 'people') || (liveBase.people && liveBase.people.length)) {
+    formRec.people = ptfMergeContactPeople(formRec.people || [], liveBase.people || []);
+  }
+  if (Object.prototype.hasOwnProperty.call(formRec, 'coTels') || (liveBase.coTels && liveBase.coTels.length)) {
+    formRec.coTels = ptfMergeContactChanList(formRec.coTels || [], liveBase.coTels || []);
+  }
+  if (Object.prototype.hasOwnProperty.call(formRec, 'phones') || (liveBase.phones && liveBase.phones.length)) {
+    formRec.phones = ptfMergeContactChanList(formRec.phones || [], liveBase.phones || []);
+  }
+  if (Object.prototype.hasOwnProperty.call(formRec, 'ph')) {
+    var rowPh = String(formRec.ph || '').trim();
+    var livePh = String(liveBase.ph || '').trim();
+    if (!rowPh && livePh) formRec.ph = liveBase.ph;
+  }
+  return formRec;
+}
+window.ptfMergeCustContactsFromLive = ptfMergeCustContactsFromLive;
+window.ptfMergeContactPeople = ptfMergeContactPeople;
+window.ptfMergeContactChanList = ptfMergeContactChanList;
+
 /* v34.38.6 (CONTACT-WIPE R3): تبدیل حقوقی→حقیقی قبلاً people/coTels را عمداً صفر
    می‌کرد و آن‌ها را به phones منتقل نمی‌کرد — شماره‌های قدیمی بی‌صدا گم می‌شدند.
    حالا تماس‌های حقوقیِ رکورد قبلی (تلفن‌خانه + اشخاص رابط) به فهرست تلفن‌های شخص
@@ -3821,6 +3919,43 @@ function saveCust2(cd) {
   try {
     if (cd && oldRecPre && typeof ptfCustHadContacts === 'function' && ptfCustHadContacts(oldRecPre) && !ptfCustHadContacts(rec)) rec._ccClear = 1;
   } catch (eCCC) {}
+  /* v34.39.12 (CONTACT-STALE-PARTIAL-WIPE):
+     ① مهر _ccEdit=1: این payload از فرم ویرایش تماس آمده (نه writer تک‌فیلدی).
+     ② _ccBaseAt: نسخهٔ updatedAtی که مودال با آن باز شد — اگر با سرور یکی باشد
+        سرور اتحاد را رد می‌کند و حذف آگاهانهٔ شخص/شماره محترم است؛ اگر فرق کند
+        (مودال کهنه) اتحاد شماره‌های فقط-سرور را نگه می‌دارد.
+     ③ updatedAtISO: تا ptfSmartMerge مسیر legacy و هر pull-with-dirty، ویرایش
+        محلی را با timestamp خالی دور نریزد (بردار ثانویهٔ RCA).
+     ④ اتحاد با تازه‌ترین کش: اگر بین بازشدن مودال و ذخیره pull آمده، شماره‌های
+        فقط-live پیش از upsert به payload برمی‌گردند (هم‌سنگ sd_contact_stale_merge). */
+  try {
+    if (cd) {
+      rec._ccEdit = 1;
+      var baseAt = '';
+      if (oldRecPre) baseAt = String(oldRecPre.updatedAt || oldRecPre.updatedAtISO || '');
+      if (baseAt) rec._ccBaseAt = baseAt;
+    }
+    rec.updatedAtISO = new Date().toISOString();
+    if (cd && !rec._ccClear && typeof ptfMergeCustContactsFromLive === 'function') {
+      var liveNow = null;
+      try {
+        var liveItems = (typeof getData === 'function' ? getData('ptf_crm_customers') : items) || items;
+        for (var li = 0; li < liveItems.length; li++) {
+          if (liveItems[li] && liveItems[li].cd === cd) { liveNow = liveItems[li]; break; }
+        }
+      } catch (eLive) {}
+      /* فقط اگر live از oldRecPre تازه‌تر است اتحاد کن (pull وسط مودال) */
+      if (liveNow) {
+        var liveAt = String(liveNow.updatedAt || liveNow.updatedAtISO || '');
+        var oldAt = String((oldRecPre && (oldRecPre.updatedAt || oldRecPre.updatedAtISO)) || '');
+        if (!oldAt || (liveAt && liveAt !== oldAt)) ptfMergeCustContactsFromLive(rec, liveNow);
+      }
+      /* items[i] را هم با rec ادغام‌شده هم‌راستا کن (silent-write همان را ببیند) */
+      for (var ui = 0; ui < items.length; ui++) {
+        if (items[ui] && items[ui].cd === rec.cd) { items[ui] = rec; break; }
+      }
+    }
+  } catch (eStaleC) {}
   /* v34.8.22 (W1): ثبت/ویرایش مشتری از پیشنهاد با فرمان اتمیک سروری. */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'offer-cust' });
   else setData('ptf_crm_customers', items);
@@ -3950,6 +4085,33 @@ function saveSup2(cd) {
   try {
     if (cd && oldSupPre && typeof ptfCustHadContacts === 'function' && ptfCustHadContacts(oldSupPre) && !ptfCustHadContacts(rec)) rec._ccClear = 1;
   } catch (eCCS) {}
+  /* v34.39.12 (CONTACT-STALE-PARTIAL-WIPE): مثل مشتری — _ccEdit + _ccBaseAt + updatedAtISO + اتحاد. */
+  try {
+    if (cd) {
+      rec._ccEdit = 1;
+      var baseAtS = '';
+      if (oldSupPre) baseAtS = String(oldSupPre.updatedAt || oldSupPre.updatedAtISO || '');
+      if (baseAtS) rec._ccBaseAt = baseAtS;
+    }
+    rec.updatedAtISO = new Date().toISOString();
+    if (cd && !rec._ccClear && typeof ptfMergeCustContactsFromLive === 'function') {
+      var liveSup = null;
+      try {
+        var liveSups = (typeof getData === 'function' ? getData('ptf_crm_suppliers') : items) || items;
+        for (var lsi = 0; lsi < liveSups.length; lsi++) {
+          if (liveSups[lsi] && liveSups[lsi].cd === cd) { liveSup = liveSups[lsi]; break; }
+        }
+      } catch (eLS) {}
+      if (liveSup) {
+        var liveAtS = String(liveSup.updatedAt || liveSup.updatedAtISO || '');
+        var oldAtS = String((oldSupPre && (oldSupPre.updatedAt || oldSupPre.updatedAtISO)) || '');
+        if (!oldAtS || (liveAtS && liveAtS !== oldAtS)) ptfMergeCustContactsFromLive(rec, liveSup);
+      }
+      for (var usi = 0; usi < items.length; usi++) {
+        if (items[usi] && items[usi].cd === rec.cd) { items[usi] = rec; break; }
+      }
+    }
+  } catch (eStaleS) {}
   /* v34.8.22 (W1): ثبت/ویرایش تامین‌کننده از پیشنهاد با فرمان اتمیک سروری. */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'offer-sup' });
   else setData('ptf_crm_suppliers', items);

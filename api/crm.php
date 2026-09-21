@@ -548,6 +548,177 @@ function sync_tombstone_id_set($key, $serverArchiveJson, $incomingArchiveJson) {
     }
     return $ids;
 }
+/* ═══ v34.39.17 (SF-PAYMENT-LOST — RCA «پرداخت تأمین صفر شد / حذف شد») ═══
+   ریشه: ptf_crm_supplier_finance یک OBJECT با buckets تو‌در‌تو (invoices/payments/adjustments)
+   است. data_push کل blob را جایگزین می‌کند؛ سپر mass-deletion فقط list-top-level را می‌بیند
+   ⇒ snapshot کهنهٔ دستگاه B می‌تواند یک SFPAY فعال سرور را بی‌صدا پاک کند.
+   درمان: ① merge سطری server∪incoming با void-wins ② سپر حذف تو‌در‌توی payments/invoices. */
+function sync_sf_row_ts($r) {
+    if (!is_array($r)) return '0';
+    $iso = trim((string)($r['updatedAtISO'] ?? ''));
+    if ($iso !== '' && preg_match('/^\d{4}-\d{2}-\d{2}/', $iso)) return '2' . $iso;
+    foreach (['createdAtISO','createdAt','dateISO'] as $f) {
+        $v = trim((string)($r[$f] ?? ''));
+        if ($v !== '' && preg_match('/^\d{4}-\d{2}-\d{2}/', $v)) return '2' . $v;
+    }
+    $raw = trim((string)($r['updatedAt'] ?? $r['t'] ?? $r['voidAt'] ?? $r['dateFa'] ?? ''));
+    if ($raw === '') return '0';
+    /* ارقام فارسی/عربی → لاتین برای مقایسهٔ پایدار */
+    $map = ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9',
+            '٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9'];
+    $latin = strtr($raw, $map);
+    return '1' . $latin;
+}
+function sync_sf_is_void($r) {
+    if (!is_array($r)) return false;
+    $st = strtolower(trim((string)($r['status'] ?? $r['st'] ?? '')));
+    return $st === 'void' || $st === 'voided_transfer' || !empty($r['void']);
+}
+function sync_sf_merge_bucket($serverRows, $incomingRows) {
+    $mm = [];
+    foreach ((array)$serverRows as $it) {
+        if (!is_array($it)) continue;
+        $cd = trim((string)($it['cd'] ?? $it['_id'] ?? ''));
+        if ($cd === '') continue;
+        $mm[$cd] = $it;
+    }
+    foreach ((array)$incomingRows as $it) {
+        if (!is_array($it)) continue;
+        $cd = trim((string)($it['cd'] ?? $it['_id'] ?? ''));
+        if ($cd === '') continue;
+        if (!isset($mm[$cd])) { $mm[$cd] = $it; continue; }
+        $srv = $mm[$cd];
+        $sVoid = sync_sf_is_void($srv); $iVoid = sync_sf_is_void($it);
+        if ($sVoid && !$iVoid) { $winner = $srv; $loser = $it; }
+        elseif ($iVoid && !$sVoid) { $winner = $it; $loser = $srv; }
+        else {
+            $st = sync_sf_row_ts($srv); $it_ts = sync_sf_row_ts($it);
+            if ($it_ts >= $st) { $winner = $it; $loser = $srv; }
+            else { $winner = $srv; $loser = $it; }
+        }
+        $rec = $winner;
+        /* union files */
+        $hasFiles = is_array($winner['files'] ?? null) || is_array($loser['files'] ?? null);
+        if ($hasFiles) {
+            $files = []; $seen = [];
+            foreach (array_merge(
+                is_array($winner['files'] ?? null) ? $winner['files'] : [],
+                is_array($loser['files'] ?? null) ? $loser['files'] : []
+            ) as $f) {
+                if (!is_array($f)) continue;
+                $fid = trim((string)($f['key'] ?? $f['id'] ?? ''));
+                if ($fid === '') $fid = hash('sha256', json_encode($f, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                if (isset($seen[$fid])) continue;
+                $seen[$fid] = true; $files[] = $f;
+            }
+            $rec['files'] = $files;
+        }
+        /* union allocations by invoiceCd|legacyCd */
+        if (is_array($winner['allocations'] ?? null) || is_array($loser['allocations'] ?? null)) {
+            $alloc = []; $seenA = [];
+            foreach (array_merge(
+                is_array($winner['allocations'] ?? null) ? $winner['allocations'] : [],
+                is_array($loser['allocations'] ?? null) ? $loser['allocations'] : []
+            ) as $a) {
+                if (!is_array($a)) continue;
+                $aid = trim((string)($a['invoiceCd'] ?? '')) !== ''
+                    ? 'i:' . trim((string)$a['invoiceCd'])
+                    : ('l:' . trim((string)($a['legacyCd'] ?? '')) . '|' . (string)($a['amount'] ?? ''));
+                if ($aid === 'i:' || $aid === 'l:|') $aid = hash('sha256', json_encode($a, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                if (isset($seenA[$aid])) continue;
+                $seenA[$aid] = true; $alloc[] = $a;
+            }
+            $rec['allocations'] = $alloc;
+            if (isset($rec['amount'])) {
+                $sum = 0; foreach ($alloc as $a) $sum += (float)($a['amount'] ?? 0);
+                $rec['unallocated'] = max(0, (float)$rec['amount'] - $sum);
+            }
+        }
+        if (sync_sf_is_void($winner)) {
+            $rec['status'] = $winner['status'] ?? 'void';
+            if (isset($winner['voidAt'])) $rec['voidAt'] = $winner['voidAt'];
+            if (isset($winner['voidBy'])) $rec['voidBy'] = $winner['voidBy'];
+        }
+        $mm[$cd] = $rec;
+    }
+    return array_values($mm);
+}
+function sync_merge_supplier_finance_snapshot($incomingJson, $serverJson) {
+    $inc = json_decode((string)$incomingJson, true);
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($inc)) return null;
+    if (!is_array($srv)) $srv = ['schema' => 1, 'invoices' => [], 'payments' => []];
+    /* list-shaped accidental payload: keep server */
+    if ($srv !== [] && array_keys($srv) === range(0, count($srv) - 1)) return is_string($serverJson) ? $serverJson : json_encode($srv, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($inc !== [] && array_keys($inc) === range(0, count($inc) - 1)) return is_string($serverJson) ? $serverJson : json_encode($srv, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $out = is_array($srv) ? $srv : [];
+    foreach ($inc as $k => $v) {
+        if ($k === 'invoices' || $k === 'payments' || $k === 'adjustments') continue;
+        if (!array_key_exists($k, $out) || $out[$k] === null || $out[$k] === '') $out[$k] = $v;
+        elseif ($v !== null && $v !== '') $out[$k] = $v; /* non-bucket scalars: prefer incoming when present */
+    }
+    foreach (['invoices', 'payments', 'adjustments'] as $bucket) {
+        $sRows = is_array($srv[$bucket] ?? null) ? $srv[$bucket] : [];
+        $iRows = is_array($inc[$bucket] ?? null) ? $inc[$bucket] : [];
+        $out[$bucket] = sync_sf_merge_bucket($sRows, $iRows);
+    }
+    if (!isset($out['schema'])) $out['schema'] = 1;
+    $enc = json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return is_string($enc) ? $enc : null;
+}
+function sync_sf_nested_mass_deletion_report($incomingJson, $serverJson, $serverArchiveJson, $incomingArchiveJson) {
+    $inc = json_decode((string)$incomingJson, true);
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($inc) || !is_array($srv)) return null;
+    if (($srv !== [] && array_keys($srv) === range(0, count($srv) - 1))
+        || ($inc !== [] && array_keys($inc) === range(0, count($inc) - 1))) return null;
+    $tomb = sync_tombstone_id_set('ptf_crm_supplier_finance', $serverArchiveJson, $incomingArchiveJson);
+    if (isset($tomb['__alias_purge__'])) return null;
+    $report = ['lost' => 0, 'serverCount' => 0, 'incomingCount' => 0, 'sample' => [], 'buckets' => []];
+    foreach (['payments', 'invoices', 'adjustments'] as $bucket) {
+        $sRows = is_array($srv[$bucket] ?? null) ? $srv[$bucket] : [];
+        $iRows = is_array($inc[$bucket] ?? null) ? $inc[$bucket] : [];
+        $srvCount = count($sRows);
+        if ($srvCount < 2) continue; /* آستانهٔ پایین‌تر از list-top: حتی ۱-۲ پرداخت مهم‌اند؛ از ۲ به بالا */
+        $incIds = [];
+        foreach ($iRows as $r) {
+            if (!is_array($r)) continue;
+            $id = trim((string)($r['cd'] ?? $r['_id'] ?? ''));
+            if ($id !== '') $incIds[$id] = true;
+        }
+        $missing = [];
+        foreach ($sRows as $r) {
+            if (!is_array($r)) continue;
+            $id = trim((string)($r['cd'] ?? $r['_id'] ?? ''));
+            if ($id === '' || isset($incIds[$id]) || isset($tomb[$id])) continue;
+            /* void on server still "exists"; omission is still a hard delete of history */
+            $missing[] = $id;
+        }
+        $lost = count($missing);
+        /* هر پرداخت/فاکتور فعال غایب بدون سنگ‌قبر = خطر؛ آستانه: lost>=1 و (lost>=2 یا ≥25٪) */
+        if ($lost <= 0) continue;
+        if ($lost < 2 && $lost < max(1, (int)ceil($srvCount * 0.25))) {
+            /* یک مورد تنها وقتی خطرناک است که آن ردیف void نباشد (پرداخت زنده) */
+            $liveLost = 0;
+            foreach ($sRows as $r) {
+                if (!is_array($r)) continue;
+                $id = trim((string)($r['cd'] ?? $r['_id'] ?? ''));
+                if ($id === '' || isset($incIds[$id]) || isset($tomb[$id])) continue;
+                if (!sync_sf_is_void($r)) $liveLost++;
+            }
+            if ($liveLost <= 0) continue;
+            /* حتی ۱ پرداخت زندهٔ غایب را block می‌کنیم */
+        }
+        $report['lost'] += $lost;
+        $report['serverCount'] += $srvCount;
+        $report['incomingCount'] += count($iRows);
+        $report['sample'] = array_slice(array_merge($report['sample'], $missing), 0, 10);
+        $report['buckets'][$bucket] = ['lost' => $lost, 'serverCount' => $srvCount, 'incomingCount' => count($iRows)];
+    }
+    if ($report['lost'] <= 0) return null;
+    return $report;
+}
+
 function sync_mass_deletion_report($key, $incomingJson, $serverJson, $serverArchiveJson, $incomingArchiveJson) {
     $inc = json_decode((string)$incomingJson, true);
     $srv = json_decode((string)$serverJson, true);
@@ -2567,12 +2738,22 @@ switch($action) {
                 $mdExisting = sync_key_read($sdir, $k);
                 if ($mdExisting !== null) {
                     $mdReport = sync_mass_deletion_report($k, $v, $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                    /* v34.39.17: سپر تو‌در‌تو برای object تأمین — پرداخت/فاکتور غایب بدون سنگ‌قبر */
+                    if ($mdReport === null && $k === 'ptf_crm_supplier_finance') {
+                        $mdReport = sync_sf_nested_mass_deletion_report($v, $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                    }
                     if ($mdReport !== null) {
                         sync_log_blocked_deletion($sdir, $k, $mdReport, $j['by'] ?? '');
                         $massBlocked[$k] = $mdReport;
                         $rejected[] = $k;
                         $conflicts[] = $k;
-                        $conflictData[$k] = sync_apply_tombstones($k, $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                        /* برای SF: conflict data = merge محفوظ server∪incoming تا پرداخت زنده نماند گم */
+                        if ($k === 'ptf_crm_supplier_finance') {
+                            $sfMerged = sync_merge_supplier_finance_snapshot($v, $mdExisting);
+                            $conflictData[$k] = sync_apply_tombstones($k, $sfMerged !== null ? $sfMerged : $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                        } else {
+                            $conflictData[$k] = sync_apply_tombstones($k, $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                        }
                         $krevs[$k] = (int)($meta[$k]['rev'] ?? 0);
                         continue;
                     }
@@ -2615,6 +2796,10 @@ switch($action) {
                         $protectedConflictJson = $cfVal === null ? '[]' : $cfVal;
                     }
                     $conflictData[$k] = sync_apply_tombstones($k, $protectedConflictJson, $serverArchiveJson, $incomingArchiveJson);
+                } elseif ($k === 'ptf_crm_supplier_finance' && $cfVal !== null) {
+                    /* v34.39.17: conflict SF → merge محفوظ تا پرداخت دستگاه stale از بین نرود و پرداخت سرور حفظ شود */
+                    $sfCf = sync_merge_supplier_finance_snapshot($v, $cfVal);
+                    $conflictData[$k] = sync_apply_tombstones($k, $sfCf !== null ? $sfCf : $cfVal, $serverArchiveJson, $incomingArchiveJson);
                 } elseif ($cfVal !== null) {
                     $conflictData[$k] = sync_apply_tombstones($k, $cfVal, $serverArchiveJson, $incomingArchiveJson); /* legacy UAT token: $conflictData[$k] = file_get_contents($cf); */
                 }
@@ -2639,6 +2824,18 @@ switch($action) {
             /* v34.9.2 (RCA حذف بی‌صدای opexTpl — ۲۰۲۶-۰۸-۳۰): تنظیمات یکجا replace می‌شود؛
                کلاینتی که opexTpl را ندارد (قدیمی/ناقص) نباید قالب‌های تکرارشوندهٔ سرور را
                بی‌صدا صفر کند. incomingِ فاقد/خالیِ opexTpl ⇒ حفظ نسخهٔ سرور. */
+            /* v34.39.17 (SF-PAYMENT-LOST): supplier_finance هرگز full-replace خام نیست —
+               حتی با base سالم، union سطری با سرور جلوی lost-update تک‌پرداخت را می‌گیرد. */
+            if (!$restore && !$allow_wipe && $k === 'ptf_crm_supplier_finance') {
+                $serverSfJson = sync_key_read($sdir, $k);
+                if ($serverSfJson !== null) {
+                    $mergedSf = sync_merge_supplier_finance_snapshot($v, $serverSfJson);
+                    if ($mergedSf !== null) {
+                        /* tombstone پس از merge — وگرنه purge آرشیو می‌تواند با ردیف سرور برگردد */
+                        $v = sync_apply_tombstones($k, $mergedSf, $restore ? '' : $serverArchiveJson, $incomingArchiveJson);
+                    }
+                }
+            }
             if ($k === 'ptf_crm_settings') {
                 $incSettings = json_decode($v, true);
                 if (is_array($incSettings) && empty($incSettings['opexTpl'])) {

@@ -353,7 +353,7 @@
     try { var sup = (getData('ptf_crm_suppliers') || []).filter(function (x) { return x.cd === c.supplierCd; })[0]; if (sup) supName = sup.co || supName; } catch (eS) {}
     var todayIso = '';
     try { if (typeof ptfJToISO === 'function' && c.dueFa) todayIso = ptfJToISO(c.dueFa) || ''; } catch (eI) {}
-    var payRec = { cd: genCode('SFPAY'), supplierCd: c.supplierCd, supName: supName, dateISO: todayIso, dateFa: c.dueFa || '', cur: 'IRR', rate: 1, amount: +c.amt || 0, amountIrr: +c.amt || 0, method: 'cheque', note: 'چک صادره ' + (c.sayad || c.no || c.cd || '') + (c.bank ? ' — ' + c.bank : ''), allocations: [], unallocated: +c.amt || 0, status: 'posted', chequeCd: c.cd, t: faDateTimeL(), by: me().name };
+    var payRec = { cd: genCode('SFPAY'), supplierCd: c.supplierCd, supName: supName, dateISO: todayIso, dateFa: c.dueFa || '', cur: 'IRR', rate: 1, amount: +c.amt || 0, amountIrr: +c.amt || 0, method: 'cheque', note: 'چک صادره ' + (c.sayad || c.no || c.cd || '') + (c.bank ? ' — ' + c.bank : ''), allocations: [], unallocated: +c.amt || 0, status: 'posted', chequeCd: c.cd, t: faDateTimeL(), by: me().name , createdAtISO: new Date().toISOString(), updatedAtISO: new Date().toISOString(), updatedBy: me().name };
     d.payments = d.payments || []; d.payments.unshift(payRec);
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_supplier_finance', d, { reason: 'w4' }); else setData('ptf_crm_supplier_finance', d);
     return { ok: true, applied: 'supplier', paymentCd: payRec.cd };

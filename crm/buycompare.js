@@ -310,20 +310,137 @@
     var rows=getData('ptf_crm_suppliers').filter(function(s){return key&&(norm(s.co)===key||norm(s.name)===key||norm(s.coEn)===key);});
     return rows.length===1?{ok:true,supplier:rows[0]}:{ok:false,why:rows.length?'ambiguous':'missing',count:rows.length};
   }
+  /* ═══ v34.39.14 (REALBUY-FINANCE-LINK — گزارش کارفرما) ═══
+     خرید واقعی خارج/پرونده بدون گردش تأمین و بدون ورود به محاسبات مالی
+     ثبت می‌شد و بعد بایگانی می‌شد. پیش از این فقط pay=cash به
+     slImportRealPurchase می‌رفت؛ credit فقط در buycmp می‌ماند.
+     حالا هر خرید (نقدی/اعتباری) باید به تأمین‌کننده یکتای ثبت‌شده وصل
+     و در زیر‌دفتر ثبت شود: cash=فاکتور+پرداخت، credit=فاکتور open. */
   function rbRequireCashSupplier(name, pay) {
-    if ((pay || 'cash') !== 'cash') return { ok: true, supplier: null };
-    var r=rbSupplierIdentity(name);
-    if(!r.ok) alert('⛔ خرید نقدی باید به یک تأمین‌کننده یکتای ثبت‌شده متصل شود.\nنام «'+name+'» '+(r.why==='ambiguous'?'چند تطبیق دارد':'در فهرست تأمین‌کنندگان یافت نشد')+'. ابتدا رکورد تأمین‌کننده را اصلاح/ثبت کنید.');
+    /* نام legacy؛ از v34.39.14 برای cash و credit یکسان اجباری است. */
+    var r = rbSupplierIdentity(name);
+    if (!r.ok) {
+      var mode = (pay || 'cash') === 'credit' ? 'اعتباری/غیرنقدی' : 'نقدی';
+      alert('⛔ خرید ' + mode + ' باید به یک تأمین‌کننده یکتای ثبت‌شده متصل شود.\nنام «' + name + '» ' +
+        (r.why === 'ambiguous' ? 'چند تطبیق دارد' : 'در فهرست تأمین‌کنندگان یافت نشد') +
+        '. ابتدا رکورد تأمین‌کننده را اصلاح/ثبت کنید (برای خرید خارج: تأمین‌کننده خارجی).');
+    }
     return r;
   }
   function rbPostCashSupplierLedger(c, purchase, item) {
-    if (!purchase || purchase.pay !== 'cash') return { ok: true, skipped: true };
+    /* نام legacy؛ از v34.39.14 cash و credit را post می‌کند. */
+    if (!purchase) return { ok: true, skipped: true };
+    var payMode = (purchase.pay === 'credit') ? 'credit' : 'cash';
     if (typeof window.slImportRealPurchase !== 'function') return { ok: false, why: 'module' };
-    var amount=(+purchase.price||0)*(+purchase.qty||+item.qty||1);
-    var res=window.slImportRealPurchase({purchaseCd:purchase.cd,supplierCd:purchase.supplierCd,supName:purchase.sup,amount:amount,unitPrice:+purchase.price||0,qty:+purchase.qty||+item.qty||1,item:item.nm||item.name||item.desc||'',pay:'cash',files:purchase.files||[],sourceCurrency:purchase.srcCur||'',sourceUnitPrice:+purchase.priceFx||0,sourceFxRate:+purchase.rate||0,dateFa:purchase.t||faDate(),dateISO:new Date().toISOString().slice(0,10)});
-    if(res&&res.ok){purchase.supplierInvoiceCd=res.invoice&&res.invoice.cd||'';purchase.supplierPaymentCd=res.payment&&res.payment.cd||'';purchase.financeLinked=true;}
-    return res||{ok:false,why:'unknown'};
+    if (!purchase.supplierCd) return { ok: false, why: 'supplier' };
+    var amount = (+purchase.price || 0) * (+purchase.qty || +(item && item.qty) || 1);
+    if (!(amount > 0)) return { ok: false, why: 'amount' };
+    var res = window.slImportRealPurchase({
+      purchaseCd: purchase.cd,
+      supplierCd: purchase.supplierCd,
+      supName: purchase.sup,
+      amount: amount,
+      unitPrice: +purchase.price || 0,
+      qty: +purchase.qty || +(item && item.qty) || 1,
+      item: (item && (item.nm || item.name || item.desc)) || '',
+      pay: payMode,
+      files: purchase.files || [],
+      sourceCurrency: purchase.srcCur || '',
+      sourceUnitPrice: +purchase.priceFx || 0,
+      sourceFxRate: +purchase.rate || 0,
+      dateFa: purchase.t || faDate(),
+      dateISO: new Date().toISOString().slice(0, 10)
+    });
+    if (res && res.ok) {
+      purchase.supplierInvoiceCd = (res.invoice && res.invoice.cd) || '';
+      purchase.supplierPaymentCd = (res.payment && res.payment.cd) || '';
+      purchase.financeLinked = true;
+      purchase.financePay = payMode;
+    }
+    return res || { ok: false, why: 'unknown' };
   }
+  /* وضعیت لینک مالی خریدهای واقعی یک درخواست — گارد بایگانی + UI */
+  window.ptfRealBuyFinanceStatus = function (inqNo) {
+    var out = { total: 0, linked: 0, unlinked: 0, unlinkedAmount: 0, orphanSup: 0, items: [] };
+    if (!inqNo) return out;
+    try {
+      (getData('ptf_crm_buycmp') || []).forEach(function (c) {
+        if (!c || c.inqNo !== inqNo || c.mergedInto) return;
+        (c.purchases || []).forEach(function (p) {
+          if (!p || !p.cd) return;
+          var item = (c.items || [])[p.idx] || {};
+          var amt = (+p.price || 0) * (+p.qty || +item.qty || 1);
+          out.total++;
+          var linked = !!(p.financeLinked || p.supplierInvoiceCd);
+          if (linked) out.linked++;
+          else {
+            out.unlinked++;
+            out.unlinkedAmount += amt;
+            if (!p.supplierCd) out.orphanSup++;
+            out.items.push({
+              purchaseCd: p.cd, cmpId: c.id, inqNo: c.inqNo || '',
+              sup: p.sup || '', supplierCd: p.supplierCd || '',
+              amount: amt, pay: p.pay || 'cash', item: item.nm || item.name || ''
+            });
+          }
+        });
+      });
+    } catch (eFs) {}
+    return out;
+  };
+  /* v34.39.16 (REALBUY-FINANCE-GAP): خلاصهٔ سراسری فاصلهٔ لینک مالی خرید واقعی —
+     فقط‌خواندنی برای KPI کیفیت/تراز. inqNo اختیاری برای فیلتر یک پرونده. */
+  window.ptfRealBuyFinanceGap = function (opts) {
+    opts = opts || {};
+    var onlyInq = opts.inqNo ? String(opts.inqNo) : '';
+    var out = {
+      total: 0, linked: 0, unlinked: 0, unlinkedAmount: 0, linkedAmount: 0,
+      orphanSup: 0, inqCount: 0, coveragePct: 100, cases: [], items: []
+    };
+    var byInq = {};
+    try {
+      (getData('ptf_crm_buycmp') || []).forEach(function (c) {
+        if (!c || c.mergedInto) return;
+        if (onlyInq && String(c.inqNo || '') !== onlyInq) return;
+        var inq = String(c.inqNo || '') || '(بدون درخواست)';
+        (c.purchases || []).forEach(function (p) {
+          if (!p || !p.cd) return;
+          var item = (c.items || [])[p.idx] || {};
+          var amt = (+p.price || 0) * (+p.qty || +item.qty || 1);
+          out.total++;
+          var linked = !!(p.financeLinked || p.supplierInvoiceCd);
+          if (!byInq[inq]) byInq[inq] = { inqNo: inq, total: 0, linked: 0, unlinked: 0, unlinkedAmount: 0, orphanSup: 0 };
+          byInq[inq].total++;
+          if (linked) {
+            out.linked++;
+            out.linkedAmount += amt;
+            byInq[inq].linked++;
+          } else {
+            out.unlinked++;
+            out.unlinkedAmount += amt;
+            byInq[inq].unlinked++;
+            byInq[inq].unlinkedAmount += amt;
+            if (!p.supplierCd) { out.orphanSup++; byInq[inq].orphanSup++; }
+            var row = {
+              purchaseCd: p.cd, cmpId: c.id, inqNo: inq,
+              sup: p.sup || '', supplierCd: p.supplierCd || '',
+              amount: amt, pay: p.pay || 'cash',
+              item: item.nm || item.name || item.desc || ''
+            };
+            if (out.items.length < 200) out.items.push(row);
+          }
+        });
+      });
+      Object.keys(byInq).forEach(function (k) {
+        var c = byInq[k];
+        if (c.unlinked > 0) out.cases.push(c);
+      });
+      out.cases.sort(function (a, b) { return (b.unlinkedAmount || 0) - (a.unlinkedAmount || 0); });
+      out.inqCount = out.cases.length;
+      out.coveragePct = out.total ? Math.round((out.linked / out.total) * 1000) / 10 : 100;
+    } catch (eG) {}
+    return out;
+  };
   function rbDeleteCloudKeys(keys) {
     keys = (keys || []).filter(Boolean);
     if (!keys.length) return;
@@ -471,8 +588,9 @@
     var supplierMap = {}, supplierInvalid = '', _requireCashSupplier = typeof rbRequireCashSupplier === 'function' ? rbRequireCashSupplier : function(){ return {ok:true,supplier:{cd:''}}; };
     (rows || []).forEach(function (rw) {
       var price = (typeof ptfNum === 'function') ? ptfNum(rw.price) : (+String(rw.price || '').replace(/[^\d.-]/g, '') || 0), name=String(rw.sup||'').trim();
-      if (!price || !name || (rw.pay || 'cash') !== 'cash' || supplierMap[name]) return;
-      var resolved=_requireCashSupplier(name,'cash'); if(!resolved.ok)supplierInvalid=name; else supplierMap[name]=resolved.supplier;
+      if (!price || !name || supplierMap[name]) return;
+      /* v34.39.14: cash و credit هر دو هویت تأمین می‌خواهند */
+      var resolved=_requireCashSupplier(name, rw.pay || 'cash'); if(!resolved.ok)supplierInvalid=name; else supplierMap[name]=resolved.supplier;
     });
     if (supplierInvalid) return { ok:false, why:'supplier_identity', supplier:supplierInvalid };
     var done = 0, skipped = 0, total = 0, newPurchases = [];
@@ -496,11 +614,12 @@
     if (done) {
       cmpSave(list);
       var linkedCash=[], financeFailed=false;
-      newPurchases.forEach(function(p){if(p.pay!=='cash'||financeFailed)return;var fr=typeof rbPostCashSupplierLedger==='function'?rbPostCashSupplierLedger(c2,p,(c2.items||[])[p.idx]||{}):{ok:true,skipped:true};if(!fr.ok)financeFailed=true;else linkedCash.push(p.cd);});
+      /* v34.39.14: همه خریدها (نقدی/اعتباری) به زیر‌دفتر */
+      newPurchases.forEach(function(p){if(financeFailed)return;var fr=typeof rbPostCashSupplierLedger==='function'?rbPostCashSupplierLedger(c2,p,(c2.items||[])[p.idx]||{}):{ok:true,skipped:true};if(!fr.ok)financeFailed=true;else linkedCash.push(p.cd);});
       if(financeFailed){
         c2.purchases=(c2.purchases||[]).filter(function(p){return !newPurchases.some(function(n){return n.cd===p.cd;});});
         linkedCash.forEach(function(cd){if(typeof window.slVoidRealPurchaseFinance==='function')window.slVoidRealPurchaseFinance(cd,'بازگشت ثبت گروهی ناموفق');});
-        cmpSave(list); alert('⛔ ثبت گروهی بازگردانده شد چون گردش یکی از خریدهای نقدی ثبت نشد.');
+        cmpSave(list); alert('⛔ ثبت گروهی بازگردانده شد چون گردش یکی از خریدهای واقعی در حساب تأمین ثبت نشد.');
         return {ok:false,why:'supplier_finance'};
       }
       cmpSave(list); /* شناسه فاکتور/پرداخت ایجادشده روی purchase نیز پایدار شود */
@@ -836,10 +955,11 @@
         c2.purchases.push(purchase);
         cmpSave(list);
         var financeResult = typeof rbPostCashSupplierLedger === 'function' ? rbPostCashSupplierLedger(c2, purchase, srcItem) : {ok:true,skipped:true};
-        if (!financeResult.ok && purchase.pay === 'cash') {
+        /* v34.39.14: cash و credit هر دو باید به زیر‌دفتر بروند؛ fail → rollback */
+        if (!financeResult.ok) {
           c2.purchases = c2.purchases.filter(function (p) { return p.cd !== pcd; }).concat(oldPurchases);
           cmpSave(list);
-          alert('⛔ ثبت خرید نقدی به‌علت ثبت‌نشدن گردش تأمین‌کننده بازگردانده شد. صفحه را تازه و دوباره تلاش کنید.');
+          alert('⛔ ثبت خرید واقعی به‌علت ثبت‌نشدن گردش تأمین‌کننده بازگردانده شد (' + (financeResult.why || 'خطا') + ').\nتأمین‌کننده یکتا، مبلغ و اتصال مالی را بررسی و دوباره تلاش کنید.');
           return;
         }
         oldPurchases.forEach(function (p) { if (p.cd !== pcd && typeof window.slVoidRealPurchaseFinance === 'function') window.slVoidRealPurchaseFinance(p.cd, 'جایگزینی خرید واقعی'); });
@@ -848,7 +968,7 @@
         if (typeof ptfRealBuyEnsureStatus === 'function') ptfRealBuyEnsureStatus(c2.inqNo);
         /* v16.6 (US-400): ثبت بستانکاری تامین‌کننده — نقدی = تسویه فوری؛ غیرنقدی = باز تا ثبت پرداخت‌های مرحله‌ای
            v17.2: مبلغ = معادل ریالی قطعی (تسعیرشده) — بدهی ارزی بی‌نرخ دیگر پیش نمی‌آید */
-        /* خرید نقدی در زیر‌دفتر تأمین با فاکتور و پرداخت کامل ثبت شد؛ خرید اعتباری همچنان از مسیر مالی تأمین تعیین تکلیف می‌شود. */
+        /* v34.39.14: نقدی=فاکتور+پرداخت؛ اعتباری=فاکتور open — هر دو در زیر‌دفتر تأمین. */
         // ثبت در buyquotes قدیمی هم برای گزارش‌های موجود
         var bq = getData('ptf_crm_buyquotes');
         bq.unshift({ cd: genCode('BQ'), ref: c2.inqNo, sup: supName, desc: (c2.items[idx] || {}).nm || '', price: buyPrice, note: 'خرید واقعی' + (priceFx ? ' (تسعیر ' + priceFx.toLocaleString('en-US') + ' ' + (c2.purchases[c2.purchases.length-1].srcCur || '') + ' × ' + buyRate.toLocaleString('fa-IR') + ')' : ''), t: faDate(), by: curSession().name });
@@ -966,9 +1086,24 @@
         } catch (eAdv) {}
         var costs = (deal.costEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0);
         var costTxt = costs ? ' | هزینه‌های مستقیم: ' + costs.toLocaleString('fa-IR') + ' ریال' : '';
+        /* v34.39.15: وضعیت لینک مالی روی خلاصهٔ خرید واقعی پرونده */
+        var finTxt = '';
+        try {
+          if (typeof window.ptfRealBuyFinanceStatus === 'function') {
+            var rfB = window.ptfRealBuyFinanceStatus(deal.inqNo) || {};
+            if (rfB.total > 0) {
+              if (rfB.unlinked > 0) {
+                finTxt = ' — <span style="color:#c2410c">⚠ ' + rfB.linked + '/' + rfB.total + ' لینک مالی، ' +
+                  rfB.unlinked + ' بدون گردش (' + (+rfB.unlinkedAmount || 0).toLocaleString('fa-IR') + ' ریال)</span>';
+              } else {
+                finTxt = ' — <span style="color:#059669">✅ ' + rfB.linked + '/' + rfB.total + ' لینک به حساب تأمین</span>';
+              }
+            }
+          }
+        } catch (eFin) {}
         var lb = !st.has || !st.done
           ? '<span style="color:#b45309">هنوز خریدی ثبت نشده</span>'
-          : st.full + ' از ' + st.total + ' قلم کامل' + (st.partial ? ' — ' + st.partial + ' قلم ناقص' : '') + (st.pendingFx ? ' — <span style="color:#dc2626">' + st.pendingFx + ' خرید ارزی بدون نرخ ⚠️</span>' : ' ✅');
+          : st.full + ' از ' + st.total + ' قلم کامل' + (st.partial ? ' — ' + st.partial + ' قلم ناقص' : '') + (st.pendingFx ? ' — <span style="color:#dc2626">' + st.pendingFx + ' خرید ارزی بدون نرخ ⚠️</span>' : ' ✅') + finTxt;
         /* MOB-039: این بلوک داخل کشوی پرونده نمایش داده می‌شود؛ actionهای آن باید
            همان contract tile/label عملیات Post-Award را داشته باشند، نه چهار button
            رنگی با عرض متن متغیر. */
@@ -983,6 +1118,15 @@
           rbAction('open', '🛍', 'خرید', 'ثبت یا پیگیری خرید واقعی اقلام پرونده', 'event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')', true) +
           rbAction('inquiry', '🤖', 'استعلام مجدد', 'ثبت استعلام تامین جدید برای این پرونده', 'event.stopPropagation();ptfRealBuyNewInquiry(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
           rbAction('cost', '➕', 'هزینه پرونده', 'ثبت هزینهٔ مستقیم برای پرونده', 'event.stopPropagation();ptfProjectCostOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
+          (function () {
+            try {
+              var rfA = (typeof window.ptfRealBuyFinanceStatus === 'function') ? window.ptfRealBuyFinanceStatus(deal.inqNo) : null;
+              if (rfA && rfA.unlinked > 0 && typeof window.slRepairCashPurchaseLedger === 'function') {
+                return rbAction('repair', '🔧', 'ترمیم گردش', 'ثبت خریدهای بدون لینک در حساب تأمین‌کننده', 'event.stopPropagation();(window.slRepairRealPurchaseLedger||window.slRepairCashPurchaseLedger)({inqNo:\'' + ptfOnClickArg(deal.inqNo) + '\'});if(typeof renderDeals===\'function\')renderDeals();');
+              }
+            } catch (eR) {}
+            return '';
+          })() +
           '</div></section>');
       } catch (e) {}
     };

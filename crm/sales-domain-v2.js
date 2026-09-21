@@ -711,6 +711,53 @@
       try { if (JSON.stringify(pv) !== JSON.stringify(nx)) ups.push(nx); } catch (eJ) { ups.push(nx); }
     });
     Object.keys(prevByCd).forEach(function (cd) { if (!nextByCd[cd]) dels.push(cd); });
+    /* ═══ v34.39.12 (CONTACT-STALE-PARTIAL-WIPE — RCA 2026-09-21) ═══
+       ویرایش‌های تک‌فیلدی (vendorlist/coen-fill/cheque-origin/supspec/ai-letterhead/…)
+       کل رکورد کهنهٔ getData را upsert می‌کنند. حتی با AUTO_NO_DELETE، کلیدهای
+       حاضر people/coTels/phones/ph روی سرور wholesale جایگزین می‌شدند و شماره‌های
+       ثبت‌شده توسط کاربر دیگر (پس از آخرین pull این دستگاه) پاک می‌شد — الگوی
+       «مالِ من سالم، مال او پاک».
+       قاعده: برای reasonهای «غیرتماسی»، پیش از upsert کلیدهای تماس از payload
+       حذف می‌شوند تا merge سرور (کلید غایب = حفظ prev) تماس‌ها را دست نزند.
+       reasonهای ویرایش/ساخت واقعی تماس (offer-cust/offer-sup/site-rfq/lead-convert/
+       ai-buyer/ai-bizcard/custmerge/contact-mig/phonefmt-mig/restore) و ساخت جدید
+       (newCds) و opts.touchContacts مستثنی‌اند. */
+    var CONTACT_TOUCH_REASONS = {
+      'offer-cust': 1, 'offer-sup': 1,
+      'site-rfq': 1, 'lead-convert': 1,
+      'ai-buyer': 1, 'ai-bizcard': 1,
+      'custmerge': 1, 'contact-mig': 1, 'phonefmt-mig': 1, 'phonefmt': 1,
+      'restore-contacts': 1, 'offer-cust-restore': 1
+    };
+    var CONTACT_KEYS_STRIP = ['people', 'coTels', 'phones', 'ph'];
+    var CONTACT_STRIP_COLLECTIONS = { 'ptf_crm_customers': 1, 'ptf_crm_suppliers': 1 };
+    if (CONTACT_STRIP_COLLECTIONS[collection] && !CONTACT_TOUCH_REASONS[opts.reason] && !opts.touchContacts) {
+      var strippedUps = [];
+      var stripCount = 0;
+      ups.forEach(function (r) {
+        if (!r || newCds[r.cd]) { strippedUps.push(r); return; }
+        var out = r, cloned = false;
+        CONTACT_KEYS_STRIP.forEach(function (k) {
+          if (!Object.prototype.hasOwnProperty.call(out, k)) return;
+          if (!cloned) {
+            try { out = JSON.parse(JSON.stringify(r)); } catch (eC) { out = r; }
+            cloned = true;
+          }
+          try { delete out[k]; } catch (eD) {}
+        });
+        if (cloned) stripCount++;
+        strippedUps.push(out);
+      });
+      if (stripCount) {
+        ups = strippedUps;
+        try {
+          if (typeof audit === 'function') {
+            audit('یکپارچگی داده', '🛡️ CONTACT-STALE: کلیدهای تماس از ' + stripCount +
+              ' upsert غیرتماسیِ ' + collection + ' حذف شد (reason=' + (opts.reason || '-') + ')', collection);
+          }
+        } catch (eAuS) {}
+      }
+    }
     /* ═══ v34.37.7 (CONTACT-WIPE) ═══
        ذخیرهٔ یک‌رکوردی / قالب‌بندی شماره / heal از درخواست، کل مجموعه را دوباره
        می‌نویسند. اگر getData کهنه باشد، هر cd غایب entity_delete می‌شد (و حتی با
@@ -1247,31 +1294,94 @@
      به‌صورت «یافته» دیده می‌شود درحالی‌که چنین پیشنهادی دادهٔ سالم است و یافته محسوب
      نمی‌شود؛ بنابراین v34.38.18 صدور آن یافته را برداشت و این اثباتِ پیوند اکنون تنها
      برای سرکوب orphan_wonِ بحرانیِ کاذب مصرف دارد. */
+  /* v34.39.18 (ORPHAN-ARCHIVED-REDETECT — گزارش کارفرما: «پیشنهاد مالی برندهٔ پرونده
+     بایگانی‌شده دوباره به‌عنوان برندهٔ بدون پرونده یافته شد»):
+     ریشهٔ رگرسیون: archivedCaseForOffer فقط wonOffer/offerNo/offerNos را می‌دید.
+     در عمل بعضی رکوردهای بایگانی (قدیمی، lost-then-settled، یا وقتی sfDocsOf در لحظهٔ
+     بایگانی خالی بود) wonOffer خالی دارند ولی شماره در docSnap.offers / awardDocs /
+     linkedOffers / no=ARC-… موجود است. همچنین مقایسهٔ خام String بدون نرمال‌سازی
+     فاصله/یونیکد و رد کردن با inqNo ناسازگار، پیوند واقعی را پنهان می‌کرد → orphan_won کاذب. */
   function archivedSalesFile(p) {
-    return !!(p && p.origin === 'salesfile' && String(p.state || '').toLowerCase() === 'archived');
+    if (!p) return false;
+    var st = String(p.state || p.st || p.status || '').toLowerCase();
+    if (st === 'archived') return true;
+    if (String(p.origin || '').toLowerCase() === 'salesfile') return true;
+    if (p.dealCd && String(p.no || '').indexOf('ARC-') === 0) return true;
+    return false;
+  }
+  function offerNoNorm(v) {
+    return identity(String(v == null ? '' : v).replace(/^ARC-/i, ''));
+  }
+  function archivedProjectOfferNos(p) {
+    var out = [], seen = {};
+    function add(v) {
+      var s = String(v == null ? '' : v).trim();
+      if (!s) return;
+      var k = offerNoNorm(s);
+      if (!k || seen[k]) return;
+      seen[k] = 1;
+      out.push(s);
+    }
+    add(p.wonOffer); add(p.offerNo);
+    arr(p.offerNos).forEach(add);
+    arr(p.linkedOffers).forEach(function (l) {
+      if (!l) return;
+      add(l.offerNo); add(l.no); add(l.offerId);
+    });
+    /* docSnap.offers: فهرست پیشنهادهای پرونده در لحظهٔ بایگانی — منبع اصلی وقتی offerNos خالی است */
+    try {
+      var snap = p.docSnap || {};
+      arr(snap.offers).forEach(function (x) {
+        if (!x) return;
+        if (typeof x === 'string' || typeof x === 'number') add(x);
+        else { add(x.no); add(x.offerNo); }
+      });
+    } catch (eSnap) {}
+    arr(p.awardDocs).forEach(function (a) {
+      if (!a) return;
+      add(a.offerNo); add(a.no);
+    });
+    /* no مثل ARC-CO-1404-012 یا ARC-<inq> — فقط اگر شبیه شماره پیشنهاد است نه فقط inq */
+    var bare = String(p.no || '').replace(/^ARC-/i, '').trim();
+    if (bare && /[A-Za-z]/.test(bare)) add(bare);
+    return out;
   }
   function archivedCaseForOffer(o) {
     if (!o) return null;
-    var no = String(o.no || '');
+    var no = String(o.no || '').trim();
     if (!no) return null;
+    var noKey = offerNoNorm(no);
+    if (!noKey) return null;
+    var oid = String(o._id || '').trim();
+    var oi = identity(o.inqNo);
     var hit = null;
     var probes = data('ptf_crm_projects');
     for (var i = 0; i < probes.length; i++) {
       var p = probes[i];
       if (!archivedSalesFile(p)) continue;
-      var pno = String(p.wonOffer || p.offerNo || '');
-      var linked = pno === no;
-      if (!linked && arr(p.offerNos).some(function (n) { return n != null && String(n) === no; })) linked = true;
+      var nos = archivedProjectOfferNos(p);
+      var linked = nos.some(function (n) { return offerNoNorm(n) === noKey; });
+      /* rootOfferId / awardDocs.offerId */
+      if (!linked && oid) {
+        if (String(p.rootOfferId || '') === oid) linked = true;
+        if (!linked && arr(p.linkedOffers).some(function (l) {
+          return l && (String(l.offerId || '') === oid || String(l._id || '') === oid);
+        })) linked = true;
+        if (!linked && arr(p.awardDocs).some(function (a) {
+          return a && String(a.offerId || '') === oid;
+        })) linked = true;
+      }
       if (!linked) continue;
-      /* سازگاری هویت (بدون فیلتر active — این رکورد عمداً بسته است). شمارهٔ پیشنهادِ
-         یکتا به‌تنهایی اثبات پیوند است؛ درگیری هویت فقط از تطبیقِ نادرستِ میان پرونده‌ها
-         جلوگیری می‌کند و نباید پروندهٔ واقعیِ بایگانی را از دید پنهان کند. */
-      var pi = identity(p.inqNo), oi = identity(o.inqNo);
+      /* سازگاری هویت: فقط وقتی هر دو inq پر و ناسازگارند رد کن.
+         اگر یکی خالی است (بایگانی قدیمی) شمارهٔ پیشنهاد یکتا کافی است. */
+      var pi = identity(p.inqNo);
       if (pi && oi && pi !== oi) continue;
       if (!hit) hit = p;
     }
     return hit || null;
   }
+  /* تست/اشکارسازی: آیا این پیشنهاد برنده به پروندهٔ بایگانی salefile وصل است؟ */
+  window.ptfArchivedCaseForOffer = archivedCaseForOffer;
   window.ptfOpenArchivedWonFile = function (projectNo) {
     projectNo = String(projectNo || '');
     var found = null;
