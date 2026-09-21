@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.11';
+const SD_SERVICE_VERSION = '34.39.19';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -446,6 +446,47 @@ function sd_row_has_contact(array $r, string $k): bool {
     if ($k === 'ph') return is_string($v) ? trim($v) !== '' : false;
     return is_array($v) && !empty($v) && !sd_contact_val_empty($v);
 }
+/* v34.39.19 (RFQ-ASSIGNEE-PRESERVE — گزارش کارفرما: ارجاع پیامک می‌آید ولی مسئول
+   در لیست دیده نمی‌شود / پس از ویرایش پاک می‌شود):
+   entity_upsert کل رکورد را جایگزین می‌کند. ویرایش‌های بعدی (وضعیت/اقلام/…) payload
+   بدون assignee یا با assignee خالی می‌فرستند. بدون نیت صریح (_clearAssignee)
+   مقدار قبلی حفظ می‌شود؛ اگر incoming تازه‌تر است (atISO) جایگزین می‌شود. */
+function sd_preserve_rfq_assignee(array $row, array $prev, array &$stats = null): array {
+    $clear = !empty($row['_clearAssignee']);
+    if (array_key_exists('_clearAssignee', $row)) unset($row['_clearAssignee']);
+    if ($clear) {
+        /* v34.39.19-fix (ASSIGNEE-CLEAR-NULLED): null به‌جای unset — merge CARTABLE-LOOP
+           «کلید غایب = حفظ prev» است و با unset، assignee پاک‌شده بلافاصله از $prev
+           زنده می‌شد (پاک‌سازیِ صریح بی‌اثر). null کلید حاضر نگه می‌دارد ⇒ merge رد می‌کند
+           و رکورد با assignee خالی ذخیره می‌شود (کلاینت null = بدون مسئول). */
+        $row['assignee'] = null;
+        $row['assigneeAtISO'] = null;
+        if (is_array($stats)) { $stats['assigneeCleared'] = true; }
+        return $row;
+    }
+    $in = (isset($row['assignee']) && is_array($row['assignee'])) ? $row['assignee'] : null;
+    $inOk = $in && (trim((string)($in['user'] ?? '')) !== '' || trim((string)($in['name'] ?? $in['nm'] ?? '')) !== '');
+    $pv = (isset($prev['assignee']) && is_array($prev['assignee'])) ? $prev['assignee'] : null;
+    $pvOk = $pv && (trim((string)($pv['user'] ?? '')) !== '' || trim((string)($pv['name'] ?? $pv['nm'] ?? '')) !== '');
+    if ($inOk) {
+        $inTs = (string)($in['atISO'] ?? $row['assigneeAtISO'] ?? '');
+        $pvTs = $pvOk ? (string)($pv['atISO'] ?? $prev['assigneeAtISO'] ?? '') : '';
+        if ($pvOk && $pvTs !== '' && $inTs !== '' && strcmp($pvTs, $inTs) > 0) {
+            $row['assignee'] = $pv;
+            if (!empty($prev['assigneeAtISO'])) $row['assigneeAtISO'] = $prev['assigneeAtISO'];
+            if (is_array($stats)) { $stats['assigneeKeptNewerPrev'] = true; }
+        }
+        return $row;
+    }
+    if ($pvOk) {
+        $row['assignee'] = $pv;
+        if (!empty($prev['assigneeAtISO'])) $row['assigneeAtISO'] = $prev['assigneeAtISO'];
+        elseif (!empty($pv['atISO'])) $row['assigneeAtISO'] = $pv['atISO'];
+        if (is_array($stats)) { $stats['assigneePreserved'] = true; }
+    }
+    return $row;
+}
+
 function sd_contact_wipe_guard(array $row, array $prev, array &$stats, bool $ccClear): array {
     $keys = ['people', 'coTels', 'phones', 'ph'];
     $anyPresented = false; $allEmpty = true; $storedHas = false;
@@ -456,6 +497,162 @@ function sd_contact_wipe_guard(array $row, array $prev, array &$stats, bool $ccC
     if (!$anyPresented || !$allEmpty || !$storedHas || $ccClear) return $row;
     foreach ($keys as $k) if (array_key_exists($k, $row)) $row[$k] = $prev[$k];
     if ($stats !== null) $stats['contactsWipeBlocked'] = ($stats['contactsWipeBlocked'] ?? 0) + 1;
+    return $row;
+}
+/* ═══ v34.39.12 (CONTACT-STALE-PARTIAL-WIPE — RCA 2026-09-21) ═══
+   گارد v34.38.25 فقط «کلید حاضرِ کاملاً خالی» را می‌گیرد. سناریوی واقعی میدانی
+   «شستشوی جزئی» است: payload کهنهٔ یک دستگاه (مودال بازمانده / ویرایش تک‌فیلدی
+   مثل vendorlist/coen-fill) هنوز یک شمارهٔ خودش را دارد ⇒ allEmpty=false ⇒
+   گارد عبور می‌کند و شماره‌هایی که کاربر دیگر بعد از آخرین pull/بازشدن مودال
+   ثبت کرده، با جایگزینی wholesale آرایهٔ people/coTels/phones از سرور حذف
+   می‌شود — دقیقاً الگوی «مالِ من سالم، مال او پاک».
+
+   قاعدهٔ جدید (بدون مهر _ccClear):
+     • people/coTels/phones = اتحاد (union) بر اساس کلید نرمال‌شدهٔ تماس،
+       نه جایگزینی wholesale. payload می‌تواند شمارهٔ تازه اضافه کند؛ هرگز
+       شماره‌ای که فقط روی سرور هست را بی‌صدا حذف نمی‌کند.
+     • ph اسکالر: اگر payload خالی و prev پر باشد، prev حفظ می‌شود.
+   با _ccClear=1 (نیت صریح پاک‌سازی از فرم ویرایش) اتحاد اعمال نمی‌شود. */
+function sd_contact_digits($v): string {
+    $s = strtr(trim((string)$v), [
+        '۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9',
+        '٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9',
+    ]);
+    return (string)preg_replace('/\D+/', '', $s);
+}
+function sd_contact_chan_key($t): string {
+    if (!is_array($t)) {
+        $d = sd_contact_digits($t);
+        return $d !== '' ? 'n:'.$d : 's:'.mb_strtolower(trim((string)$t), 'UTF-8');
+    }
+    $n = isset($t['n']) ? trim((string)$t['n']) : '';
+    if ($n === '') return '';
+    $d = sd_contact_digits($n);
+    return $d !== '' ? 'n:'.$d : 's:'.mb_strtolower($n, 'UTF-8');
+}
+function sd_contact_merge_chan_list($incoming, $stored): array {
+    $out = []; $seen = [];
+    $push = function ($t) use (&$out, &$seen) {
+        if (!is_array($t) && !is_string($t)) return;
+        if (is_string($t)) $t = ['n' => $t];
+        $k = sd_contact_chan_key($t);
+        if ($k === '' || isset($seen[$k])) return;
+        $seen[$k] = 1;
+        $out[] = $t;
+    };
+    if (is_array($incoming)) foreach ($incoming as $t) $push($t);
+    if (is_array($stored)) foreach ($stored as $t) $push($t);
+    return $out;
+}
+function sd_contact_person_key(array $p): string {
+    $nm = mb_strtolower(trim((string)($p['nm'] ?? '')), 'UTF-8');
+    if ($nm !== '') return 'nm:'.$nm;
+    $bits = [];
+    foreach (['tels','mobs','mails'] as $ch) {
+        if (!isset($p[$ch]) || !is_array($p[$ch])) continue;
+        foreach ($p[$ch] as $t) {
+            $k = sd_contact_chan_key($t);
+            if ($k !== '') $bits[$k] = 1;
+        }
+    }
+    if (!$bits) return '';
+    $keys = array_keys($bits); sort($keys);
+    return 'ch:'.implode('|', $keys);
+}
+function sd_contact_merge_people($incoming, $stored): array {
+    $out = []; $byKey = [];
+    $ingest = function ($p, bool $isIncoming) use (&$out, &$byKey) {
+        if (!is_array($p)) return;
+        $k = sd_contact_person_key($p);
+        if ($k === '') {
+            /* شخص بدون نام و بدون کانال — فقط اگر incoming باشد نگه دار (فرم تازه) */
+            if ($isIncoming) $out[] = $p;
+            return;
+        }
+        if (!isset($byKey[$k])) {
+            $byKey[$k] = count($out);
+            $out[] = $p;
+            return;
+        }
+        $idx = $byKey[$k];
+        $base = $out[$idx];
+        /* اتحاد کانال‌ها؛ فیلدهای اسکالرِ خالی از طرف دیگر پر می‌شود */
+        foreach (['tels','mobs','mails'] as $ch) {
+            $base[$ch] = sd_contact_merge_chan_list($base[$ch] ?? [], $p[$ch] ?? []);
+        }
+        foreach (['nm','nmEn','role','dept','note','src'] as $f) {
+            $bv = trim((string)($base[$f] ?? ''));
+            $pv = trim((string)($p[$f] ?? ''));
+            if ($bv === '' && $pv !== '') $base[$f] = $p[$f];
+        }
+        if (empty($base['primary']) && !empty($p['primary'])) $base['primary'] = true;
+        $out[$idx] = $base;
+    };
+    /* اول incoming (ترتیب فرم کاربر)، بعد stored (شماره‌های غایب از payload کهنه) */
+    if (is_array($incoming)) foreach ($incoming as $p) $ingest($p, true);
+    if (is_array($stored)) foreach ($stored as $p) $ingest($p, false);
+    return $out;
+}
+function sd_contact_stale_merge(array $row, array $prev, array &$stats, bool $ccClear): array {
+    /* مهر نسخه/نیت هرگز در رکورد نهایی نماند (چه clear، چه fresh، چه stale). */
+    $clientBase = '';
+    if (isset($row['_ccBaseAt'])) {
+        $clientBase = trim((string)$row['_ccBaseAt']);
+        unset($row['_ccBaseAt']);
+    }
+    if ($ccClear) return $row; /* نیت صریح پاک‌سازی — اتحاد اعمال نشود */
+    /* اگر کلاینت با baseUpdatedAt هم‌نسخهٔ سرور ذخیره کرده، مودالش تازه است و
+       حذف/کاهش آگاهانهٔ شخص/شماره محترم شمرده می‌شود (اتحاد فقط برای stale). */
+    $serverAt = '';
+    foreach (['updatedAt', 'updatedAtISO'] as $tf) {
+        if (isset($prev[$tf]) && is_string($prev[$tf]) && trim($prev[$tf]) !== '') {
+            $serverAt = trim((string)$prev[$tf]);
+            break;
+        }
+    }
+    if ($clientBase !== '' && $serverAt !== '' && $clientBase === $serverAt) {
+        if ($stats !== null) $stats['contactsFreshEdit'] = ($stats['contactsFreshEdit'] ?? 0) + 1;
+        return $row; /* ویرایش تازه — LWW عادی روی تماس‌ها */
+    }
+    $mergedAny = false;
+    /* people: اتحاد اشخاص + کانال‌ها */
+    if (array_key_exists('people', $row)) {
+        $prevP = (isset($prev['people']) && is_array($prev['people'])) ? $prev['people'] : [];
+        $rowP  = is_array($row['people']) ? $row['people'] : [];
+        if ($prevP) {
+            $merged = sd_contact_merge_people($rowP, $prevP);
+            /* مقایسهٔ ساختاری: اگر تعداد/کلیدها فرق کرد، ادغام را بنویس */
+            if (json_encode($merged, JSON_UNESCAPED_UNICODE) !== json_encode($rowP, JSON_UNESCAPED_UNICODE)) {
+                $row['people'] = $merged;
+                $mergedAny = true;
+            }
+        }
+    }
+    /* coTels / phones: اتحاد کانال‌ها بر رقم نرمال */
+    foreach (['coTels', 'phones'] as $k) {
+        if (!array_key_exists($k, $row)) continue;
+        $prevV = (isset($prev[$k]) && is_array($prev[$k])) ? $prev[$k] : [];
+        $rowV  = is_array($row[$k]) ? $row[$k] : [];
+        if ($prevV) {
+            $merged = sd_contact_merge_chan_list($rowV, $prevV);
+            if (json_encode($merged, JSON_UNESCAPED_UNICODE) !== json_encode($rowV, JSON_UNESCAPED_UNICODE)) {
+                $row[$k] = $merged;
+                $mergedAny = true;
+            }
+        }
+    }
+    /* ph اسکالر: خالیِ حاضر نباید پرِ قبلی را بشوید (مگر _ccClear) */
+    if (array_key_exists('ph', $row)) {
+        $rowPh = is_string($row['ph']) ? trim($row['ph']) : '';
+        $prevPh = isset($prev['ph']) && is_string($prev['ph']) ? trim($prev['ph']) : '';
+        if ($rowPh === '' && $prevPh !== '') {
+            $row['ph'] = $prev['ph'];
+            $mergedAny = true;
+        }
+    }
+    if ($mergedAny && $stats !== null) {
+        $stats['contactsStaleMerged'] = ($stats['contactsStaleMerged'] ?? 0) + 1;
+    }
     return $row;
 }
 /* v34.7.16: تعارض هویت بین دو پرونده برای ادغام — همان قاعده‌ای که commit اعمال می‌کند.
@@ -578,18 +775,68 @@ function sd_offer_linked_to_case(array $offer,array $refs): bool {
    می‌کند (از شمارهٔ پیشنهاد + سازگاری هویت، بدون فیلتر sd_active چون آن رکورد عمداً
    بسته است). برادر کلاینتِ same-name در crm/sales-domain-v2.js است و هر دو باید هم‌راستا
    بمانند (قانون A11). */
+/* v34.39.18 (ORPHAN-ARCHIVED-REDETECT): هم‌راستا با crm/sales-domain-v2.js —
+   پیوند پیشنهاد برنده به پروندهٔ بایگانی از docSnap/awardDocs/linkedOffers هم اثبات می‌شود. */
+function sd_archived_salesfile(array $p): bool {
+    $st=strtolower(trim((string)($p['state']??$p['st']??$p['status']??'')));
+    if($st==='archived')return true;
+    if(strtolower(trim((string)($p['origin']??'')))==='salesfile')return true;
+    if(trim((string)($p['dealCd']??''))!==''&&strpos((string)($p['no']??''),'ARC-')===0)return true;
+    return false;
+}
+function sd_offer_no_norm($v): string {
+    $s=trim((string)$v);
+    if($s!==''&&strncasecmp($s,'ARC-',4)===0)$s=substr($s,4);
+    return sd_identity($s);
+}
+function sd_archived_project_offer_nos(array $p): array {
+    $out=[];$seen=[];
+    $add=function($v)use(&$out,&$seen){
+        $s=trim((string)$v);if($s==='')return;
+        $k=sd_offer_no_norm($s);if($k===''||isset($seen[$k]))return;
+        $seen[$k]=true;$out[]=$s;
+    };
+    $add($p['wonOffer']??'');$add($p['offerNo']??'');
+    if(is_array($p['offerNos']??null))foreach($p['offerNos'] as $n)$add($n);
+    if(is_array($p['linkedOffers']??null))foreach($p['linkedOffers'] as $l){
+        if(!is_array($l))continue;$add($l['offerNo']??'');$add($l['no']??'');$add($l['offerId']??'');
+    }
+    $snap=$p['docSnap']??null;
+    if(is_array($snap)&&is_array($snap['offers']??null))foreach($snap['offers'] as $x){
+        if(is_string($x)||is_numeric($x))$add($x);
+        elseif(is_array($x)){$add($x['no']??'');$add($x['offerNo']??'');}
+    }
+    if(is_array($p['awardDocs']??null))foreach($p['awardDocs'] as $a){
+        if(!is_array($a))continue;$add($a['offerNo']??'');$add($a['no']??'');
+    }
+    $bare=trim((string)($p['no']??''));
+    if(strncasecmp($bare,'ARC-',4)===0)$bare=substr($bare,4);
+    if($bare!==''&&preg_match('/[A-Za-z]/',$bare))$add($bare);
+    return $out;
+}
 function sd_archived_case_for_offer(array $offer,array $projects): ?array {
     $no=trim((string)($offer['no']??''));if($no==='')return null;
+    $noKey=sd_offer_no_norm($no);if($noKey==='')return null;
+    $oid=trim((string)($offer['_id']??''));
+    $oi=sd_identity($offer['inqNo']??'');
     $hit=null;
     foreach($projects as $p){
-        if(!is_array($p))continue;
-        if((string)($p['origin']??'')!=='salesfile')continue;
-        if(strtolower(trim((string)($p['state']??'')))!=='archived')continue;
-        $pno=trim((string)($p['wonOffer']??$p['offerNo']??''));
-        $linked=$pno!==''&&$pno===$no;
-        if(!$linked&&is_array($p['offerNos']??null)){foreach($p['offerNos'] as $n){if(trim((string)$n)!==''&&trim((string)$n)===$no){$linked=true;break;}}}
+        if(!is_array($p)||!sd_archived_salesfile($p))continue;
+        $linked=false;
+        foreach(sd_archived_project_offer_nos($p) as $n){if(sd_offer_no_norm($n)===$noKey){$linked=true;break;}}
+        if(!$linked&&$oid!==''){
+            if(trim((string)($p['rootOfferId']??''))===$oid)$linked=true;
+            if(!$linked&&is_array($p['linkedOffers']??null))foreach($p['linkedOffers'] as $l){
+                if(!is_array($l))continue;
+                if(trim((string)($l['offerId']??$l['_id']??''))===$oid){$linked=true;break;}
+            }
+            if(!$linked&&is_array($p['awardDocs']??null))foreach($p['awardDocs'] as $a){
+                if(!is_array($a))continue;
+                if(trim((string)($a['offerId']??''))===$oid){$linked=true;break;}
+            }
+        }
         if(!$linked)continue;
-        $pi=sd_identity($p['inqNo']??'');$oi=sd_identity($offer['inqNo']??'');
+        $pi=sd_identity($p['inqNo']??'');
         if($pi!==''&&$oi!==''&&$pi!==$oi)continue;
         if($hit===null)$hit=$p;
     }
@@ -2918,7 +3165,18 @@ try {
                    قبلی را نمی‌شوید — مقدار قبلی حفظ و در sanitize گزارش می‌شود. */
                 $ccClear = !empty($row['_ccClear']);
                 if (array_key_exists('_ccClear', $row)) unset($row['_ccClear']);
+                /* v34.39.12: _ccEdit فقط نیت «فرم ویرایش تماس را لمس کرده» را حمل می‌کند
+                   و پیش از ذخیره حذف می‌شود (مثل _ccClear) — برای آمار/آینده؛ اتحاد
+                   stale-merge به آن وابسته نیست (همیشه بدون _ccClear اعمال می‌شود). */
+                if (array_key_exists('_ccEdit', $row)) unset($row['_ccEdit']);
                 $row = sd_contact_wipe_guard($row, $prev, $sanitizeStats, $ccClear);
+                /* v34.39.12 (CONTACT-STALE-PARTIAL-WIPE): پس از گاردِ «کلید خالی»، اتحاد
+                   people/coTels/phones تا شماره‌های فقط-سرور با payload کهنه پاک نشوند. */
+                $row = sd_contact_stale_merge($row, $prev, $sanitizeStats, $ccClear);
+                /* v34.39.19: مسئول ارجاع RFQ پس از ویرایش‌های بدون assignee حفظ شود */
+                if ($collection === 'ptf_crm_rfqs') {
+                    $row = sd_preserve_rfq_assignee($row, is_array($prev) ? $prev : [], $sanitizeStats);
+                }
                 /* v34.8.34 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
                    یعنی «تغییری نکرده»، نه «پاک». ریشهٔ حلقهٔ «کارتابل هر چند ثانیه تکرار
                    می‌شد»: upsert دیرهنگام/دوباره‌ارسالی، notifiedUsers (state ضدتکرار

@@ -124,11 +124,17 @@
         var attB = nAtt ? '<span class="bd" style="background:#ede9fe;color:#6d28d9">📎 ' + nAtt + '</span> ' : '';
         var waitB = (typeof ptfRfqWaitBadge === 'function') ? ptfRfqWaitBadge(r, offers) : '';
         var srcB = r.src === 'site' ? '<span class="bd" style="background:#e0f2fe;color:#0369a1">🌐</span> ' : '';
+        /* v34.39.19: مسئول رسیدگی روی کارت کانبان — ارجاع بدون نمایش در کانبان گم می‌شد */
+        var asgB = '';
+        try {
+          if (typeof window.ptfRfqAssigneeHtml === 'function' && r.assignee) asgB = window.ptfRfqAssigneeHtml(r, { compact: true }) + ' ';
+          else if (r.assignee && (r.assignee.name || r.assignee.user)) asgB = '<span class="bd" style="background:#eff6ff;color:#1d4ed8">👤 ' + esc(r.assignee.name || r.assignee.user) + '</span> ';
+        } catch (eAsg) {}
         return '<div class="kb-card" data-id="' + esc(r.cd) + '" data-st="' + s.v + '" onpointerdown="ptfKbDown(event,this,\'rfq\')">' +
           '<div class="kb-t">' + esc(r.cd) + '</div>' +
           '<div>' + esc(r.co || '-') + (r.con ? ' <small>(' + esc(r.con) + ')</small>' : '') + '</div>' +
           '<div><small>' + esc(r.dt || '') + '</small></div>' +
-          '<div>' + srcB + dueB + attB + waitB + '</div></div>';
+          '<div>' + srcB + asgB + dueB + attB + waitB + '</div></div>';
       }).join('');
       return '<div class="kb-col" data-st="' + s.v + '" data-lb="' + esc(s.t) + '">' +
         '<div class="kb-ch"><span>' + esc(s.t) + '</span><span class="kb-cnt">' + cards.length + '</span></div>' +

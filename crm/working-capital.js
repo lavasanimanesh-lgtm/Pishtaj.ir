@@ -260,6 +260,10 @@
     return { schema: 281, cfg: cfg, asOf: asOf, asOfFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(asOf) : asOf, opening: opening, source: src, total: total, moves: moves, counts: counts, issues: issues, openingEntries: openingEntries(cfg.fiscalYear),
       coverCommission: src.coverCommission || 0, coverVat: src.coverVat || 0, coverCount: src.coverCount || 0,
       legacyUnlinked: src.legacyUnlinked || 0, legacyUnlinkedCount: src.legacyUnlinkedCount || 0,
+      /* v34.39.16: KPI فاصلهٔ لینک مالی خرید واقعی — فقط‌خواندنی، در بدهی عددی لحاظ نمی‌شود */
+      realBuyFinanceGap: (function () {
+        try { return (typeof window.ptfRealBuyFinanceGap === 'function') ? window.ptfRealBuyFinanceGap() : null; } catch (e) { return null; }
+      })(),
       recSup: recSup };
   };
 
@@ -284,12 +288,40 @@
   }
   function html() {
     var d = window.ptfFinanceOfficialData(), c = d.cfg, t = d.total, s = d.source, o = d.opening, mv = d.moves;
+    if (!d.realBuyFinanceGap && typeof window.ptfRealBuyFinanceGap === 'function') {
+      try { d.realBuyFinanceGap = window.ptfRealBuyFinanceGap(); } catch (eG) {}
+    }
     return '<div id="wcFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:9px;flex-wrap:wrap"><div><h4 style="margin:0">📊 گزارش تجمیعی وضعیت مالی و سرمایه در گردش</h4><small style="color:#64748b">شامل رسمی و غیررسمی با هم — برای تراز جداگانه به تب «تراز رسمی/غیررسمی» مراجعه کنید. سال مالی ' + esc(c.fiscalYear) + ' | از ' + esc(c.startFa) + ' تا ' + esc(c.endFa) + ' | وضعیت تا ' + esc(d.asOfFa) + '</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="fcConfigOpen()">⚙️ تنظیم سال مالی</button><button class="bt bt-o" onclick="fcOpeningOpen()">🏁 ثبت مانده افتتاحیه</button><button class="bt bt-o" onclick="wcPrint()">🖨 پیش‌نمایش/چاپ</button><button class="bt bt-o" onclick="wcCsv()">📥 CSV</button></div></div>' +
       '<div style="background:var(--crd,#fff);border:1px solid var(--brd,#bfdbfe);border-radius:10px;padding:9px 11px;margin:10px 0;color:var(--tx,#1e3a8a);font-size:12px;line-height:1.8"><b>روش محاسبه:</b> مانده‌ها مستقیماً از فاکتورهای مشتری، زیر‌دفتر تأمین‌کننده (فاکتور خرید) و چک‌های با مالکیت صریح «شرکت» خوانده می‌شوند. <b>فاکتور صوری/پوششی خرید واقعی نیست و مطالبه نمی‌سازد</b> — کارمزد فاکتورساز هزینه جاری است (خروج خزانه پس از تسویه) و اعتبار ارزش‌افزوده جدا نشان داده می‌شود. تعهدِ خریدِ legacy (بدون فاکتور) از مبلغ بدهی حذف شده (فقط گزارش). «مانده افتتاحیه» فقط برای اسناد/مانده‌هایی است که در این منابع وجود ندارند؛ ورود تکراری آن باعث دوباره‌شماری می‌شود. این گزارش هیچ سند عملیاتی را تغییر نمی‌دهد و جایگزین دفترکل یا گردش بانکی نیست.</div>' +
       '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr));margin-top:10px">' +
       card(t.receivable, 'مطالبات باز مشتریان', '#b45309') + card(t.customerCredit, 'بستانکاری پرونده‌های مشتری', '#047857') + card(t.supplierLiability, 'بدهی باز تأمین‌کنندگان', '#dc2626') + card(t.commissionLiability, 'بدهی پورسانت فروش', '#b45309') + card(t.supplierCredit, 'اعتبار نزد تأمین‌کنندگان', '#059669') + card(t.companyCheque, 'چک‌های شرکتی باز', '#7c3aed') + card(t.cashBank, 'وجه نقد/بانکِ افتتاحیه', '#0369a1') + card(t.netWorkingCapital, 'خالص سرمایه در گردش ثبتی', t.netWorkingCapital >= 0 ? '#059669' : '#dc2626') +
+      (function () {
+        var g = d.realBuyFinanceGap;
+        if (!g || !(g.total > 0)) return '';
+        var col = g.unlinked > 0 ? '#c2410c' : '#059669';
+        var lb = g.unlinked > 0
+          ? ('خرید واقعی بدون لینک مالی — ' + g.unlinked + ' مورد')
+          : ('پوشش لینک مالی خرید واقعی ' + g.coveragePct + '٪');
+        return card(g.unlinkedAmount || 0, lb, col);
+      })() +
       '</div>' +
+      (function () {
+        var g = d.realBuyFinanceGap;
+        if (!g || !(g.unlinked > 0)) return '';
+        var top = (g.cases || []).slice(0, 5).map(function (c) {
+          return esc(c.inqNo) + ' (' + money(c.unlinkedAmount) + ')';
+        }).join('، ');
+        var btn = (typeof window.slRepairRealPurchaseLedger === 'function' || typeof window.slRepairCashPurchaseLedger === 'function')
+          ? ' <button type="button" class="bt bt-o" style="font-size:11px;padding:3px 8px" onclick="(window.slRepairRealPurchaseLedger||window.slRepairCashPurchaseLedger)({});if(typeof wcRender===\'function\')wcRender();">🔧 ترمیم امن</button>'
+          : '';
+        return '<div style="margin-top:10px;background:var(--crd,#fff);border:1px solid var(--brd,#fed7aa);border-radius:10px;padding:9px 11px;color:var(--tx,#9a3412);font-size:12px;line-height:1.9">' +
+          '<b>⚠ فاصله لینک مالی خرید واقعی (REALBUY-FINANCE-GAP):</b> ' +
+          g.unlinked + ' خرید بدون سند تأمین در ' + g.inqCount + ' درخواست — جمع ' + money(g.unlinkedAmount) +
+          ' از بدهی/COGS گزارش غایب است. پوشش: ' + g.linked + '/' + g.total + ' (' + g.coveragePct + '٪).' +
+          (g.orphanSup ? ' ' + g.orphanSup + ' مورد بدون تأمین‌کننده یکتا (ترمیم خودکار نمی‌شود).' : '') +
+          (top ? '<br><small>بیشترین فاصله: ' + top + '</small>' : '') + btn + '</div>';
+      })() +
       '<div class="tb2" style="margin-top:12px"><table><thead><tr><th>سرفصل</th><th>مانده افتتاحیه دستی</th><th>مانده از اسناد فعال</th><th>مانده گزارش</th><th>منبع</th></tr></thead><tbody>' +
       '<tr><td>مطالبات مشتریان</td><td>' + money(o.receivable) + '</td><td>' + money(s.receivable) + '</td><td><b>' + money(t.receivable) + '</b></td><td>فاکتورهای مشتری − تخصیص دریافت‌ها</td></tr>' +
       '<tr><td>بستانکاری پرونده‌های مشتری</td><td>—</td><td>' + money(s.customerCredit) + '</td><td><b>' + money(t.customerCredit) + '</b></td><td>دریافت قطعی تخصیص‌نیافته همان پرونده</td></tr>' +

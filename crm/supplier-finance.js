@@ -492,7 +492,7 @@
     var sup = supplier(supCd), payCd = genCode('SFPAY'); if (!sup) { alert('تأمین‌کننده یافت نشد'); return; }
     var payFiles = (window._slPayFiles || []).slice();
     var ch = slChequeCreate(method, sup, amount, cur, payCd, date, payFiles); if (!ch.ok) { alert(ch.error); return; }
-    var rec = { cd: payCd, supplierCd: supCd, supName: sup.co || '', dateISO: date, dateFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(date) : date, cur: cur, rate: rate, amount: amount, amountIrr: cur === 'IRR' ? amount : Math.round(amount * rate), method: method, note: ((document.getElementById('slPayNote') || {}).value || '').trim(), files: payFiles, allocations: alloc, unallocated: amount - total, status: 'posted', chequeCd: ch.cheque ? ch.cheque.cd : '', thirdPartyInvoiceCd: ch.cheque ? (ch.cheque.sourceInvoiceCd || '') : '', t: faDateTime(), by: curSession().name };
+    var rec = { cd: payCd, supplierCd: supCd, supName: sup.co || '', dateISO: date, dateFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(date) : date, cur: cur, rate: rate, amount: amount, amountIrr: cur === 'IRR' ? amount : Math.round(amount * rate), method: method, note: ((document.getElementById('slPayNote') || {}).value || '').trim(), files: payFiles, allocations: alloc, unallocated: amount - total, status: 'posted', chequeCd: ch.cheque ? ch.cheque.cd : '', thirdPartyInvoiceCd: ch.cheque ? (ch.cheque.sourceInvoiceCd || '') : '', t: faDateTime(), by: curSession().name, createdAtISO: new Date().toISOString(), updatedAtISO: new Date().toISOString(), updatedBy: (curSession() || {}).name || '' };
     d.payments.unshift(rec);
     if (save(d) === false) { alert('⛔ پرداخت روی حافظهٔ پایدار این دستگاه ذخیره نشد؛ تب را نبندید و پس از رفع خطا دوباره ثبت کنید.'); return; }
     var legacyList = getData('ptf_crm_payables'); alloc.filter(function(a){return a.legacyCd;}).forEach(function(a){ var lp=legacyList.filter(function(x){return x.cd===a.legacyCd;})[0]; if(lp){ lp.paid=lp.paid||[]; lp.paid.push({amt:a.amount,t:faDate(),by:curSession().name,note:'پرداخت از حساب تامین‌کننده',supplierPaymentCd:payCd}); lp.settled=(typeof ptfPayableRemain==='function'?ptfPayableRemain(lp):0)<=0; }}); if (setData('ptf_crm_payables',legacyList) === false) { alert('⛔ تخصیص پرداخت به تعهدهای خرید ذخیره نشد؛ تب را نبندید.'); return; }
@@ -502,7 +502,7 @@
   window.slPaymentVoid = function (cd) {
     var d = data(), p = (d.payments || []).filter(function (x) { return x.cd === cd; })[0]; if (!p || p.status === 'void') return;
     if (!confirm('پرداخت و همه تخصیص‌های آن ابطال شود؟')) return;
-    p.status = 'void'; p.voidAt = faDateTime(); p.voidBy = curSession().name;
+    p.status = 'void'; p.voidAt = faDateTime(); p.voidBy = curSession().name; p.updatedAtISO = new Date().toISOString(); p.updatedBy = (curSession() || {}).name || '';
     var legacyList = getData('ptf_crm_payables'); legacyList.forEach(function(lp){ lp.paid=(lp.paid||[]).filter(function(x){return x.supplierPaymentCd!==cd;}); lp.settled=(typeof ptfPayableRemain==='function'?ptfPayableRemain(lp):lp.settled)<=0; }); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', legacyList, { reason: 'w4' }); else setData('ptf_crm_payables', legacyList);
     if (p.chequeCd) { var checks = getData('ptf_crm_cheques'); var ch = checks.filter(function (c) { return c.cd === p.chequeCd; })[0]; if (ch) { if (ch.ownership === 'third_party') { ch.st = 'voided_transfer'; var invs = getData('ptf_crm_invoices'); invs.forEach(function (i) { i.payments = (i.payments || []).filter(function (x) { return x.supplierPaymentCd !== cd; }); }); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs); } else { ch.st = 'void'; ch.voidAt = faDateTime(); ch.voidBy = curSession().name; ch.reminderDisabled = true; if (typeof chUpsertReminder === 'function') chUpsertReminder(ch); } if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_cheques', checks, { reason: 'w4' }); else setData('ptf_crm_cheques', checks); } }
     save(d);
@@ -1176,7 +1176,19 @@
   window.slFinanceHubHtml = function () {
     var q = String(window._slFinanceSearch || ''), all = window.slAccountRows('');
     var openN = all.filter(function (x) { return x.open; }).length;
-    return '<div id="slFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🏭 حساب تأمین‌کنندگان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب با مانده غیرصفر ابتدا نمایش داده می‌شود؛ خرید نقدی در گردش می‌ماند حتی اگر مانده صفر باشد.</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" style="font-size:11px" onclick="slRepairCashPurchaseLedger()">🧩 ترمیم گردش خرید نقدی</button><input id="slFinanceSearch" value="' + escP(q) + '" oninput="slFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد تأمین‌کننده" style="min-width:240px;direction:rtl"></div></div><div class="tb2" style="margin-top:10px"><table><thead><tr>' +
+    var gapBanner = '';
+    try {
+      var gS = (typeof window.ptfRealBuyFinanceGap === 'function') ? window.ptfRealBuyFinanceGap() : null;
+      if (gS && gS.unlinked > 0) {
+        gapBanner = '<div style="margin:8px 0 0;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 11px;font-size:12px;color:#9a3412;line-height:1.8">' +
+          '⚠ <b>' + gS.unlinked + ' خرید واقعی</b> بدون لینک مالی (' + (+gS.unlinkedAmount || 0).toLocaleString('fa-IR') + ' ریال) در ' + gS.inqCount + ' درخواست — از تراز/سود غایب‌اند. پوشش لینک: ' + gS.linked + '/' + gS.total + ' (' + gS.coveragePct + '٪).' +
+          (gS.orphanSup ? ' ' + gS.orphanSup + ' مورد بدون تأمین‌کننده یکتا.' : '') +
+          '</div>';
+      } else if (gS && gS.total > 0) {
+        gapBanner = '<div style="margin:8px 0 0;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:8px 11px;font-size:12px;color:#065f46">✅ پوشش لینک مالی خرید واقعی کامل: ' + gS.linked + '/' + gS.total + ' (' + gS.coveragePct + '٪)</div>';
+      }
+    } catch (eGb) {}
+    return '<div id="slFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🏭 حساب تأمین‌کنندگان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب با مانده غیرصفر ابتدا نمایش داده می‌شود؛ خرید نقدی در گردش می‌ماند حتی اگر مانده صفر باشد.</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" style="font-size:11px" onclick="slRepairCashPurchaseLedger()" title="ترمیم خریدهای واقعی نقدی و اعتباری بدون گردش">🧩 ترمیم گردش خرید واقعی</button><input id="slFinanceSearch" value="' + escP(q) + '" oninput="slFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد تأمین‌کننده" style="min-width:240px;direction:rtl"></div></div>' + gapBanner + '<div class="tb2" style="margin-top:10px"><table><thead><tr>' +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('slf', 'co', 'تأمین‌کننده') : '<th>تأمین‌کننده</th>') +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('slf', 'exposure', 'مانده/اعتبار') : '<th>مانده/اعتبار</th>') + '<th></th>' +
       '</tr></thead><tbody id="slFinanceTbl">' + window.slFinanceHubBodyHtml() + '</tbody></table></div><div style="margin-top:10px"><input id="slChkDiag" placeholder="شماره چک برای تشخیص" style="direction:ltr"><button class="bt bt-o" onclick="slChequeDiag()">تشخیص چک</button><div id="slChkDiagOut"></div></div></div>';
@@ -1221,7 +1233,7 @@
         pay = { cd: genCode('SFPAY'), supplierCd: o.supplierCd, supName: inv.supName, dateISO: inv.dateISO, dateFa: inv.dateFa,
           cur: 'IRR', rate: 1, amount: inv.amount, amountIrr: inv.amount, method: 'cash', note: 'تسویه نقدی خرید واقعی — ' + (o.item || ''),
           item: o.item || '', allocations: [{ invoiceCd: inv.cd, amount: inv.amount }], unallocated: 0, status: 'posted', sourcePurchaseCd: o.purchaseCd,
-          files: [], t: faDateTime(), by: curSession().name };
+          files: [], t: faDateTime(), by: curSession().name , createdAtISO: new Date().toISOString(), updatedAtISO: new Date().toISOString(), updatedBy: (typeof curSession==='function'&&curSession()?curSession().name:'') };
         d.payments.unshift(pay);
       } else {
         pay.supplierCd = o.supplierCd; pay.supName = inv.supName;
@@ -1235,7 +1247,7 @@
       ps.forEach(function (p) { if (p.cd === o.payableCd) p.sfInvoiceCd = inv.cd; });
       if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', ps, { reason: 'w4' }); else setData('ptf_crm_payables', ps);
     }
-    try { audit('حساب تامین', 'خرید ' + (o.pay === 'cash' ? 'نقدی و تسویه‌شده' : 'واقعی') + ' در گردش ' + inv.supName + ' — ' + inv.amount.toLocaleString('fa-IR') + ' ریال', inv.cd); } catch (e) {}
+    try { audit('حساب تامین', 'خرید ' + (o.pay === 'cash' ? 'نقدی و تسویه‌شده' : (o.pay === 'credit' ? 'اعتباری (بدهی باز)' : 'واقعی')) + ' در گردش ' + inv.supName + ' — ' + inv.amount.toLocaleString('fa-IR') + ' ریال', inv.cd); } catch (e) {}
     return { ok: true, invoice: inv, payment: pay || null };
   };
   window.slVoidRealPurchaseFinance = function (purchaseCd, reason) {
@@ -1249,26 +1261,84 @@
   window.slAttachRealPurchaseReceipt = function (purchaseCd, f) {
     f = (typeof window.ptfNormalizeFileRec === 'function') ? window.ptfNormalizeFileRec(f) : f;
     if (!purchaseCd || !f || !f.key) return false;
-    var d=data(), p=(d.payments||[]).filter(function(x){return x.sourcePurchaseCd===purchaseCd&&x.status!=='void';})[0];
-    if(!p)return false; p.files=p.files||[]; if(!p.files.some(function(x){return x.key===f.key;}))p.files.push(f); save(d); return true;
+    var d=data();
+    /* v34.39.14: credit فقط فاکتور دارد — رسید را روی فاکتور هم بپذیر */
+    var pay=(d.payments||[]).filter(function(x){return x.sourcePurchaseCd===purchaseCd&&x.status!=='void';})[0];
+    var inv=(d.invoices||[]).filter(function(x){return x.sourcePurchaseCd===purchaseCd&&x.status!=='void';})[0];
+    var target = pay || inv;
+    if(!target)return false;
+    target.files=target.files||[];
+    if(!target.files.some(function(x){return x.key===f.key;})) target.files.push(f);
+    save(d); return true;
   };
-  window.slCashPurchaseLedgerAudit = function () {
+  /* v34.39.14: audit/repair برای cash و credit (نه فقط نقدی) */
+  window.slCashPurchaseLedgerAudit = function (opts) {
+    opts = opts || {};
+    var onlyInq = opts.inqNo || '';
     var sf=data(), invoiceByPurchase={};
     (sf.invoices||[]).forEach(function(i){if(i.sourcePurchaseCd&&i.status!=='void')invoiceByPurchase[i.sourcePurchaseCd]=i;});
     var missing=[],ambiguous=[];
-    (getData('ptf_crm_buycmp')||[]).forEach(function(c){(c.purchases||[]).forEach(function(p){if(!p||p.pay!=='cash'||invoiceByPurchase[p.cd])return;var resolved=p.supplierCd?{ok:!!supplier(p.supplierCd),supplier:supplier(p.supplierCd)}:window.slResolveSupplierByName(p.sup);var item=(c.items||[])[p.idx]||{};var row={cmpId:c.id,purchaseCd:p.cd,supplier:p.sup||'',amount:(+p.price||0)*(+p.qty||+item.qty||1),item:item.nm||item.name||item.desc||''};if(resolved&&resolved.ok){row.supplierCd=resolved.supplier.cd;missing.push(row);}else{row.why=resolved&&resolved.why||'missing';ambiguous.push(row);}});});
+    (getData('ptf_crm_buycmp')||[]).forEach(function(c){
+      if (onlyInq && c.inqNo !== onlyInq) return;
+      (c.purchases||[]).forEach(function(p){
+        if(!p || !p.cd || invoiceByPurchase[p.cd]) return;
+        /* هر pay mode — credit هم باید فاکتور open داشته باشد */
+        var payMode = (p.pay === 'credit') ? 'credit' : 'cash';
+        var resolved=p.supplierCd?{ok:!!supplier(p.supplierCd),supplier:supplier(p.supplierCd)}:window.slResolveSupplierByName(p.sup);
+        var item=(c.items||[])[p.idx]||{};
+        var row={cmpId:c.id,inqNo:c.inqNo||'',purchaseCd:p.cd,supplier:p.sup||'',amount:(+p.price||0)*(+p.qty||+item.qty||1),item:item.nm||item.name||item.desc||'',pay:payMode,
+          unitPrice:+p.price||0, qty:+p.qty||+item.qty||1, files:p.files||[], sourceCurrency:p.srcCur||'', sourceUnitPrice:+p.priceFx||0, sourceFxRate:+p.rate||0, dateFa:p.t||''};
+        if(resolved&&resolved.ok){row.supplierCd=resolved.supplier.cd;missing.push(row);}
+        else{row.why=resolved&&resolved.why||'missing';ambiguous.push(row);}
+      });
+    });
     return {safe:missing,ambiguous:ambiguous};
   };
-  window.slRepairCashPurchaseLedger = function () {
+  window.slRepairCashPurchaseLedger = function (opts) {
     if(!canWrite()){alert('⛔ دسترسی ثبت زیر‌دفتر تأمین ندارید');return;}
-    var report=window.slCashPurchaseLedgerAudit();
-    if(!report.safe.length){alert(report.ambiguous.length?'خرید قابل ترمیم خودکار نیست؛ '+report.ambiguous.length+' نام تأمین‌کننده مفقود/مبهم است.':'همه خریدهای نقدی در گردش تأمین‌کنندگان ثبت شده‌اند.');return;}
-    if(!confirm(report.safe.length+' خرید نقدی بدون گردش شناسایی شد. فقط موارد دارای تأمین‌کننده یکتای قطعی ترمیم شوند؟\nموارد مبهم: '+report.ambiguous.length))return;
+    opts = opts || {};
+    var report=window.slCashPurchaseLedgerAudit(opts);
+    if(!report.safe.length){
+      alert(report.ambiguous.length
+        ? ('خرید قابل ترمیم خودکار نیست؛ ' + report.ambiguous.length + ' نام تأمین‌کننده مفقود/مبهم است.')
+        : 'همه خریدهای واقعی (نقدی/اعتباری) در گردش تأمین‌کنندگان ثبت شده‌اند.');
+      return { fixed: 0, failed: 0, ambiguous: report.ambiguous.length };
+    }
+    var scope = opts.inqNo ? (' برای درخواست ' + opts.inqNo) : '';
+    if(!opts.silent && !confirm(report.safe.length + ' خرید واقعی بدون گردش' + scope + ' شناسایی شد (نقدی و اعتباری).\nفقط موارد دارای تأمین‌کننده یکتای قطعی ترمیم شوند؟\nموارد مبهم: ' + report.ambiguous.length)) {
+      return { fixed: 0, failed: 0, ambiguous: report.ambiguous.length, cancelled: true };
+    }
     var cmps=getData('ptf_crm_buycmp'),fixed=0,failed=0;
-    report.safe.forEach(function(row){var c=cmps.filter(function(x){return x.id===row.cmpId;})[0],p=c&&(c.purchases||[]).filter(function(x){return x.cd===row.purchaseCd;})[0],it=c&&((c.items||[])[p.idx]||{});if(!p||!it){failed++;return;}p.supplierCd=row.supplierCd;var r=window.slImportRealPurchase({purchaseCd:p.cd,supplierCd:p.supplierCd,supName:p.sup,amount:row.amount,unitPrice:+p.price||0,qty:+p.qty||+it.qty||1,item:row.item,pay:'cash',files:p.files||[],dateFa:p.t||faDate(),sourceCurrency:p.srcCur||'',sourceUnitPrice:+p.priceFx||0,sourceFxRate:+p.rate||0});if(r&&r.ok){p.supplierInvoiceCd=r.invoice.cd;p.supplierPaymentCd=r.payment&&r.payment.cd||'';p.financeLinked=true;fixed++;}else failed++;});
-    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', cmps, { reason: 'w4' }); else setData('ptf_crm_buycmp', cmps);try{audit('حساب تامین','ترمیم گردش خرید نقدی: '+fixed+' موفق، '+failed+' ناموفق، '+report.ambiguous.length+' مبهم','CASH-PURCHASE-REPAIR');}catch(e){}
-    alert('ترمیم انجام شد: '+fixed+' خرید\nناموفق: '+failed+'\nنیازمند تعیین هویت تأمین‌کننده: '+report.ambiguous.length);if(typeof window.slFinanceRowsRender==='function')window.slFinanceRowsRender();
+    report.safe.forEach(function(row){
+      var c=cmps.filter(function(x){return x.id===row.cmpId;})[0];
+      var p=c&&(c.purchases||[]).filter(function(x){return x.cd===row.purchaseCd;})[0];
+      var it=c&&((c.items||[])[p.idx]||{});
+      if(!p){failed++;return;}
+      p.supplierCd=row.supplierCd;
+      var payMode = row.pay === 'credit' ? 'credit' : 'cash';
+      var r=window.slImportRealPurchase({
+        purchaseCd:p.cd, supplierCd:p.supplierCd, supName:p.sup, amount:row.amount,
+        unitPrice:row.unitPrice||+p.price||0, qty:row.qty||+p.qty||+(it&&it.qty)||1,
+        item:row.item, pay:payMode, files:row.files||p.files||[],
+        dateFa:row.dateFa||p.t||faDate(),
+        sourceCurrency:row.sourceCurrency||p.srcCur||'',
+        sourceUnitPrice:row.sourceUnitPrice||+p.priceFx||0,
+        sourceFxRate:row.sourceFxRate||+p.rate||0
+      });
+      if(r&&r.ok){
+        p.supplierInvoiceCd=r.invoice&&r.invoice.cd||'';
+        p.supplierPaymentCd=r.payment&&r.payment.cd||'';
+        p.financeLinked=true; p.financePay=payMode; fixed++;
+      } else failed++;
+    });
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', cmps, { reason: 'w4' }); else setData('ptf_crm_buycmp', cmps);
+    try{audit('حساب تامین','ترمیم گردش خرید واقعی: '+fixed+' موفق، '+failed+' ناموفق، '+report.ambiguous.length+' مبهم','REALBUY-FINANCE-REPAIR');}catch(e){}
+    if (!opts.silent) alert('ترمیم انجام شد: '+fixed+' خرید\nناموفق: '+failed+'\nنیازمند تعیین هویت تأمین‌کننده: '+report.ambiguous.length);
+    if(typeof window.slFinanceRowsRender==='function')window.slFinanceRowsRender();
+    return { fixed: fixed, failed: failed, ambiguous: report.ambiguous.length };
   };
+  /* alias شفاف */
+  window.slRepairRealPurchaseLedger = window.slRepairCashPurchaseLedger;
   var _slDiag278=window.slChequeDiag;window.slChequeDiag=function(){_slDiag278();var no=((document.getElementById('slChkDiag')||{}).value||'').trim(),c=getData('ptf_crm_cheques').filter(function(x){return String(x.sayad||x.no||'')===no;})[0],o=document.getElementById('slChkDiagOut');if(c&&o){var active=c.ownership==='company'&&c.st==='open'&&c.kind!=='guarantee';o.innerHTML+= '<div style="font-size:12px">ورود به نقدینگی شرکت: <b>'+ (active?'بله':'خیر')+'</b></div>';}};
 
 

@@ -141,6 +141,6 @@ T('۶.۵ اسکیمای JSON-LD Organization + دیتاشیت اسلایدر (da
 T('۶.۶ اسکرین‌شاتِ لایه: هیچ !important روی متن/رنگ فونتِ بدنهٔ سراسری اعمال نشده (فقط اورلی/باندها)',
   (layer.match(/!important/g) || []).length > 8 && !/body\{[^}]*color:[^}]*!important/.test(layer));
 
-DONE('tester662-v34.39.11-home-dynamic-x');
+DONE('tester662-v34.39.19-home-dynamic-x');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

@@ -506,6 +506,9 @@
       '<b>موضوع:</b> ' + escP(r.subj || '-') + '<br>' +
       '<b>تاریخ ثبت:</b> ' + escP(r.dt || '-') + '<br>' +
       '<b>وضعیت:</b> ' + escP(r.stxt || r.st || '-') +
+      (r.assignee ? ('<br><b>👤 مسئول رسیدگی:</b> ' + escP((r.assignee.name || r.assignee.nm || r.assignee.user || '—')) +
+        (r.assignee.act ? (' <span style="color:#64748b">(' + escP(r.assignee.act) + ')</span>') : '') +
+        (r.assignee.by ? (' <small style="color:#94a3b8">— ارجاع از ' + escP(r.assignee.by) + (r.assignee.t ? (' · ' + escP(r.assignee.t)) : '') + '</small>') : '')) : '') +
       '</div>' +
       ((r.inqText || r.message || r.standard || r.vendors) ? '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;font-size:12.5px;line-height:2;margin-bottom:12px">' +
         (r.inqText ? '<div><b>شرح درخواست:</b><br>' + escP(r.inqText) + '</div>' : '') +
