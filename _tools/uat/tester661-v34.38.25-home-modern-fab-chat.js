@@ -114,6 +114,6 @@ catch (e) { T('۶.۱ ptf-chat.js پارس می‌شود', false, e.message); }
 try { new Function(read('assets/js/main.js')); T('۶.۲ main.js پارس می‌شود', true); }
 catch (e) { T('۶.۲ main.js پارس می‌شود', false, e.message); }
 
-DONE('tester661-v34.39.19-home-modern-fab-chat');
+DONE('tester661-v34.39.20-home-modern-fab-chat');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

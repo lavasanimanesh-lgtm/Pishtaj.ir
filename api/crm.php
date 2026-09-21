@@ -1038,8 +1038,14 @@ function sync_tombstone_mark(array &$ids, $id, $epoch) {
 }
 function sync_apply_tombstones($key, $json, $serverArchiveJson = '', $incomingArchiveJson = '') {
     if ($key === 'ptf_crm_deleted_archive') {
-        $purgeAliases=[];foreach(array_merge(sync_decode_archive($serverArchiveJson),sync_decode_archive($incomingArchiveJson))as $d)if(is_array($d)&&strtolower((string)($d['kind']??''))==='archive_purge')foreach(($d['aliases']??[])as $alias){$alias=trim((string)$alias);if(strlen($alias)>=6)$purgeAliases[$alias]=true;}
-        if(!$purgeAliases)return$json;$rows=sync_decode_archive($json);$out=[];foreach($rows as $row){if(!is_array($row))continue;if(strtolower((string)($row['kind']??''))==='archive_purge'){$out[]=$row;continue;}$encoded=json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$purged=false;foreach($purgeAliases as $alias=>$_)if(strpos((string)$encoded,(string)$alias)!==false){$purged=true;break;}if(!$purged)$out[]=$row;}return json_encode(array_values($out),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+        /* v34.39.20 (RESTORE-TOMBSTONE-REKILL — هم‌راستا با قرارداد v34.37.0 ③): alias-strip
+           فقط برای «پاک‌سازی گراف کل پروژه» (archive_purge بدون collection)؛ خودِ سنگ‌قبرها +
+           ردیف‌های restored: + recycle هرگز قربانی strpos زیررشته‌ای نمی‌شوند. پیش از این
+           alias سنگ‌قبرهای تک‌رکوردی (entity_delete بایگانی) هم جمع می‌شد و ردیف‌های
+           خنثی‌شده/بازیافتیِ حاوی کد پرونده در همان push می‌سوختند — ریشهٔ «پرونده پس از به
+           جریان افتادن، بعد از مدتی کامل پاک می‌شد» (پیشنهاد بدون پرونده + حذف بی‌اثر). */
+        $purgeAliases=[];foreach(array_merge(sync_decode_archive($serverArchiveJson),sync_decode_archive($incomingArchiveJson))as $d)if(is_array($d)&&strtolower((string)($d['kind']??''))==='archive_purge'&&(trim((string)($d['collection']??''))===''))foreach(($d['aliases']??[])as $alias){$alias=trim((string)$alias);if(strlen($alias)>=6)$purgeAliases[$alias]=true;}
+        if(!$purgeAliases)return$json;$rows=sync_decode_archive($json);$out=[];foreach($rows as $row){if(!is_array($row))continue;$rkind=strtolower((string)($row['kind']??''));if($rkind==='archive_purge'){$out[]=$row;continue;}if(strpos($rkind,'restored:')===0){$out[]=$row;continue;}if($rkind==='recycle'){$out[]=$row;continue;}$encoded=json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$purged=false;foreach($purgeAliases as $alias=>$_)if(strpos((string)$encoded,(string)$alias)!==false){$purged=true;break;}if(!$purged)$out[]=$row;}return json_encode(array_values($out),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     }
     $kinds = sync_tombstone_kinds_for_key($key);
     $kindSet = array_fill_keys(array_map('strtolower', $kinds), true);

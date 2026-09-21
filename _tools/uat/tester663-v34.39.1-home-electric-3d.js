@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester663 — v34.39.19 (HOME-ELECTRIC-3D)
+   tester663 — v34.39.20 (HOME-ELECTRIC-3D)
    دستور کارفرما:
      «جریان برق روی کارت‌ها/دکمه‌ها؛ هاور رنگی زیبا؛ حذف منوی بالای موبایل و
      انتقال به شیت پایین؛ انیمیشن منوها؛ کلید روز/شب؛ RFQ از داک حذف و دکمهٔ
@@ -53,12 +53,12 @@ T('۲.۱ دکمهٔ منوی بالا ≤۷۹۰ حذف', /\.menu-toggle\{display
 T('۲.۲ شیت پایین بالای داک با استگر ورودی و اسکرول داخلی',
   /#mainNav\{z-index:9535;top:auto!important;bottom:calc\(86px \+ env\(safe-area-inset-bottom\)\)!important/.test(lay) &&
   /#mainNav\.open>\*\{animation:ptfSheetItem \.42s cubic-bezier\(\.16,1,\.3,1\) both\}/.test(lay));
-T('۲.۳ داک پنج‌تایی (خانه جای خود را به منو داد) — RFQ وسط بازگشت (v34.39.19)', (function () {
+T('۲.۳ داک پنج‌تایی (خانه جای خود را به منو داد) — RFQ وسط بازگشت (v34.39.20)', (function () {
   var block = (idx.match(/id="ptfDock"[\s\S]*?<\/nav>/) || [''])[0];
   var items = (block.match(/<a |<button /g) || []).length;
   return items === 5 && block.indexOf('href="rfq/"') > -1 && block.indexOf('ptfDockMenu') > -1 && block.indexOf('خانه') === -1;
 })());
-T('۲.۴ منو اسلات اول، استعلام وسط (dock-cta) و مروف ✕ روی همان دکمه (v34.39.19)',
+T('۲.۴ منو اسلات اول، استعلام وسط (dock-cta) و مروف ✕ روی همان دکمه (v34.39.20)',
   /<button type="button" id="ptfDockMenu" class="dock-menu"[\s\S]*?data-ptf-event="dock_call"[\s\S]*?<a href="rfq\/" class="dock-cta"[\s\S]*?class="dock-wa"/.test(idx) &&
   /#ptfDockMenu\.is-x \.dm-bars i:nth-child\(1\)\{top:6px;transform:rotate\(45deg\)\}/.test(lay) &&
   /#ptfDockMenu\.is-x \.dm-bars i:nth-child\(3\)/.test(lay));
@@ -73,7 +73,7 @@ T('۲.۸ قفل اسکرول کشو سراسری در style.css (ترجیح مو
   /@media\(max-width:790px\)\{html\.ptf-lock,html\.ptf-lock body\{overflow:hidden\}\}/.test(style));
 
 SECTION('۳. روز/شب');
-T('۳.۱ کلید تم از هدر حذف و داخل منو (#mainNav) نشسته، با aria-pressed و برچسب tt-txt (v34.39.19)',
+T('۳.۱ کلید تم از هدر حذف و داخل منو (#mainNav) نشسته، با aria-pressed و برچسب tt-txt (v34.39.20)',
   /id="ptfThemeToggle"[^>]*aria-pressed="false"[^>]*data-label="نمای شب"/.test(idx) &&
   (function () { var navBlk = (idx.match(/id="mainNav"[\s\S]*?<\/nav>/) || [''])[0]; return navBlk.indexOf('ptfThemeToggle') > -1 && navBlk.indexOf('class="tt-txt"') > -1; })());
 T('۳.۲ بوت‌استرپ ضدFOUC با کوکی در head (A10-safe؛ بدون localStorage)',
@@ -116,7 +116,7 @@ T('۵.۴ حجم‌ها: home.css<۴۸KB، ptf-motion<۱۲KB', home.length < 4800
 T('۵.۵ تعادل هدر (تماس ≤۵۶) + فیکسِ بلور هدر موبایل (محشرِ containing-block شیت)',
   /@media\(max-width:560px\)\{\.header-call\{display:none!important\}\}/.test(lay) &&
   lay.indexOf('.site-header,.site-header.scrolled,.site-header.is-compact{-webkit-backdrop-filter:none!important;backdrop-filter:none!important') > -1);
-T('۵.۶ VERSION.json = v34.39.19', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.19');
+T('۵.۶ VERSION.json = v34.39.20', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.20');
 T('۵.۷ نگهبان بی‌تغییری: h1، canonical، tel/wa، ۱۰ بخش، theme-color دوحالته',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی — تجهیزات حیاتی پروژه‌ها را <strong>مطمئن، سریع و دقیق</strong> تامین کنید') > -1 &&
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
@@ -124,6 +124,6 @@ T('۵.۷ نگهبان بی‌تغییری: h1، canonical، tel/wa، ۱۰ بخش
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   /name="theme-color" content="#ffffff"/.test(idx));
 
-DONE('tester663-v34.39.19-home-electric-3d');
+DONE('tester663-v34.39.20-home-electric-3d');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

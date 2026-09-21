@@ -19,8 +19,8 @@ var zip = read('api/zip-attachments.php');
 var sup = read('supplier/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.19', ver.crm_version === 'v34.39.19', ver.crm_version);
-T('inqreader.js cache-bust 34.39.19', /inqreader\.js\?v=34\.39\.19/.test(idx));
+T('VERSION.json = v34.39.20', ver.crm_version === 'v34.39.20', ver.crm_version);
+T('inqreader.js cache-bust 34.39.20', /inqreader\.js\?v=34\.39\.20/.test(idx));
 
 /* ① رفع پیشوند ZIP (rfq/) */
 T('کلاینت پیشوند rfq/ را می‌پذیرد', inq.indexOf("key.indexOf('rfq/') !== 0") > -1);

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester650 — v34.39.19 (GSC-ONBOARD): قفلِ ابزار راه‌انداز اتصال Google Search Console.
+/* tester650 — v34.39.20 (GSC-ONBOARD): قفلِ ابزار راه‌انداز اتصال Google Search Console.
    زیرساخت GSC (api/gsc.php: status/selftest/sitemap_submit/index_tracker + پنل CRM + واچ‌لیست
    هفتگی + ردیاب ایندکس) از قبل کامل است؛ تنها قدمِ خطاناپذیر «ساختنِ درستِ api/gsc-config.php»
    است. _tools/gsc_onboard.py آن قدم را می‌سازد:

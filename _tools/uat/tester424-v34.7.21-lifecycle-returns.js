@@ -77,7 +77,7 @@ function db1() {
   T('LC-01 پورسانت از تعریف واحد سند فعال استفاده می‌کند', com.indexOf('window.PTF.ar.activeInvoice(inv)') > -1 && com.indexOf('_liveInv') > -1);
   T('LC-02 مبنای پورسانت پایهٔ بدون VAT پس از مرجوعی است',
     com.indexOf('window.PTF.ar.invoiceBaseAfterReturnsIRR(inv)') > -1 && com.indexOf('base += _commissionBase;') > -1 && com.indexOf("basisFormula: 'invoice_base_ex_vat_after_returns'") > -1);
-  T('پورسانت فقط پس از تسویهٔ کامل خالصِ بعد از مرجوعی محاسبه می‌شود (قراردادِ مصوبِ v34.39.19 — REALBUY-FINANCE، جانشینِ v34.5.35)',
+  T('پورسانت فقط پس از تسویهٔ کامل خالصِ بعد از مرجوعی محاسبه می‌شود (قراردادِ مصوبِ v34.39.20 — REALBUY-FINANCE، جانشینِ v34.5.35)',
     com.indexOf('var invDue = num(inv.amount != null ? inv.amount : inv.totalAmountIRR);') > -1
       && com.indexOf('invDue = window.PTF.ar.invoiceNetAfterReturnsIRR(inv);') > -1
       && com.indexOf('if (invDue - paid > 0.5) { allPaid = false; return; }') > -1);
