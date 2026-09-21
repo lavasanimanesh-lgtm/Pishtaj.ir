@@ -12,7 +12,7 @@
 2. **حفظِ سمت سرور (server, CARTABLE-LOOP):** `sd_preserve_rfq_assignee` در sales-domain — اگر کلاینت assignee نفرستد، مقدار قبلی رکورد حفظ می‌شود (قبل از این، هر ذخیرهٔ دیگری مسئولیت را پاک می‌کرد). **اصلاحِ نسخهٔ فعلی (ASSIGNEE-CLEAR-NULLED):** در شاخهٔ پاک‌سازی، `assignee`/`assigneeAtISO` به `null` تنظیم می‌شوند نه `unset` — چون merge CARTABLE-LOOP «کلید غایب = حفظ prev» است و با `unset` پاک‌سازیِ صریح بی‌اثر می‌شد (سنجهٔ واحد B5: پیشِ اصلاح FAIL، پسِ اصلاح PASS).
 3. **سپرهای ادغامِ پروندهٔ فروش (SF):** ۷ محافظ در `crm.php` (SD_SFMERGE_GUARDS) — ادغامِ پروندهٔ فروش دیگر نمی‌تواند رکورد زندهٔ دیگری را با رکورد فرود (void/zero/orphan) بپوشد؛ گزارش `nested mass-deletion report` نیز با درصدهای محافظت‌شده.
 4. **بازشناسیِ یتیم (orphan re-detect):** `sd_contact_stale_merge` + `ptfMergeCustContactsFromLive` — تشخیص «تماس یتیم» فقط با `caseCd`/`dealCd` اعتبارمند و بدون حذفِ سراسری؛ همراه با RCA کاملِ حادثهٔ «حذف ناقصِ تماس‌ها» (۵ سنجهٔ واحد، `ARENA-CRM-CONTACT-STALE-PARTIAL-WIPE-RCA-2026-09-21.md`).
-5. **REALBUY-FINANCE:** `commission.js` — در حالتِ «خریدِ واقعی» از فایلِ مالی، مبنای تشخیصِ «پرداخت کامل» `invoiceNetAfterReturnsIRR` (خالصِ بعد از مرجوعی) است، با fallback به amount/totalAmountIRR. ⚠️ **موضوعِ تصمیمِ باز:** این تعریف با پینِ زنجیرهایِ v34.5.35ِ tester424 (جمعِ ماباقیِ هر دو فاکتور ≤ 0.5 روی مبلغِ خام) در تضاد است؛ ۳۶ سنجهٔ دیگرِ همان تستر سبز است.
+5. **REALBUY-FINANCE (قراردادِ مصوب):** `commission.js` — تشخیصِ «پرداخت کامل» به‌جای مبلغِ خامِ فاکتور (قراردادِ v34.5.35)، خالصِ بعد از مرجوعی (`invoiceNetAfterReturnsIRR` = max(0, amount − returned)، شامل VATِ سهمِ فسخ‌نشده) با fallback به amount/totalAmountIRR است. دلیل: فاکتورِ دارای مرجوعی دیگر پورسانت را برای همیشه قفل نمی‌کند (صورتِ بازماندهٔ خام دیگر قابل وصول نیست). pinِ زنجیره‌ایِ v34.5.35 در tester424 به قراردادِ جدید به‌روزرسانی شد (تصمیمِ کارفرما، 2026-09-21).
 6. **COMMISSION-ARCHIVE-ZERO:** پروندهٔ فروشِ آرشیو‌شده دیگر رقمِ کمیسیونِ پنهان نمی‌سازد (مطابقتِ `archivedSalesFile` client/server).
 
 ## رفع‌ها این نسخه (پس از بازبینیِ مستقل)
@@ -24,4 +24,4 @@
 `crm/bridge.js` (UI مسئول) · `crm/sales-domain-v2.js` (پاک‌سازی/دلیلِ لمس + باندلیِ SF) · `crm/offers.js` · `crm/sync.js` · `crm/commission.js` · `api/sales-domain.php` (CARTABLE-LOOP + SF guard + یتیم) · `api/crm.php` (SD_SFMERGE_GUARDS) · `crm/index.html` (bust + پاک‌سازیِ ته‌پای) · `VERSION.json` + ۸ نقطه · `RELEASE-NOTES-v34.39.19.md`.
 
 ## دروازه
-arch-guard A6/A11: PASS · UAT: ۲۸۵/۲۸۶ PASS — تنها red، pinِ v34.5.35ِ tester424 (بند ۵: تصمیمِ باز) · سنجه‌های واحدِ RCA/assignee/SF/orphan: ۴۴/۴۴ PASS.
+arch-guard A6/A11: PASS · UAT: ۲۸۶/۲۸۶ PASS · سنجه‌های واحدِ RCA/assignee/SF/orphan: ۴۴/۴۴ PASS.

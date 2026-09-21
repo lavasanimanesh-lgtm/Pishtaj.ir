@@ -201,8 +201,11 @@
           try { invDue = window.PTF.ar.invoiceNetAfterReturnsIRR(inv); } catch (eNet) {}
         }
         if (invDue - paid > 0.5) { allPaid = false; return; }
-        /* مبنای عددی: پایهٔ فاکتور پس از مرجوعی و بدون VAT. شرط تسویه در بالا
-           عمداً با مبلغ کل فاکتور می‌ماند تا مالیات هم واقعاً وصول شده باشد. */
+        /* مبنای عددی: پایهٔ فاکتور پس از مرجوعی و بدون VAT. شرط تسویه (بالا) طبق
+           قراردادِ مصوبِ v34.39.19 (REALBUY-FINANCE): خالصِ بعد از مرجوعیِ هر فاکتور
+           (max(0, amount − returned)، شامل VATِ سهمِ فسخ‌نشده) — فاکتورِ دارای مرجوعی
+           دیگر پورسانت را برای همیشه قفل نمی‌کند؛ قراردادِ قبلی (v34.5.35) روی
+           مبلغِ خام بود (SPEC-COMMISSION-SETTLEMENT-GATE-2026-08-14.md). */
         var _commissionBase = commissionBaseAfterReturns(inv);
         base += _commissionBase;
         pays.forEach(function (p) { var iso = toIso(payWhen(p, inv)); if (iso > lastWhen) lastWhen = iso; });
