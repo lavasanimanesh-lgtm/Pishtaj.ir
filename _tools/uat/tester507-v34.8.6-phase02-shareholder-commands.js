@@ -38,6 +38,13 @@ assert.ok(section(treasury, 'window.ptfTreasuryChairOut = function', 'window.ptf
 console.log('  ✔ salary, draw and chair movements use server commands');
 
 console.log('── Phase 2 shareholder UI runtime ──');
+/* v34.39.24 (TIME-INDEPENDENT): ماه draw/پرداخت حقوق در shareholders.js با faMonthNow()
+   (Intl + Asia/Tehran واقعی) ساخته می‌شود؛ پینِ '1405/06' با ورود ماه جدید قرمز می‌شد.
+   ماه انتظار از همان مسیر ماژول محاسبه می‌شود تا سنجه در هر ماهی معتبر بماند. */
+var TEH_MONTH = (function () {
+  try { return new Intl.DateTimeFormat('fa-IR-u-nu-latn', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit' }).format(new Date()).replace(/\s/g, '').replace('-', '/'); }
+  catch (eTeh) { return String(c.faDate()).slice(0, 7); }
+})();
 var ls = storage();
 var dialog = null;
 var commands = [];
@@ -91,7 +98,7 @@ returnPromise.then(function () {
 }).then(function () {
   assert.strictEqual(commands[1].action, 'register_shareholder_draw');
   assert.strictEqual(commands[1].payload.amountIRR, 300000000);
-  assert.strictEqual(commands[1].payload.month, '1405/06');
+  assert.strictEqual(commands[1].payload.month, TEH_MONTH);
   assert.strictEqual(commands[1].payload.salaryMonth, undefined);
 
   dialog = null;
@@ -100,7 +107,7 @@ returnPromise.then(function () {
   return new Promise(function (resolve) { setTimeout(resolve, 0); });
 }).then(function () {
   assert.strictEqual(commands[2].action, 'register_shareholder_draw');
-  assert.strictEqual(commands[2].payload.salaryMonth, '1405/06');
+  assert.strictEqual(commands[2].payload.salaryMonth, TEH_MONTH);
   assert.strictEqual(commands[2].payload.amountIRR, 400000000);
   assert.strictEqual(released.length, held.length);
   console.log('  ✔ UI ماه مستقل، مبلغ profile-only، salary claim و draw پرداخت را جدا نگه می‌دارد');
