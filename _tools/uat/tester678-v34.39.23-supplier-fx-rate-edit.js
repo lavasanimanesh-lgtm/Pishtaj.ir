@@ -1,4 +1,4 @@
-/* tester678 — v34.39.24 (SUP-FX-RATE-EDIT)
+/* tester678 — v34.39.27 (SUP-FX-RATE-EDIT)
    ویرایش فاکتور و پرداخت ارزی نرخ تسعیر را می‌گیرد و amountIrr را دوباره حساب می‌کند.
    ارز سند عوض نمی‌شود. فاکتور ریالی فیلد نرخ ندارد. سال قفل، پیوست و manualAmountEdit می‌مانند. */
 'use strict';
@@ -147,5 +147,5 @@ var locked = ctx.getData('ptf_crm_supplier_finance').invoices[0];
 assert.strictEqual(locked.rate, 900000);
 
 var version = JSON.parse(fs.readFileSync(path.join(root, 'VERSION.json'), 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.39.24');
-console.log('PASS tester678 v34.39.24 supplier fx rate edit');
+assert.strictEqual(version, 'v34.39.27');
+console.log('PASS tester678 v34.39.27 supplier fx rate edit');

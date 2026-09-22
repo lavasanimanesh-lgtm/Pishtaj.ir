@@ -1,4 +1,4 @@
-/* tester657 — v34.39.24 (RECEIPT-BUTTON-FIX): رفع باگ «دکمهٔ دریافت در پروندهٔ فروش کار نمی‌کند».
+/* tester657 — v34.39.27 (RECEIPT-BUTTON-FIX): رفع باگ «دکمهٔ دریافت در پروندهٔ فروش کار نمی‌کند».
    ریشه: از v34.38.19 (INV-OPEN-CANONICAL) ستون «مطالبه باز» جدول فاکتورهای پنجرهٔ
    «💳 دریافت و حساب پرونده» (ptfCaseFinanceOpen در sales-domain-v2.js) به `arCore` ارجاع
    می‌داد که فقط داخل caseTotals با `var arCore=(window.PTF||{}).ar` تعریف شده بود.

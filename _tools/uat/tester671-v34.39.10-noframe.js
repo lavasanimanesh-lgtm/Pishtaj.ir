@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester671 — v34.39.24 (HOME-NOFRAME)
+   tester671 — v34.39.27 (HOME-NOFRAME)
    «کادر دور جستجو در هدر حذف بشه» — یعنی خودِ جست‌وجو بماند و قابش برود:
    Finder هیرو بدون border/glass/blur/سایه؛ فیدبک فوکوس = تنِ تیره بدون خط.
    (کادرِ لینکِ .nav-search از ۳۹.۹ سراسری مخفی است — چک رگرسیون.)
@@ -40,8 +40,8 @@ T('۳.۲ بودجه <۴۰K، آکولاد متوازن، مارکرِ ۱۰ لا�
 T('۳.۳ رگرسیونِ کلی: برقِ ۲۶s/۱۵s، موجِ no-repeat، canonical‌ها',
   /animation:ptfCurS 26s linear infinite/.test(home) && /animation:ptfCurS 15s linear infinite/.test(home) &&
   home.indexOf('background-repeat:no-repeat') > -1 && idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
-T('۳.۴ VERSION.json = v34.39.24', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.24');
+T('۳.۴ VERSION.json = v34.39.27', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.27');
 
-DONE('tester671-v34.39.24-noframe');
+DONE('tester671-v34.39.27-noframe');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

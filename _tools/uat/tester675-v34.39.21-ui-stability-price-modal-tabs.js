@@ -1,6 +1,6 @@
 /* =====================================================================
    tester675-v34.39.21-ui-stability-price-modal-tabs.js
-   قرارداد UI-STABILITY (v34.39.24) — ریشه‌یابی و رفع ریشه‌ای دو باگ UI:
+   قرارداد UI-STABILITY (v34.39.27) — ریشه‌یابی و رفع ریشه‌ای دو باگ UI:
 
    ① «در پنجره ثبت قیمت در قسمت تامین اینقدر لغزش و پرش و ناپایداری وجود دارد»
       سه مکانیزم (با اجرای کد واقعی):
@@ -296,13 +296,13 @@ test('D5: باکس‌های تنظیمات (arvanBox/llmBox/sessionsBox/engineGa
   })());
 
 console.log('\n── E: پین‌های انتشار ──');
-test('E1: VERSION.json crm_version = v34.39.24', (function () {
-  try { return JSON.parse(read('VERSION.json')).crm_version === 'v34.39.24'; } catch (e) { return false; }
+test('E1: VERSION.json crm_version = v34.39.27', (function () {
+  try { return JSON.parse(read('VERSION.json')).crm_version === 'v34.39.27'; } catch (e) { return false; }
 })());
 test('E2: Service Worker + PTF_CRM_RELEASE/VER بامپ شده‌اند',
-  swSrc.indexOf('v34.39.24') > -1 && indexHtml.indexOf("window.PTF_CRM_RELEASE = 'v34.39.24'; window.VER = 'v34.39.24';") > -1);
+  swSrc.indexOf('v34.39.27') > -1 && indexHtml.indexOf("window.PTF_CRM_RELEASE = 'v34.39.27'; window.VER = 'v34.39.27';") > -1);
 test('E3: پین‌های tester674/tester621 به نسخهٔ جدید به‌روز شده‌اند',
-  tester674Src.indexOf("'v34.39.24'") > -1 && read('_tools/uat/tester621-v34.38.14-archive-uniqueness-restore.js').indexOf("'v34.39.24'") > -1);
+  tester674Src.indexOf("'v34.39.27'") > -1 && read('_tools/uat/tester621-v34.38.14-archive-uniqueness-restore.js').indexOf("'v34.39.27'") > -1);
 test('E4: تستر در گیت CI ثبت است',
   gateSrc.indexOf('tester675-v34.39.21-ui-stability-price-modal-tabs.js') > -1);
 
