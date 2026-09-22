@@ -1243,6 +1243,49 @@
     return n;
   };
 
+  /* =====================================================================
+     v34.39.24 (CHQ-OPEX-EDIT-LINK): اتصال/جدا کردن چک ↔ ماه‌های هزینهٔ جاری
+     از فرم «ویرایش چک» — گپ گزارش کارفرما: چک صادره بدون اتصال به ردیف‌های opex
+     ثبت شده بود و در ویرایش چک هیچ راهی برای اتصال نبود ⇒ خزانه هم چک را می‌شمارد
+     هم ردیف‌های بدون چک را (دوباره‌شماری؛ سند ARENA-RENT-BIMONTHLY-CHEQUE-DOUBLE-COUNT).
+     قرارداد:
+     - ptfOpexRowsForChequeLink(chequeCd): {linked, available} — فقط‌خواندنی برای رندر فرم.
+       «available» ردیف‌های حقوق سهامدار و کارمزد پوششی را ندارد (سمنتیک نقدی متفاوت دارند).
+     - ptfOpexChequeLinkRows(chequeCd, rowIds): همگام‌سازی دوطرفه با یک نوشتن —
+       تیک‌دارها وصل می‌شوند، وصل‌های قبلیِ بدون تیک جدا می‌شوند؛ ردیفِ متعلق به چک دیگر
+       هرگز ربوده نمی‌شود (skip + گزارش به caller — اکشن کاربر بی‌صدا شکست نمی‌خورد).
+     ===================================================================== */
+  window.ptfOpexRowsForChequeLink = function (chequeCd) {
+    var linked = oRows().filter(function (x) {
+      return x && opexRowActive(x) && x.chequeCd === chequeCd;
+    }).sort(function (a, b) { return String(b.month || '').localeCompare(String(a.month || '')); });
+    var available = (typeof window.ptfOpexUnlinkedForCheque === 'function' ? window.ptfOpexUnlinkedForCheque() : []).filter(function (x) {
+      return !isShareholderSalaryOpex(x) && !isCoverOpex(x);
+    });
+    return { linked: linked, available: available };
+  };
+  window.ptfOpexChequeLinkRows = function (chequeCd, rowIds) {
+    if (!chequeCd) return { ok: false, why: 'chequeCd' };
+    var want = (Array.isArray(rowIds) ? rowIds : []).filter(Boolean);
+    var all = oRows(), linked = 0, unlinked = 0, skipped = [];
+    all.forEach(function (x) {
+      if (!x || !opexRowActive(x)) return;
+      var rid = String(x[OPEX_ROW_ID] || '');
+      if (rid && want.indexOf(rid) > -1) {
+        if (x.chequeCd && x.chequeCd !== chequeCd) { skipped.push(x.cd || rid); return; }
+        if (x.chequeCd !== chequeCd) { x.chequeCd = chequeCd; x.payHow = 'cheque'; linked++; }
+        return;
+      }
+      if (x.chequeCd === chequeCd) {
+        delete x.chequeCd;
+        if (x.payHow === 'cheque') delete x.payHow;
+        unlinked++;
+      }
+    });
+    if (linked || unlinked) oSave(all);
+    return { ok: true, linked: linked, unlinked: unlinked, skipped: skipped };
+  };
+
   /* ---------- رندر باکس داخل پنل تنخواه ---------- */
   window.ptfOpexRender = function () {
     var el = document.getElementById('opexBox');

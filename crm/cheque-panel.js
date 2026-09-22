@@ -324,7 +324,15 @@
     var isR = window._ptfChNFormDir === 'received';
     var kind = ((document.getElementById('ptfChNKind') || {}).value || 'finance');
     var party = ((document.getElementById('ptfChNParty') || {}).value || 'other');
-    if (isR || kind !== 'finance' || party === 'sup') { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    if (isR || kind !== 'finance') { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    /* v34.39.24 (CHQ-OPEX-EDIT-LINK): برای چک تأمین‌کننده بخش کلاً پنهان نمی‌شود؛
+       اگر چک در واقع بابت اجاره/هزینه جاری است (موجر به‌عنوان تأمین‌کننده ثبت شده بود)،
+       کاربر باید بداند مسیر درست انتخاب «سایر» است تا بتواند ماه‌ها را وصل کند. */
+    if (party === 'sup') {
+      wrap.style.display = '';
+      wrap.innerHTML = '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:8px 11px;font-size:12px;color:#9a3412;line-height:1.9">🏭 این چک به <b>تامین‌کننده دارای مطالبه</b> وصل می‌شود و اثر مالی روی حساب همان تأمین‌کننده می‌نشیند. اگر این چک در واقع بابت <b>اجاره/هزینهٔ جاری</b> است (مثلاً موجر)، نوع ذی‌نفع را «👤 سایر» انتخاب کنید تا بخش «اتصال به ماه‌های هزینه جاری» فعال شود و وجه دقیقاً یک‌بار از خزانه کم شود.</div>';
+      return;
+    }
     var rows = (typeof window.ptfOpexUnlinkedForCheque === 'function') ? window.ptfOpexUnlinkedForCheque() : [];
     var tpls = (typeof window.ptfOpexTemplates === 'function') ? window.ptfOpexTemplates() : [];
     var futureHtml = '';
@@ -337,7 +345,14 @@
             escP(f.name) + ' — هنوز ثبت نشده</label>';
         }).join('');
     });
-    if (!rows.length && !futureHtml) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    /* v34.39.24 (CHQ-OPEX-EDIT-LINK): حالت خالی هم پنهان نمی‌شود — کاربر باید بداند
+       قابلیت اتصال چک به ماه‌های هزینه وجود دارد و چرا الان چیزی برای اتصال نیست. */
+    if (!rows.length && !futureHtml) {
+      wrap.style.display = '';
+      wrap.innerHTML = '<label>بابت کدام ماه‌های هزینه جاری؟ (اتصال چک ↔ هزینه‌ها)</label>' +
+        '<div style="border:1px solid var(--brd);border-radius:10px;padding:8px;background:#f8fafc;font-size:12px;color:#64748b;line-height:1.9">هیچ ردیف هزینهٔ «ثبت‌شده و بدون چک» و هیچ ماه آیندهٔ قالبی برای اتصال وجود ندارد. اگر اجاره را با قالب تکرارشونده پرداخت می‌کنید، ماه‌های هزینه را از پنل هزینه‌های جاری ثبت کنید؛ پس از آن همین‌جا قابل تیک‌زدن می‌شوند (جلوگیری از دوباره‌شماری خزانه).</div>';
+      return;
+    }
     wrap.style.display = '';
     wrap.innerHTML = '<label>بابت کدام ماه‌های هزینه جاری؟ (حتی خرداد تا خرداد سال بعد)</label>' +
       '<div style="max-height:220px;overflow:auto;border:1px solid var(--brd);border-radius:10px;padding:8px;background:#fffbeb;font-size:12.5px">' +
@@ -624,6 +639,33 @@
     setTimeout(function () { window.ptfChequeEditUi(cd); }, 150);
   };
 
+  /* =====================================================================
+     v34.39.24 (CHQ-OPEX-EDIT-LINK): فهرست «اتصال چک ↔ ماه‌های هزینه جاری» داخل
+     مودال ویرایش چک. ردیف‌های متصل با تیکِ زده‌شده، ردیف‌های «ثبت‌شده و بدون چک»
+     با تیکِ خالی. ذخیره با ptfChequeEditSave انجام می‌شود (یک نوشتنِ دوطرفه در
+     ptfOpexChequeLinkRows) — ردیف چک دیگر ربوده نمی‌شود.
+     ===================================================================== */
+  window.ptfChequeEditOpexReload = function (cd) {
+    var wrap = document.getElementById('chE_OpexWrap');
+    if (!wrap) return;
+    var rows = (typeof window.ptfOpexRowsForChequeLink === 'function') ? window.ptfOpexRowsForChequeLink(cd) : { linked: [], available: [] };
+    var linked = rows.linked || [], avail = rows.available || [];
+    function opexLinkLine(x, checked) {
+      return '<label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" class="ptf-chE-opex" value="' + escP(x._opexRowId || '') + '" data-amt="' + (+x.amt || 0) + '"' + (checked ? ' checked' : '') + '> ' +
+        escP(x.month || '') + ' — ' + escP(x.cat || '') + ' — ' + money(x.amt) + ' ریال' + (x.cd ? ' <span dir="ltr" style="color:#94a3b8;font-size:10px">' + escP(x.cd) + '</span>' : '') + (x.desc ? ' <small style="color:#64748b">(' + escP(x.desc) + ')</small>' : '') +
+        (checked ? ' <span class="bd" style="background:#ecfdf5;color:#047857;font-size:10px">متصل</span>' : '') + '</label>';
+    }
+    var body = '';
+    if (linked.length) body += '<div style="font-weight:700;color:#047857">متصل به این چک</div>' + linked.map(function (x) { return opexLinkLine(x, true); }).join('');
+    if (avail.length) body += (linked.length ? '<div style="font-weight:700;color:#9a3412;margin-top:6px">ثبت‌شده و بدون چک</div>' : '') + avail.map(function (x) { return opexLinkLine(x, false); }).join('');
+    var hint = '<div style="margin-top:6px;color:#92400e">اتصال چک به ماه‌های هزینه یعنی وجه فقط از همین چک (در سررسید) از خزانه کم شود و ردیف‌های هزینه دوباره شمرده نشوند. تیک برداشتن = جدا کردن از چک.</div>';
+    if (!linked.length && !avail.length) {
+      body = '<div style="color:#64748b;font-size:12px;line-height:1.9">هیچ ردیف هزینهٔ جاری قابل اتصالی وجود ندارد (نه متصل به این چک، نه «بدون چک»). اگر اجاره با قالب تکرارشونده ثبت می‌شود، ماه‌ها پس از ماده‌شدن اینجا دیده می‌شوند.</div>';
+    }
+    wrap.innerHTML = '<label>بابت کدام ماه‌های هزینه جاری؟ (اتصال چک ↔ هزینه‌ها)</label>' +
+      '<div style="max-height:220px;overflow:auto;border:1px solid var(--brd);border-radius:10px;padding:8px;background:#fffbeb;font-size:12.5px">' + body + '</div>' + hint;
+  };
+
   /* ================= v34.0.16-alpha (فاز ۱۳): مدیریت دسته چک + ویرایش کامل چک + سند ================= */
 
   /* مودال مدیریت دسته‌های چک (لیست + ثبت + حذف) */
@@ -755,6 +797,11 @@
     if ((c.direction === 'issued' || c.ownership === 'company') && (c.supplierCd || c.supplierPaymentCd)) {
       financialNote = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:7px 10px;font-size:12px;color:#065f46;margin-bottom:8px">💳 این چک اثر مالی روی حساب تأمین‌کننده دارد — با تغییر مبلغ، گردش حساب همان لحظه اصلاح می‌شود.</div>';
     }
+    /* v34.39.24 (CHQ-OPEX-EDIT-LINK): گپ گزارش کارفرما — ویرایش چک هیچ راهی برای اتصال به
+       ماه‌های هزینهٔ جاری نداشت؛ چکِ بدون اتصال + ردیف‌های بدون چک = دوباره‌شماری خزانه.
+       واجد شرایط: صادرهٔ غیرضمانت و غیرشخصی (چک شخصی اصلاً از خزانه شرکت کم نمی‌شود). */
+    var ownOfEdit = (typeof window.ptfChequeOwnershipOf === 'function') ? window.ptfChequeOwnershipOf(c) : (c.ownership || (c.direction === 'received' ? 'third_party' : 'company'));
+    var opexLinkEligible = c.direction === 'issued' && c.kind !== 'guarantee' && ownOfEdit !== 'personal';
     var html = '<div class="md-b" id="ptfChEditDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:680px;max-height:92vh;overflow:auto">' +
       '<h3>✏️ ویرایش چک ' + escP(c.sayad || c.no || c.cd) + '</h3>' + financialNote +
       '<div class="fr"><div class="fld"><label>شماره برگه چک</label><input id="chE_No" value="' + escP(c.no || '') + '" style="direction:ltr"></div>' +
@@ -774,12 +821,17 @@
       '<div class="fld"><label>نام روی دسته / حساب</label><input id="chE_Owner" value="' + escP(c.owner || '') + '"></div></div>' +
       '<div class="fr"><div class="fld"><label>شماره حساب</label><input id="chE_Acc" value="' + escP(c.accountNo || '') + '" style="direction:ltr"></div><div class="fld"></div></div>' +
       '<div class="fld"><label>یادداشت</label><input id="chE_Note" value="' + escP(c.note || '') + '"></div>' +
+      (opexLinkEligible ? '<div class="fld" id="chE_OpexWrap"></div>' : '') +
       '<div class="fld"><label>📎 اسناد / کپی چک (افزودن + حذف)</label><div id="chE_Files" style="min-height:40px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
       '<button class="bt bt-o" onclick="document.getElementById(\'ptfChEditDlg\').remove()">انصراف</button>' +
       '<button class="bt" onclick="ptfChequeEditSave(\'' + ptfOnClickArg(cd) + '\')">💾 ذخیره</button></div></div></div>';
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
     window._ptfChEditNewFiles = [];
+    /* v34.39.24 (CHQ-OPEX-EDIT-LINK): رندر فهرست ماه‌های هزینه برای اتصال/جدا کردن */
+    if (opexLinkEligible && typeof window.ptfChequeEditOpexReload === 'function') {
+      try { window.ptfChequeEditOpexReload(cd); } catch (eOxR) { try { console.warn('opex link reload failed', eOxR); } catch (eW) {} }
+    }
     /* نمایش اسناد موجود + آپلود سند جدید */
     var fw = document.getElementById('chE_Files');
     if (fw) {
@@ -832,12 +884,52 @@
       note: String(val('chE_Note') || '').trim()
     };
     if (dueISO) patch.dueISO = dueISO; else if (c.dueISO && !dueJ) patch.dueISO = c.dueISO;
+    /* v34.39.24 (CHQ-OPEX-EDIT-LINK): تیک‌های اتصال به ماه‌های هزینه — جمع تیک‌ها بهتر است
+       با مبلغ چک برابر باشد؛ نابرابری فقط با تأیید صریح کاربر عبور می‌کند (اتصال ناقص
+       همچنان بهتر از بی‌اتصالی است، پس بلوک نمی‌کنیم). */
+    var opexWrapEl = document.getElementById('chE_OpexWrap');
+    var opexIds = [], opexSum = 0;
+    if (opexWrapEl) {
+      Array.prototype.forEach.call(document.querySelectorAll('#chE_OpexWrap .ptf-chE-opex:checked'), function (el) {
+        var id = el.value || '';
+        if (!id) return;
+        opexIds.push(id);
+        opexSum += +el.getAttribute('data-amt') || 0;
+      });
+      if (opexIds.length && Math.round(opexSum) !== Math.round(amt) &&
+          !confirm('جمع ماه‌های هزینهٔ انتخاب‌شده (' + money(opexSum) + ' ریال) با مبلغ چک (' + money(amt) + ' ریال) برابر نیست.\nاتصال ناقص یعنی بخشی از هزینه همچنان جدا از چک از خزانه کم می‌شود. ادامه می‌دهید؟')) return;
+      patch.opexRowIds = opexIds.slice();
+    }
     /* ترکیب فایل‌های موجود + جدید */
     var newFiles = (window._ptfChEditNewFiles || []).slice();
     if (newFiles.length) patch.files = (c.files || []).concat(newFiles);
     var oldAmt = +c.amt || 0;
     var r = (typeof window.ptfChequeUpdate === 'function') ? window.ptfChequeUpdate(cd, patch) : { ok: false };
     if (!r.ok) { alert('ذخیره نشد (' + (r.why || 'خطا') + ')'); return; }
+    /* v34.39.24 (CHQ-OPEX-EDIT-LINK): همگام‌سازی دوطرفهٔ ردیف‌های هزینه با تیک‌ها —
+       بعد از موفقیت به‌روزرسانی چک؛ شکست آن بی‌صدا نیست. */
+    var opexMsg = '';
+    if (opexWrapEl) {
+      if (typeof window.ptfOpexChequeLinkRows !== 'function') {
+        alert('⚠️ ماژول هزینه‌های جاری بارگذاری نشده است؛ اتصال چک به ماه‌های هزینه به‌روزرسانی نشد. صفحه را تازه کنید و دوباره تلاش کنید.');
+      } else {
+        var lr = window.ptfOpexChequeLinkRows(cd, opexIds);
+        if (!lr || !lr.ok) {
+          alert('⚠️ اتصال چک به ماه‌های هزینه ثبت نشد: ' + ((lr && lr.why) || 'خطای نامشخص'));
+          return;
+        }
+        if (lr.linked || lr.unlinked) {
+          opexMsg = ' — اتصال هزینه‌ها: ' + lr.linked + ' وصل / ' + lr.unlinked + ' جدا';
+          try { audit('چک‌ها', 'اتصال چک به هزینه‌های جاری — ' + lr.linked + ' وصل / ' + lr.unlinked + ' جدا (جمع تیک: ' + money(opexSum) + ' ریال)', cd); } catch (eL) {}
+          try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOx) {}
+          try { if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender(); } catch (eT) {}
+        }
+        if (lr.skipped && lr.skipped.length) {
+          opexMsg += ' — ⚠️ ' + lr.skipped.join('، ') + ' به چک دیگری متصل بود و دست نخورد';
+          if (typeof ptfToast === 'function') ptfToast('⚠️ برخی ردیف‌ها به چک دیگری متصل‌اند: ' + lr.skipped.join('، '), 'warn');
+        }
+      }
+    }
     var finMsg = '';
     if (oldAmt !== amt && (c.direction === 'issued' || c.ownership === 'company') && typeof window.ptfChequeApplyFinancialAmount === 'function') {
       var fr = window.ptfChequeApplyFinancialAmount(cd, amt);
@@ -845,7 +937,7 @@
     }
     try { audit('چک‌ها', 'ویرایش چک ' + (sayad || cd) + ' — مبلغ ' + money(amt) + ' در وجه ' + to, cd); } catch (eA) {}
     var dlg = document.getElementById('ptfChEditDlg'); if (dlg) dlg.remove();
-    if (typeof ptfToast === 'function') ptfToast('✅ چک ویرایش شد' + finMsg, 'ok');
+    if (typeof ptfToast === 'function') ptfToast('✅ چک ویرایش شد' + opexMsg + finMsg, 'ok');
     window.ptfChequePanelRender();
     try { if (typeof window.ptfDataQualityRender === 'function') window.ptfDataQualityRender(); } catch (eQ) {}
   };

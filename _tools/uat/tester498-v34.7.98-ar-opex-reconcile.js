@@ -13,13 +13,13 @@ SECTION('Release v34.38.16: پین‌های رسمی');
 (function releasePins() {
   var ver = JSON.parse(read('VERSION.json'));
   var idx = read('crm/index.html'), sw = read('crm/sw.js');
-  T('VERSION.json = v34.39.23', ver.crm_version === 'v34.39.23', ver.crm_version);
-  T('index release و cache-bust روی 34.39.23 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.23'") > -1 && idx.indexOf('?v=34.7.96') === -1);
-  T('service worker release/cache/assets روی 34.39.23 است', sw.indexOf("RELEASE = 'v34.39.23'") > -1 && sw.indexOf("ASSET_VERSION = '34.39.23'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.39.23'") > -1);
-  T('manifest.version = 34.39.23', JSON.parse(read('crm/manifest.json')).version === '34.39.23');
-  T('clear-cache روی v34.39.23 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.39.23'") > -1);
-  T('shell fallback روی v34.39.23 است', read('crm/shell.js').indexOf("'v34.39.23'") > -1);
-  T('sales-domain service روی 34.39.23 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.39.23'") > -1);
+  T('VERSION.json = v34.39.24', ver.crm_version === 'v34.39.24', ver.crm_version);
+  T('index release و cache-bust روی 34.39.24 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.24'") > -1 && idx.indexOf('?v=34.7.96') === -1);
+  T('service worker release/cache/assets روی 34.39.24 است', sw.indexOf("RELEASE = 'v34.39.24'") > -1 && sw.indexOf("ASSET_VERSION = '34.39.24'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.39.24'") > -1);
+  T('manifest.version = 34.39.24', JSON.parse(read('crm/manifest.json')).version === '34.39.24');
+  T('clear-cache روی v34.39.24 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.39.24'") > -1);
+  T('shell fallback روی v34.39.24 است', read('crm/shell.js').indexOf("'v34.39.24'") > -1);
+  T('sales-domain service روی 34.39.24 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.39.24'") > -1);
 })();
 
 SECTION('AR: یک Receipt، یک قرارداد عددی در خزانه و حساب مشتری');
@@ -109,10 +109,18 @@ function salaryOpex(cd, name, amt, month) {
   };
 }
 
+/* v34.39.24 (TIME-INDEPENDENT — ورود ماه ۱۴۰۵/۰۷ دو سنجه را قرمز کرد):
+   opex.js در زمان load خودش window.ptfFaMonthNow را با Intl واقعی (میزبان) بازنویسی
+   می‌کند؛ stub داخل context اثری ندارد و پین‌کردن ماه در تست، هر ماه جدید قرمز می‌سازد.
+   ماه انتظار باید از همان مسیر واقعی کد محاسبه شود. */
+function tehranMonthNow() {
+  try { var p = new Date().toLocaleDateString('fa-IR-u-nu-latn', { timeZone: 'Asia/Tehran' }).split('/'); return p[0] + '/' + ('0' + p[1]).slice(-2); }
+  catch (e) { return new Intl.DateTimeFormat('fa-IR-u-nu-latn', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit' }).format(new Date()).replace(/\s/g, '').replace('-', '/'); }
+}
+
 function opexContext(seed) {
   seed = seed || {};
-  var store = {}, listeners = {}, timers = [], seq = 0, commands = [];
-  Object.keys(seed.store || {}).forEach(function (k) { store[k] = JSON.stringify(seed.store[k]); });
+  var store = {}, listeners = {}, timers = [], seq = 0, commands = [];  Object.keys(seed.store || {}).forEach(function (k) { store[k] = JSON.stringify(seed.store[k]); });
   var projectedSettings = seed.settings || { opexTpl: [] };
   var outcomes = (seed.outcomes || ['acked']).slice();
   var role = seed.role || 'admin';
@@ -145,7 +153,8 @@ function opexContext(seed) {
     genCode: function (p) { seq++; return p + '-RANDOM-' + seq; },
     faDate: function () { return '1405/06/01'; },
     faDateTime: function () { return '1405/06/01 09:00'; },
-    ptfFaMonthNow: function () { return '1405/06'; },
+    /* ptfFaMonthNow stub عمداً حذف شد — opex.js آن را با پیاده‌سازی واقعی بازنویسی می‌کند
+       و نگه‌داشتن stub گمراه‌کننده بود (ریشهٔ قرمزی وابسته به ماه؛ tehranMonthNow بالا). */
     curRole: function () { return role; },
     curSession: function () { return { user: role, name: role }; },
     roleDef: function () { return { finance: finance }; },
@@ -198,7 +207,7 @@ function opexContext(seed) {
 
 SECTION('OPEX: فرمان server-authoritative پس از Sync و projection قابل مشاهده');
 (function serverAuthoritativeColdStart() {
-  var month = '1405/06';
+  var month = tehranMonthNow(); /* v34.39.24: پین ماه حذف شد — فرمان ماه تهرانِ واقعی را می‌فرستد */
   var serverRows = [salaryOpex('SH1', 'اول', 100, month), salaryOpex('SH2', 'دوم', 200, month), { cd: 'OPX-TPL-RENT', _opexRowId: 'OPXR-TPL-RENT', cat: 'اجاره‌بها', amt: 300, month: month, tplId: 'TPL-RENT', recurringKey: 'opex-template:TPL-RENT:' + month, status: 'active', serverReconciled: true, serverMaterialized: true }];
   var c = opexContext({
     settings: { opexTpl: [{ id: 'TPL-RENT', cat: 'اجاره‌بها', amt: 300, desc: 'اجاره' }] },
@@ -265,7 +274,9 @@ SECTION('OPEX: همهٔ وضعیت‌های terminal از جمع و helperها �
   T('ptfOpexSumFiscal نیز terminalها را حذف می‌کند', c.ptfOpexSumFiscal('1405').total === 10, JSON.stringify(c.ptfOpexSumFiscal('1405')));
   T('انتخاب هزینه برای چک terminalها را برنمی‌گرداند', c.ptfOpexUnlinkedForCheque().length === 1 && c.ptfOpexUnlinkedForCheque()[0].cd === 'ACTIVE');
   T('وجود فقط ردیف terminal مانع pending template نیست', c.ptfOpexPendingTpls('1405/06').some(function (x) { return x.id === 'TPL-X'; }));
-  T('وجود فقط ردیف terminal، ماه جاری را از future-month حذف نمی‌کند', c.ptfOpexFutureMonthsForTpl('TPL-X', '1405').some(function (x) { return x.month === '1405/06'; }));
+  /* v34.39.24: هدف سنجه «ماه جاریِ واقعی» است نه ماه پین‌شده — با ورود ماه جدید پین قرمز می‌شد. */
+  var _curM = tehranMonthNow();
+  T('وجود فقط ردیف terminal، ماه جاری را از future-month حذف نمی‌کند', c.ptfOpexFutureMonthsForTpl('TPL-X', String(_curM).split('/')[0]).some(function (x) { return x.month === _curM; }));
   var beforeSchedule = JSON.stringify(c.rows('ptf_crm_opex'));
   var made = c.ptfOpexCreateMonthsForCheque('CH-1', [{ tplId: 'TPL-X', month: '1405/06' }]);
   T('duplicate check چک فقط Promise فرمان سروری می‌دهد و tombstone را محلی زنده نمی‌کند', made && typeof made.then === 'function' && JSON.stringify(c.rows('ptf_crm_opex')) === beforeSchedule);

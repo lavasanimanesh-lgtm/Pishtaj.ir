@@ -345,6 +345,7 @@ var SUITE = [
   { g: 'CRM/تماس (39.22): CONTACT-ROOTS — شماره‌های تماس ثبت‌شده پاک یا نامرئی نشوند', f: '_tools/uat/tester676-v34.39.22-contact-roots.js' },
   { g: 'CRM/مالی (39.23): RENT-CASH-UNTIL-PAID — تکرارشونده و اجارهٔ متصل به چک تا پرداخت نهایی خروج نقدی نیست', f: '_tools/uat/tester677-v34.39.23-rent-cash-until-paid.js' },
   { g: 'CRM/مالی (39.23): SUP-FX-RATE-EDIT — ویرایش نرخ تسعیر فاکتور و پرداخت ارزی تأمین‌کننده', f: '_tools/uat/tester678-v34.39.23-supplier-fx-rate-edit.js' },
+  { g: 'CRM/مالی (39.24): CHQ-OPEX-EDIT-LINK — اتصال/جدا کردن چک صادره به ماه‌های هزینه جاری از ویرایش چک + رفع پنهان‌شدن بخش اتصال در ثبت (ضد دوباره‌شماری اجارهٔ چک‌محور)', f: '_tools/uat/tester679-v34.39.24-cheque-opex-edit-link.js' },
 ];
 
 var SYNTAX = [
