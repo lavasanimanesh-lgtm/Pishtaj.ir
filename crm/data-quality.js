@@ -332,7 +332,7 @@
       var dismissJson = '';
       try { dismissJson = JSON.stringify(d).replace(/'/g, '&#39;'); } catch(e){ dismissJson = '{}'; }
       var dismissBtn = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px;background:#f8fafc;border-color:#cbd5e1;color:#475569" '
-        + 'onclick="var j=this.getAttribute(\'data-detail\'); try{ j=JSON.parse(j.replace(/&#39;/g,&quot;\\&#39;&quot;)); }catch(e){} var reason=prompt(\'دلیل بستن این مغایرت:\\',\'مغایرت واقعی نیست — بررسی شد\'); if(reason!==null) ptfFinFindingDismiss(\''+ptfOnClickArg(r.id)+'\', j, reason);" '
+        + 'onclick="var j=this.getAttribute(\'data-detail\'); try{ j=JSON.parse(j.replace(/&#39;/g,&quot;\\&#39;&quot;)); }catch(e){} var reason=prompt(\'دلیل بستن این مغایرت:\',\'مغایرت واقعی نیست — بررسی شد\'); if(reason!==null) ptfFinFindingDismiss(\''+ptfOnClickArg(r.id)+'\', j, reason);" '
         + 'data-detail=\''+dismissJson+'\'>🙈 بستن دستی — مغایرت واقعی نیست</button>';
       // برای realbuy-finance یک دکمه اضافه «اتصال به فاکتور واقعی» هم بده
       var linkRealBtn = '';
