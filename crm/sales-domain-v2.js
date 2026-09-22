@@ -700,7 +700,7 @@
     if (!base) { try { var cur = getData(collection); if (Array.isArray(cur)) base = cur; } catch (eB) {} }
     if (!base) base = [];
     var MAX_OPS = opts.maxOps || 40;
-    /* v34.39.21 (RESTORE-TOMBSTONE-REKILL — گام ③): آرشیو حذف با هویت سرور (_id — idField
+    /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — گام ③): آرشیو حذف با هویت سرور (_id — idField
        رجیستری) دیده می‌شود، نه cd. رکوردهای کهنه/بی‌cd (offers.js، guards.js، listclean، …)
        کل ذخیرهٔ آرشیو را به legacyFallback می‌انداختند و «خنثی‌سازی سنگ‌قبر هنام بازگشت»
        هرگز به سرور نمی‌رسید → سنگ‌قبر فعال می‌ماند و پروندهٔ بازگردانده‌شده در sync بعدی
@@ -713,7 +713,7 @@
     base.forEach(function (r) { var k = rowKeyOf(r); if (!k) { okPrev = false; return; } prevByCd[k] = r; });
     nextArr.forEach(function (r) { var k = rowKeyOf(r); if (!k) { okNext = false; return; } nextByCd[k] = r; });
     if (!okPrev || !okNext) return legacyFallback('records-without-cd');
-    /* v34.39.21: فرمان upsert آرشیو حذف به _id نیاز دارد (idField سرور) — ردیفِ هویت‌دارِ
+    /* v34.39.22: فرمان upsert آرشیو حذف به _id نیاز دارد (idField سرور) — ردیفِ هویت‌دارِ
        بدون _id یک _id پایدار می‌گیرد تا create/update اتمیک سمت سرور ممکن شود. */
     if (collection === 'ptf_crm_deleted_archive') {
       nextArr.forEach(function (r) {
@@ -1287,7 +1287,7 @@
     }
     var caseNo=String(c.wonOffer||c.offerNo||''),offerNo=String(o.no||'');
     var linked=!!caseNo&&!!offerNo&&caseNo===offerNo;
-    /* v34.39.21 (RESTORE-TOMBSTONE-REKILL — گام ⑤): رکوردِ «به جریان افتاده» offerNos را
+    /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — گام ⑤): رکوردِ «به جریان افتاده» offerNos را
        هم حمل می‌کند؛ پیوند با offerNos هم برقرار است تا پیشنهاد برندهٔ دارای پرونده
        (بازگردانده‌شده، یا آرشیوی قدیمی با wonOffer خالی) هرگز «بدون پرونده» یافته نشود. */
     if(!linked){var ons=arr(c.offerNos);for(var oi=0;oi<ons.length;oi++){if(String(ons[oi]||'')===offerNo){linked=true;break;}}}
@@ -1369,7 +1369,7 @@
     if (bare && /[A-Za-z]/.test(bare)) add(bare);
     return out;
   }
-  /* v34.39.21: خروجی سراسری برای ptfSalesfileRestoreFromArchive — offerNos رکورد بازگشت */
+  /* v34.39.22: خروجی سراسری برای ptfSalesfileRestoreFromArchive — offerNos رکورد بازگشت */
   window.ptfArchivedProjectOfferNos = archivedProjectOfferNos;
   function archivedCaseForOffer(o) {
     if (!o) return null;

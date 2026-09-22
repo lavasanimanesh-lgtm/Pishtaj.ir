@@ -58,7 +58,12 @@ function primaryPerson(entity) {
 }
 
 function fmtTel(t) { return t.n + (t.ext ? ' داخلی ' + t.ext : ''); }
-function telHref(t) { return 'tel:' + t.n.replace(/[^+\d]/g, '') + (t.ext ? ',' + t.ext : ''); }
+function telHref(t) {
+  /* v34.39.22 (CONTACT-ROOTS R5): ارقام فارسیِ ذخیره‌شده در لینک تماس می‌مانند (قبلاً
+     [^+\d] ارقام فارسی را می‌ریخت و href برای شماره‌های نرمال‌شده تهی می‌شد). */
+  var n = (typeof ptfToEnDigits === 'function' ? ptfToEnDigits(String(t.n == null ? '' : t.n)) : String(t.n == null ? '' : t.n)).replace(/[^+\d]/g, '');
+  return 'tel:' + n + (t.ext ? ',' + t.ext : '');
+}
 
 // ---- UI دفترچه اشخاص (داخل مودال کارفرما/تامین‌کننده) ----
 var _cbState = null; // {people:[...]} حالت موقت فرم
@@ -212,12 +217,22 @@ function ptfPreserveLegalContactsAsPhones(oldRec, phones) {
   var out = (Array.isArray(phones) ? phones : []).slice();
   if (!oldRec) return out;
   var seen = {};
-  out.forEach(function (p) { if (p && p.n) seen[String(p.n).replace(/[^0-9]/g, '')] = 1; });
+  /* v34.39.22 (CONTACT-ROOTS R1): کلید dedup باید ارقام فارسی/لاتین را یکی بشمارد و
+     هرگز شماره‌ای را «به‌خاطر کلید خالی» نریزد. قبلاً n.replace(/[^0-9]/,'') روی ارقامِ
+     فارسیِ نرمال‌ساز همیشه خالی می‌شد → `if (!key || seen[key]) return` همهٔ تماس‌های
+     حقوقی هنگام تبدیل نوع drop و با auto-_ccClear «قانونی» پاک می‌شدند (حتی seen['']
+     ناشی از یک شمارهٔ فارسیِ فرم، همهٔ قدیمی‌ها را می‌ریخت). */
+  function contactKey(n) {
+    var src = String(n == null ? '' : n);
+    var key = (typeof ptfToEnDigits === 'function' ? ptfToEnDigits(src) : src).replace(/[^0-9]/g, '');
+    return key ? ('n:' + key) : ('s:' + src.trim().toLowerCase());
+  }
+  out.forEach(function (p) { if (p && p.n) seen[contactKey(p.n)] = 1; });
   function push(kind, n, lb) {
     n = String(n || '').trim();
     if (!n) return;
-    var key = n.replace(/[^0-9]/g, '');
-    if (!key || seen[key]) return;
+    var key = contactKey(n);
+    if (seen[key]) return;
     seen[key] = 1;
     out.push({ k: kind, n: n, lb: lb || '' });
   }
@@ -336,7 +351,7 @@ function contactsCardHtml(entity) {
     h += '<div style="padding:8px 10px;border:1px solid var(--brd);border-radius:10px;margin-bottom:6px' + (p.primary ? ';background:#fff8f5' : '') + '">' +
       '<b>' + escP(p.nm) + '</b> <span style="color:#94a3b8;font-size:12px">' + escP(p.role || '') + (p.dept ? ' — ' + escP(p.dept) : '') + (p.primary ? ' ⭐' : '') + '</span><br>';
     (p.tels||[]).forEach(function(t){ h += '<a href="'+telHref(t)+'" style="font-size:12.5px;margin-left:10px">☎️ '+escP(fmtTel(t))+(t.lb?' ('+escP(t.lb)+')':'')+'</a>'; });
-    (p.mobs||[]).forEach(function(t){ h += '<a href="tel:'+escP(t.n)+'" style="font-size:12.5px;margin-left:10px">📱 '+escP(t.n)+'</a>'; });
+    (p.mobs||[]).forEach(function(t){ h += '<a href="'+telHref(t)+'" style="font-size:12.5px;margin-left:10px">📱 '+escP(t.n)+'</a>'; });
     (p.mails||[]).forEach(function(t){ h += '<a href="mailto:'+escP(t.n)+'" style="font-size:12.5px;margin-left:10px;direction:ltr">📧 '+escP(t.n)+'</a>'; });
     h += '</div>';
   });
@@ -345,14 +360,21 @@ function contactsCardHtml(entity) {
 
 // جستجوی عمیق (AC7)
 function entityMatches(entity, q) {
-  var hay = (entity.cd||'')+' '+(entity.co||'')+' '+(entity.ind||'')+' '+(entity.ca||'');
+  /* v34.39.22 (CONTACT-ROOTS R5): جستجوی شماره — تلفنخانه/تلفن‌های شخص/اسکالرهای ph/tel/mob
+     هم در haystack و fold ارقام فارسی↔انگلیسی. قبلاً شمارهٔ مشتری با جستجوی شماره نمی‌آمد
+     («شماره قابل مشاهده/یافتن نیست»). */
+  var hay = (entity.cd||'')+' '+(entity.co||'')+' '+(entity.ind||'')+' '+(entity.ca||'')+' '+(entity.ph||'')+' '+(entity.tel||'')+' '+(entity.mob||'')+' '+(entity.con||'');
+  (entity.coTels||[]).forEach(function(t){ hay += ' ' + ((t && t.n) || ''); });
+  (entity.phones||[]).forEach(function(t){ hay += ' ' + ((t && t.n) || ''); });
   (entity.people||[]).forEach(function(p) {
     hay += ' ' + (p.nm||'') + ' ' + (p.role||'');
     (p.tels||[]).forEach(function(t){ hay += ' ' + t.n; });
     (p.mobs||[]).forEach(function(t){ hay += ' ' + t.n; });
     (p.mails||[]).forEach(function(t){ hay += ' ' + t.n; });
   });
-  return hay.toLowerCase().indexOf(q.toLowerCase()) > -1;
+  var emToEn = function (v) { return (typeof ptfToEnDigits === 'function') ? ptfToEnDigits(String(v == null ? '' : v)) : String(v == null ? '' : v); };
+  var hL = hay.toLowerCase(), qL = String(q == null ? '' : q).toLowerCase();
+  return hL.indexOf(qL) > -1 || emToEn(hL).indexOf(emToEn(qL)) > -1;
 }
 
 /* ---------- US-110v2: OFFERS (TO / CO) ---------- */
@@ -3680,6 +3702,11 @@ function offerPrintObj(o) {
 function showCustModal(cd) {
   var c = null;
   if (cd) c = getData('ptf_crm_customers').filter(function(x){ return x.cd === cd; })[0];
+  /* v34.39.22 (CONTACT-ROOTS R2): snapshot نسخهٔ رکورد در لحظهٔ بازشدن مودال — مبنای
+     _ccBaseAt و اتحاد. قبلاً saveCust2 از oldRecPre (کشِ لحظهٔ save) می‌خواند؛ اگر pull
+     وسط مودال می‌رسید baseAt با updatedAt سرور برابر می‌شد → sd_contact_stale_merge مسیر
+     «fresh edit = LWW» → شماره‌های تازهٔ دستگاه دیگر پاک می‌شد (مالِ من سالم، مالِ او پاک). */
+  window._ptfContactFormBaseAt = String((c && (c.updatedAt || c.updatedAtISO)) || '');
   cbInit(c ? c.people : []);
   indivPhonesInit(c ? c.phones : []);
   var INDS = ['نفت و گاز','پتروشیمی','نیروگاه','فولاد','سیمان','آب','سایر'];
@@ -3931,8 +3958,12 @@ function saveCust2(cd) {
   try {
     if (cd) {
       rec._ccEdit = 1;
-      var baseAt = '';
-      if (oldRecPre) baseAt = String(oldRecPre.updatedAt || oldRecPre.updatedAtISO || '');
+      /* v34.39.22 (CONTACT-ROOTS R2): base باید «نسخهٔ لحظهٔ بازشدن مودال» باشد نه نسخهٔ
+         لحظهٔ save. oldRecPre از کشِ لحظهٔ save می‌آید و با pull وسط مودال، با updatedAt
+         سرور برابر می‌شد → مسیر «fresh edit» سرور LWW می‌زد و شماره‌های تازهٔ دستگاه دیگر
+         (که در فرم مودال نبودند) پاک می‌شد. fallback به oldRecPre فقط وقتی مودال باز نشده. */
+      var baseAt = String(window._ptfContactFormBaseAt || '');
+      if (!baseAt && oldRecPre) baseAt = String(oldRecPre.updatedAt || oldRecPre.updatedAtISO || '');
       if (baseAt) rec._ccBaseAt = baseAt;
     }
     rec.updatedAtISO = new Date().toISOString();
@@ -3944,10 +3975,13 @@ function saveCust2(cd) {
           if (liveItems[li] && liveItems[li].cd === cd) { liveNow = liveItems[li]; break; }
         }
       } catch (eLive) {}
-      /* فقط اگر live از oldRecPre تازه‌تر است اتحاد کن (pull وسط مودال) */
+      /* v34.39.22 (CONTACT-ROOTS R2): اتحاد وقتی مودال از live کهنه‌تر است (pull وسط مودال).
+         قبلاً oldAt از همان oldRecPre لحظهٔ save خوانده می‌شد و با liveAt برابر بود → شرط
+         هرگز برای پنجرهٔ modal-open فعال نمی‌شد. */
       if (liveNow) {
         var liveAt = String(liveNow.updatedAt || liveNow.updatedAtISO || '');
-        var oldAt = String((oldRecPre && (oldRecPre.updatedAt || oldRecPre.updatedAtISO)) || '');
+        var formAt = String(window._ptfContactFormBaseAt || '');
+        var oldAt = formAt || String((oldRecPre && (oldRecPre.updatedAt || oldRecPre.updatedAtISO)) || '');
         if (!oldAt || (liveAt && liveAt !== oldAt)) ptfMergeCustContactsFromLive(rec, liveNow);
       }
       /* items[i] را هم با rec ادغام‌شده هم‌راستا کن (silent-write همان را ببیند) */
@@ -3967,6 +4001,8 @@ function saveCust2(cd) {
 function showSupModal2(cd) {
   var c = null;
   if (cd) c = getData('ptf_crm_suppliers').filter(function(x){ return x.cd === cd; })[0];
+  /* v34.39.22 (CONTACT-ROOTS R2): مثل showCustModal — snapshot نسخهٔ لحظهٔ بازشدن مودال */
+  window._ptfContactFormBaseAt = String((c && (c.updatedAt || c.updatedAtISO)) || '');
   cbInit(c ? c.people : []);
   indivPhonesInit(c ? c.phones : []);
   var CATS = ['پایپینگ','شیرآلات','برق','ابزار دقیق','پمپ','سایر'];
@@ -4089,8 +4125,9 @@ function saveSup2(cd) {
   try {
     if (cd) {
       rec._ccEdit = 1;
-      var baseAtS = '';
-      if (oldSupPre) baseAtS = String(oldSupPre.updatedAt || oldSupPre.updatedAtISO || '');
+      /* v34.39.22 (CONTACT-ROOTS R2): مثل مشتری — base از snapshot لحظهٔ بازشدن مودال */
+      var baseAtS = String(window._ptfContactFormBaseAt || '');
+      if (!baseAtS && oldSupPre) baseAtS = String(oldSupPre.updatedAt || oldSupPre.updatedAtISO || '');
       if (baseAtS) rec._ccBaseAt = baseAtS;
     }
     rec.updatedAtISO = new Date().toISOString();
@@ -4104,7 +4141,8 @@ function saveSup2(cd) {
       } catch (eLS) {}
       if (liveSup) {
         var liveAtS = String(liveSup.updatedAt || liveSup.updatedAtISO || '');
-        var oldAtS = String((oldSupPre && (oldSupPre.updatedAt || oldSupPre.updatedAtISO)) || '');
+        var formAtS = String(window._ptfContactFormBaseAt || '');
+        var oldAtS = formAtS || String((oldSupPre && (oldSupPre.updatedAt || oldSupPre.updatedAtISO)) || '');
         if (!oldAtS || (liveAtS && liveAtS !== oldAtS)) ptfMergeCustContactsFromLive(rec, liveSup);
       }
       for (var usi = 0; usi < items.length; usi++) {
@@ -4344,11 +4382,14 @@ function showEntityCard(key, cd) {
     : '';
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:560px;max-height:90vh;overflow:auto">' +
     '<h3>' + escP(c.co) + ' <small style="color:#94a3b8;font-size:12px">' + escP(c.cd) + '</small></h3>' + venBox +
-    ((c.coTels||[]).length ? '<div style="font-size:13px;margin-bottom:4px">☎️ تلفنخانه: <a href="tel:' + escP(c.coTels[0].n) + '">' + escP(c.coTels[0].n) + '</a></div>' : '') +
+    ((c.coTels||[]).length ? '<div style="font-size:13px;margin-bottom:4px">☎️ تلفنخانه: ' + c.coTels.map(function(t){ return '<a href="' + telHref(t) + '" style="direction:ltr">' + escP(fmtTel(t)) + '</a>'; }).join(' | ') + '</div>' : '') +
     (c.coWeb ? '<div style="font-size:13px;margin-bottom:4px;direction:ltr;text-align:right">🌐 ' + escP(c.coWeb) + '</div>' : '') +
     (c.coAddr ? '<div style="font-size:13px;margin-bottom:10px">📍 ' + escP(c.coAddr) + '</div>' : '') +
     filesBox +
-    ((c.phones||[]).length ? '<h4 style="margin:10px 0 8px">📞 تلفن‌های شخص</h4>' + c.phones.map(function(p){ return '<div style="font-size:13px;margin-bottom:4px">' + (p.k === 'mob' ? '📱' : '☎️') + ' <a href="tel:' + escP(p.n) + '" style="direction:ltr">' + escP(p.n) + '</a>' + (p.lb ? ' <small style="color:#94a3b8">(' + escP(p.lb) + ')</small>' : '') + '</div>'; }).join('') : '<h4 style="margin:10px 0 8px">👥 اشخاص رابط</h4>' + contactsCardHtml(c)) +
+    /* v34.39.22 (CONTACT-ROOTS R4): بخش‌های مستقل — الگوی either/or قدیمی «اشخاص رابط» را
+       کنار phones پنهان می‌کرد (کارتِ حقوقیِ دارای هر دو، فقط phones را نشان می‌داد). */
+    (((c.phones||[]).length ? '<h4 style="margin:10px 0 8px">📞 تلفن‌های شخص</h4>' + c.phones.map(function(p){ return '<div style="font-size:13px;margin-bottom:4px">' + (p.k === 'mob' ? '📱' : '☎️') + ' <a href="' + telHref(p) + '" style="direction:ltr">' + escP(p.n) + '</a>' + (p.lb ? ' <small style="color:#94a3b8">(' + escP(p.lb) + ')</small>' : '') + '</div>'; }).join('') : '') +
+     (((c.people||[]).length || !(c.phones||[]).length) ? '<h4 style="margin:10px 0 8px">👥 اشخاص رابط</h4>' + contactsCardHtml(c) : '')) +
     '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="hideModal()">بستن</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
 }

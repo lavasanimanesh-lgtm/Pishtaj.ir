@@ -755,6 +755,43 @@ function sync_record_id_for_key($key, $r) {
     if ($key === 'ptf_crm_offers') return trim((string)($r['no'] ?? $r['cd'] ?? $r['id'] ?? ''));
     return trim((string)($r['_id'] ?? $r['cd'] ?? $r['no'] ?? $r['id'] ?? $r['code'] ?? $r['invoiceCd'] ?? ''));
 }
+
+/* ═══ v34.39.22 (CONTACT-ROOTS R6 — CONTACT-FIELDS-FILL) ═══
+   data_push کل blob را جایگزین می‌کند و سپرهای موجود فقط «حذف ردیف» را می‌بینند
+   (MASS-DELETE-SHIELD / US-384) — «شستشوی فیلد» درون ردیفِ زنده را نه. رکوردِ بدون
+   کلیدِ تماس (stub بازسازی heal، مهاجرت ناقص، fallback مسیر legacy) شماره‌های
+   ثبت‌شدهٔ کاربران را روی سرور بی‌صدا می‌پراند — الگوی «مالِ من سالم، مالِ او پاک».
+   قرارداد v34.8.34: «فیلدی که در payload نیست یعنی تغییر نکرده» — کلیدِ تماسِ غایبِ
+   ورودی وقتی سرور مقدارِ غیرتهی دارد، از سرور پر می‌شود. کلیدِ حاضر (حتی خالی)
+   محترم است (نیت صریح فرم — گاردهای entity_upsert آن را می‌پایند). */
+function sync_contact_fields_fill($incomingJson, $serverJson) {
+    $inc = json_decode((string)$incomingJson, true);
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($inc) || !is_array($srv) || !$inc || !$srv) return null;
+    $keys = ['people', 'coTels', 'phones', 'ph'];
+    $srvById = [];
+    foreach ($srv as $r) {
+        if (!is_array($r)) continue;
+        $id = sync_record_id_for_key('', $r);
+        if ($id !== '') $srvById[$id] = $r;
+    }
+    $changed = false;
+    foreach ($inc as $i => $r) {
+        if (!is_array($r)) continue;
+        $id = sync_record_id_for_key('', $r);
+        if ($id === '' || !isset($srvById[$id])) continue;
+        $pr = $srvById[$id];
+        foreach ($keys as $fk) {
+            if (array_key_exists($fk, $r)) continue;
+            if (!array_key_exists($fk, $pr) || empty($pr[$fk])) continue;
+            $r[$fk] = $pr[$fk];
+            $changed = true;
+        }
+        $inc[$i] = $r;
+    }
+    if (!$changed) return null;
+    return json_encode($inc, JSON_UNESCAPED_UNICODE);
+}
 /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: server-side last line of defence.
    We do not silently repair existing commercial documents. Instead, a payload
    that would increase exact duplicate offer lines compared with the server
@@ -1038,7 +1075,7 @@ function sync_tombstone_mark(array &$ids, $id, $epoch) {
 }
 function sync_apply_tombstones($key, $json, $serverArchiveJson = '', $incomingArchiveJson = '') {
     if ($key === 'ptf_crm_deleted_archive') {
-        /* v34.39.21 (RESTORE-TOMBSTONE-REKILL — هم‌راستا با قرارداد v34.37.0 ③): alias-strip
+        /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — هم‌راستا با قرارداد v34.37.0 ③): alias-strip
            فقط برای «پاک‌سازی گراف کل پروژه» (archive_purge بدون collection)؛ خودِ سنگ‌قبرها +
            ردیف‌های restored: + recycle هرگز قربانی strpos زیررشته‌ای نمی‌شوند. پیش از این
            alias سنگ‌قبرهای تک‌رکوردی (entity_delete بایگانی) هم جمع می‌شد و ردیف‌های
@@ -2729,6 +2766,13 @@ switch($action) {
             /* Restore تاییدشده باید snapshot انتخابی را authoritative کند؛ tombstone جدیدتر
                سرور نباید رکوردهای همان بک‌آپ را دوباره حذف کند. */
             $v = sync_apply_tombstones($k, $v, $restore ? '' : $serverArchiveJson, $incomingArchiveJson);
+            /* ═══ v34.39.22 (CONTACT-ROOTS R6): کلیدِ غایبِ تماس مشتری/تامین‌کننده از سرور
+               پر می‌شود (فیلد غایب = تغییر نکرده) تا push مسیر legacy شماره‌های ثبت‌شدهٔ
+               کاربران را با رکوردِ ناقص (heal/migrate/fallback) بی‌صدا نپراند. */
+            if (!$restore && !$allow_wipe && ($k === 'ptf_crm_customers' || $k === 'ptf_crm_suppliers')) {
+                $cfFill = sync_contact_fields_fill($v, sync_key_read($sdir, $k) ?: '[]');
+                if ($cfFill !== null) $v = $cfFill;
+            }
             /* v34.8.7: کلیدهای مشترکِ union پیش از بررسی base merge سروری می‌گیرند؛
                تعارضِ base برای آنها بی‌معناست چون نتیجهٔ merge نویسندهٔ هیچ دستگاهی را
                نمی‌پاکاند و ACK صادقانه است. */

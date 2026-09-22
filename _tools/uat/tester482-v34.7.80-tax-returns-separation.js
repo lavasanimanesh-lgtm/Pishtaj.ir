@@ -19,8 +19,8 @@ var shell = read('crm/shell.js');
 var perms = read('crm/perms.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.21', ver.crm_version === 'v34.39.21', ver.crm_version);
-T('tax-returns.js cache-bust 34.39.21', /tax-returns\.js\?v=34\.39\.21/.test(idx));
+T('VERSION.json = v34.39.22', ver.crm_version === 'v34.39.22', ver.crm_version);
+T('tax-returns.js cache-bust 34.39.22', /tax-returns\.js\?v=34\.39\.22/.test(idx));
 
 /* ① حذف اظهارنامه از فاکتورها */
 T('taxHtml از buildInvoices حذف شد', rbac.indexOf('ptfTaxReturnsHtml') === -1 && rbac.indexOf('var taxHtml') === -1);

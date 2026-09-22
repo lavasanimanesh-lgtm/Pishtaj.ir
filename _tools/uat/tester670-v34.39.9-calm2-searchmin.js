@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester670 — v34.39.21 (HOME-CALM2)
+   tester670 — v34.39.22 (HOME-CALM2)
    «کادر جستجو در هدر حذف شود» + «برق دور کارت‌ها هنوز سریع است؛ خیلی کمتر کن»
    ① .nav-search سراسری display:none (موبایل از ۳۹.۵؛ دسکتاپ از این پس) — DOM و
       ptf-discover.js و مسیر search/ دست‌نخورده (لایهٔ نمایشی؛ مرجعِ جست‌وجو Finder هیرو)
@@ -32,7 +32,7 @@ T('۳.۲ بودجه <۴۰K و آکولاد متوازن و مارکرِ ۹ لا�
 T('۳.۳ رگرسیون‌زدا: کلید تم فقط‌آیکونِ دسکتاپ، موجِ no-repeat، آیکون شیت، canonical‌ها، جست‌وجو در DOM حذف نشده',
   home.indexOf('#mainNav .theme-toggle{width:42px;height:42px;padding:0;border:0!important') > -1 &&
   home.indexOf('background-repeat:no-repeat') > -1 && idx.indexOf('href="tel:02146087679"') > -1);
-T('۳.۴ VERSION.json = v34.39.21', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.21');
-DONE('tester670-v34.39.21-calm2-searchmin');
+T('۳.۴ VERSION.json = v34.39.22', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.22');
+DONE('tester670-v34.39.22-calm2-searchmin');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

@@ -16,9 +16,9 @@ var cheques = read('crm/cheques.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.21', ver.crm_version === 'v34.39.21', ver.crm_version);
-T('bridge.js cache-bust 34.39.21', /bridge\.js\?v=34\.39\.21/.test(idx));
-T('cheques.js cache-bust 34.39.21', /cheques\.js\?v=34\.39\.21/.test(idx));
+T('VERSION.json = v34.39.22', ver.crm_version === 'v34.39.22', ver.crm_version);
+T('bridge.js cache-bust 34.39.22', /bridge\.js\?v=34\.39\.22/.test(idx));
+T('cheques.js cache-bust 34.39.22', /cheques\.js\?v=34\.39\.22/.test(idx));
 
 /* تب جداگانه */
 T('تب «درخواست‌های سایت» در پنل تامین‌کنندگان', cheques.indexOf('id="supTabSite"') > -1 && cheques.indexOf('ptfSupTab(') > -1);

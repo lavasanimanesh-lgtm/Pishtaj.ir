@@ -20,8 +20,8 @@ var sf = read('crm/salesfiles.js');
 var api = read('api/sales-domain.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.21', ver.crm_version === 'v34.39.21', ver.crm_version);
-T('official-invoice-v2.js cache-bust 34.39.21', /official-invoice-v2\.js\?v=34\.39\.21/.test(idx));
+T('VERSION.json = v34.39.22', ver.crm_version === 'v34.39.22', ver.crm_version);
+T('official-invoice-v2.js cache-bust 34.39.22', /official-invoice-v2\.js\?v=34\.39\.22/.test(idx));
 
 /* ① ارجاع سند برد به حسابدار */
 T('دکمهٔ سند برد در پنل فاکتورها', inv.indexOf('🏆 سند برد (PDF)') > -1);

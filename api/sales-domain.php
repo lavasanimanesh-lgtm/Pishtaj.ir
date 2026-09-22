@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.21';
+const SD_SERVICE_VERSION = '34.39.22';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -3357,7 +3357,7 @@ try {
         $result = ['offerNo'=>$no, 'revoked'=>true, 'caseId'=>$caseTouched, 'previousRef'=>$prevRef];
     }
     elseif ($action === 'entity_tombstones_neutralize') {
-        /* v34.39.21 (RESTORE-TOMBSTONE-REKILL — گزارش کارفرما: «پرونده را بایگانی کردم، به
+        /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — گزارش کارفرما: «پرونده را بایگانی کردم، به
            جریان انداختم و در پرونده‌های فروش دیده شد؛ بعد از مدتی پیشنهادش بدون پرونده بود و
            کلاً پرونده از داده‌ها پاک شده بود»): قرینهٔ گام ② entity_restore — خنثی‌سازی
            اتمیک سنگ‌قبرهای فعالِ چند شناسه از یک مجموعه (kind → restored:<kind> + restoredAt).

@@ -261,14 +261,14 @@ T('۲.۳ phonefmt.js قبل از sales-domain-v2.js بارگذاری می‌شو
     origCalls.length === 1 && upserts.length === 1 && upserts[0].cd === 'CUST-1001',
     JSON.stringify(upserts));
   upserts.length = 0; origCalls.length = 0;
-  /* v34.39.21 (CONTACT-STALE-HOOK — RCA 2026-09-17): قرارداد ۲.۹ قدیمی («بدون cd،
+  /* v34.39.22 (CONTACT-STALE-HOOK — RCA 2026-09-17): قرارداد ۲.۹ قدیمی («بدون cd،
      هوک از lastSaved استفاده می‌کند») دقیقاً ریشهٔ پاک‌شدن تماس‌ها بود: در ذخیرهٔ
      زودبرگشتی (بلاک ضدتکرار/نام خالی) هوک «آخرین رکورد تب» را از کشِ کهنه دوباره
      upsert می‌کرد و merge سرور تغییرات دیگر دستگاه‌ها را می‌شست. قرارداد جدید:
      ثبتِ جدید (cd=null) هیچ نوشتنی از هوک ندارد — payload اصلی از داخل saveCust2
      نرمال‌شده و در-flight است. رفتار کامل: tester660. */
   ctx.window.saveCust2(null);
-  T('۲.۹ بدون cd، هوک هیچ بازنویسی‌ای نمی‌کند (payload اصلی در-flight است — v34.39.21)',
+  T('۲.۹ بدون cd، هوک هیچ بازنویسی‌ای نمی‌کند (payload اصلی در-flight است — v34.39.22)',
     origCalls.length === 1 && upserts.length === 0, JSON.stringify(upserts));
   upserts.length = 0; origCalls.length = 0;
   ctx.window._ptfLastSavedCustCd = '';
@@ -366,14 +366,14 @@ function runCb(people) {
 /* ───────────────────── ۴) گیت / نسخه ───────────────────── */
 head('۴. گیت و نسخه');
 var ver = JSON.parse(read('VERSION.json'));
-T('۴.۱ VERSION.json = v34.39.21', ver.crm_version === 'v34.39.21', ver.crm_version);
+T('۴.۱ VERSION.json = v34.39.22', ver.crm_version === 'v34.39.22', ver.crm_version);
 T('۴.۲ tester604 در run-ci-gate.js ثبت است',
   gate.indexOf('tester604-v34.37.7-contact-wipe.js') > -1);
 T('۴.۳ SYNTAX گیت phonefmt.js را هم چک می‌کند',
   /'crm\/phonefmt\.js'/.test(gate));
-T('۴.۴ قرارداد UI/sw = 34.39.21',
-  /window\.PTF_CRM_RELEASE = 'v34\.39\.21'/.test(idx) &&
-  /CACHE = 'ptf-crm-v34\.39\.21'/.test(read('crm/sw.js')));
+T('۴.۴ قرارداد UI/sw = 34.39.22',
+  /window\.PTF_CRM_RELEASE = 'v34\.39\.22'/.test(idx) &&
+  /CACHE = 'ptf-crm-v34\.39\.22'/.test(read('crm/sw.js')));
 
 console.log('\n— tester604 (CONTACT-WIPE: تلفن/اشخاص/کانال مشتری دیگر پاک نمی‌شود) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

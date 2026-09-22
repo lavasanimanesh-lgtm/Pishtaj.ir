@@ -187,7 +187,7 @@
   };
 
   /* ---------- جدول مقایسه ----------
-     v34.39.21 (UI-STABILITY R3 — ریشهٔ «فلش/پرش کل پنجره بعد از هر ثبت قیمت»):
+     v34.39.22 (UI-STABILITY R3 — ریشهٔ «فلش/پرش کل پنجره بعد از هر ثبت قیمت»):
      قبلاً بعد از هر ثبت/حذف، همهٔ md-b های visible حذف و کل مودال مقایسه با
      insertAdjacentHTML از نو ساخته می‌شد → نابودی و بازسازی گره مودال = پرش
      اسکرول/ارتفاع و فلش کامل پنجره. حالا محتوای «همان» گره مودال درجا بازنویسی
@@ -318,7 +318,7 @@
     audit('قیمت خرید', 'ثبت ' + added + ' قیمت دور ' + round + ' از ' + sup + ' برای ' + c.inqNo, id);
     btn.closest('.md-b').remove();
     renderBuyQuotes();
-    /* v34.39.21 (UI-STABILITY R3): فقط دیالوگ «ثبت قیمت» بسته شد (BUG-017 قبلاً همهٔ
+    /* v34.39.22 (UI-STABILITY R3): فقط دیالوگ «ثبت قیمت» بسته شد (BUG-017 قبلاً همهٔ
        md-b های visible را می‌کشت و کل مودال مقایسه destroy/recreate می‌شد → پرش/فلش).
        حالا محتوای مودال مقایسه درجا refresh می‌شود. */
     if (!cmpRefreshModal(id)) cmpOpen(id);
@@ -725,7 +725,7 @@
     if (typeof ptfToast === 'function') ptfToast('🛒 ' + res.done + ' خرید ثبت شد' + (res.skipped ? ' — ' + res.skipped + ' ردیف ناقص رها شد' : ''), 'ok');
     var wasRealbuy = window._cmpRealbuyMode;
     renderBuyQuotes();
-    /* v34.39.21 (UI-STABILITY R3): refresh درجای ماتریس خرید با حفظ حالت قفل — نه destroy/recreate */
+    /* v34.39.22 (UI-STABILITY R3): refresh درجای ماتریس خرید با حفظ حالت قفل — نه destroy/recreate */
     if (!cmpRefreshModal(id)) cmpOpen(id, wasRealbuy ? { realbuy: true } : undefined);
   };
 
@@ -863,7 +863,7 @@
     var dlg = document.getElementById('cmpSplitDlg'); if (dlg) dlg.remove();
     window._cmpSplitState = null;
     window._cmpRealbuyMode = true; /* حفظ قرارداد قبلی: پس از تقسیم خرید، ماتریس در حالت خرید واقعی */
-    /* v34.39.21 (UI-STABILITY R3): refresh درجا به‌جای destroy/recreate مودال */
+    /* v34.39.22 (UI-STABILITY R3): refresh درجا به‌جای destroy/recreate مودال */
     if (!cmpRefreshModal(c.id)) cmpOpen(c.id, { realbuy: true });
   };
 
@@ -1003,7 +1003,7 @@
         notify({ toRoles: SENIOR_ROLES, title: '🛍 خرید واقعی: ' + ((c2.items[idx] || {}).nm || '') + ' از ' + supName + ' (' + fmtP(buyPrice) + ' ریال' + (priceFx ? ' — تسعیرشده' : '') + ')' + (v.dueISO ? ' — تعهد تحویل: ' + v.dueISO : ''), kind: 'buyq', channels: ['cart'], link: { panel: 'deals' } });
         var wasRealbuy = window._cmpRealbuyMode;
         renderBuyQuotes();
-        /* v34.39.21 (UI-STABILITY R3): refresh درجای ماتریس خرید با حفظ حالت قفل — نه destroy/recreate */
+        /* v34.39.22 (UI-STABILITY R3): refresh درجای ماتریس خرید با حفظ حالت قفل — نه destroy/recreate */
         if (!cmpRefreshModal(id)) cmpOpen(id, wasRealbuy ? { realbuy: true } : undefined); /* v17.2: حالت قفل حفظ شود */
         if (wasRealbuy) {
           setTimeout(function () { if (confirm('رسید پرداخت این خرید واقعی را پیوست می‌کنید؟')) ptfRealBuyReceiptUpload(id, idx, pcd); }, 80);

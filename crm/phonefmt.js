@@ -27,8 +27,13 @@
   window.ptfPhoneNorm = function (raw, mode) {
     var s = toEnDigits(raw).trim();
     if (!s) return '';
+    /* v34.39.22 (CONTACT-ROOTS R3): ورودی ساختارنیافته (حروف/کلمات — مثل «021 8800 داخلی 12»)
+       هرگز دگرگون نمی‌شود. قبلاً ارقامِ کلمات/پسوندها به شماره می‌چسبید (شمارهٔ غلط) یا کل
+       ورودیِ بدون-رقم تهی می‌شد («تماس بگیرید» → '' → ptfCustHadContacts=false → auto-_ccClear
+       بی‌جهت و شستشوی تماس). حروف لاتین/عربی-فارسیِ باقی‌مانده پس از toEnDigits یعنی متن. */
+    if (/[A-Za-z\u0600-\u06FF]/.test(s)) return s;
     var keep = s.replace(/[^\d+]/g, '');
-    if (!keep) return '';
+    if (!keep) return s;
     if (mode === 'en' || mode === 'print') {
       /* بین‌المللی لاتین — برای چاپ رسمی: +98 913 443 9333 */
       if (/^00/.test(keep)) keep = '+' + keep.slice(2);

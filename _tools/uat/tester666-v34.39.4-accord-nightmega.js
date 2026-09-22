@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester666 — v34.39.21 (HOME-ACCORD-NIGHTMEGA)
+   tester666 — v34.39.22 (HOME-ACCORD-NIGHTMEGA)
    گزارش کارفرما:
      «در نمای موبایل اخبار و وبلاگ زیر درباره‌ما باید باز شوند؛ زیرمنوهای محصولات
      در نمای شب خوانایی ندارند.»
@@ -96,8 +96,8 @@ T('۳.۶ نگهبان بی‌تغییری: h1/canonical/۱۰‌بخش',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی — تجهیزات حیاتی پروژه‌ها را <strong>مطمئن، سریع و دقیق</strong> تامین کنید') > -1 &&
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }));
-T('۳.۷ VERSION.json = v34.39.21', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.21');
+T('۳.۷ VERSION.json = v34.39.22', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.22');
 
-DONE('tester666-v34.39.21-accord-nightmega');
+DONE('tester666-v34.39.22-accord-nightmega');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

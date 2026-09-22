@@ -62,6 +62,6 @@ test('valid v2 response passes shape/count/byte validation', ctx.ptfSyncValidate
 good.snapshot.keys.ptf_crm_leads.bytes++;
 test('truncated or mismatched payload is rejected before write', ctx.ptfSyncValidatePull(good).ok === false);
 
-test('release cache contract is aligned', version === 'v34.39.21' && index.indexOf("window.PTF_CRM_RELEASE = 'v34.39.21'") > -1 &&
-  sw.indexOf("var RELEASE = 'v34.39.21'") > -1 && manifest.version === '34.39.21');
+test('release cache contract is aligned', version === 'v34.39.22' && index.indexOf("window.PTF_CRM_RELEASE = 'v34.39.22'") > -1 &&
+  sw.indexOf("var RELEASE = 'v34.39.22'") > -1 && manifest.version === '34.39.22');
 console.log('PASS tester617-v34.38.10-snapshot-integrity');
