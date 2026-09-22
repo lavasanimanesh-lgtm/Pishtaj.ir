@@ -2832,8 +2832,13 @@
   window.ptfTombstoneOutranksRow = ptfTombstoneOutranksRow;
   window.ptfApplyDeletionTombstones = function (key, jsonStr, extraArchiveStr) {
     if (key === 'ptf_crm_deleted_archive') {
-      var aliases={};ptfReadArchive(extraArchiveStr).forEach(function(d){if(d&&String(d.kind||'').toLowerCase()==='archive_purge')(d.aliases||[]).forEach(function(a){a=String(a||'').trim();if(a.length>=6)aliases[a]=true;});});
-      var aliasList=Object.keys(aliases);if(!aliasList.length)return jsonStr;try{var rows=JSON.parse(jsonStr||'[]');if(!Array.isArray(rows))return jsonStr;return JSON.stringify(rows.filter(function(row){if(!row||typeof row!=='object')return false;if(String(row.kind||'').toLowerCase()==='archive_purge')return true;var encoded=JSON.stringify(row);return!aliasList.some(function(a){return encoded.indexOf(a)>-1;});}));}catch(e){return jsonStr;}
+      /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — قرینهٔ v34.37.0 ③): alias-strip فقط برای
+         «پاک‌سازی گراف کل پروژه» (archive_purge بدون collection)؛ خودِ سنگ‌قبرها + ردیف‌های
+         restored: + recycle هرگز قربانی strpos زیررشته‌ای نمی‌شوند — سوختن خنثی‌سازیِ
+         بازگشت/سطل بازیافت در push، ریشهٔ «پرونده پس از به جریان افتادن، بعد از مدتی
+         کامل پاک شد» بود. */
+      var aliases={};ptfReadArchive(extraArchiveStr).forEach(function(d){if(d&&typeof d==='object'&&String(d.kind||'').toLowerCase()==='archive_purge'&&!String(d.collection||'').trim())(d.aliases||[]).forEach(function(a){a=String(a||'').trim();if(a.length>=6)aliases[a]=true;});});
+      var aliasList=Object.keys(aliases);if(!aliasList.length)return jsonStr;try{var rows=JSON.parse(jsonStr||'[]');if(!Array.isArray(rows))return jsonStr;return JSON.stringify(rows.filter(function(row){if(!row||typeof row!=='object')return false;var kind=String(row.kind||'').toLowerCase();if(kind==='archive_purge')return true;if(kind.indexOf('restored:')===0)return true;if(kind==='recycle')return true;var encoded=JSON.stringify(row);return!aliasList.some(function(a){return encoded.indexOf(a)>-1;});}));}catch(e){return jsonStr;}
     }
     var kinds = ptfArchiveKindsForKey(key);
     var kindSet = {}; kinds.forEach(function (k) { kindSet[String(k).toLowerCase()] = true; });

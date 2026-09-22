@@ -52,13 +52,33 @@
     return n ? n.toLocaleString('en-US') : '';
   };
 
-  /* ---------- راهنمای «به حروف» زیر فیلد ---------- */
+  /* ---------- راهنمای «به حروف» زیر فیلد ----------
+     v34.39.22 (UI-STABILITY R1 — ریشهٔ «لغزش/پرش حین تایپ قیمت»):
+     hint قبلی داخل ردیف‌های flex/grid (مثل سطرهای «💰 ثبت قیمت دور») به آیتم
+     جریانی تبدیل می‌شد؛ با هر keystroke متن حروفی بلندتر می‌شد و ردیف می‌لرزید
+     (فیلدهای کناری سُر می‌خوردند/سطر می‌شکست). حالا:
+     ① متن همیشه تک‌خطه با ellipsis → رشد متن هرگز reflow نمی‌سازد.
+     ② در والد flex-row: خط اختصاصی ثابت (flex:1 0 100% + flex-wrap روی والد)
+        تا فیلدهای کناری هرگز فشرده/جابه‌جا نشوند؛ در والد grid: grid-column:1/-1.
+     ③ pointer-events:none تا hint هرگز کلیک/لمس را ندزدد. */
   function hintFor(el) {
     var h = el._ptfHint;
     if (!h || !h.parentNode) {
       h = document.createElement('div');
       h.className = 'ptf-money-hint';
-      h.style.cssText = 'font-size:10.5px;color:#0e7490;font-weight:800;margin-top:3px;direction:rtl;text-align:right;line-height:1.6';
+      h.style.cssText = 'font-size:10.5px;color:#0e7490;font-weight:800;margin-top:3px;direction:rtl;text-align:right;line-height:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;pointer-events:none';
+      try {
+        var pd = (el.parentNode && el.parentNode.nodeType === 1 && typeof getComputedStyle === 'function')
+          ? String(getComputedStyle(el.parentNode).display || '') : '';
+        if (pd.indexOf('flex') > -1 && pd.indexOf('column') < 0) {
+          el.parentNode.style.flexWrap = 'wrap'; /* آیتم‌های موجود تک‌خطه می‌مانند؛ فقط hint به خط دوم می‌رود */
+          h.style.flex = '1 0 100%';
+          h.style.order = '99';
+          h.style.margin = '2px 0 0';
+        } else if (pd.indexOf('grid') > -1) {
+          h.style.gridColumn = '1 / -1';
+        }
+      } catch (eLay) {}
       if (el.parentNode) el.parentNode.insertBefore(h, el.nextSibling);
       el._ptfHint = h;
     }
@@ -193,7 +213,14 @@
       var converted = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
                          .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
       if (converted !== raw) {
+        /* v34.39.22 (UI-STABILITY R2): نگه‌داشتن جای مکان‌نما — تبدیل فا←EN طول رشته
+           ۱:۱ است؛ بدون setSelectionRange مرورگر مکان‌نما را به انتها می‌برد و وسط
+           عدد تایپ‌کردن «مکان‌نما می‌پرد» (شکایت مستند «۱۵ ← ۵۱» در ui-kit/US-438). */
+        var cPos = el.selectionStart, cEnd = el.selectionEnd;
         el.value = converted;
+        try {
+          if (cPos != null && document.activeElement === el) el.setSelectionRange(cPos, cEnd == null ? cPos : cEnd);
+        } catch (eC) {}
       }
     }
 

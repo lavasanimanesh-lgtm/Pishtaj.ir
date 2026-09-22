@@ -700,10 +700,28 @@
     if (!base) { try { var cur = getData(collection); if (Array.isArray(cur)) base = cur; } catch (eB) {} }
     if (!base) base = [];
     var MAX_OPS = opts.maxOps || 40;
+    /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — گام ③): آرشیو حذف با هویت سرور (_id — idField
+       رجیستری) دیده می‌شود، نه cd. رکوردهای کهنه/بی‌cd (offers.js، guards.js، listclean، …)
+       کل ذخیرهٔ آرشیو را به legacyFallback می‌انداختند و «خنثی‌سازی سنگ‌قبر هنام بازگشت»
+       هرگز به سرور نمی‌رسید → سنگ‌قبر فعال می‌ماند و پروندهٔ بازگردانده‌شده در sync بعدی
+       بی‌صدا می‌مرد. ردیف‌های این مجموعه با _id (fallback cd/id) هویت‌یابی می‌شوند. */
+    var rowKeyOf = function (r) { return String((r && r.cd !== undefined && r.cd !== null && r.cd !== '') ? r.cd : ''); };
+    if (collection === 'ptf_crm_deleted_archive') {
+      rowKeyOf = function (r) { return String((r && (r._id || r.cd || r.id)) || ''); };
+    }
     var prevByCd = {}, nextByCd = {}, okPrev = true, okNext = true;
-    base.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okPrev = false; return; } prevByCd[r.cd] = r; });
-    nextArr.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okNext = false; return; } nextByCd[r.cd] = r; });
+    base.forEach(function (r) { var k = rowKeyOf(r); if (!k) { okPrev = false; return; } prevByCd[k] = r; });
+    nextArr.forEach(function (r) { var k = rowKeyOf(r); if (!k) { okNext = false; return; } nextByCd[k] = r; });
     if (!okPrev || !okNext) return legacyFallback('records-without-cd');
+    /* v34.39.22: فرمان upsert آرشیو حذف به _id نیاز دارد (idField سرور) — ردیفِ هویت‌دارِ
+       بدون _id یک _id پایدار می‌گیرد تا create/update اتمیک سمت سرور ممکن شود. */
+    if (collection === 'ptf_crm_deleted_archive') {
+      nextArr.forEach(function (r) {
+        if (r && !r._id) {
+          try { r._id = 'DEL-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); } catch (eGid) {}
+        }
+      });
+    }
     var ups = [], dels = [], newCds = {}; /* v34.9.2: رکوردهای تازه = درج موردانتظار */
     Object.keys(nextByCd).forEach(function (cd) {
       var pv = prevByCd[cd], nx = nextByCd[cd];
@@ -955,7 +973,7 @@
         return true;
       } catch (eRetry) { return false; }
     }
-    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { expectCreate: !!newCds[r.cd], cb: function (st) { if (st && st.state !== 'acked') { if (retryWithFreshCode(collection, r, st, settleCb)) return; failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } settleCb(st); } }); } catch (eU) { errors.push(eU); failDirty(); settleCb({ state: 'rejected', error: String(eU) }); } });
+    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { expectCreate: !!newCds[rowKeyOf(r)], cb: function (st) { if (st && st.state !== 'acked') { if (retryWithFreshCode(collection, r, st, settleCb)) return; failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } settleCb(st); } }); } catch (eU) { errors.push(eU); failDirty(); settleCb({ state: 'rejected', error: String(eU) }); } });
     dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff', cb: function (st) { if (st && st.state !== 'acked') failDirty(); settleCb(st); } }); } catch (eD) { errors.push(eD); failDirty(); settleCb({ state: 'rejected', error: String(eD) }); } });
     try {
       window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
@@ -1268,7 +1286,12 @@
          (sd_case_offer_linked) هم‌خوان بماند؛ ایمنی با بررسی هویت پایین حفظ می‌شود. */
     }
     var caseNo=String(c.wonOffer||c.offerNo||''),offerNo=String(o.no||'');
-    if(!caseNo||!offerNo||caseNo!==offerNo)return false;
+    var linked=!!caseNo&&!!offerNo&&caseNo===offerNo;
+    /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — گام ⑤): رکوردِ «به جریان افتاده» offerNos را
+       هم حمل می‌کند؛ پیوند با offerNos هم برقرار است تا پیشنهاد برندهٔ دارای پرونده
+       (بازگردانده‌شده، یا آرشیوی قدیمی با wonOffer خالی) هرگز «بدون پرونده» یافته نشود. */
+    if(!linked){var ons=arr(c.offerNos);for(var oi=0;oi<ons.length;oi++){if(String(ons[oi]||'')===offerNo){linked=true;break;}}}
+    if(!linked)return false;
     var pairs=[['inqNo','inqNo'],['buyerCd','buyerCd'],['currency','currency']];
     for(var i=0;i<pairs.length;i++){var a=identity(c[pairs[i][0]]),b=identity(o[pairs[i][1]]);if(a&&b&&a!==b)return false;}
     if(!identity(c.buyerCd)&&!identity(o.buyerCd)){var cc=identity(c.buyerCo),oc=identity(o.buyerCo);if(cc&&oc&&cc!==oc)return false;}
@@ -1346,6 +1369,8 @@
     if (bare && /[A-Za-z]/.test(bare)) add(bare);
     return out;
   }
+  /* v34.39.22: خروجی سراسری برای ptfSalesfileRestoreFromArchive — offerNos رکورد بازگشت */
+  window.ptfArchivedProjectOfferNos = archivedProjectOfferNos;
   function archivedCaseForOffer(o) {
     if (!o) return null;
     var no = String(o.no || '').trim();

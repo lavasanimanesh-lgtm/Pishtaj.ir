@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.19';
+const SD_SERVICE_VERSION = '34.39.23';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -3355,6 +3355,61 @@ try {
         }
         $changes = ['ptf_crm_offers'=>$offers, 'ptf_crm_deals'=>$cases, 'ptf_crm_corrections'=>$corrections];
         $result = ['offerNo'=>$no, 'revoked'=>true, 'caseId'=>$caseTouched, 'previousRef'=>$prevRef];
+    }
+    elseif ($action === 'entity_tombstones_neutralize') {
+        /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — گزارش کارفرما: «پرونده را بایگانی کردم، به
+           جریان انداختم و در پرونده‌های فروش دیده شد؛ بعد از مدتی پیشنهادش بدون پرونده بود و
+           کلاً پرونده از داده‌ها پاک شده بود»): قرینهٔ گام ② entity_restore — خنثی‌سازی
+           اتمیک سنگ‌قبرهای فعالِ چند شناسه از یک مجموعه (kind → restored:<kind> + restoredAt).
+           پیش از این «به جریان انداختن» فقط محلی خنثی می‌کرد؛ ذخیرهٔ آرشیو حذف با ردیف‌های
+           بی‌cd به legacyFallback می‌افتاد و سنگ‌قبر archive_purge روی سرور فعال می‌ماند —
+           اولین data_push/data_pull با ردیفِ بدون تاریخ ساخت، پروندهٔ بازگردانده‌شده را بی‌صدا
+           می‌کشت و چون رکورد بایگانی هم حذف شده بود، «حذف کامل بی‌اثر + پیشنهاد بدون پرونده»
+           می‌ماند. */
+        $collection = sd_text($body['collection'] ?? '', 60);
+        $registry = sd_entity_registry();
+        if (!isset($registry[$collection])) sd_out(['ok'=>false,'error'=>'entity_collection_not_enabled'],404);
+        $cfg = $registry[$collection];
+        sd_require_role($cfg['roles']);
+        $ntIds = [];
+        foreach ((array)($body['ids'] ?? []) as $idItem) {
+            $idItem = sd_text((string)$idItem, 60);
+            if ($idItem !== '' && preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $idItem)) $ntIds[$idItem] = true;
+        }
+        $ntIds = array_keys($ntIds);
+        if (!count($ntIds)) sd_out(['ok'=>false,'error'=>'entity_restore_ids_required'],422);
+        if (!function_exists('sd_tombstone_kinds')) {
+            /* کپی امن نقشه در صورت نبود (قرینهٔ تعریف بالای زنجیره) */
+            function sd_tombstone_kinds($key) {
+                $map = ['ptf_crm_offers' => ['offer','offers','to','co','tc'], 'ptf_crm_deals' => ['deal','deals','salesfile'], 'ptf_crm_projects' => ['project','projects','salesfile']];
+                return $map[$key] ?? [];
+            }
+        }
+        $want = array_fill_keys($ntIds, true);
+        $ntKinds = array_fill_keys(array_map('strtolower', sd_tombstone_kinds($collection)), true);
+        $archive = sd_read('ptf_crm_deleted_archive');
+        $neutralized = 0;
+        foreach ($archive as $ai => $a) {
+            if (!is_array($a)) continue;
+            $kind = strtolower((string)($a['kind'] ?? ''));
+            if ($kind === '' || strpos($kind, 'restored:') === 0) continue;
+            $hits = false;
+            if ($kind === 'archive_purge') {
+                foreach ([(string)($a['id'] ?? ''), (string)($a['cd'] ?? ''), (string)($a['no'] ?? '')] as $x) if ($x !== '' && isset($want[$x])) { $hits = true; break; }
+                if (!$hits && is_array($a['aliases'] ?? null)) foreach ($a['aliases'] as $al) if (isset($want[trim((string)$al)])) { $hits = true; break; }
+                if (!$hits && is_array($a['identities'][$collection] ?? null)) foreach ($a['identities'][$collection] as $pid) if (isset($want[(string)$pid])) { $hits = true; break; }
+            } elseif (isset($ntKinds[$kind])) {
+                $x = (string)($a['id'] ?? $a['no'] ?? $a['cd'] ?? '');
+                if ($x !== '' && isset($want[$x])) $hits = true;
+            }
+            if (!$hits) continue;
+            $archive[$ai]['kind'] = 'restored:' . (string)($a['kind'] ?? '');
+            $archive[$ai]['restoredAt'] = sd_now();
+            $archive[$ai]['restoredBy'] = $user;
+            $neutralized++;
+        }
+        $changes = ['ptf_crm_deleted_archive' => $archive];
+        $result = ['collection' => $collection, 'ids' => $ntIds, 'neutralized' => $neutralized, 'mode' => 'entity-command'];
     }
     else sd_out(['ok'=>false,'error'=>'unknown_action'],404);
 

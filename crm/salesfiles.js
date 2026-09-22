@@ -2546,23 +2546,69 @@
      هر بازگشت تصادفی آینده را — از هر مسیر sync — خنثی می‌کند. */
   window.ptfSalesfileUniquenessSweep = function (opts) {
     opts = opts || {};
-    var out = { ok: true, scanned: 0, removed: [], kept: 0 };
+    var out = { ok: true, scanned: 0, removed: [], removedArchived: [], kept: 0 };
     var list = [];
     try { list = sfAll(); } catch (e0) { out.ok = false; return out; }
     out.scanned = list.length;
-    var dups = [];
-    try { dups = list.filter(function (r) { return !!(r && r.cd && sfFindArchivedProject(r)); }); }
-    catch (e1) { out.ok = false; return out; }
-    if (!dups.length) { out.kept = list.length; return out; }
-    var rm = {};
-    dups.forEach(function (r) { rm[String(r.cd)] = 1; });
-    var after = list.filter(function (r) { return !(r && rm[String(r.cd)]); });
+    var dupPairs = [];
     try {
-      sfSave(after, { reason: 'sf-unique-sweep', prevArr: list.slice(), allowBulkDelete: true });
-      out.removed = dups.map(function (r) { return String(r.cd); });
+      list.forEach(function (r) {
+        if (!r || !r.cd) return;
+        var p = sfFindArchivedProject(r);
+        if (p) dupPairs.push({ deal: r, arc: p });
+      });
+    } catch (e1) { out.ok = false; return out; }
+    if (!dupPairs.length) { out.kept = list.length; return out; }
+    /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — گام ⑤): قصد «به جریان انداختن» برنده است.
+       نسخهٔ زنده‌ای که restoredFrom همان رکورد بایگانی را نشان می‌دهد (به‌جریان‌افتادهٔ
+       واقعی یا بازماندهٔ دستگاه stale)، مالک قطعی پرونده است؛ رکورد بایگانیِ زامبی
+       (رستاخیزیافته از دستگاه کهنه) حذف می‌شود، نه پروندهٔ به‌جریان‌افتاده. رفتار قبلی
+       (حذف نسخهٔ زنده به سود بایگانی — قرارداد U3) فقط برای دوقلوهای «بدون restoredFrom»
+       می‌ماند؛ التیام دادهٔ آلودهٔ قبلی همچنان از همان مسیر انجام می‌شود. */
+    var rmDeal = {}, zombieArcs = [];
+    dupPairs.forEach(function (pair) {
+      var r = pair.deal, p = pair.arc;
+      var src = String(r.restoredFrom || '');
+      var pIsSource = !!src && (src === String(p.no || '') || src === String(p.cd || ''));
+      if (pIsSource) zombieArcs.push(p);
+      else rmDeal[String(r.cd)] = 1;
+    });
+    var after = list.filter(function (r) { return !(r && rmDeal[String(r.cd)]); });
+    var prjs = [];
+    try { prjs = getData('ptf_crm_projects') || []; } catch (eP) { prjs = []; }
+    var zombieKey = {};
+    zombieArcs.forEach(function (p) {
+      zombieKey['no:' + String(p.no || '')] = 1;
+      zombieKey['cd:' + String(p.cd || '')] = 1;
+    });
+    var prjAfter = prjs.filter(function (p) {
+      if (!p) return true;
+      if (zombieKey['no:' + String(p.no || '')] || zombieKey['cd:' + String(p.cd || '')]) return false;
+      return true;
+    });
+    var dealsChanged = Object.keys(rmDeal).length > 0;
+    var prjsChanged = prjAfter.length !== prjs.length;
+    if (!dealsChanged && !prjsChanged) { out.kept = list.length; return out; }
+    try {
+      if (dealsChanged) sfSave(after, { reason: 'sf-unique-sweep', prevArr: list.slice(), allowBulkDelete: true });
+      if (prjsChanged) {
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjAfter, { reason: 'sf-unique-sweep-keep-restored', prevArr: prjs.slice(), allowBulkDelete: true });
+        else setData('ptf_crm_projects', prjAfter);
+        out.removedArchived = zombieArcs.map(function (p) { return String(p.no || p.cd || ''); });
+      }
+      out.removed = Object.keys(rmDeal);
       out.kept = after.length;
-      try { audit('یکپارچگی داده', '🧹 جاروی یکتایی پرونده: ' + dups.length + ' نسخهٔ تکراریِ هم‌زمان با بایگانی از پرونده‌های فروش حذف شد (' + out.removed.join('، ') + ')', out.removed[0] || ''); } catch (eA) {}
-      if (!opts.quiet && typeof ptfToast === 'function') ptfToast('🧹 ماهیت یکتای پرونده اعمال شد: ' + dups.length + ' نسخهٔ تکراری (موجود در بایگانی) از فهرست فروش پاک شد', 'ok');
+      try {
+        audit('یکپارچگی داده', '🧹 جاروی یکتایی پرونده: ' +
+          (out.removed.length ? out.removed.length + ' نسخهٔ تکراریِ هم‌زمان با بایگانی از پرونده‌های فروش حذف شد (' + out.removed.join('، ') + ')' : '') +
+          (out.removedArchived.length ? (out.removed.length ? '؛ ' : '') + 'رکورد بایگانیِ زامبیِ پروندهٔ به‌جریان‌افتاده حذف شد (' + out.removedArchived.join('، ') + ')' : ''),
+          out.removed[0] || out.removedArchived[0] || '');
+      } catch (eA) {}
+      if (!opts.quiet && typeof ptfToast === 'function') {
+        ptfToast('🧹 ماهیت یکتای پرونده اعمال شد' +
+          (out.removed.length ? ': ' + out.removed.length + ' نسخهٔ تکراری از فهرست فروش پاک شد' : '') +
+          (out.removedArchived.length ? '؛ رکورد بایگانی زامبیِ پروندهٔ به‌جریان‌افتاده حذف شد' : ''), 'ok');
+      }
     } catch (e2) { out.ok = false; }
     return out;
   };
@@ -2606,6 +2652,55 @@
         if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arch, { reason: 'sf-restore', prevArr: before });
         else setData('ptf_crm_deleted_archive', arch);
       } catch (eS) {}
+      /* v34.39.22 (RESTORE-TOMBSTONE-REKILL): ذخیرهٔ سطری per-row روی _id (هویت سرورِ
+         آرشیو حذف) — مستقل از diff روتر؛ ردیف‌های کهنهٔ بی‌cd دیگر نمی‌توانند خنثی‌سازی
+         را به legacyFallback بیندازند. upsert ناقص/نرسیده → failDirty → push انبوه fallback. */
+      arch.forEach(function (a, ai) {
+        if (!changed) return;
+        if (!a || typeof a !== 'object' || !a._id) return;
+        if (before[ai] && String(before[ai].kind || '') === String(a.kind || '')) return;
+        try {
+          if (window.ptfEntityUpsert) {
+            window.ptfEntityUpsert('ptf_crm_deleted_archive', a, {
+              expectCreate: false,
+              operationId: 'NT|' + String(a._id) + '|' + String(a.kind || ''),
+              cb: function (st) {
+                try {
+                  if (!st || st.state !== 'acked') { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty('ptf_crm_deleted_archive'); }
+                } catch (eND) {}
+              }
+            });
+          }
+        } catch (eRow) {}
+      });
+      /* v34.39.22 (گام ①): فرمان اتمیک سروری entity_tombstones_neutralize — قرینهٔ گام ②
+         entity_restore (kind → restored:<kind>). پیش از این خنثی‌سازی فقط محلی بود و
+         سنگ‌قبر archive_purge روی سرور فعال می‌ماند؛ اولین push/pull با ردیفِ بدون تاریخ
+         ساخت، پروندهٔ بازگردانده‌شده را دوباره می‌کشت («پیشنهاد بدون پرونده» + حذف کامل). */
+      try {
+        var ntIds = (cds || []).filter(Boolean).map(String);
+        if (ntIds.length && typeof window.ptfSalesDomainCommand === 'function') {
+          window.ptfSalesDomainCommand('entity_tombstones_neutralize', {
+            collection: 'ptf_crm_deals',
+            ids: ntIds,
+            reason: 'sf-restore',
+            idempotencyKey: 'NT|ptf_crm_deals|' + ntIds.slice().sort().join(',')
+          }, { apiOptions: { autoReplay: true } }).then(function (st) {
+            try {
+              if (st && st.state === 'acked') {
+                var data = (st.response && st.response.data) || {};
+                if (data.ptf_crm_deleted_archive != null && typeof window.ptfBApplyServerProjection === 'function') {
+                  window.ptfBApplyServerProjection('ptf_crm_deleted_archive', data.ptf_crm_deleted_archive, st.response && st.response.rev);
+                }
+              } else if (window.ptfSyncNotifyDirty) {
+                window.ptfSyncNotifyDirty('ptf_crm_deleted_archive'); /* فرمان نرسید → push انبوه fallback */
+              }
+            } catch (eNP) {}
+          }).catch(function () {
+            try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty('ptf_crm_deleted_archive'); } catch (eNC) {}
+          });
+        }
+      } catch (eNT) {}
     }
     return fixed;
   }
@@ -2671,14 +2766,34 @@
     try { who = (curSession() || {}).name || ''; } catch (eW) {}
     var tl = (p.originTimeline || []).slice();
     tl.push({ t: faDateTime(), by: who, tx: '↩️ به جریان افتادن از بایگانی — پروندهٔ فروش دوباره فعال شد (رکورد بایگانی ' + String(arcNo) + ' حذف؛ نوع مختومه قبلی: ' + (p.closeKind === 'lost' ? 'بدون فاکتور — ' + (p.closeWhy || '-') : 'تسویه کامل') + ')' });
+    /* v34.39.22 (RESTORE-TOMBSTONE-REKILL — گزارش کارفرما: «بازگرداندم و در پرونده‌های فروش
+       دیده شد؛ بعد از مدتی پیشنهاد بدون پرونده بود و کلاً پرونده از داده‌ها پاک شده بود»):
+       تاریخ ساختِ قابل‌اثبات (ISO — هم‌سان sd_now سرور) + فهرست پیشنهادها روی رکوردِ بازگشت.
+       بدون createdAt، sync_tombstone_outranks_row هر ردیفِ بدون تاریخ را بازندهٔ هر سنگ‌قبرِ
+       خنثی‌نشده می‌دانست و اولین data_push/data_pull (dirty پس از upsert ناموفق/آفلاین)
+       پروندهٔ به‌جریان‌افتاده را بی‌صدا می‌کشت. */
+    var isoNow = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    var rOfferNos = [];
+    try { rOfferNos = window.ptfArchivedProjectOfferNos ? window.ptfArchivedProjectOfferNos(p) : []; } catch (eON) {}
+    if (!rOfferNos || !rOfferNos.length) {
+      rOfferNos = [];
+      [p.wonOffer, p.offerNo].forEach(function (x) { if (x && rOfferNos.indexOf(String(x)) < 0) rOfferNos.push(String(x)); });
+    }
     var deal = {
       cd: dealCd,
       inqNo: p.inqNo || '',
       buyerCo: p.buyerCo || '',
       wonOffer: p.wonOffer || p.offerNo || '',
+      offerNos: rOfferNos,
+      linkedOffers: Array.isArray(p.linkedOffers) ? p.linkedOffers.slice() : [],
+      rootOfferId: p.rootOfferId || '',
       st: 'open',
       t: p.t || faDateTime(),
       by: who,
+      createdAt: isoNow,
+      createdAtISO: isoNow,
+      updatedAt: isoNow,
+      updatedBy: who,
       docs: (p.docs || []).map(function (d) { return { name: d.name, key: d.key || null, t: d.t, by: d.by }; }),
       awardDocs: (p.awardDocs || []).slice(),
       qcEvents: (p.qcEvents || []).slice(),

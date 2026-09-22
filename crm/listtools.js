@@ -131,7 +131,13 @@
 
   var _st = { listId: null, filters: [], cols: {} };
 
-  /* ---------- دکمه در پنل‌ها ---------- */
+  /* ---------- دکمه در پنل‌ها ----------
+     v34.39.22 (UI-STABILITY R5 — ریشهٔ «فیلتر بعدا لود می‌شود و پرش می‌دهد»):
+     قبلاً فقط setInterval(1200) دکمه را تزریق می‌کرد → تا ۱٫۲ ثانیه پس از تعویض
+     تب، نوار فیلتر بدون دکمه رندر می‌شد و بعد با appendChild ناگهانی می‌جهید.
+     حالا: ① MutationObserver روی #panels — callback قبل از paint (microtask) اجرا
+     می‌شود → دکمه در همان فریم اولِ تب جدید هست؛ ② window.ptfListToolsInject برای
+     فراخوانی هم‌زمان از goPanel؛ ③ بازهٔ ۱۲۰۰ms فقط تور ایمنی (idempotent). */
   function injectButtons() {
     // نگاشت پنل فعال → فهرست: با گشتن دنبال باکس‌های sb2 موجود در DOM
     var map = [
@@ -152,6 +158,16 @@
     });
   }
   setInterval(function () { try { injectButtons(); } catch (e) {} }, 1200);
+  window.ptfListToolsInject = injectButtons;
+  /* تزریق هم‌زمان (پیش از اولین paint پنل) + ناظر تغییرات #panels */
+  try { injectButtons(); } catch (e0) {}
+  try {
+    var panelsRoot = document.getElementById('panels') || document.body;
+    if (typeof MutationObserver === 'function' && panelsRoot) {
+      var mo = new MutationObserver(function () { try { injectButtons(); } catch (e1) {} });
+      mo.observe(panelsRoot, { childList: true, subtree: true });
+    }
+  } catch (e2) {}
 
   /* ---------- ابزار: مقادیر یکتا برای enum ---------- */
   function uniqVals(def, col) {
