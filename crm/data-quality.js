@@ -2,7 +2,78 @@
 (function () {
   'use strict';
   function arr(k) { var v = getData(k); return Array.isArray(v) ? v : []; }
+  /* v34.39.26 (FIN-FINDING-DISMISS): امکان بستن دستی یافته‌های غیرواقعی
+     کاربر می‌گوید برخی مغایرت‌ها واقعی نیستند و باید بتوان دستی مرتفع کرد.
+     از کالکشن ptf_crm_fin_findings برای نگهداری dismiss استفاده می‌کنیم:
+     {cd, findingKey, findingId, ref, reason, dismissedAt, dismissedBy, status:'dismissed'}
+     findingKey = findingId + '|' + (purchaseCd|cd|shCd|...)
+  */
+  function finFindingsAll(){ try { return arr('ptf_crm_fin_findings'); } catch(e){ return []; } }
+  function finFindingKey(id, detail, ref){
+    var d = detail||{};
+    var keyPart = d.purchaseCd || d.cd || d.shCd || (d.cds && d.cds.join(',')) || d.inqNo || ref || d.label || '';
+    return String(id||'') + '|' + String(keyPart||'').trim();
+  }
+  function finFindingIsDismissed(key){
+    if(!key) return false;
+    var list = finFindingsAll();
+    for(var i=0;i<list.length;i++){
+      var f = list[i];
+      if(f && f.status==='dismissed' && String(f.findingKey||'')===String(key)) return true;
+    }
+    return false;
+  }
+  window.ptfFinFindingDismiss = function(findingId, detailJson, reason){
+    try{
+      var detail = null;
+      try{ detail = typeof detailJson==='string' ? JSON.parse(detailJson) : detailJson; }catch(e){ detail = {cd:detailJson}; }
+      var key = finFindingKey(findingId, detail, detail && (detail.ref||''));
+      if(!key || key==='|') { alert('شناسه یافته نامعتبر است'); return; }
+      if(finFindingIsDismissed(key)){ alert('این مورد قبلاً بسته شده است'); return; }
+      if(!reason) reason = prompt('دلیل بستن این مغایرت (اختیاری):','مغایرت واقعی نیست — بررسی شد')||'';
+      if(reason===null) return;
+      var rec = {
+        cd: (typeof genCode==='function' ? genCode('FIND') : 'FIND-'+Date.now()),
+        findingKey: key,
+        findingId: findingId,
+        ref: (detail && (detail.purchaseCd||detail.cd||detail.inqNo||''))||'',
+        reason: String(reason||'').trim(),
+        label: (detail && detail.label)||'',
+        dismissedAt: (typeof faDateTime==='function' ? faDateTime() : new Date().toISOString()),
+        dismissedAtISO: new Date().toISOString(),
+        dismissedBy: (typeof curSession==='function' && curSession().name) ? curSession().name : '',
+        status: 'dismissed'
+      };
+      var all = finFindingsAll();
+      all.unshift(rec);
+      if(all.length>1000) all = all.slice(0,1000);
+      if(window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_fin_findings', all, {reason:'fin-finding-dismiss'});
+      else setData('ptf_crm_fin_findings', all);
+      try{ if(typeof audit==='function') audit('کیفیت داده','بستن دستی یافته: '+findingId+' — '+key+' — '+(reason||''), rec.cd); }catch(e){}
+      if(typeof ptfToast==='function') ptfToast('✅ مغایرت بسته شد و دیگر نمایش داده نمی‌شود','ok');
+      if(typeof window.ptfDataQualityRender==='function') window.ptfDataQualityRender();
+    }catch(e){ console.error('dismiss failed',e); alert('خطا در بستن: '+(e&&e.message?e.message:e)); }
+  };
+  window.ptfFinFindingUndismiss = function(findingKey){
+    try{
+      var all = finFindingsAll();
+      var next = all.filter(function(f){ return String(f.findingKey||'')!==String(findingKey); });
+      if(next.length===all.length){ alert('یافت نشد'); return; }
+      if(window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_fin_findings', next, {reason:'fin-finding-undismiss'});
+      else setData('ptf_crm_fin_findings', next);
+      if(typeof ptfToast==='function') ptfToast('بازگردانده شد','info');
+      if(typeof window.ptfDataQualityRender==='function') window.ptfDataQualityRender();
+    }catch(e){ console.error(e); }
+  };
+  window.ptfFinFindingDismissedList = function(){
+    return finFindingsAll().filter(function(f){ return f.status==='dismissed'; });
+  };
   function add(map, id, label, ref, amount, detail) {
+    // فیلتر یافته‌های بسته‌شده دستی
+    try{
+      var key = finFindingKey(id, detail, ref);
+      if(finFindingIsDismissed(key)) return;
+    }catch(e){}
     if (!map[id]) map[id] = { id: id, label: label, count: 0, amount: 0, refs: [], details: [] };
     map[id].count++;
     map[id].amount += +amount || 0;
@@ -252,11 +323,24 @@
         : d.type === 'opex' ? (d.shareholderSalary ? 'این هزینه «حقوق موظف سهامدار» است؛ نوع سند را از تب سهامداران (ویرایش سهامدار → نوع سند حقوق) یا از همین فرم هزینه مشخص کنید.' : 'نوع سند (رسمی/غیررسمی) خالی است و در تراز داخل سطل نامشخص می‌ماند تا در همین فرم هزینه مشخص شود.')
         : d.type === 'supplier-invoice' ? 'نوع سند فاکتور خرید خالی است؛ از دکمهٔ اصلاح، رسمی یا غیررسمی را انتخاب کنید.'
         : d.type === 'supplier-amount' ? 'لینک تعهدها برقرار است اما جمع مبلغ تعهدها با مبلغ فاکتور یکی نیست — معمولاً قلم بدون قیمت خرید. می‌توانید اختلاف را در حساب تأمین تأیید و اخطار را بردارید.'
+        : d.type === 'realbuy-finance' ? 'این خرید واقعی در پرونده فروش ثبت شده ولی در حساب تأمین‌کننده گردش ندارد — یا فاکتور خودکار PUR- حذف شده یا هنوز فاکتور واقعی ثبت نشده. اگر فاکتور واقعی ثبت کرده‌اید و این یافته غیرواقعی است، آن را ببندید.'
         : d.type === 'cheque' ? 'نوع مالکیت (شرکت/شخصی/وارده) خالی است؛ نام روی دسته چک کافی نیست. از اصلاح چک، «مالکیت چک» را انتخاب کنید.'
         : d.type === 'opex-dup' ? 'دو رکورد هزینه ممکن است یک پرداخت را دوبار در سود سال بشمارند (ردیف دستی در کنار قالب تکرارشونده/حقوق، یا دو قالب مشابه، یا هزینه و خروج تنخواه هم‌مبلغ). این فقط یک هشدار گزارش است؛ تعیین‌تکلیف دستی است — ردیف‌های تکراری واقعی را از فرم هزینه بررسی و در صورت لزوم حذف کنید.'
         : d.type === 'salary-gap' ? 'این سهامدار موظف برای برخی ماه‌ها ادعای حقوق فعال ندارد (یا ردیف تکراری دارد). ماه‌های غایب را از تب سهامداران با «ثبت حقوق» همان ماه جبران کنید. این گزارش فقط‌خواندنی است و هیچ سندی را خودکار نمی‌سازد.'
         : 'این مورد نیازمند بررسی است.';
-      return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + '</div>' + invoiceActions + '</div></details>';
+      // دکمه بستن دستی مغایرت (برای همه انواع)
+      var dismissJson = '';
+      try { dismissJson = JSON.stringify(d).replace(/'/g, '&#39;'); } catch(e){ dismissJson = '{}'; }
+      var dismissBtn = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px;background:#f8fafc;border-color:#cbd5e1;color:#475569" '
+        + 'onclick="var j=this.getAttribute(\'data-detail\'); try{ j=JSON.parse(j.replace(/&#39;/g,&quot;\\&#39;&quot;)); }catch(e){} var reason=prompt(\'دلیل بستن این مغایرت:\\',\'مغایرت واقعی نیست — بررسی شد\'); if(reason!==null) ptfFinFindingDismiss(\''+ptfOnClickArg(r.id)+'\', j, reason);" '
+        + 'data-detail=\''+dismissJson+'\'>🙈 بستن دستی — مغایرت واقعی نیست</button>';
+      // برای realbuy-finance یک دکمه اضافه «اتصال به فاکتور واقعی» هم بده
+      var linkRealBtn = '';
+      if(d.type==='realbuy-finance' && d.purchaseCd){
+        linkRealBtn = ' <button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px;color:#0e7490;border-color:#7dd3fc" '
+          + 'onclick="if(typeof window.ptfRealBuyLinkToRealInvoice===\'function\') ptfRealBuyLinkToRealInvoice(\''+ptfOnClickArg(d.purchaseCd)+'\',\''+ptfOnClickArg(d.inqNo||'')+'\'); else alert(\'قابلیت اتصال به فاکتور واقعی در دسترس نیست\')">🔗 اتصال به فاکتور واقعی</button>';
+      }
+      return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + linkRealBtn + ' ' + dismissBtn + '</div>' + invoiceActions + '</div></details>';
     }).join('');
   }
   /* MOB-041: emojiهای actionهای کیفیت داده در موبایل ظاهر لوگویی/چندرنگ داشتند.
@@ -275,7 +359,10 @@
     if (typeof curRole === 'function' && ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) < 0) return '';
     var rows = window.ptfDataQualityData();
     var total = rows.reduce(function (s, x) { return s + x.count; }, 0);
+    var dismissedCount = 0;
+    try{ dismissedCount = finFindingsAll().filter(function(f){ return f.status==='dismissed'; }).length; }catch(e){}
     var body = rows.map(function (r) { return '<tr><td><details style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px"><summary style="cursor:pointer;font-weight:800;color:#334155">' + escP(r.label) + ' — ' + r.count + ' مورد' + (r.amount ? ' — ' + (+r.amount).toLocaleString('fa-IR') + ' ریال' : '') + '</summary><div style="padding-top:7px">' + qualityRefsHtml(r) + '</div></details></td></tr>'; }).join('');
+    var dismissedBar = dismissedCount ? '<div style="margin:8px 0;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:7px 10px;font-size:11.5px;display:flex;gap:8px;align-items:center;justify-content:space-between"><span>🙈 '+dismissedCount+' مغایرت به‌صورت دستی بسته شده و در گزارش نمایش داده نمی‌شود</span><button type="button" class="bt bt-o" style="font-size:11px;padding:3px 8px" onclick="ptfFinFindingDismissedOpen()">مدیریت موارد بسته‌شده</button></div>' : '';
     var qualityActions = '<div class="quality-actions" style="display:flex;gap:6px;flex-wrap:wrap">' +
       '<button type="button" class="bt bt-o quality-action quality-refresh" title="بازخوانی گزارش کیفیت داده" aria-label="بازخوانی گزارش کیفیت داده" onclick="ptfDataQualityRender()"><span class="quality-action-icon">' + qualityIcon('refresh') + '</span><span class="quality-action-label">بازخوانی</span></button>' +
       (typeof window.ptfFinanceRepairPlanOpen === 'function' && typeof curRole === 'function' && ['admin', 'chairman'].indexOf(curRole()) > -1 ? '<button type="button" class="bt bt-o quality-action quality-repair" title="گزارش اصلاحات مالی — فقط‌خواندنی" aria-label="گزارش اصلاحات مالی — فقط‌خواندنی" onclick="ptfFinanceRepairPlanOpen()"><span class="quality-action-icon">📋</span><span class="quality-action-label">manifest اصلاحات مالی</span></button><button type="button" class="bt bt-o quality-action quality-status" title="بررسی رسید فرمان قبلی — فقط‌خواندنی" aria-label="بررسی رسید فرمان قبلی — فقط‌خواندنی" onclick="ptfFinanceCommandStatusOpen()"><span class="quality-action-icon">🔎</span><span class="quality-action-label">بررسی فرمان نامشخص</span></button>' : '') +
@@ -301,7 +388,16 @@
           '</span>' + gBtn + '</div>';
       }
     } catch (eGs) {}
-    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div class="quality-head" style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div class="quality-copy"><h4 class="quality-title" style="margin:0"><span class="quality-title-icon">' + qualityIcon('quality') + '</span>کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div>' + qualityActions + '</div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div>' + gapStrip + '<div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
+    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div class="quality-head" style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div class="quality-copy"><h4 class="quality-title" style="margin:0"><span class="quality-title-icon">' + qualityIcon('quality') + '</span>کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div>' + qualityActions + '</div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div>' + gapStrip + dismissedBar + '<div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
+  };
+  window.ptfFinFindingDismissedOpen = function(){
+    var all = finFindingsAll().filter(function(f){ return f.status==='dismissed'; }).slice(0,200);
+    if(!all.length){ alert('مورد بسته‌شده‌ای وجود ندارد'); return; }
+    var rows = all.map(function(f){
+      return '<tr><td>'+escP(f.dismissedAt||'')+'</td><td>'+escP(f.findingId||'')+'</td><td>'+escP(f.findingKey||'')+'</td><td>'+escP(f.reason||'')+'</td><td>'+escP(f.dismissedBy||'')+'</td><td><button class="ba" style="color:#0e7490" onclick="ptfFinFindingUndismiss(\''+ptfOnClickArg(f.findingKey)+'\')">↩️ بازگردانی</button></td></tr>';
+    }).join('');
+    var html = '<div class="md-b" id="finDismissDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:90vh;overflow:auto"><h3>🙈 یافته‌های بسته‌شده دستی</h3><div style="font-size:12px;color:#475569;margin-bottom:8px">این موارد به‌عنوان «مغایرت واقعی نیست» بسته شده‌اند و در گزارش کیفیت داده نمایش داده نمی‌شوند. در صورت نیاز می‌توانید بازگردانی کنید.</div><div class="tb2"><table><thead><tr><th>تاریخ بستن</th><th>نوع یافته</th><th>کلید</th><th>دلیل</th><th>توسط</th><th>عملیات</th></tr></thead><tbody>'+rows+'</tbody></table></div><div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
   window.ptfDataQualityRender = function () { var el = document.getElementById('qualityBox'); if (el) { var html = window.ptfDataQualityHtml(); var tmp = document.createElement('div'); tmp.innerHTML = html; var next = tmp.firstElementChild; el.replaceWith(next); } };
 

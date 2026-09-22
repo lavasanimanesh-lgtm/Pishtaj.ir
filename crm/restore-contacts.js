@@ -179,13 +179,24 @@
 
   /* ---------- اسکن شبکه: فهرست → دانلود ترتیبی ---------- */
   function listBackups() {
+    console.log('[restore-contacts] list_backups fetch, role=', (typeof curRole === 'function' ? curRole() : '?'));
     return fetch(API + '?action=list_backups', { headers: h(false) })
-      .then(function (r) { return r.json(); })
-      .then(function (d) { if (!d || !d.ok || !Array.isArray(d.backups)) throw new Error((d && d.error) || 'list_failed'); return d.backups; });
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        if (!d || !d.ok || !Array.isArray(d.backups)) throw new Error((d && d.error) || 'list_failed');
+        console.log('[restore-contacts] backups:', d.backups.length);
+        return d.backups;
+      });
   }
   function fetchBackupCustomers(name) {
     return fetch(API + '?action=get_backup&name=' + encodeURIComponent(name), { headers: h(false) })
-      .then(function (r) { return r.text(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error('get_backup HTTP ' + r.status);
+        return r.text();
+      })
       .then(function (t) {
         /* سرور gz را شفاف باز می‌کند؛ اگر پاسخ خطای JSONِ {ok:false} بود، به‌عنوان ناموجود شمرده می‌شود */
         return { customers: parseBackupCustomers(t), why: diagnoseBackup(t) };
@@ -260,12 +271,24 @@
   /* ---------- UI (مودال) ---------- */
   var lastScan = null;
   function mount(html) {
-    var host = document.body || document.getElementById('panels');
+    var host = null;
+    try { host = document.body || document.getElementById('panels') || document.documentElement; } catch (eH) { host = null; }
+    if (!host) {
+      console.error('[restore-contacts] no host for modal');
+      alert('نمی‌توان پنجره بازیابی را باز کرد: body پیدا نشد. صفحه را رفرش کنید.');
+      return;
+    }
     var wrap = document.createElement('div');
     wrap.innerHTML = html;
     while (wrap.firstChild) host.appendChild(wrap.firstChild);
   }
-  function status(t) { var el = document.getElementById('rcStatus'); if (el) el.innerHTML = esc(t); }
+  function status(t) {
+    try {
+      var el = document.getElementById('rcStatus');
+      if (el) el.innerHTML = esc(t);
+      console.log('[restore-contacts] status:', t);
+    } catch (eS) { console.log('[restore-contacts] status fallback:', t); }
+  }
   /* v34.38.9: چرا هیچ بک‌آپی کمک نکرد؟ متن انسانی برای هر علت. */
   var WHY_FA = {
     'no_customers_key': 'این فایل اصلاً کلید مشتریان را ندارد (تصویرِ کورِ ناشی از باگ بک‌آپ فاز B — رفع‌شده در v34.38.9)',
@@ -375,28 +398,52 @@
     if (dlg) dlg.remove();
     try { if (typeof renderCustomers === 'function') renderCustomers(); } catch (e2) {}
   }
+  /* v34.39.25 (RECOVERY-UX): اگر مودال به هر دلیلی باز نشود، کاربر هیچ بازخوردی
+     نمی‌دید — گزارش «عکس‌العملی مشاهده نمی‌شود». حالا open با try/catch، لاگ
+     کنسول و toast/alert خطا را نمایش می‌دهد. */
   function open() {
-    if (!canRun()) { alert('بازیابی خودکار از بک‌آپ‌های سرور فقط برای ادمین / رییس هیات مدیره در دسترس است.'); return; }
-    mount(
-      '<div class="md-b" id="rcDlg"><div class="md" style="max-width:860px;max-height:88vh;overflow:auto">' +
-      '<h3 style="margin:0 0 8px">🛟 بازیابی خودکار اطلاعات تماس مشتریان</h3>' +
-      '<div style="font-size:12px;color:#475569;line-height:1.9;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 10px;margin-bottom:8px">' +
-      'این ابزار بک‌آپ‌های چرخشی سرور (ساعتی/روزانه/هفتگی/ماهانه)، بک‌آپ اضطراری همین دستگاه و هر فایلی که خودتان اضافه کنید را <b>از جدید به قدیمی</b> وارسی می‌کند و <b>هر فیلد تماسِ خالی</b> را از جدیدترین منبعی که آن را دارد پر می‌کند. لازم نیست بدانید پاک‌شدن چه زمانی بوده است. مقدار سالمِ فعلی هرگز بازنویسی نمی‌شود و هیچ رکوردی حذف/ایجاد نمی‌شود.' +
-      '<div style="margin-top:6px;color:#9a3412">🧩 مشتریانی که فقط بخشی از تماس‌هایشان رفته (مثلاً شمارهٔ شرکت مانده ولی اشخاص رابط پاک شده) هم از v34.38.9 پوشش داده می‌شوند.</div></div>' +
-      '<div style="font-size:12px;background:#f8fafc;border:1px solid var(--brd,#cbd5e1);border-radius:10px;padding:8px 10px;margin-bottom:8px">' +
-      '📄 <b>افزودن منبع دستی (اختیاری):</b> اگر بک‌آپ‌های سرور در دورهٔ باگ گرفته شده‌اند، فایل بک‌آپ دانلودشدهٔ قدیمی خود را اینجا اضافه کنید. ' +
-      '<input type="file" id="rcFiles" accept=".json" multiple onchange="ptfContactRecoverPickFiles(this)" style="font-size:11.5px">' +
-      '<div id="rcSrcInfo" style="margin-top:4px"></div></div>' +
-      '<div id="rcStatus" style="font-size:12.5px;color:#334155;margin:8px 0">برای شروع، «شروع اسکن» را بزنید.</div>' +
-      '<div id="rcList"></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
-      '<button class="bt" id="rcStart">▶️ شروع اسکن بک‌آپ‌ها</button>' +
-      '<button class="bt" id="rcApply" disabled style="background:#059669">تایید و بازگردانی انتخاب‌شده‌ها</button>' +
-      '<button class="bt bt-o" onclick="document.getElementById(\'rcDlg\').remove()">✕ بستن</button>' +
-      '</div></div></div>'
-    );
-    document.getElementById('rcStart').onclick = startScan;
-    document.getElementById('rcApply').onclick = applyNow;
+    try {
+      console.log('[restore-contacts] open() called, role=', (typeof curRole === 'function' ? curRole() : 'unknown'));
+      if (!canRun()) {
+        var msg = 'بازیابی خودکار از بک‌آپ‌های سرور فقط برای ادمین / رییس هیات مدیره در دسترس است.\nنقش فعلی: ' + (typeof curRole === 'function' ? curRole() : 'نامشخص') + '\nلطفاً با حساب admin وارد شوید.';
+        try { if (typeof ptfToast === 'function') ptfToast(msg, 'warn'); } catch (eT) {}
+        alert(msg);
+        return;
+      }
+      // اگر مودال قبلی باز مانده، ببند
+      try { var prev = document.getElementById('rcDlg'); if (prev) prev.remove(); } catch (ePrev) {}
+      mount(
+        '<div class="md-b" id="rcDlg"><div class="md" style="max-width:860px;max-height:88vh;overflow:auto">' +
+        '<h3 style="margin:0 0 8px">🛟 بازیابی خودکار اطلاعات تماس مشتریان</h3>' +
+        '<div style="font-size:12px;color:#475569;line-height:1.9;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 10px;margin-bottom:8px">' +
+        'این ابزار بک‌آپ‌های چرخشی سرور (ساعتی/روزانه/هفتگی/ماهانه)، بک‌آپ اضطراری همین دستگاه و هر فایلی که خودتان اضافه کنید را <b>از جدید به قدیمی</b> وارسی می‌کند و <b>هر فیلد تماسِ خالی</b> را از جدیدترین منبعی که آن را دارد پر می‌کند. لازم نیست بدانید پاک‌شدن چه زمانی بوده است. مقدار سالمِ فعلی هرگز بازنویسی نمی‌شود و هیچ رکوردی حذف/ایجاد نمی‌شود.' +
+        '<div style="margin-top:6px;color:#9a3412">🧩 مشتریانی که فقط بخشی از تماس‌هایشان رفته (مثلاً شمارهٔ شرکت مانده ولی اشخاص رابط پاک شده) هم از v34.38.9 پوشش داده می‌شوند.</div></div>' +
+        '<div style="font-size:12px;background:#f8fafc;border:1px solid var(--brd,#cbd5e1);border-radius:10px;padding:8px 10px;margin-bottom:8px">' +
+        '📄 <b>افزودن منبع دستی (اختیاری):</b> اگر بک‌آپ‌های سرور در دورهٔ باگ گرفته شده‌اند، فایل بک‌آپ دانلودشدهٔ قدیمی خود را اینجا اضافه کنید. ' +
+        '<input type="file" id="rcFiles" accept=".json" multiple onchange="ptfContactRecoverPickFiles(this)" style="font-size:11.5px">' +
+        '<div id="rcSrcInfo" style="margin-top:4px"></div></div>' +
+        '<div id="rcStatus" style="font-size:12.5px;color:#334155;margin:8px 0">برای شروع، «شروع اسکن» را بزنید.</div>' +
+        '<div id="rcList"></div>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
+        '<button class="bt" id="rcStart">▶️ شروع اسکن بک‌آپ‌ها</button>' +
+        '<button class="bt" id="rcApply" disabled style="background:#059669">تایید و بازگردانی انتخاب‌شده‌ها</button>' +
+        '<button class="bt bt-o" onclick="document.getElementById(\'rcDlg\').remove()">✕ بستن</button>' +
+        '</div></div></div>'
+      );
+      var btnS = document.getElementById('rcStart');
+      var btnA = document.getElementById('rcApply');
+      if (!btnS) throw new Error('rcStart not found after mount');
+      btnS.onclick = startScan;
+      if (btnA) btnA.onclick = applyNow;
+      console.log('[restore-contacts] modal mounted');
+    } catch (eOpen) {
+      console.error('[restore-contacts] open failed', eOpen);
+      var errMsg = 'خطا در باز کردن پنجره بازیابی: ' + (eOpen && eOpen.message ? eOpen.message : eOpen);
+      try { if (typeof ptfToast === 'function') ptfToast(errMsg, 'err'); } catch (eT2) {}
+      alert(errMsg + '\n\nلطفاً کنسول مرورگر (F12) را باز کنید و خطا را ارسال کنید.');
+    }
   }
   window.ptfOpenContactRecovery = open;
+  /* برای دیباگ: اگر اسکریپت لود شد ولی onclick قدیمی کار نکرد */
+  window.ptfContactRecoveryLoaded = true;
 })();
