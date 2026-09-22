@@ -960,15 +960,24 @@
     var linkBox = typeof window.ptfInvoiceLinkStatusHtml === 'function'
       ? '<div style="margin-bottom:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:10px;font-size:12px">وضعیت لینک: ' + window.ptfInvoiceLinkStatusHtml(initial) + '</div>'
       : '';
+    /* v34.39.23 (SUP-FX-RATE-EDIT): نرخ تسعیر در ویرایش فاکتور ارزی قابل اصلاح است.
+       ارز سند عوض نمی‌شود. معادل ریالی از نرخ جدید دوباره حساب می‌شود. */
+    var invEditFields = [{id:'no',label:'شماره فاکتور',value:initial.no,required:true},{id:'date',label:'تاریخ فاکتور (شمسی)',datePicker:true,value:initial.dateFa||initial.dateISO,required:true},{id:'amount',label:'مبلغ',type:'number',money:false,value:initial.amount,dir:'ltr',required:true}];
+    if ((initial.cur || 'IRR') !== 'IRR') invEditFields.push({id:'rate',label:'نرخ تسعیر (ریال به‌ازای هر ' + (initial.cur || 'ارز') + ')',type:'number',money:false,value:initial.rate || '',dir:'ltr',required:true});
+    invEditFields.push({id:'isOfficial',label:'نوع فاکتور خرید',type:'select',optionsHtml:'<option value=""' + (!Object.prototype.hasOwnProperty.call(initial,'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (initial.isOfficial === true ? ' selected' : '') + '>رسمی</option><option value="no"' + (initial.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>'});
+    invEditFields.push({id:'note',label:'یادداشت',type:'textarea',value:initial.note||''});
     ptfDialog({
       title: '✏️ ویرایش فاکتور خرید ' + escP(initial.no), body: linkBox + filesBox,
-      fields: [{id:'no',label:'شماره فاکتور',value:initial.no,required:true},{id:'date',label:'تاریخ فاکتور (شمسی)',datePicker:true,value:initial.dateFa||initial.dateISO,required:true},{id:'amount',label:'مبلغ',type:'number',money:false,value:initial.amount,dir:'ltr',required:true},{id:'isOfficial',label:'نوع فاکتور خرید',type:'select',optionsHtml:'<option value=""' + (!Object.prototype.hasOwnProperty.call(initial,'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (initial.isOfficial === true ? ' selected' : '') + '>رسمی</option><option value="no"' + (initial.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>'},{id:'note',label:'یادداشت',type:'textarea',value:initial.note||''}],
+      fields: invEditFields,
       okText: 'ذخیره', onOk: function (v) {
         var d = data(), i = fileRecord('invoice', cd, d); if (!i) return;
         var oldOfficial = Object.prototype.hasOwnProperty.call(i,'isOfficial') ? i.isOfficial : null;
         var iso = typeof ptfJToISO === 'function' ? (ptfJToISO(v.date) || v.date) : v.date, amt = +v.amount || 0;
-        if (!v.no || !iso || amt < invPaid(i, d)) { alert('شماره، تاریخ و مبلغ معتبر (حداقل برابر پرداخت تخصیص‌یافته) الزامی است'); return; }
-        i.no=v.no; i.dateISO=iso; i.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso; i.amount=amt; i.amountIrr=i.cur==='IRR'?amt:Math.round(amt*(+i.rate||0)); i.note=v.note||'';
+        var rate = (i.cur || 'IRR') === 'IRR' ? (+i.rate || 1) : (+v.rate || 0);
+        if (!v.no || !iso || amt < invPaid(i, d) || ((i.cur || 'IRR') !== 'IRR' && !(rate > 0))) { alert('شماره، تاریخ، مبلغ و برای ارز خارجی نرخ تسعیر الزامی است (حداقل برابر پرداخت تخصیص‌یافته)'); return; }
+        i.no=v.no; i.dateISO=iso; i.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso; i.amount=amt;
+        if ((i.cur || 'IRR') !== 'IRR') i.rate = rate;
+        i.amountIrr=i.cur==='IRR'?amt:Math.round(amt*(+i.rate||0)); i.note=v.note||'';
         /* v34.38.19 (SF-INVOICE-REVERT): مبلغِ دستی کاربر مقدم بر بازوارد (re-import) خرید
            واقعی است. این پرچم ماندگار است تا slImportRealPurchase دیگر مبلغ فاکتور را به
            price×qty برنگرداند و «ویرایش شد ولی دوباره برگشت» تکرار نشود. */
@@ -1005,14 +1014,21 @@
       return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap"><a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\',\'' + ptfOnClickArg(f.name || 'فایل') + '\')" style="color:#0e7490;flex:1">📎 ' + escP(f.name || 'فایل') + '</a><button class="ba" style="color:#dc2626" onclick="slPaymentRemoveFile(\'' + ptfOnClickArg(cd) + '\',\'' + key + '\')">✕</button></div>';
     }).join('') || '<div style="color:#94a3b8;font-size:12px">سندی ثبت نشده است</div>';
     var filesBox = '<div style="margin-top:6px;border:1px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"><b style="font-size:12px">📎 اسناد / عکس چک پرداخت</b><small style="display:block;color:#047857;margin-top:3px">فایل پس از آپلود همان لحظه ذخیره می‌شود.</small>' + filesHtml + '<div id="slPayEditFilesUp" style="margin-top:6px"></div></div>';
+    /* v34.39.23 (SUP-FX-RATE-EDIT): نرخ پرداخت ارزی جدا از نرخ فاکتور است و در ویرایش قابل اصلاح است. */
+    var payEditFields = [{id:'date',label:'تاریخ پرداخت (شمسی)',datePicker:true,value:initial.dateFa||initial.dateISO,required:true},{id:'amount',label:'مبلغ پرداخت',type:'number',money:false,value:initial.amount,dir:'ltr',required:true}];
+    if ((initial.cur || 'IRR') !== 'IRR') payEditFields.push({id:'rate',label:'نرخ تسعیر (ریال به‌ازای هر ' + (initial.cur || 'ارز') + ')',type:'number',money:false,value:initial.rate || '',dir:'ltr',required:true});
+    payEditFields.push({id:'note',label:'شرح',type:'textarea',value:initial.note||''});
     ptfDialog({
       title:'✏️ ویرایش پرداخت', body:filesBox,
-      fields:[{id:'date',label:'تاریخ پرداخت (شمسی)',datePicker:true,value:initial.dateFa||initial.dateISO,required:true},{id:'amount',label:'مبلغ پرداخت',type:'number',money:false,value:initial.amount,dir:'ltr',required:true},{id:'note',label:'شرح',type:'textarea',value:initial.note||''}],
+      fields: payEditFields,
       okText:'ذخیره', onOk:function(v) {
         var d=data(), p=fileRecord('payment', cd, d); if(!p) return;
         var iso=typeof ptfJToISO==='function'?(ptfJToISO(v.date)||v.date):v.date, amt=+v.amount||0, min=(p.allocations||[]).reduce(function(s,a){return s+(+a.amount||0)},0);
-        if(!iso||amt<min){alert('مبلغ نباید از مجموع تخصیص‌ها کمتر باشد');return;}
-        p.dateISO=iso; p.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso; p.amount=amt; p.amountIrr=p.cur==='IRR'?amt:Math.round(amt*(+p.rate||0)); p.unallocated=Math.max(0,amt-min); p.note=v.note||''; p.updatedAtISO=new Date().toISOString(); p.updatedBy=curSession().name;
+        var rate = (p.cur || 'IRR') === 'IRR' ? (+p.rate || 1) : (+v.rate || 0);
+        if(!iso||amt<min||((p.cur||'IRR')!=='IRR'&&!(rate>0))){alert('تاریخ، مبلغ (حداقل برابر تخصیص‌ها) و برای ارز خارجی نرخ تسعیر الزامی است');return;}
+        p.dateISO=iso; p.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso; p.amount=amt;
+        if ((p.cur || 'IRR') !== 'IRR') p.rate = rate;
+        p.amountIrr=p.cur==='IRR'?amt:Math.round(amt*(+p.rate||0)); p.unallocated=Math.max(0,amt-min); p.note=v.note||''; p.updatedAtISO=new Date().toISOString(); p.updatedBy=curSession().name;
         save(d); try{audit('پرداخت تامین','ویرایش پرداخت '+cd,cd)}catch(e){} slOpenLedger(p.supplierCd);
       }
     });

@@ -183,6 +183,73 @@
   // v30.2 FIN-WF-008: برای جلوگیری از دوباره‌شماری، fiscal فقط unlinked را می‌خواهد.
   // کارمزد فاکتور پوششی در پنل هزینه جاری دیده می‌شود ولی در سود سال از روی خود فاکتور
   // (coverCommission / coverNetBenefit) لحاظ می‌شود تا دوباره‌شماری نشود.
+  /* v34.39.23 (RENT-CASH-UNTIL-PAID): سررسید فقط با ساعت ptfTodayISO.
+     تقویم تاریخ سررسید و امروز باید یکی باشد؛ وگرنه تاریخ شمسیِ آینده در برابر
+     امروزِ میلادی به‌اشتباه سررسیدشده دیده می‌شود و خروج نقدی زودتر ثبت می‌شود. */
+  function opexEra(iso) {
+    return /^1[34]/.test(iso) ? 'j' : (/^20/.test(iso) ? 'g' : 'x');
+  }
+  function opexIso10(v) { return String(v || '').slice(0, 10); }
+  window.ptfChequeDueReached = function (ch) {
+    if (!ch) return false;
+    var st = String(ch.st || ch.status || '').toLowerCase();
+    if (st.indexOf('void') > -1 || st.indexOf('cancel') > -1) return false;
+    if (ch.cleared || /pass|clear|وصول|پاس|نقد/.test(st)) return true;
+    var due = opexIso10(ch.dueISO);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return false;
+    var today = '';
+    try { today = opexIso10(typeof ptfTodayISO === 'function' ? ptfTodayISO() : new Date().toISOString()); }
+    catch (eT) { today = new Date().toISOString().slice(0, 10); }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) return false;
+    if (opexEra(due) === opexEra(today)) return due <= today;
+    if (opexEra(due) === 'j' && opexEra(today) === 'g' && typeof ptfJToISO === 'function') {
+      var g = opexIso10(ptfJToISO(due.slice(0, 4) + '/' + due.slice(5, 7) + '/' + due.slice(8, 10)));
+      if (/^20\d{2}-\d{2}-\d{2}$/.test(g)) return g <= today;
+    }
+    if (opexEra(today) === 'j' && opexEra(due) === 'g' && typeof ptfJToISO === 'function') {
+      var tg = opexIso10(ptfJToISO(today.slice(0, 4) + '/' + today.slice(5, 7) + '/' + today.slice(8, 10)));
+      if (/^20\d{2}-\d{2}-\d{2}$/.test(tg)) return due <= tg;
+    }
+    return false;
+  };
+  function opexIssuedCheques() {
+    var out = [];
+    ['ptf_crm_cheques_issued', 'ptf_crm_cheques'].forEach(function (k) {
+      try {
+        var rows = (typeof getData === 'function') ? getData(k) : [];
+        if (Array.isArray(rows)) out = out.concat(rows);
+      } catch (eC) {}
+    });
+    return out.filter(function (c) {
+      return c && String(c.kind || '') !== 'guarantee' && String(c.st || c.status || '').toLowerCase().indexOf('void') < 0;
+    });
+  }
+  function opexChequeForRow(x) {
+    if (!x) return null;
+    var list = opexIssuedCheques();
+    if (x.chequeCd) {
+      var byCd = list.filter(function (c) { return c.cd === x.chequeCd; })[0];
+      if (byCd) return byCd;
+    }
+    var id = String(x._opexRowId || '');
+    if (!id) return null;
+    return list.filter(function (c) { return Array.isArray(c.opexRowIds) && c.opexRowIds.indexOf(id) > -1; })[0] || null;
+  }
+  /* تکرارشونده و ردیفِ متصل به چک تا پرداخت نهایی (تسویهٔ بانکی یا سررسید چک) خروج نقدی نیستند.
+     هزینهٔ یک‌بارهٔ بدون چک همان لحظه نقد است — صفر کردن سراسریِ پرداخت‌نشده ممنوع. */
+  function opexCashReady(x) {
+    if (!x) return false;
+    var linked = !!(x.chequeCd || x.payHow === 'cheque' || opexChequeForRow(x));
+    if (x.tplId || linked) {
+      if (linked) {
+        var ch = opexChequeForRow(x);
+        return !!(ch && window.ptfChequeDueReached(ch));
+      }
+      return x.st === 'settled';
+    }
+    return true;
+  }
+  window.ptfOpexCashReady = opexCashReady;
   window.ptfOpexSumFiscal = function(monthOrYear){
     var pre = String(monthOrYear || '');
     var out = { total: 0, byCat: {}, totalLinked: 0, totalUnlinked: 0, totalSalary: 0, totalCash: 0 };
@@ -195,7 +262,8 @@
       if (x.dealRef) out.totalLinked += amt;
       else {
         out.totalUnlinked += amt;
-        if (!salary) out.totalCash += amt;
+        /* تعهدی (total) دست نمی‌خورد؛ فقط خروج نقدی تا پرداخت نهایی عقب می‌افتد. */
+        if (!salary && opexCashReady(x)) out.totalCash += amt;
       }
     });
     out.total = out.totalUnlinked;

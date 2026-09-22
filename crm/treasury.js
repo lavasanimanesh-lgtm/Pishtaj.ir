@@ -77,12 +77,32 @@
     return get('ptf_crm_cheques');
   }
   function chequeMatured(ch) {
+    /* v34.39.23: همان گیت ptfTodayISO، ولی بدون مقایسهٔ خامِ دو تقویم.
+       اگر opex تابع مشترک را ساخته باشد همان ملاک است. */
+    if (typeof window.ptfChequeDueReached === 'function') {
+      try { return !!window.ptfChequeDueReached(ch); } catch (eDue) {}
+    }
     if (!ch) return false;
     var st = txt(ch.st || ch.status);
     if (st.indexOf('void') > -1 || st.indexOf('cancel') > -1) return false;
     if (ch.cleared || /pass|clear|وصول|پاس|نقد/.test(st)) return true;
     var due = String(ch.dueISO || '').slice(0, 10);
-    return !!(due && due <= todayISO());
+    var today = String(todayISO() || '').slice(0, 10);
+    if (!due || !today) return false;
+    var dueJ = /^1[34]/.test(due), todayJ = /^1[34]/.test(today);
+    if (dueJ === todayJ) return due <= today;
+    return false;
+  }
+  function opexHeldForCheque(o) {
+    if (!o) return false;
+    if (o.chequeCd || o.payHow === 'cheque') return true;
+    var id = String(o._opexRowId || '');
+    if (!id) return false;
+    var lists = chequeList('ptf_crm_cheques_issued').concat(get('ptf_crm_cheques'));
+    return lists.some(function (c) {
+      if (!c || txt(c.st || c.status).indexOf('void') > -1 || txt(c.kind) === 'guarantee') return false;
+      return Array.isArray(c.opexRowIds) && c.opexRowIds.indexOf(id) > -1;
+    });
   }
   function chequeCollected(ch) {
     if (!ch) return false;
@@ -177,7 +197,7 @@
     get('ptf_crm_opex').forEach(function (o) {
       if (!active(o) || o.st === 'void') return;
       if (o.shareholderSalary || o.shareTx) return;
-      if (o.chequeCd || o.payHow === 'cheque') return;
+      if (opexHeldForCheque(o)) return; /* وجه فقط از چک سررسیدشده خارج می‌شود، حتی اگر chequeCd هنوز روی ردیف ننشسته باشد */
       var isCoverOpex = !!(o.fromCoverInvoice || o.coverInvoiceCd);
       var isRecurringOpex = !!o.tplId;
       var isSettlementOpex = isCoverOpex || isRecurringOpex;

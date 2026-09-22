@@ -60,7 +60,7 @@ T('B: گارد برخورد کد محلی در saveCust (کد پسونددار،
 T('B: فرم مشتری فیلد نام انگلیسی (nCEn) دارد', ih.indexOf('id="nCEn"') > -1);
 T('B: saveCust مقدار coEn را ذخیره می‌کند', ih.indexOf("coEn:(document.getElementById('nCEn')||{}).value || ''") > -1);
 T('B: سرور expectCreate برخورد را 409 می‌دهد (entity_id_exists)', php.indexOf("entity_id_exists") > -1 && php.indexOf("'hint'=>'regenerate_client_code'") > -1);
-T('B: روتر entity رکوردهای جدید را با expectCreate می‌فرستد', sdv.indexOf('newCds[cd] = 1; ups.push(nx); return;') > -1 && sdv.indexOf('expectCreate: !!newCds[r.cd]') > -1);
+T('B: روتر entity رکوردهای جدید را با expectCreate می‌فرستد', sdv.indexOf('newCds[cd] = 1; ups.push(nx); return;') > -1 && sdv.indexOf('expectCreate: !!newCds[rowKeyOf(r)]') > -1);
 T('B: پیام فارسی برخورد کد در ptfEntityCommandMessage', sdv.indexOf('کد تولیدی تکراری بود') > -1);
 (function () {
   try {
