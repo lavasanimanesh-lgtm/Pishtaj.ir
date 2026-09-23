@@ -1626,8 +1626,10 @@
       if (_wo && _wo.invRef) return '<span class="bd sf-post-award-status sf-post-award-invoice-status" title="' + escP('ارجاع‌شده توسط ' + (_wo.invRef.by || '') + ' — ' + (_wo.invRef.t || '')) + '">🧾 ارجاع شد — در حال صدور فاکتور</span>';
       return postAction('invoice-ref', '🧾', 'ارجاع فاکتور', 'ارجاع فاکتور رسمی به حسابدار', 'sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')', { primary: true, meta: 'برای حسابدار' });
     })();
-    /* v34.2.0: عملیات نسخهٔ ریالی فقط برای پیشنهاد ارزی برنده ظاهر می‌شود. */
+    /* v34.2.0: عملیات نسخهٔ ریالی فقط برای پیشنهاد ارزی برنده ظاهر می‌شود.
+       v34.39.28 US-IRR2FX: عملیات نسخهٔ ارزی برای پیشنهاد ریالی برنده. */
     postActions += '<span class="sf-post-award-rial">' + ((typeof window.ptfOfferRialToolbarHtml === 'function') ? window.ptfOfferRialToolbarHtml(r) : '') + '</span>';
+    postActions += '<span class="sf-post-award-fx">' + ((typeof window.ptfOfferFxToolbarHtml === 'function') ? window.ptfOfferFxToolbarHtml(r) : '') + '</span>';
     /* v35: دریافت و حساب مشتری فقط روی شناسهٔ پرونده انجام می‌شود؛ شمارهٔ پیشنهاد
        دیگر کلید اتصال مالی نیست. این action هاب یکپارچه دریافت/بستانکاری/فاکتور را باز می‌کند. */
     if (r.wonOffer) {

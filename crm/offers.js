@@ -679,6 +679,7 @@ function renderOffers() {
   window._offCustFilter = custF;
   var offers = all.filter(function(o) {
     if (o.rialOf) return false; /* US-FX2RIAL: نسخه ریالی (همراه) ردیف مستقل نمی‌سازد — در همان ردیف پیشنهاد ارزی مبدأ نمایش داده می‌شود */
+    if (o.fxOf) return false; /* US-IRR2FX v34.39.28: نسخه ارزی همراه پیشنهاد ریالی — ردیف مستقل نمی‌سازد */
     if (tab !== 'ALL' && o.kind !== tab && !(tab === 'CO' && o.kind === 'TC')) return false; /* v20.1 US-442: TC قدیمی زیر تب مالی */
     if (custF && typeof ptfOfferMatchCust === 'function' && !ptfOfferMatchCust(o, custF)) return false; /* v21.3 US-450 */
     // US-142 AC1: جستجو شامل شماره درخواست کارفرما (inqNo)
@@ -790,8 +791,11 @@ function renderOffers() {
     // US-157 AC1: بج اعتبار
     var vst = offerValidState(o);
     /* US-FX2RIAL: نسخه ریالی این پیشنهاد (اگر ساخته شده) — درون همان ردیف و با همان شماره،
-       نه به‌صورت ردیف مستقل. رکورد پشت‌صحنه جدا می‌ماند (برای چاپ/audit/مالی) ولی نمایش هم‌ردیف است. */
-    var rialInline = '';
+       نه به‌صورت ردیف مستقل. رکورد پشت‌صحنه جدا می‌ماند (برای چاپ/audit/مالی) ولی نمایش هم‌ردیف است.
+       v34.39.28 US-IRR2FX: نسخه ارزی همراه پیشنهاد ریالی هم همین‌جا نمایش داده می‌شود.
+    */
+        var rialInline = '';
+    var fxInline = '';
     try {
       if ((o.kind === 'CO' || o.kind === 'TC') && o.currency && o.currency !== 'IRR' && typeof window.ptfRialCompanionOf === 'function') {
         var _comp = window.ptfRialCompanionOf(o.no);
@@ -807,10 +811,29 @@ function renderOffers() {
             '</span></div>';
         }
       }
-    } catch (eRi) { rialInline = ''; }
+      if ((o.kind === 'CO' || o.kind === 'TC') && (!o.currency || o.currency === 'IRR') && typeof window.ptfFxCompanionsOf === 'function') {
+        var _fxComps = window.ptfFxCompanionsOf(o.no);
+        if (_fxComps && _fxComps.length) {
+          fxInline = '<div style="margin-top:6px;background:#fff7ed;border:1px solid #fde68a;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#92400e;display:flex;flex-wrap:wrap;align-items:center;gap:6px" title="نسخه ارزی همین پیشنهاد">' +
+            '<span>💱 نسخه ارزی (همان شماره)</span>' +
+            '<span style="display:inline-flex;gap:4px;flex-wrap:wrap">' +
+            _fxComps.map(function (fc) {
+              var _rt2 = (fc.fxConvert && +fc.fxConvert.rate) || 0;
+              var _cur2 = fc.currency || '';
+              return '<span style="display:inline-flex;gap:2px;align-items:center;background:#fff;border:1px solid #fde68a;border-radius:999px;padding:2px 6px"><b dir="ltr">' + escP(fc.no) + ' (' + escP(_cur2) + ')</b>' +
+                (_rt2 ? '<small style="opacity:.8">' + _rt2.toLocaleString('fa-IR') + '</small>' : '') +
+                '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px" onclick="offerQuickPreview(\'' + ptfOnClickArg(fc.no) + '\')" title="نمایش نسخه ارزی ' + escP(_cur2) + '">👁</button>' +
+                '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px" onclick="offerPrint(\'' + ptfOnClickArg(fc.no) + '\')" title="چاپ/PDF نسخه ارزی">🖨</button>' +
+                '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px;color:#b45309" onclick="ptfOfferFxTermsOpen(\'' + ptfOnClickArg(fc.no) + '\')" title="شرایط ارزی">🔧</button>' +
+                '</span>';
+            }).join(' ') +
+            '</span></div>';
+        }
+      }
+    } catch (eRi) { rialInline = ''; fxInline = ''; }
     h += '<tr><td><strong>' + escP(o.no) + '</strong>' + (o.rev ? ' <small>Rev.' + o.rev + '</small>' : '') +
       (o.altOf ? '<br><span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:10px" title="پیشنهاد جایگزین برای همین درخواست — در کنار ' + escP(o.altOf) + '">⑂ گزینه جایگزین</span>' : '') +
-      (vst ? '<br><span class="bd" style="background:' + vst.cl + ';font-size:10px">' + vst.lb + '</span>' : '') + rialInline + '</td>' +
+      (vst ? '<br><span class="bd" style="background:' + vst.cl + ';font-size:10px">' + vst.lb + '</span>' : '') + rialInline + fxInline + '</td>' +
       '<td>' + (o.kind === 'TO' ? '🔧 فنی' : o.kind === 'TC' ? '🤝 فنی-مالی' : '💰 مالی') + '</td>' /* v12.8 */ +
       '<td>' + (function () { /* v34.18.0: نام فارسی + انگلیسی زیر هم (هم‌شکل فهرست مشتریان) */
         var p = (typeof ptfCustNamePair === 'function') ? ptfCustNamePair(o.buyerCd, o.buyerCo) : { fa: o.buyerCo || '-', en: '' };
@@ -832,8 +855,10 @@ function renderOffers() {
       toCoBtn +
       ((o.kind === 'CO' || o.kind === 'TC') ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0f766e" title="بررسی سلامت و پیش‌نمایش اقلام" onclick="ptfOfferIntegrityDialog(\''+o.no+'\')">🔎</button>' : '') +
       ((o.rialOf ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOfferRialTermsOpen(\''+o.no+'\')" title="پیش‌نمایش/ویرایش شرایط و ضوابط نسخه ریالی">🔧</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.rialOf+'\')" title="دیدن پیشنهاد ارزی قبلی">👁 ارزی</button> ' : '') +
-       ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !isWon && (o.currency && o.currency !== 'IRR') && !(typeof window.ptfRialCompanionOf === 'function' && window.ptfRialCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#0e7490;color:#fff" onclick="ptfOfferRialConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ریالی">💱</button> ' : '')) +
-      ((!isWon && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf) ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#9a3412;border-color:#fdba74" onclick="ptfMarkOfferAmendment(\''+o.no+'\')" title="علامت‌گذاری به‌عنوان متمم مستقل یک پرونده موجود">➕</button>' : '') +
+       ((o.fxOf ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#92400e;border-color:#fde68a" onclick="ptfOfferFxTermsOpen(\''+o.no+'\')" title="شرایط نسخه ارزی">🔧</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.fxOf+'\')" title="دیدن پیشنهاد ریالی قبلی">👁 ریالی</button> ' : '') +
+       ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf && !isWon && (o.currency && o.currency !== 'IRR') && !(typeof window.ptfRialCompanionOf === 'function' && window.ptfRialCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#0e7490;color:#fff" onclick="ptfOfferRialConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ریالی">💱</button> ' : '') +
+       ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf && !isWon && (!o.currency || o.currency === 'IRR') && !(typeof window.ptfFxCompanionOf === 'function' && window.ptfFxCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#b45309;color:#fff" onclick="ptfOfferFxConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ارزی">💱</button> ' : '')) +
+      ((!isWon && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf) ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#9a3412;border-color:#fdba74" onclick="ptfMarkOfferAmendment(\''+o.no+'\')" title="علامت‌گذاری به‌عنوان متمم مستقل یک پرونده موجود">➕</button>' : '') +
       (isWon ? '' : ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#dc2626" onclick="offerDel(\''+o.no+'\')" title="حذف">🗑️</button>') + '</td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">پیشنهادی در این تب ثبت نشده</td></tr>';
