@@ -384,19 +384,35 @@
     }
     return res || { ok: false, why: 'unknown' };
   }
-  /* وضعیت لینک مالی خریدهای واقعی یک درخواست — گارد بایگانی + UI */
+  /* وضعیت لینک مالی خریدهای واقعی یک درخواست — گارد بایگانی + UI
+     v34.39.27: خرید اطلاع‌رسانی (financeLinked===false) از شمول گارد خارج است — فقط قیمت قلم + تامین‌کننده است، نباید بایگانی را ببندد.
+  */
   window.ptfRealBuyFinanceStatus = function (inqNo) {
-    var out = { total: 0, linked: 0, unlinked: 0, unlinkedAmount: 0, orphanSup: 0, items: [] };
+    var out = { total: 0, linked: 0, unlinked: 0, unlinkedAmount: 0, orphanSup: 0, items: [], excluded: 0 };
     if (!inqNo) return out;
+    var sfInvoicesActiveByCd = {};
+    try{
+      var sfRaw = (typeof getData==='function' ? getData('ptf_crm_supplier_finance') : null);
+      var sfInvs = (sfRaw && sfRaw.invoices) ? sfRaw.invoices : [];
+      sfInvs.forEach(function(inv){ if(inv && inv.status!=='void') sfInvoicesActiveByCd[inv.cd]=true; });
+    }catch(e){}
     try {
       (getData('ptf_crm_buycmp') || []).forEach(function (c) {
         if (!c || c.inqNo !== inqNo || c.mergedInto) return;
         (c.purchases || []).forEach(function (p) {
           if (!p || !p.cd) return;
+          // اطلاع‌رسانی خالص — از گارد بایگانی و KPI خارج
+          if(p.financeLinked===false){
+            out.excluded++;
+            return;
+          }
           var item = (c.items || [])[p.idx] || {};
           var amt = (+p.price || 0) * (+p.qty || +item.qty || 1);
           out.total++;
-          var linked = !!(p.financeLinked || p.supplierInvoiceCd);
+          // linked اگر financeLinked true یا supplierInvoiceCd فعال
+          var linked = false;
+          if(p.supplierInvoiceCd && sfInvoicesActiveByCd[p.supplierInvoiceCd]) linked = true;
+          else if(p.financeLinked) linked = true;
           if (linked) out.linked++;
           else {
             out.unlinked++;
@@ -413,16 +429,25 @@
     } catch (eFs) {}
     return out;
   };
-  /* v34.39.16 (REALBUY-FINANCE-GAP): خلاصهٔ سراسری فاصلهٔ لینک مالی خرید واقعی —
-     فقط‌خواندنی برای KPI کیفیت/تراز. inqNo اختیاری برای فیلتر یک پرونده. */
+  /* v34.39.26 (REALBUY-FINANCE-GAP-FIX): خلاصهٔ سراسری فاصلهٔ لینک مالی خرید واقعی —
+     اصلاح: خریدهایی که کاربر صراحتاً گفته «فقط بهای تمام‌شده» (financeLinked=false)
+     دیگر به‌عنوان مغایرت شمرده نمی‌شوند. همچنین خریدهایی که به فاکتور واقعی لینک
+     شده‌اند (supplierInvoiceCd فعال) به‌عنوان linked شمرده می‌شوند، نه unlinked.
+  */
   window.ptfRealBuyFinanceGap = function (opts) {
     opts = opts || {};
     var onlyInq = opts.inqNo ? String(opts.inqNo) : '';
     var out = {
       total: 0, linked: 0, unlinked: 0, unlinkedAmount: 0, linkedAmount: 0,
-      orphanSup: 0, inqCount: 0, coveragePct: 100, cases: [], items: []
+      orphanSup: 0, inqCount: 0, coveragePct: 100, cases: [], items: [], excluded:0
     };
     var byInq = {};
+    var sfInvoicesActiveByCd = {};
+    try{
+      var sfRaw = (typeof getData==='function' ? getData('ptf_crm_supplier_finance') : null);
+      var sfInvs = (sfRaw && sfRaw.invoices) ? sfRaw.invoices : [];
+      sfInvs.forEach(function(inv){ if(inv && inv.status!=='void') sfInvoicesActiveByCd[inv.cd]=true; });
+    }catch(e){}
     try {
       (getData('ptf_crm_buycmp') || []).forEach(function (c) {
         if (!c || c.mergedInto) return;
@@ -430,10 +455,27 @@
         var inq = String(c.inqNo || '') || '(بدون درخواست)';
         (c.purchases || []).forEach(function (p) {
           if (!p || !p.cd) return;
+          // اگر کاربر صراحتاً گفته فقط بهای تمام‌شده، از محاسبه GAP خارج کن
+          if(p.financeLinked===false){
+            out.excluded++;
+            return;
+          }
           var item = (c.items || [])[p.idx] || {};
           var amt = (+p.price || 0) * (+p.qty || +item.qty || 1);
+          // linked اگر: financeLinked true + (supplierInvoiceCd فعال یا فاکتور PUR- فعال)
+          var hasActiveLink = false;
+          if(p.supplierInvoiceCd && sfInvoicesActiveByCd[p.supplierInvoiceCd]) hasActiveLink = true;
+          else if(p.financeLinked) hasActiveLink = true; // قبلاً PUR- فعال بوده (حتی اگر الان void شده ولی لینک واقعی دارد، بالا هندل می‌شود)
+          // برای دقت بیشتر: اگر supplierInvoiceCd دارد ولی آن invoice فعال نیست و هیچ PUR- فعالی هم ندارد → unlinked
+          // ولی اگر supplierInvoiceCd دارد و فعال است → linked
+          var linked = false;
+          if(p.supplierInvoiceCd && sfInvoicesActiveByCd[p.supplierInvoiceCd]) linked = true;
+          else if(p.financeLinked && !p.supplierInvoiceCd) linked = true; // حالت قدیمی PUR- فعال
+          else if(p.financeLinked && p.supplierInvoiceCd) linked = true; // به فاکتور واقعی لینک شده
+          // اگر financeLinked true ولی supplierInvoiceCd ندارد و هیچ invoice فعالی با sourcePurchaseCd ندارد،
+          // در audit به‌عنوان safe می‌آید، ولی اینجا هم unlinked می‌ماند تا KPI درست بماند
+
           out.total++;
-          var linked = !!(p.financeLinked || p.supplierInvoiceCd);
           if (!byInq[inq]) byInq[inq] = { inqNo: inq, total: 0, linked: 0, unlinked: 0, unlinkedAmount: 0, orphanSup: 0 };
           byInq[inq].total++;
           if (linked) {
@@ -463,7 +505,7 @@
       out.cases.sort(function (a, b) { return (b.unlinkedAmount || 0) - (a.unlinkedAmount || 0); });
       out.inqCount = out.cases.length;
       out.coveragePct = out.total ? Math.round((out.linked / out.total) * 1000) / 10 : 100;
-    } catch (eG) {}
+    } catch (eG) { console.error('gap calc', eG); }
     return out;
   };
   function rbDeleteCloudKeys(keys) {
@@ -601,9 +643,10 @@
      ارز/نرخ مشترک اختیاری؛ جمع کل زنده؛ ردیف خالی رد می‌شود (ثبت جزئی مجاز).
      هسته قابل تست: هر ردیف از همان مسیر ثبت purchases/payables موجود می‌گذرد. */
   window.cmpBulkBuyCommit = function (id, rows, shared) {
-    /* rows: [{idx, price, sup, pay}] — price=واحد به ارز shared.cur؛ shared: {cur, rate, dueISO} */
+    /* rows: [{idx, price, sup, pay}] — price=واحد به ارز shared.cur؛ shared: {cur, rate, dueISO, noFinance} */
     if (!canBuy()) return { ok: false, why: 'perm' };
     shared = shared || {};
+    var noFinance = shared.noFinance !== false; // پیش‌فرض اختیاری/اطلاع‌رسانی — در حساب نرود
     var list = cmpAll();
     var c2 = list.filter(function (x) { return x.id === id; })[0];
     if (!c2) return { ok: false, why: 'nocmp' };
@@ -614,8 +657,16 @@
     (rows || []).forEach(function (rw) {
       var price = (typeof ptfNum === 'function') ? ptfNum(rw.price) : (+String(rw.price || '').replace(/[^\d.-]/g, '') || 0), name=String(rw.sup||'').trim();
       if (!price || !name || supplierMap[name]) return;
-      /* v34.39.14: cash و credit هر دو هویت تأمین می‌خواهند */
-      var resolved=_requireCashSupplier(name, rw.pay || 'cash'); if(!resolved.ok)supplierInvalid=name; else supplierMap[name]=resolved.supplier;
+      /* v34.39.27: اگر فقط اطلاع‌رسانی است، هویت تامین‌کننده لازم نیست سخت‌گیرانه باشد — ولی اگر هست چک کن */
+      if(!noFinance){
+        var resolved=_requireCashSupplier(name, rw.pay || 'cash'); if(!resolved.ok)supplierInvalid=name; else supplierMap[name]=resolved.supplier;
+      } else {
+        // اطلاع‌رسانی: سعی کن تامین‌کننده را پیدا کنی ولی اگر نشد هم اشکال ندارد
+        try{
+          var r2 = _requireCashSupplier(name, rw.pay || 'cash');
+          if(r2 && r2.ok) supplierMap[name]=r2.supplier;
+        }catch(e){}
+      }
     });
     if (supplierInvalid) return { ok:false, why:'supplier_identity', supplier:supplierInvalid };
     var done = 0, skipped = 0, total = 0, newPurchases = [];
@@ -630,27 +681,29 @@
       var pcd = genCode('PUR');
       c2.purchases = c2.purchases || [];
       var srcItem = (c2.items || [])[idx] || {};
-      var purchase={ cd: pcd, idx: idx, qty: +srcItem.qty || 1, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: sup, supplierCd: supplierMap[sup] ? supplierMap[sup].cd : '', price: buyPrice, cur: 'IRR', srcCur: cur !== 'IRR' ? cur : '', priceFx: priceFx, rate: cur !== 'IRR' ? rate : 0, pay: rw.pay || 'cash', dueISO: shared.dueISO || '', dueNote: '', manual: true, bulk: true, t: faDate(), by: curSession().name, files: [] };
+      var purchase={ cd: pcd, idx: idx, qty: +srcItem.qty || 1, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: sup, supplierCd: supplierMap[sup] ? supplierMap[sup].cd : '', price: buyPrice, cur: 'IRR', srcCur: cur !== 'IRR' ? cur : '', priceFx: priceFx, rate: cur !== 'IRR' ? rate : 0, pay: rw.pay || 'cash', dueISO: shared.dueISO || '', dueNote: '', manual: true, bulk: true, t: faDate(), by: curSession().name, files: [], financeLinked: !noFinance, noFinanceReason: noFinance ? 'فقط اطلاع‌رسانی — گروهی' : '' };
       c2.purchases.push(purchase); newPurchases.push(purchase);
-      /* خرید نقدی پس از ذخیره operational، با سند+پرداخت به زیر‌دفتر منتقل می‌شود. */
+      /* خرید واقعی به‌صورت پیش‌فرض فقط اطلاع‌رسانی است — در حساب تامین‌کننده نمی‌رود */
       total += buyPrice * (+(c2.items[idx] || {}).qty || 1);
       done++;
     });
     if (done) {
       cmpSave(list);
       var linkedCash=[], financeFailed=false;
-      /* v34.39.14: همه خریدها (نقدی/اعتباری) به زیر‌دفتر */
-      newPurchases.forEach(function(p){if(financeFailed)return;var fr=typeof rbPostCashSupplierLedger==='function'?rbPostCashSupplierLedger(c2,p,(c2.items||[])[p.idx]||{}):{ok:true,skipped:true};if(!fr.ok)financeFailed=true;else linkedCash.push(p.cd);});
-      if(financeFailed){
-        c2.purchases=(c2.purchases||[]).filter(function(p){return !newPurchases.some(function(n){return n.cd===p.cd;});});
-        linkedCash.forEach(function(cd){if(typeof window.slVoidRealPurchaseFinance==='function')window.slVoidRealPurchaseFinance(cd,'بازگشت ثبت گروهی ناموفق');});
-        cmpSave(list); alert('⛔ ثبت گروهی بازگردانده شد چون گردش یکی از خریدهای واقعی در حساب تأمین ثبت نشد.');
-        return {ok:false,why:'supplier_finance'};
+      if(!noFinance){
+        /* v34.39.27: فقط اگر کاربر صراحتاً خواسته در حساب برود */
+        newPurchases.forEach(function(p){if(financeFailed)return;var fr=typeof rbPostCashSupplierLedger==='function'?rbPostCashSupplierLedger(c2,p,(c2.items||[])[p.idx]||{}):{ok:true,skipped:true};if(!fr.ok)financeFailed=true;else linkedCash.push(p.cd);});
+        if(financeFailed){
+          c2.purchases=(c2.purchases||[]).filter(function(p){return !newPurchases.some(function(n){return n.cd===p.cd;});});
+          linkedCash.forEach(function(cd){if(typeof window.slVoidRealPurchaseFinance==='function')window.slVoidRealPurchaseFinance(cd,'بازگشت ثبت گروهی ناموفق');});
+          cmpSave(list); alert('⛔ ثبت گروهی بازگردانده شد چون گردش یکی از خریدهای واقعی در حساب تأمین ثبت نشد.');
+          return {ok:false,why:'supplier_finance'};
+        }
+        cmpSave(list); /* شناسه فاکتور/پرداخت ایجادشده روی purchase نیز پایدار شود */
       }
-      cmpSave(list); /* شناسه فاکتور/پرداخت ایجادشده روی purchase نیز پایدار شود */
       if (typeof ptfRealBuyEnsureStatus === 'function') ptfRealBuyEnsureStatus(c2.inqNo); /* BUG-029: گذار st8 */
-      try { audit('قیمت خرید', 'ثبت گروهی خرید واقعی (US-441): ' + done + ' قلم — جمع ' + total.toLocaleString('fa-IR') + ' ریال' + (cur !== 'IRR' ? ' (تسعیر ' + cur + '×' + rate.toLocaleString('fa-IR') + ')' : '') + ' — ' + c2.inqNo, c2.id); } catch (e) {}
-      if (typeof notify === 'function') { try { notify({ toRoles: SENIOR_ROLES, title: '🛒 ثبت گروهی خرید: ' + done + ' قلم درخواست ' + c2.inqNo + ' — جمع ' + total.toLocaleString('fa-IR') + ' ریال', kind: 'buyq', channels: ['cart'], link: { panel: 'deals' } }); } catch (e2) {} }
+      try { audit('قیمت خرید', 'ثبت گروهی خرید واقعی (US-441): ' + done + ' قلم — جمع ' + total.toLocaleString('fa-IR') + ' ریال' + (cur !== 'IRR' ? ' (تسعیر ' + cur + '×' + rate.toLocaleString('fa-IR') + ')' : '') + (noFinance ? ' — فقط اطلاع‌رسانی (بدون حساب تامین)' : ' — با حساب تامین') + ' — ' + c2.inqNo, c2.id); } catch (e) {}
+      if (typeof notify === 'function') { try { notify({ toRoles: SENIOR_ROLES, title: '🛒 ثبت گروهی خرید: ' + done + ' قلم درخواست ' + c2.inqNo + ' — جمع ' + total.toLocaleString('fa-IR') + ' ریال' + (noFinance ? ' (اطلاع‌رسانی)' : ''), kind: 'buyq', channels: ['cart'], link: { panel: 'deals' } }); } catch (e2) {} }
     }
     return { ok: true, done: done, skipped: skipped, total: total };
   };
@@ -671,11 +724,12 @@
     }).join('');
     var html = '<div class="md-b" id="blkDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:92vh;overflow:auto">' +
       '<h3>🛒 ثبت گروهی خرید واقعی — ' + escP(c.inqNo) + ' <small style="color:#64748b">(' + pend.length + ' قلم بدون خرید)</small></h3>' +
-      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">قیمت <b>واحد</b> هر قلم را جدا وارد کنید (BUG-032) — ردیف خالی ثبت نمی‌شود (ثبت جزئی مجاز). تامین‌کننده ردیف ۱ با «⚡ اعمال روی همه» تکثیر می‌شود (US-441).</div>' +
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">قیمت <b>واحد</b> هر قلم را جدا وارد کنید (BUG-032) — ردیف خالی ثبت نمی‌شود (ثبت جزئی مجاز). تامین‌کننده ردیف ۱ با «⚡ اعمال روی همه» تکثیر می‌شود (US-441).<br><b>v34.39.27:</b> به‌صورت پیش‌فرض خرید فقط اطلاع‌رسانی (قیمت قلم + تامین‌کننده) است و در حساب تامین‌کننده نمی‌رود تا دوباره‌شماری نشود.</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:end">' +
       '<div class="fld" style="margin:0"><label>ارز قیمت‌ها</label><select id="blkCur" onchange="cmpBulkTotal(\'' + ptfOnClickArg(id) + '\')" style="padding:7px;border:1px solid var(--brd);border-radius:8px"><option value="IRR">ریال (IRR)</option><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option></select></div>' +
       '<div class="fld" style="margin:0"><label>نرخ تسعیر (ریال per واحد ارز — برای ارزی الزامی)</label><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="blkRate" oninput="cmpBulkTotal(\'' + ptfOnClickArg(id) + '\')" style="width:150px;padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr"></div>' +
       '<div class="fld" style="margin:0"><label>تعهد تحویل تامین‌کننده (شمسی/اختیاری)</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('blkDueJ','') : '<input type="text" id="blkDueJ" placeholder="1405/04/19" style="padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr">') + '</div></div>' +
+      '<div style="margin:8px 0;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="blkNoFinance" checked> <b>ℹ️ فقط اطلاع‌رسانی — در حساب تامین‌کننده ثبت نشود (پیش‌فرض، جلوگیری از دوباره‌شماری)</b></label><small style="color:#92400e">اگر تیک را بردارید، برای هر قلم فاکتور خودکار PUR- در گردش تامین‌کننده ساخته می‌شود (رفتار قدیمی).</small></div>' +
       '<div class="tb2"><table style="width:100%"><thead><tr><th>قلم</th><th>قیمت واحد</th><th>تامین‌کننده</th><th>پرداخت</th></tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
       '<div id="blkTot" style="font-size:13.5px;font-weight:900;color:#0e7490;margin-top:10px;text-align:left;direction:ltr"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
@@ -715,10 +769,12 @@
     var cur = (document.getElementById('blkCur') || {}).value || 'IRR';
     var rate = (typeof ptfNum === 'function') ? ptfNum((document.getElementById('blkRate') || {}).value) : 0;
     var due = (typeof ptfJToISO === 'function') ? ptfJToISO(((document.getElementById('blkDueJ') || {}).value || '')) : (((document.getElementById('blkDueJ') || {}).value || ''));
+    var noFinEl = document.getElementById('blkNoFinance');
+    var noFinance = noFinEl ? !!noFinEl.checked : true;
     var rows = ixs.map(function (ix) {
       return { idx: ix, price: (document.getElementById('blkP' + ix) || {}).value, sup: (document.getElementById('blkS' + ix) || {}).value, pay: (document.getElementById('blkPay' + ix) || {}).value || 'cash' };
     });
-    var res = cmpBulkBuyCommit(id, rows, { cur: cur, rate: rate, dueISO: due });
+    var res = cmpBulkBuyCommit(id, rows, { cur: cur, rate: rate, dueISO: due, noFinance: noFinance });
     if (!res.ok) { alert(res.why === 'rate' ? '⛔ خرید ارزی بدون نرخ تسعیر ثبت نمی‌شود (US-412)' : res.why === 'perm' ? '⛔ دسترسی ندارید' : '⛔ ثبت نشد'); return; }
     if (!res.done) { alert('هیچ ردیف کاملی (قیمت + تامین‌کننده) وارد نشده'); return; }
     var dlg = document.getElementById('blkDlg'); if (dlg) dlg.remove();
@@ -940,7 +996,13 @@
         { id: 'dueISO', label: 'تاریخ تحویل تعهدشده تأمین‌کننده (میلادی/اختیاری)', type: 'date', gregorian: true, dir: 'ltr' },
         { id: 'dueNote', label: 'یادداشت تعهد تحویل تامین‌کننده (اختیاری)', type: 'text' },
         /* v16.6 (US-400 — ابلاغ کارفرما): نحوه پرداخت — نقدی=تسویه همان لحظه؛ غیرنقدی=بستانکاری تامین‌کننده باز می‌ماند */
-        { id: 'pay', label: 'نحوه پرداخت به تامین‌کننده', type: 'select', optionsHtml: '<option value="cash" selected>💵 نقدی (همین لحظه تسویه می‌شود)</option><option value="credit">🧾 غیرنقدی / اعتباری (بستانکاری باز — پرداخت مرحله‌ای)</option>' }
+        { id: 'pay', label: 'نحوه پرداخت به تامین‌کننده', type: 'select', optionsHtml: '<option value="cash" selected>💵 نقدی (همین لحظه تسویه می‌شود)</option><option value="credit">🧾 غیرنقدی / اعتباری (بستانکاری باز — پرداخت مرحله‌ای)</option>' },
+        /* v34.39.27 (REALBUY-OPTIONAL): خرید واقعی صرفاً اطلاع‌رسانی است — قیمت قلم و تامین‌کننده
+           به‌صورت پیش‌فرض در حساب تامین‌کننده ثبت نمی‌شود تا دوباره‌شماری نشود.
+           اگر کاربر بخواهد همین خرید نقدی فوراً در گردش تامین‌کننده بنشیند، تیک را بردارد.
+           بعداً می‌توان از «اتصال به فاکتور واقعی» آن را به فاکتور اصلی لینک کرد.
+        */
+        { id: 'noFinance', label: 'ℹ️ این خرید فقط اطلاع‌رسانی است (قیمت قلم + تامین‌کننده) — در حساب تامین‌کننده ثبت نشود. برای ثبت نقدی فوری در حساب، تیک را بردارید', type: 'checkbox', value: true }
       ],
       okText: 'ثبت خرید',
       onOk: function (v) {
@@ -971,22 +1033,40 @@
           priceFx = buyPrice;
           buyPrice = Math.round(priceFx * buyRate); /* معادل ریالی = قیمت خرید واقعی */
         }
-        var supIdentity = typeof rbRequireCashSupplier === 'function' ? rbRequireCashSupplier(supName, v.pay || 'cash') : { ok:true, supplier:{cd:''} };
-        if (!supIdentity.ok) return;
+        var noFinanceEarly = !!v.noFinance;
+        var supIdentity = { ok:true, supplier:{cd:''} };
+        if(!noFinanceEarly){
+          supIdentity = typeof rbRequireCashSupplier === 'function' ? rbRequireCashSupplier(supName, v.pay || 'cash') : { ok:true, supplier:{cd:''} };
+          if (!supIdentity.ok) return;
+        } else {
+          try{
+            var tmpId = typeof rbRequireCashSupplier === 'function' ? rbRequireCashSupplier(supName, v.pay || 'cash') : null;
+            if(tmpId && tmpId.ok) supIdentity = tmpId;
+          }catch(e){}
+        }
         var oldPurchases = (c2.purchases || []).filter(function (p) { return p.idx === idx; });
         c2.purchases = (c2.purchases || []).filter(function (p) { return p.idx !== idx; });
         var pcd = genCode('PUR');
         var srcItem = (c2.items || [])[idx] || {};
-        var purchase = { cd: pcd, idx: idx, qty: +srcItem.qty || 1, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: supName, supplierCd: supIdentity.supplier ? supIdentity.supplier.cd : '', price: buyPrice, cur: 'IRR', srcCur: buyCur !== 'IRR' ? buyCur : '', priceFx: priceFx, rate: buyCur !== 'IRR' ? buyRate : 0, pay: v.pay || 'cash', dueISO: v.dueISO || '', dueNote: v.dueNote || '', manual: v.sup === '__manual__', t: faDate(), by: curSession().name, files: [] };
+        var noFinance = noFinanceEarly;
+        var purchase = { cd: pcd, idx: idx, qty: +srcItem.qty || 1, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: supName, supplierCd: supIdentity.supplier ? supIdentity.supplier.cd : '', price: buyPrice, cur: 'IRR', srcCur: buyCur !== 'IRR' ? buyCur : '', priceFx: priceFx, rate: buyCur !== 'IRR' ? buyRate : 0, pay: v.pay || 'cash', dueISO: v.dueISO || '', dueNote: v.dueNote || '', manual: v.sup === '__manual__', t: faDate(), by: curSession().name, files: [], financeLinked: !noFinance, noFinanceReason: noFinance ? 'فقط اطلاع‌رسانی — قیمت قلم + تامین‌کننده، بدون اثر در حساب تامین‌کننده (پیش‌فرض v34.39.27)' : '' };
         c2.purchases.push(purchase);
         cmpSave(list);
-        var financeResult = typeof rbPostCashSupplierLedger === 'function' ? rbPostCashSupplierLedger(c2, purchase, srcItem) : {ok:true,skipped:true};
-        /* v34.39.14: cash و credit هر دو باید به زیر‌دفتر بروند؛ fail → rollback */
-        if (!financeResult.ok) {
-          c2.purchases = c2.purchases.filter(function (p) { return p.cd !== pcd; }).concat(oldPurchases);
-          cmpSave(list);
-          alert('⛔ ثبت خرید واقعی به‌علت ثبت‌نشدن گردش تأمین‌کننده بازگردانده شد (' + (financeResult.why || 'خطا') + ').\nتأمین‌کننده یکتا، مبلغ و اتصال مالی را بررسی و دوباره تلاش کنید.');
-          return;
+        var financeResult = {ok:true,skipped:true};
+        if(!noFinance){
+          financeResult = typeof rbPostCashSupplierLedger === 'function' ? rbPostCashSupplierLedger(c2, purchase, srcItem) : {ok:true,skipped:true};
+          /* v34.39.14: cash و credit هر دو باید به زیر‌دفتر بروند؛ fail → rollback */
+          if (!financeResult.ok) {
+            c2.purchases = c2.purchases.filter(function (p) { return p.cd !== pcd; }).concat(oldPurchases);
+            cmpSave(list);
+            alert('⛔ ثبت خرید واقعی به‌علت ثبت‌نشدن گردش تأمین‌کننده بازگردانده شد (' + (financeResult.why || 'خطا') + ').\nتأمین‌کننده یکتا، مبلغ و اتصال مالی را بررسی و دوباره تلاش کنید.');
+            return;
+          }
+        } else {
+          // اگر کاربر گفته فقط بهای تمام‌شده، هیچ فاکتور PUR- نساز
+          purchase.supplierInvoiceCd = '';
+          purchase.supplierPaymentCd = '';
+          purchase.financeLinked = false;
         }
         oldPurchases.forEach(function (p) { if (p.cd !== pcd && typeof window.slVoidRealPurchaseFinance === 'function') window.slVoidRealPurchaseFinance(p.cd, 'جایگزینی خرید واقعی'); });
         cmpSave(list);

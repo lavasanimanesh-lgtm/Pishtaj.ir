@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester665 — v34.39.24 (HOME-NIGHT-READ + Sheet-reparent)
+   tester665 — v34.39.27 (HOME-NIGHT-READ + Sheet-reparent)
    گزارش کارفرما:
      «در ویو موبایل روی دکمهٔ منو که می‌زنم فقط تار می‌شه و منو نمایش داده نمی‌شه؛
      برق دور چت هوشمند برداشته شود؛ تغییر رنگ کارت‌ها به سفید در شب نوشتهٔ برخی
@@ -99,10 +99,10 @@ T('۴.۶ نگهبان بی‌تغییری: h1، canonical، ۱۰ بخش، اعد
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   /<b>۳<\/b>/.test(idx) && /<b>۶\+<\/b>/.test(idx));
-T('۴.۷ VERSION.json = v34.39.24', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.24');
+T('۴.۷ VERSION.json = v34.39.27', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.27');
 T('۴.۸ reduce-motion: کیل‌سوئیچِ شیت هم در لایهٔ جدید',
   /@media \(prefers-reduced-motion: reduce\)\{#mainNav,#mainNav\.open\{transition:none\}\}/.test(lay));
 
-DONE('tester665-v34.39.24-night-read');
+DONE('tester665-v34.39.27-night-read');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

@@ -1287,20 +1287,66 @@
     if(!target.files.some(function(x){return x.key===f.key;})) target.files.push(f);
     save(d); return true;
   };
-  /* v34.39.14: audit/repair برای cash و credit (نه فقط نقدی) */
+  /* v34.39.26 (REALBUY-DOUBLE-COUNT-FIX): audit/repair برای cash و credit — اصلاح منطق دوباره‌شماری
+     گزارش کارفرما: خرید واقعی که فاکتور واقعی خورده و PUR- حذف شده، با ترمیم امن دوباره برمی‌گشت و
+     بدهی تامین‌کننده دوبرابر می‌شد. ریشه: audit فقط invoice فعال با sourcePurchaseCd را می‌دید؛
+     اگر کاربر PUR- را حذف (void) کرده و فاکتور واقعی با شماره اصلی ثبت کرده بود، audit آن را
+     «بدون گردش» می‌شمرد و دوباره PUR- می‌ساخت.
+     قاعده جدید:
+     - اگر برای purchaseCd یک invoice فعال با sourcePurchaseCd وجود دارد → تامین است.
+     - اگر invoice void شده با sourcePurchaseCd وجود دارد → حذف عمدی کاربر → دیگر ترمیم نشود (replaced/voided).
+     - اگر purchase.supplierInvoiceCd به یک invoice فعال (واقعی) اشاره می‌کند → تامین شده با فاکتور واقعی → ترمیم نشود.
+     - فقط مواردی که هیچ‌کدام از بالا را ندارند «safe» هستند.
+  */
   window.slCashPurchaseLedgerAudit = function (opts) {
     opts = opts || {};
     var onlyInq = opts.inqNo || '';
-    var sf=data(), invoiceByPurchase={};
-    (sf.invoices||[]).forEach(function(i){if(i.sourcePurchaseCd&&i.status!=='void')invoiceByPurchase[i.sourcePurchaseCd]=i;});
-    var missing=[],ambiguous=[];
+    var sf=data();
+    var invoiceByPurchaseActive={}, invoiceByPurchaseVoid={}, invoiceByCdActive={};
+    (sf.invoices||[]).forEach(function(i){
+      if(i.sourcePurchaseCd){
+        if(i.status!=='void') invoiceByPurchaseActive[i.sourcePurchaseCd]=i;
+        else invoiceByPurchaseVoid[i.sourcePurchaseCd]=i;
+      }
+      if(i.status!=='void') invoiceByCdActive[i.cd]=i;
+    });
+    var missing=[],ambiguous=[],replaced=[],voidedIntentional=[];
     (getData('ptf_crm_buycmp')||[]).forEach(function(c){
       if (onlyInq && c.inqNo !== onlyInq) return;
       (c.purchases||[]).forEach(function(p){
-        if(!p || !p.cd || invoiceByPurchase[p.cd]) return;
-        /* هر pay mode — credit هم باید فاکتور open داشته باشد */
+        if(!p || !p.cd) return;
+        // قبلاً با فاکتور خودکار فعال تامین شده
+        if(invoiceByPurchaseActive[p.cd]) return;
+        // قبلاً به فاکتور واقعی (غیر PUR-) لینک شده و آن فاکتور فعال است
+        if(p.supplierInvoiceCd && invoiceByCdActive[p.supplierInvoiceCd]) {
+          // اگر لینک به فاکتور واقعی است (نه PUR- خودکار) → جایگزین شده
+          var linkedInv = invoiceByCdActive[p.supplierInvoiceCd];
+          if(linkedInv && linkedInv.sourcePurchaseCd !== p.cd) {
+            replaced.push({cmpId:c.id,inqNo:c.inqNo||'',purchaseCd:p.cd,supplier:p.sup||'',linkedInvoiceCd:linkedInv.cd,linkedInvoiceNo:linkedInv.no||linkedInv.cd,reason:'linked-to-real-invoice'});
+            return;
+          }
+          // اگر لینک به همان PUR- فعال بود که بالا هندل شد، اینجا نمی‌رسد
+          return;
+        }
+        // کاربر PUR- را حذف کرده — حذف عمدی، ترمیم نشود
+        if(invoiceByPurchaseVoid[p.cd]) {
+          var vInv = invoiceByPurchaseVoid[p.cd];
+          var vr = String(vInv.voidReason||'').toLowerCase();
+          // اگر دلیل حذف شامل «جایگزینی» یا «فاکتور واقعی» یا «حذف» باشد → عمدی
+          var intentional = /جایگزین|فاکتور واقعی|حذف عمدی|کاربر|real invoice/i.test(vr) || true; // هر void را عمدی فرض کن تا دوباره‌سازی نشود
+          if(intentional){
+            voidedIntentional.push({cmpId:c.id,inqNo:c.inqNo||'',purchaseCd:p.cd,supplier:p.sup||'',voidReason:vInv.voidReason||'',voidAt:vInv.voidAt||'',amount:(+p.price||0)*((+p.qty||1))});
+            return;
+          }
+        }
+        // اگر purchase به‌صراحت financeLinked=false شده (کاربر گفته حساب تامین‌کننده ملاک نیست)
+        if(p.financeLinked===false && !p.supplierInvoiceCd){
+          replaced.push({cmpId:c.id,inqNo:c.inqNo||'',purchaseCd:p.cd,supplier:p.sup||'',reason:'financeLinked=false'});
+          return;
+        }
+        // بررسی تامین‌کننده
         var payMode = (p.pay === 'credit') ? 'credit' : 'cash';
-        var resolved=p.supplierCd?{ok:!!supplier(p.supplierCd),supplier:supplier(p.supplierCd)}:window.slResolveSupplierByName(p.sup);
+        var resolved=p.supplierCd?{ok:!!supplier(p.supplierCd),supplier:supplier(p.supplierCd)}: (typeof window.slResolveSupplierByName==='function' ? window.slResolveSupplierByName(p.sup) : {ok:false});
         var item=(c.items||[])[p.idx]||{};
         var row={cmpId:c.id,inqNo:c.inqNo||'',purchaseCd:p.cd,supplier:p.sup||'',amount:(+p.price||0)*(+p.qty||+item.qty||1),item:item.nm||item.name||item.desc||'',pay:payMode,
           unitPrice:+p.price||0, qty:+p.qty||+item.qty||1, files:p.files||[], sourceCurrency:p.srcCur||'', sourceUnitPrice:+p.priceFx||0, sourceFxRate:+p.rate||0, dateFa:p.t||''};
@@ -1308,21 +1354,53 @@
         else{row.why=resolved&&resolved.why||'missing';ambiguous.push(row);}
       });
     });
-    return {safe:missing,ambiguous:ambiguous};
+    return {safe:missing,ambiguous:ambiguous,replaced:replaced,voided:voidedIntentional,totalSafe:missing.length,totalReplaced:replaced.length,totalVoided:voidedIntentional.length};
   };
+  /* v34.39.26: ترمیم امن با پیش‌نمایش — دیگر رکوردهای حذف‌شده عمدی را برنمی‌گرداند */
   window.slRepairCashPurchaseLedger = function (opts) {
     if(!canWrite()){alert('⛔ دسترسی ثبت زیر‌دفتر تأمین ندارید');return;}
     opts = opts || {};
     var report=window.slCashPurchaseLedgerAudit(opts);
-    if(!report.safe.length){
-      alert(report.ambiguous.length
-        ? ('خرید قابل ترمیم خودکار نیست؛ ' + report.ambiguous.length + ' نام تأمین‌کننده مفقود/مبهم است.')
-        : 'همه خریدهای واقعی (نقدی/اعتباری) در گردش تأمین‌کنندگان ثبت شده‌اند.');
-      return { fixed: 0, failed: 0, ambiguous: report.ambiguous.length };
+    var totalSafe = (report.safe||[]).length;
+    var totalReplaced = (report.replaced||[]).length;
+    var totalVoided = (report.voided||[]).length;
+    var totalAmb = (report.ambiguous||[]).length;
+    // اگر هیچ مورد قابل ترمیم نیست، گزارش کامل بده
+    if(!totalSafe){
+      var msg = '✅ موردی برای ترمیم امن وجود ندارد.\n';
+      if(totalReplaced) msg += '• ' + totalReplaced + ' خرید قبلاً با فاکتور واقعی جایگزین شده (حذف عمدی PUR-).\n';
+      if(totalVoided) msg += '• ' + totalVoided + ' خرید قبلاً حذف شده و به‌عنوان حذف عمدی شناخته شد.\n';
+      if(totalAmb) msg += '• ' + totalAmb + ' خرید نام تأمین‌کننده مبهم دارد.\n';
+      if(!totalReplaced && !totalVoided && !totalAmb) msg += 'همه خریدهای واقعی در گردش تأمین‌کنندگان ثبت شده‌اند.';
+      alert(msg);
+      return { fixed: 0, failed: 0, ambiguous: totalAmb, replaced: totalReplaced, voided: totalVoided };
     }
-    var scope = opts.inqNo ? (' برای درخواست ' + opts.inqNo) : '';
-    if(!opts.silent && !confirm(report.safe.length + ' خرید واقعی بدون گردش' + scope + ' شناسایی شد (نقدی و اعتباری).\nفقط موارد دارای تأمین‌کننده یکتای قطعی ترمیم شوند؟\nموارد مبهم: ' + report.ambiguous.length)) {
-      return { fixed: 0, failed: 0, ambiguous: report.ambiguous.length, cancelled: true };
+    // پیش‌نمایش مودال به جای confirm ساده
+    if(!opts.silent){
+      var scope = opts.inqNo ? (' برای درخواست ' + opts.inqNo) : '';
+      var safeRows = report.safe.slice(0,30).map(function(r){ return '<tr><td>'+escP(r.inqNo||'')+'</td><td>'+escP(r.item||'')+'</td><td>'+escP(r.supplier||'')+'</td><td style="direction:ltr">'+(+r.amount||0).toLocaleString('fa-IR')+'</td><td>'+escP(r.pay||'')+'</td></tr>'; }).join('');
+      var replacedRows = report.replaced.slice(0,20).map(function(r){ return '<tr><td>'+escP(r.inqNo||'')+'</td><td>'+escP(r.purchaseCd||'')+'</td><td>'+escP(r.linkedInvoiceNo||r.reason||'')+'</td></tr>'; }).join('');
+      var voidedRows = report.voided.slice(0,20).map(function(r){ return '<tr><td>'+escP(r.inqNo||'')+'</td><td>'+escP(r.purchaseCd||'')+'</td><td>'+escP(r.voidReason||'')+'</td></tr>'; }).join('');
+      var html = '<div class="md-b" id="slRepairDlg" style="display:grid;z-index:4000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:92vh;overflow:auto">'
+        + '<h3>🔧 ترمیم امن گردش خرید واقعی'+escP(scope)+'</h3>'
+        + '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:9px 11px;margin-bottom:10px;font-size:12px;line-height:1.9">'
+        + 'این ابزار فقط خریدهایی را که <b>هیچ فاکتور فعالی ندارند</b> ترمیم می‌کند.<br>'
+        + '<b>اصلاح v34.39.26:</b> اگر قبلاً فاکتور PUR- را حذف کرده‌اید و فاکتور واقعی ثبت کرده‌اید، آن خرید دیگر ترمیم نمی‌شود تا دوباره‌شماری نشود.<br>'
+        + '<b>قابل ترمیم:</b> '+totalSafe+' | <b>جایگزین‌شده با فاکتور واقعی:</b> '+totalReplaced+' | <b>حذف عمدی:</b> '+totalVoided+' | <b>مبهم:</b> '+totalAmb
+        + '</div>'
+        + '<h4>✅ قابل ترمیم ('+totalSafe+')</h4><div class="tb2"><table><thead><tr><th>درخواست</th><th>قلم</th><th>تامین‌کننده</th><th>مبلغ</th><th>نوع</th></tr></thead><tbody>'+safeRows+'</tbody></table></div>'
+        + (totalSafe>30 ? '<small style="color:#64748b">۳۰ مورد اول نمایش داده شد.</small>' : '')
+        + (totalReplaced ? '<h4 style="margin-top:12px">🔗 جایگزین‌شده با فاکتور واقعی ('+totalReplaced+') — ترمیم نمی‌شود</h4><div class="tb2"><table><thead><tr><th>درخواست</th><th>خرید</th><th>فاکتور واقعی</th></tr></thead><tbody>'+replacedRows+'</tbody></table></div>' : '')
+        + (totalVoided ? '<h4 style="margin-top:12px">🗑 حذف عمدی ('+totalVoided+') — ترمیم نمی‌شود</h4><div class="tb2"><table><thead><tr><th>درخواست</th><th>خرید</th><th>دلیل حذف</th></tr></thead><tbody>'+voidedRows+'</tbody></table></div>' : '')
+        + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="bt bt-o" onclick="document.getElementById(\'slRepairDlg\').remove()">انصراف</button><button class="bt" id="slRepairConfirmBtn">تایید ترمیم '+totalSafe+' مورد</button></div>'
+        + '</div></div>';
+      document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+      document.getElementById('slRepairConfirmBtn').onclick = function(){
+        document.getElementById('slRepairDlg').remove();
+        opts.silent = true;
+        window.slRepairCashPurchaseLedger(opts);
+      };
+      return { fixed: 0, failed: 0, ambiguous: totalAmb, replaced: totalReplaced, voided: totalVoided, preview: true };
     }
     var cmps=getData('ptf_crm_buycmp'),fixed=0,failed=0;
     report.safe.forEach(function(row){
@@ -1348,13 +1426,103 @@
       } else failed++;
     });
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', cmps, { reason: 'w4' }); else setData('ptf_crm_buycmp', cmps);
-    try{audit('حساب تامین','ترمیم گردش خرید واقعی: '+fixed+' موفق، '+failed+' ناموفق، '+report.ambiguous.length+' مبهم','REALBUY-FINANCE-REPAIR');}catch(e){}
-    if (!opts.silent) alert('ترمیم انجام شد: '+fixed+' خرید\nناموفق: '+failed+'\nنیازمند تعیین هویت تأمین‌کننده: '+report.ambiguous.length);
+    try{audit('حساب تامین','ترمیم گردش خرید واقعی: '+fixed+' موفق، '+failed+' ناموفق، '+report.ambiguous.length+' مبهم، '+totalReplaced+' جایگزین‌شده، '+totalVoided+' حذف عمدی','REALBUY-FINANCE-REPAIR');}catch(e){}
+    if (!opts.silent) alert('ترمیم انجام شد: '+fixed+' خرید\nناموفق: '+failed+'\nنیازمند تعیین هویت تأمین‌کننده: '+report.ambiguous.length+'\nجایگزین‌شده (ترمیم نشد): '+totalReplaced+'\nحذف عمدی (ترمیم نشد): '+totalVoided);
     if(typeof window.slFinanceRowsRender==='function')window.slFinanceRowsRender();
-    return { fixed: fixed, failed: failed, ambiguous: report.ambiguous.length };
+    if(typeof window.ptfDataQualityRender==='function')window.ptfDataQualityRender();
+    return { fixed: fixed, failed: failed, ambiguous: report.ambiguous.length, replaced: totalReplaced, voided: totalVoided };
   };
   /* alias شفاف */
   window.slRepairRealPurchaseLedger = window.slRepairCashPurchaseLedger;
+
+  /* v34.39.26: اتصال خرید واقعی به فاکتور واقعی — جلوگیری از دوباره‌شماری
+     کاربر فاکتور واقعی با شماره اصلی دارد و نمی‌خواهد PUR- خودکار در حساب بماند.
+     این تابع PUR- را void می‌کند و purchase را به فاکتور واقعی لینک می‌کند.
+  */
+  window.ptfRealBuyLinkToRealInvoice = function(purchaseCd, inqNo){
+    if(!purchaseCd){ alert('کد خرید نامعتبر است'); return; }
+    var sf = data();
+    var activeInvoices = (sf.invoices||[]).filter(function(i){ return i.status!=='void'; });
+    // فاکتورهای واقعی (نه PUR- خودکار) را پیشنهاد بده
+    var realInvoices = activeInvoices.filter(function(i){ return !i.sourcePurchaseCd || String(i.no||'').indexOf('PUR-')!==0; });
+    if(!realInvoices.length){
+      alert('هیچ فاکتور واقعی فعالی برای اتصال وجود ندارد. ابتدا فاکتور خرید با شماره اصلی را ثبت کنید.');
+      return;
+    }
+    var opts = realInvoices.slice(0,100).map(function(inv){
+      var sup = supplier(inv.supplierCd);
+      var supName = sup ? sup.co : inv.supName||'';
+      return '<option value="'+escP(inv.cd)+'">'+escP(inv.no||inv.cd)+' — '+escP(supName)+' — '+(+inv.amount||0).toLocaleString('fa-IR')+' '+(inv.cur||'IRR')+' — '+escP(inv.dateFa||inv.dateISO||'')+'</option>';
+    }).join('');
+    var html = '<div class="md-b" id="rbLinkDlg" style="display:grid;z-index:4100" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">'
+      + '<h3>🔗 اتصال خرید واقعی به فاکتور واقعی</h3>'
+      + '<div style="font-size:12px;color:#475569;line-height:1.9;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;margin-bottom:10px">'
+      + 'خرید <b>'+escP(purchaseCd)+'</b> '+(inqNo ? 'از درخواست <b>'+escP(inqNo)+'</b> ' : '')+'به کدام فاکتور واقعی متصل شود؟<br>'
+      + 'با این کار فاکتور خودکار PUR- مربوطه ابطال و از حساب تامین‌کننده حذف می‌شود و فقط فاکتور واقعی مبنای بدهی می‌ماند — از دوباره‌شماری جلوگیری می‌شود.'
+      + '</div>'
+      + '<div class="fld"><label>فاکتور واقعی مقصد *</label><select id="rbLinkInvSel">'+opts+'</select></div>'
+      + '<div class="fld"><label>یادداشت (اختیاری)</label><input id="rbLinkNote" placeholder="جایگزینی PUR- با فاکتور واقعی"></div>'
+      + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="document.getElementById(\'rbLinkDlg\').remove()">انصراف</button><button class="bt" onclick="ptfRealBuyLinkToRealInvoiceConfirm(\''+ptfOnClickArg(purchaseCd)+'\')">تایید اتصال</button></div>'
+      + '</div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  window.ptfRealBuyLinkToRealInvoiceConfirm = function(purchaseCd){
+    var sel = document.getElementById('rbLinkInvSel');
+    var note = (document.getElementById('rbLinkNote')||{}).value||'';
+    var targetCd = sel ? sel.value : '';
+    if(!targetCd){ alert('فاکتور مقصد را انتخاب کنید'); return; }
+    var sf = data();
+    var targetInv = (sf.invoices||[]).filter(function(i){ return i.cd===targetCd && i.status!=='void'; })[0];
+    if(!targetInv){ alert('فاکتور مقصد یافت نشد'); return; }
+    // buycmp را پیدا و لینک کن
+    var cmps = getData('ptf_crm_buycmp')||[];
+    var found = false;
+    cmps.forEach(function(c){
+      (c.purchases||[]).forEach(function(p){
+        if(p.cd===purchaseCd){
+          p.supplierInvoiceCd = targetCd;
+          p.financeLinked = true;
+          p.linkedToRealInvoice = true;
+          p.linkedAt = (typeof faDateTime==='function'?faDateTime():'');
+          p.linkNote = note||'اتصال به فاکتور واقعی '+targetInv.no;
+          found = true;
+        }
+      });
+    });
+    if(!found){ alert('خرید در buycmp پیدا نشد'); return; }
+    // PUR- خودکار را void کن
+    var voided = 0;
+    (sf.invoices||[]).forEach(function(i){
+      if(i.sourcePurchaseCd===purchaseCd && i.status!=='void'){
+        i.status='void';
+        i.voidReason = 'جایگزینی با فاکتور واقعی '+targetInv.no+' — '+note;
+        i.voidAt = (typeof faDateTime==='function'?faDateTime():'');
+        i.replacedBy = targetCd;
+        voided++;
+      }
+    });
+    (sf.payments||[]).forEach(function(p){
+      if(p.sourcePurchaseCd===purchaseCd && p.status!=='void'){
+        p.status='void';
+        p.voidReason = 'جایگزینی با فاکتور واقعی '+targetInv.no+' — '+note;
+        p.voidAt = (typeof faDateTime==='function'?faDateTime():'');
+        p.replacedBy = targetCd;
+        voided++;
+      }
+    });
+    save(sf);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', cmps, { reason: 'realbuy-link-real' }); else setData('ptf_crm_buycmp', cmps);
+    try{ audit('حساب تامین','اتصال خرید واقعی '+purchaseCd+' به فاکتور واقعی '+targetInv.no+' — '+voided+' رکورد PUR- ابطال شد', purchaseCd); }catch(e){}
+    var dlg = document.getElementById('rbLinkDlg'); if(dlg) dlg.remove();
+    alert('✅ اتصال انجام شد: خرید '+purchaseCd+' به فاکتور '+targetInv.no+' متصل شد و '+voided+' رکورد PUR- خودکار ابطال شد. دیگر در ترمیم امن برنمی‌گردد.');
+    if(typeof window.slFinanceRowsRender==='function') window.slFinanceRowsRender();
+    if(typeof window.ptfDataQualityRender==='function') window.ptfDataQualityRender();
+    if(typeof window.ptfRealBuyFinanceGap==='function'){
+      var g = window.ptfRealBuyFinanceGap();
+      console.log('gap after link', g);
+    }
+  };
+
   var _slDiag278=window.slChequeDiag;window.slChequeDiag=function(){_slDiag278();var no=((document.getElementById('slChkDiag')||{}).value||'').trim(),c=getData('ptf_crm_cheques').filter(function(x){return String(x.sayad||x.no||'')===no;})[0],o=document.getElementById('slChkDiagOut');if(c&&o){var active=c.ownership==='company'&&c.st==='open'&&c.kind!=='guarantee';o.innerHTML+= '<div style="font-size:12px">ورود به نقدینگی شرکت: <b>'+ (active?'بله':'خیر')+'</b></div>';}};
 
 
