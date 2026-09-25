@@ -185,6 +185,8 @@
      اگر دستگاه دیگری بعد از ما نوشته باشد، سرور نوشتن کورکورانه را رد و نسخه خودش را
      برمی‌گرداند تا اینجا با ptfSmartMerge ادغام و دوباره ارسال شود — رکورد هیچ‌کس گم نمی‌شود. */
   function krevs() { try { return JSON.parse(localStorage.getItem('ptf_sync_krevs') || '{}'); } catch (e) { return {}; } }
+  /* v34.39.31: تشخیص سینک تماس باید همین نقشه را از لایهٔ داده بخواند، نه localStorage مستقیم (A10). */
+  window.ptfSyncKrevs = krevs;
   function saveKrevs(m) { try { localStorage.setItem('ptf_sync_krevs', JSON.stringify(m)); } catch (e) {} }
   function applyKrevs(newOnes) {
     if (!newOnes) return;

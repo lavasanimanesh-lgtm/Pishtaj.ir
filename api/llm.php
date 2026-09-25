@@ -987,6 +987,7 @@ switch ($action) {
     case 'seo_intlinks':
     case 'seo_product':
     case 'seo_clusters':
+    case 'seo_gsc_report':
         if (!in_array($llmRole, ['admin', 'chairman', 'ceo', 'commercial'], true)) {
             http_response_code(403);
             echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
@@ -1108,6 +1109,30 @@ switch ($action) {
                 . 'Reply ONLY valid JSON: {"clusters":[{"topic":"...","action":"new|optimize","why":"...","queries":["..."],"target":"<existing path for optimize or empty>"}]}';
             $user = "کلمات جست‌وجو:\n$qt\n\nصفحات موجود:\n$pt";
             out_json(llm_call_json($cfg, $sys, $user, null, null, 2400)); /* v34.36.2: salvage+retry */
+            break;
+        }
+
+        if ($action === 'seo_gsc_report') {
+            /* v34.39.31 (GSC-AI-REPORT): تحلیل ساختاریافتهٔ دیجست سرچ کنسول —
+               ورودی = همان متنی که در پیوست گزارش نهایی می‌نشیند؛ خروجی JSON با
+               یافته‌های مبتنی بر شاهدِ عددی. هر اقدام باید به صفحه/کوئریِ مشخصِ
+               همان داده ارجاع بدهد — مشاورهٔ کلی ممنوع. */
+            $digest = trim((string)($in['digest'] ?? ''));
+            if ($digest === '') { echo json_encode(['ok' => false, 'error' => 'دادهٔ سرچ کنسول (digest) لازم است'], JSON_UNESCAPED_UNICODE); exit; }
+            if (mb_strlen($digest, 'UTF-8') > 24000) $digest = mb_substr($digest, 0, 24000, 'UTF-8');
+            $sys = $SEO_RULES
+                . 'Task: you are a senior technical SEO analyst. You receive a Google Search Console digest of pishtaj.ir '
+                . '(Iranian industrial supplier: piping, valves, flanges, instrumentation for oil/gas/petrochemical projects). '
+                . 'Persian/Latin mixed queries are normal. Diagnose from the DATA ONLY: CTR-vs-position anomalies (e.g. band 1-3 with CTR far below ~15-30% = title/snippet problem), '
+                . 'high-impression zero-click queries (intent or content mismatch), falling/lost queries (ranking loss or cannibalization), '
+                . 'zero-click pages (thin content or noindex risk), coverage gap (sitemap_total vs with_data = indexing problem), '
+                . 'brand dependency (brand share of clicks), device imbalance. '
+                . 'EVERY finding must cite exact numbers, queries and URLs from the digest as evidence, and every action must name the specific page or query to change. '
+                . 'No generic advice (no «محتوای باکیفیت تولید کنید»). Be decisive and prioritized. '
+                . 'Reply ONLY valid JSON: {"summary":"...","health_score":0-100,"findings":[{"title":"...","severity":"critical|high|medium|low","evidence":"...","action":"...","impact":"..."}],"quick_wins":[{"what":"...","why":"...","how":"..."}],"next_steps":["..."],"content_gaps":["..."]}. '
+                . 'findings: 3-7 items ordered by severity; quick_wins: 2-5 items implementable this week; next_steps: 3-6 short imperative sentences; content_gaps: 0-6 missing topics inferred from queries with impressions but weak position.';
+            $user = "دیجست دادهٔ سرچ کنسول (فارسی، اعداد لاتین):\n\n" . $digest;
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 3400));
             break;
         }
 
