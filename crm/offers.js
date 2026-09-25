@@ -679,6 +679,7 @@ function renderOffers() {
   window._offCustFilter = custF;
   var offers = all.filter(function(o) {
     if (o.rialOf) return false; /* US-FX2RIAL: نسخه ریالی (همراه) ردیف مستقل نمی‌سازد — در همان ردیف پیشنهاد ارزی مبدأ نمایش داده می‌شود */
+    if (o.fxOf) return false; /* US-IRR2FX v34.39.28: نسخه ارزی همراه پیشنهاد ریالی — ردیف مستقل نمی‌سازد */
     if (tab !== 'ALL' && o.kind !== tab && !(tab === 'CO' && o.kind === 'TC')) return false; /* v20.1 US-442: TC قدیمی زیر تب مالی */
     if (custF && typeof ptfOfferMatchCust === 'function' && !ptfOfferMatchCust(o, custF)) return false; /* v21.3 US-450 */
     // US-142 AC1: جستجو شامل شماره درخواست کارفرما (inqNo)
@@ -790,8 +791,11 @@ function renderOffers() {
     // US-157 AC1: بج اعتبار
     var vst = offerValidState(o);
     /* US-FX2RIAL: نسخه ریالی این پیشنهاد (اگر ساخته شده) — درون همان ردیف و با همان شماره،
-       نه به‌صورت ردیف مستقل. رکورد پشت‌صحنه جدا می‌ماند (برای چاپ/audit/مالی) ولی نمایش هم‌ردیف است. */
-    var rialInline = '';
+       نه به‌صورت ردیف مستقل. رکورد پشت‌صحنه جدا می‌ماند (برای چاپ/audit/مالی) ولی نمایش هم‌ردیف است.
+       v34.39.28 US-IRR2FX: نسخه ارزی همراه پیشنهاد ریالی هم همین‌جا نمایش داده می‌شود.
+    */
+        var rialInline = '';
+    var fxInline = '';
     try {
       if ((o.kind === 'CO' || o.kind === 'TC') && o.currency && o.currency !== 'IRR' && typeof window.ptfRialCompanionOf === 'function') {
         var _comp = window.ptfRialCompanionOf(o.no);
@@ -807,10 +811,29 @@ function renderOffers() {
             '</span></div>';
         }
       }
-    } catch (eRi) { rialInline = ''; }
+      if ((o.kind === 'CO' || o.kind === 'TC') && (!o.currency || o.currency === 'IRR') && typeof window.ptfFxCompanionsOf === 'function') {
+        var _fxComps = window.ptfFxCompanionsOf(o.no);
+        if (_fxComps && _fxComps.length) {
+          fxInline = '<div style="margin-top:6px;background:#fff7ed;border:1px solid #fde68a;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#92400e;display:flex;flex-wrap:wrap;align-items:center;gap:6px" title="نسخه ارزی همین پیشنهاد">' +
+            '<span>💱 نسخه ارزی (همان شماره)</span>' +
+            '<span style="display:inline-flex;gap:4px;flex-wrap:wrap">' +
+            _fxComps.map(function (fc) {
+              var _rt2 = (fc.fxConvert && +fc.fxConvert.rate) || 0;
+              var _cur2 = fc.currency || '';
+              return '<span style="display:inline-flex;gap:2px;align-items:center;background:#fff;border:1px solid #fde68a;border-radius:999px;padding:2px 6px"><b dir="ltr">' + escP(fc.no) + ' (' + escP(_cur2) + ')</b>' +
+                (_rt2 ? '<small style="opacity:.8">' + _rt2.toLocaleString('fa-IR') + '</small>' : '') +
+                '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px" onclick="offerQuickPreview(\'' + ptfOnClickArg(fc.no) + '\')" title="نمایش نسخه ارزی ' + escP(_cur2) + '">👁</button>' +
+                '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px" onclick="offerPrint(\'' + ptfOnClickArg(fc.no) + '\')" title="چاپ/PDF نسخه ارزی">🖨</button>' +
+                '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px;color:#b45309" onclick="ptfOfferFxTermsOpen(\'' + ptfOnClickArg(fc.no) + '\')" title="شرایط ارزی">🔧</button>' +
+                '</span>';
+            }).join(' ') +
+            '</span></div>';
+        }
+      }
+    } catch (eRi) { rialInline = ''; fxInline = ''; }
     h += '<tr><td><strong>' + escP(o.no) + '</strong>' + (o.rev ? ' <small>Rev.' + o.rev + '</small>' : '') +
       (o.altOf ? '<br><span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:10px" title="پیشنهاد جایگزین برای همین درخواست — در کنار ' + escP(o.altOf) + '">⑂ گزینه جایگزین</span>' : '') +
-      (vst ? '<br><span class="bd" style="background:' + vst.cl + ';font-size:10px">' + vst.lb + '</span>' : '') + rialInline + '</td>' +
+      (vst ? '<br><span class="bd" style="background:' + vst.cl + ';font-size:10px">' + vst.lb + '</span>' : '') + rialInline + fxInline + '</td>' +
       '<td>' + (o.kind === 'TO' ? '🔧 فنی' : o.kind === 'TC' ? '🤝 فنی-مالی' : '💰 مالی') + '</td>' /* v12.8 */ +
       '<td>' + (function () { /* v34.18.0: نام فارسی + انگلیسی زیر هم (هم‌شکل فهرست مشتریان) */
         var p = (typeof ptfCustNamePair === 'function') ? ptfCustNamePair(o.buyerCd, o.buyerCo) : { fa: o.buyerCo || '-', en: '' };
@@ -831,9 +854,11 @@ function renderOffers() {
       (o.kind === 'CO' ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:13px;background:#059669;color:#fff" onclick="offOpenProfitOptimizer(\''+o.no+'\')" title="ماتریس بهینه‌سازی سود">📊</button> ' : '') +
       toCoBtn +
       ((o.kind === 'CO' || o.kind === 'TC') ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0f766e" title="بررسی سلامت و پیش‌نمایش اقلام" onclick="ptfOfferIntegrityDialog(\''+o.no+'\')">🔎</button>' : '') +
-      ((o.rialOf ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOfferRialTermsOpen(\''+o.no+'\')" title="پیش‌نمایش/ویرایش شرایط و ضوابط نسخه ریالی">🔧</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.rialOf+'\')" title="دیدن پیشنهاد ارزی قبلی">👁 ارزی</button> ' : '') +
-       ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !isWon && (o.currency && o.currency !== 'IRR') && !(typeof window.ptfRialCompanionOf === 'function' && window.ptfRialCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#0e7490;color:#fff" onclick="ptfOfferRialConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ریالی">💱</button> ' : '')) +
-      ((!isWon && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf) ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#9a3412;border-color:#fdba74" onclick="ptfMarkOfferAmendment(\''+o.no+'\')" title="علامت‌گذاری به‌عنوان متمم مستقل یک پرونده موجود">➕</button>' : '') +
+       (o.rialOf ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOfferRialTermsOpen(\''+o.no+'\')" title="پیش‌نمایش/ویرایش شرایط و ضوابط نسخه ریالی">🔧</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.rialOf+'\')" title="دیدن پیشنهاد ارزی قبلی">👁 ارزی</button> ' : '') +
+       ((o.fxOf ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#92400e;border-color:#fde68a" onclick="ptfOfferFxTermsOpen(\''+o.no+'\')" title="شرایط نسخه ارزی">🔧</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.fxOf+'\')" title="دیدن پیشنهاد ریالی قبلی">👁 ریالی</button> ' : '') +
+       ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf && !isWon && (o.currency && o.currency !== 'IRR') && !(typeof window.ptfRialCompanionOf === 'function' && window.ptfRialCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#0e7490;color:#fff" onclick="ptfOfferRialConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ریالی">💱</button> ' : '') +
+       ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf && !isWon && (!o.currency || o.currency === 'IRR') && !(typeof window.ptfFxCompanionOf === 'function' && window.ptfFxCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#b45309;color:#fff" onclick="ptfOfferFxConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ارزی">💱</button> ' : '')) +
+      ((!isWon && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf) ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#9a3412;border-color:#fdba74" onclick="ptfMarkOfferAmendment(\''+o.no+'\')" title="علامت‌گذاری به‌عنوان متمم مستقل یک پرونده موجود">➕</button>' : '') +
       (isWon ? '' : ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#dc2626" onclick="offerDel(\''+o.no+'\')" title="حذف">🗑️</button>') + '</td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">پیشنهادی در این تب ثبت نشده</td></tr>';
@@ -3707,6 +3732,9 @@ function showCustModal(cd) {
      وسط مودال می‌رسید baseAt با updatedAt سرور برابر می‌شد → sd_contact_stale_merge مسیر
      «fresh edit = LWW» → شماره‌های تازهٔ دستگاه دیگر پاک می‌شد (مالِ من سالم، مالِ او پاک). */
   window._ptfContactFormBaseAt = String((c && (c.updatedAt || c.updatedAtISO)) || '');
+  /* v34.39.30 (CONTACT-ROOTS R7): snapshot رکورد در لحظهٔ بازشدن مودال — مبنای
+     مهر خودکار _ccClear (نه کشِ لحظهٔ save که با pullِ وسط مودال جابه‌جا می‌شد). */
+  window._ptfContactFormRec = c ? JSON.parse(JSON.stringify(c)) : null;
   cbInit(c ? c.people : []);
   indivPhonesInit(c ? c.phones : []);
   var INDS = ['نفت و گاز','پتروشیمی','نیروگاه','فولاد','سیمان','آب','سایر'];
@@ -3944,7 +3972,15 @@ function saveCust2(cd) {
      مهر صریح داشته باشد؛ بدون مهر، invariant سرور تماس‌های قبلی را حفظ می‌کند
      (سپر در برابر هر کلاینتِ کهنه/معرور که تماس خالی می‌فرستد). */
   try {
-    if (cd && oldRecPre && typeof ptfCustHadContacts === 'function' && ptfCustHadContacts(oldRecPre) && !ptfCustHadContacts(rec)) rec._ccClear = 1;
+    /* v34.39.30 (CONTACT-ROOTS R7): مبنای مهر خودکار _ccClear، رکوردِ snapshotِ
+       لحظهٔ بازشدن مودال است — نه کشِ لحظهٔ save. قبلاً pullِ رسیدۀ وسط مودال
+       کش را تازه می‌کرد و مبنای مهر جابه‌جا می‌شد: (الف) پاک‌سازی آگاهانهٔ کاربر
+       بر فرمِ کهنه با اتحاد سرور نادیده گرفته می‌شد (زنده‌شدن مجدد)، یا (ب) فرمی
+       که تماس‌هایش در حالت UI گم شده بود، از روی کش کهنهٔ تماس‌دار، پاک‌سازی
+       سراسری مهر می‌زد و دادهٔ تازهٔ دستگاه‌های دیگر را می‌شست. حالا: فقط وقتی
+       کاربر واقعاً تماس را دیده (snapshot) و بدون آن ذخیره کرده، مهر می‌شود. */
+    var formRecPre = (typeof window._ptfContactFormRec !== 'undefined' && window._ptfContactFormRec) ? window._ptfContactFormRec : null;
+    if (cd && formRecPre && typeof ptfCustHadContacts === 'function' && ptfCustHadContacts(formRecPre) && !ptfCustHadContacts(rec)) rec._ccClear = 1;
   } catch (eCCC) {}
   /* v34.39.12 (CONTACT-STALE-PARTIAL-WIPE):
      ① مهر _ccEdit=1: این payload از فرم ویرایش تماس آمده (نه writer تک‌فیلدی).
@@ -4003,6 +4039,8 @@ function showSupModal2(cd) {
   if (cd) c = getData('ptf_crm_suppliers').filter(function(x){ return x.cd === cd; })[0];
   /* v34.39.22 (CONTACT-ROOTS R2): مثل showCustModal — snapshot نسخهٔ لحظهٔ بازشدن مودال */
   window._ptfContactFormBaseAt = String((c && (c.updatedAt || c.updatedAtISO)) || '');
+  /* v34.39.30 (CONTACT-ROOTS R7): مثل showCustModal — snapshot رکورد برای مبنای _ccClear */
+  window._ptfContactFormRec = c ? JSON.parse(JSON.stringify(c)) : null;
   cbInit(c ? c.people : []);
   indivPhonesInit(c ? c.phones : []);
   var CATS = ['پایپینگ','شیرآلات','برق','ابزار دقیق','پمپ','سایر'];
@@ -4117,9 +4155,12 @@ function saveSup2(cd) {
       }
     }
   } catch (eNormS) {}
-  /* v34.38.25 (CONTACT-WIPE-INVARIANT): مثل مشتری — پاک‌سازی عمدی تماس‌ها مهر می‌خواهد. */
+  /* v34.38.25 (CONTACT-WIPE-INVARIANT): مثل مشتری — پاک‌سازی عمدی تماس‌ها مهر می‌خواهد.
+     v34.39.30 (CONTACT-ROOTS R7): مثل مشتری — مبنای مهر، snapshot لحظهٔ بازشدن مودال
+     است نه کشِ لحظهٔ save (pullِ وسط مودال دیگر مبنای _ccClear را جابه‌جا نمی‌کند). */
   try {
-    if (cd && oldSupPre && typeof ptfCustHadContacts === 'function' && ptfCustHadContacts(oldSupPre) && !ptfCustHadContacts(rec)) rec._ccClear = 1;
+    var formRecPreS = (typeof window._ptfContactFormRec !== 'undefined' && window._ptfContactFormRec) ? window._ptfContactFormRec : null;
+    if (cd && formRecPreS && typeof ptfCustHadContacts === 'function' && ptfCustHadContacts(formRecPreS) && !ptfCustHadContacts(rec)) rec._ccClear = 1;
   } catch (eCCS) {}
   /* v34.39.12 (CONTACT-STALE-PARTIAL-WIPE): مثل مشتری — _ccEdit + _ccBaseAt + updatedAtISO + اتحاد. */
   try {
@@ -4226,6 +4267,54 @@ window.ptfHealMissingCustomersFromRfqs = function () {
 };
 
 // رندر جدید جدول‌ها با ستون اشخاص + دکمه ویرایش/نمایش
+/* ═══ v34.39.30 (CONTACT-ROOTS R7 — LIST-VISIBILITY) ═══
+   RCA «شماره دوباره اضافه شد ولی نمایش داده نمی‌شود»: ستون تماسِ فهرست مشتری
+   فقط phones[0] / اولین تلفن ثابتِ رابطِ اصلی / اسکالر ph را می‌خواند. اگر
+   شمارهٔ برگردانده‌شده موبایلِ رابط (pp.mobs) یا شمارهٔ رابطِ غیراصلی بوده،
+   فهرست «-» نشان می‌داد در حالی که داده سالم بود (در کارت مشتری دیده می‌شد) —
+   دقیقاً حس «برای من نمایش داده نمی‌شود». حالا: اولین شمارهٔ موجود در اولویت
+   phones → tel رابط اصلی → mob رابط اصلی → tel/mob سایر رابط‌ها → تلفنخانه
+   (coTels) → ph + شمارندهٔ «+N» برای کانال‌های باقی‌مانده. */
+function ptfCustContactChannels(c) {
+  var out = [];
+  if (!c || typeof c !== 'object') return out;
+  function push(n, ext, lb) {
+    n = String(n == null ? '' : n).trim();
+    if (!n) return;
+    var d = (typeof ptfContactDigits === 'function') ? ptfContactDigits(n) : String(n).replace(/\D+/g, '');
+    if (!d) return;
+    for (var i = 0; i < out.length; i++) if (out[i].d === d) return; /* اسکالر ph معمولاً تکرارِ کانال است */
+    out.push({ n: n, d: d, ext: ext || '', lb: lb || '' });
+  }
+  (c.phones || []).forEach(function (t) { if (t && t.n) push(t.n, '', t.lb || 'تلفن فردی'); });
+  var pp = primaryPerson(c);
+  if (pp) {
+    (pp.tels || []).forEach(function (t) { if (t && t.n) push(t.n, t.ext, (pp.nm || '') + ' — تلفن'); });
+    (pp.mobs || []).forEach(function (t) { if (t && t.n) push(t.n, '', (pp.nm || '') + ' — موبایل'); });
+  }
+  /* v34.39.30: شمارهٔ رابط‌های غیراصلی هم باید در فهرست یافتنی باشد — صحنهٔ RCA:
+     شمارهٔ پاک‌شدهٔ یک رابطِ غیراصلی دوباره وارد می‌شود و در فهرست «-» دیده می‌شود */
+  (c.people || []).forEach(function (p) {
+    if (!p || p === pp) return;
+    (p.tels || []).forEach(function (t) { if (t && t.n) push(t.n, t.ext, (p.nm || '') + ' — تلفن'); });
+    (p.mobs || []).forEach(function (t) { if (t && t.n) push(t.n, '', (p.nm || '') + ' — موبایل'); });
+  });
+  (c.coTels || []).forEach(function (t) { if (t && t.n) push(t.n, t.ext, t.lb || 'تلفنخانه'); });
+  if (c.ph) push(c.ph, '', '');
+  return out;
+}
+function ptfCustContactCell(c) {
+  var chs = ptfCustContactChannels(c);
+  if (!chs.length) return '<span style="color:#94a3b8">-</span>';
+  var f = chs[0];
+  var more = chs.length - 1;
+  var h = '<a href="' + telHref({ n: f.n, ext: f.ext }) + '" style="direction:ltr">' + escP(fmtTel({ n: f.n, ext: f.ext })) + '</a>';
+  if (more > 0) h += ' <small style="color:#94a3b8" title="شمارهٔ تماس دیگر — از کارت مشتری (👁) ببینید">+' + more + '</small>';
+  return h;
+}
+window.ptfCustContactChannels = ptfCustContactChannels;
+window.ptfCustContactCell = ptfCustContactCell;
+
 function renderCustomers2() {
   migrateContacts();
   try { if (typeof window.ptfHealMissingCustomersFromRfqs === 'function') window.ptfHealMissingCustomersFromRfqs(); } catch (eHeal) {}
@@ -4253,7 +4342,7 @@ function renderCustomers2() {
       ' <span style="background:' + (c.kind === 'حقیقی' ? '#fef3c7;color:#b45309' : '#e0e7ff;color:#4338ca') + ';border-radius:8px;padding:1px 7px;font-size:10.5px">' + escP(c.kind || 'حقوقی') + '</span></td><td>' + escP(c.ind||'-') + '</td>' +
       '<td>' + (pp ? escP(pp.nm) + ' <small style="color:#94a3b8">(' + escP(pp.role||'') + ')</small>' : '-') +
       ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
-      '<td>' + ((c.phones||[]).length ? '<a href="tel:' + escP(c.phones[0].n) + '" style="direction:ltr">' + escP(c.phones[0].n) + '</a>' + (c.phones.length > 1 ? ' <small style="color:#94a3b8">+' + (c.phones.length - 1) + '</small>' : '') : (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-'))) + '</td>' +
+      '<td>' + ptfCustContactCell(c) + '</td>' +
       '<td><button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده مشتری" aria-label="مشاهده مشتری" onclick="showEntityCard(\'ptf_crm_customers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
       '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش مشتری" aria-label="ویرایش مشتری" onclick="showCustModal(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
@@ -4292,7 +4381,7 @@ function renderSuppliers2() {
       ' <span style="background:' + (c.kind === 'حقیقی' ? '#fef3c7;color:#b45309' : '#e0e7ff;color:#4338ca') + ';border-radius:8px;padding:1px 7px;font-size:10.5px">' + escP(c.kind || 'حقوقی') + '</span>' +
       ((c.payTerms && typeof window.ptfSupPayBadge === 'function') ? ' ' + window.ptfSupPayBadge(c) : '') + '</td>' +
       '<td>' + (pp ? escP(pp.nm) : '-') + ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
-      '<td>' + (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-')) + '</td>' +
+      '<td>' + ptfCustContactCell(c) + '</td>' +
       '<td>' + escP(c.ca||'-') + '</td>' +
       '<td>' + fileBtn + '<button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده تأمین‌کننده" aria-label="مشاهده تأمین‌کننده" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
       '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش تأمین‌کننده" aria-label="ویرایش تأمین‌کننده" onclick="showSupModal2(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
