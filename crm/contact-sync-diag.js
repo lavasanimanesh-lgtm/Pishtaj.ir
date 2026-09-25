@@ -55,6 +55,16 @@
   }
   function canFix() { try { return ROLES_FIX.indexOf(String(curRole() || '').toLowerCase()) > -1; } catch (e) { return false; } }
   function faNum(n) { try { return (+n).toLocaleString('fa-IR'); } catch (e) { return String(n); } }
+  /* rev کلیدهایی که این دستگاه از سرور می‌شناسد (ptf_sync_krevs) — از API فقط‌خواندنیِ
+     لایهٔ داده (ptfSyncDiagnosticsSnapshot در sync.js، کپی تازه)، نه localStorage مستقیم
+     (قاعدهٔ A10 نگهبان معماری). اگر در دسترس نباشد {} ⇒ data_pull کامل (کندتر، ولی درست). */
+  function localKrevs() {
+    try {
+      var snap = (typeof window.ptfSyncDiagnosticsSnapshot === 'function') ? window.ptfSyncDiagnosticsSnapshot() : null;
+      var m = snap && snap.localKeyRevisions;
+      return (m && typeof m === 'object') ? m : {};
+    } catch (e) { return {}; }
+  }
 
   /* ---------- منطق خالص (بدون DOM — قابل تست در vm) ---------- */
 
@@ -170,7 +180,7 @@
     try { out.pending = (typeof window.ptfBPendingKeys === 'function' ? window.ptfBPendingKeys() : []) || []; } catch (e2) {}
     try { out.failures = (typeof window.ptfSyncWriteFailures === 'function' ? window.ptfSyncWriteFailures() : []) || []; } catch (e3) {}
     try { out.lastError = String((typeof window.ptfSyncLastError === 'function' ? window.ptfSyncLastError() : '') || ''); } catch (e4) {}
-    try { var m = JSON.parse(localStorage.getItem('ptf_sync_krevs') || '{}'); out.krev = String(m[KEY] == null ? '' : m[KEY]); } catch (e5) {}
+    try { var m = localKrevs(); out.krev = String(m[KEY] == null ? '' : m[KEY]); } catch (e5) {}
     return out;
   }
   window.ptfCsdDeviceInfo = deviceInfo;
@@ -178,8 +188,7 @@
   /* تازه‌ترین نسخهٔ کلید از سرور — با کپیِ همان دلتای سینک، فقط همین کلید
      را می‌خواهیم (krevs محلی منهای ptf_crm_customers → سرور فقط آن را می‌فرستد). */
   function fetchServerRec() {
-    var krevs = {};
-    try { krevs = JSON.parse(localStorage.getItem('ptf_sync_krevs') || '{}'); } catch (e) { krevs = {}; }
+    var krevs = localKrevs();
     delete krevs[KEY];
     var url = API + '?action=data_pull&since=0&krevs=' + encodeURIComponent(JSON.stringify(krevs));
     return fetch(url, { headers: authHeaders() }).then(function (r) {

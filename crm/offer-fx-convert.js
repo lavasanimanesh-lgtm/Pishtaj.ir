@@ -427,7 +427,7 @@
 
     function finish(newNo) {
       if (!newNo || /^TMP-/.test(String(newNo))) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
-      if (offersAll().some(function (x) { return x.no === newNo; })) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
+      if (offersAll().some(function (x) { return x && x.no === newNo; })) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
       var items = (o.items || []).map(function (it) {
         var c = convertItemToFx(it, rate, targetCur);
         delete c.lineId;
