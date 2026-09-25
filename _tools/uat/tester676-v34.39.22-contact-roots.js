@@ -24,8 +24,15 @@
          جایگزین می‌کرد و فقط حذف «ردیف» را می‌دید — رکوردِ بدون کلید تماس،
          شماره‌های سرور را بی‌صدا می‌پراند (قرارداد v34.8.34 «فیلد غایب = تغییر
          نکرده» باید کلیدِ غایبِ تماس را از سرور پر کند).
+     R7) (v34.39.30 — جانشین R6، ادغام شاخهٔ arena/01a0cb49) flush عادی فاز B هم
+         همین data_push است؛ R6 فقط کلیدِ «غایب» را پر می‌کرد و رکوردِ کهنه با کلیدِ
+         «حاضر اما کهنه/خالی» شمارهٔ تازهٔ سرور را پاک می‌کرد. sync_contact_fields_fill
+         با sync_contact_records_merge (api/crm.php) + api/contact-merge-lib.php
+         جایگزین شد: کلید غایب پر می‌شود (R6)؛ رکورد تازه (مبنای فعلی + ویرایش
+         تازه) LWW؛ مبنای کهنه/نامشخص UNION؛ _ccClear کهنه نادیده. بخش ۶ همین
+         قرارداد را با پورت ۱:۱ و — اگر php در دسترس باشد (CI) — با PHP واقعی می‌سنجد.
 
-   اجرا: node _tools/uat/tester676-v34.39.23-contact-roots.js
+   اجرا: node _tools/uat/tester676-v34.39.22-contact-roots.js
    ───────────────────────────────────────────────────────────────────────────── */
 var fs = require('fs');
 var vm = require('vm');
@@ -45,6 +52,8 @@ var off = read('crm/offers.js');
 var pf = read('crm/phonefmt.js');
 var sd = read('crm/sales-domain-v2.js');
 var apiCrm = read('api/crm.php');
+var cmLib = read('api/contact-merge-lib.php');   /* v34.39.30 (R7): منبع مشترک semantics اتحاد تماس */
+var apiSd = read('api/sales-domain.php');
 var version = JSON.parse(read('VERSION.json')).crm_version;
 
 /* ═════════════════ ۰) قراردادهای ساختاری (قفل نتیجهٔ RCA — نشانگر v34.39.30) ═════════════════ */
@@ -71,12 +80,15 @@ T('۰.۶ R5: entityMatches haystack کامل + fold ارقام (CONTACT-ROOTS R5
 T('۰.۷ R5: telHref ارقام فارسی را نگه می‌دارد',
   /function telHref\(t\) \{[^}]*ptfToEnDigits/.test(off),
   'offers.js telHref');
-T('۰.۸ R6: api/crm.php تابع sync_contact_fields_fill (CONTACT-ROOTS R6)',
-  apiCrm.indexOf('function sync_contact_fields_fill') > -1 && apiCrm.indexOf('CONTACT-ROOTS R6') > -1,
-  'api/crm.php');
-T('۰.۹ R6: سیم‌کشی data_push برای هر دو customers و suppliers و مستثنی restore/allow_wipe',
-  /case 'data_push':[\s\S]*sync_contact_fields_fill\(/.test(apiCrm) &&
-  /!\$restore && !\$allow_wipe[\s\S]{0,200}sync_contact_fields_fill\(|!\$restore && !\$allow_wipe && \(\$k === 'ptf_crm_customers'/.test(apiCrm),
+T('۰.۸ R7 (جانشین R6): api/crm.php تابع sync_contact_records_merge + کتابخانهٔ مشترک contact-merge-lib (CONTACT-ROOTS R7)',
+  apiCrm.indexOf('function sync_contact_records_merge') > -1 && apiCrm.indexOf('CONTACT-ROOTS R7') > -1 &&
+  apiCrm.indexOf('function sync_contact_fields_fill') === -1 &&
+  /require_once __DIR__ \. '\/contact-merge-lib\.php'/.test(apiCrm) &&
+  cmLib.indexOf('function cm_contact_merge_record') > -1,
+  'api/crm.php + api/contact-merge-lib.php');
+T('۰.۹ R7: سیم‌کشی data_push برای هر دو customers و suppliers و مستثنی restore/allow_wipe',
+  /case 'data_push':[\s\S]*sync_contact_records_merge\(/.test(apiCrm) &&
+  /!\$restore && !\$allow_wipe && \(\$k === 'ptf_crm_customers' \|\| \$k === 'ptf_crm_suppliers'\)[\s\S]{0,160}sync_contact_records_merge\(/.test(apiCrm),
   'api/crm.php data_push');
 try {
   var parserMod = require('php-parser');
@@ -373,34 +385,153 @@ function recHasNums(rec, wantDigits) {
     sdContactDigits(rec.ph || '') === wantDigits;
 }
 
-/* ═════════════════ پورت ۱:۱ sync_contact_fields_fill (api/crm.php) ═════════════════ */
-function syncContactFieldsFillJs(incomingJson, serverJson) {
+/* ═════════════ پورت ۱:۱ R7: api/contact-merge-lib.php + sync_contact_records_merge (api/crm.php) ═════════════
+   جانشین پورت R6 (sync_contact_fields_fill — در v34.39.30 حذف شد). semantics عیناً PHP:
+   `??` فقط روی null/غایب عبور می‌کند، empty() PHP، کپیِ مقداریِ آرایه‌ها. */
+function phpHas(o, k) { return !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k); }
+function phpIsArr(v) { return !!v && typeof v === 'object'; }                 /* is_array — لیست یا نگاشت */
+function phpEmpty(v) {
+  if (v == null || v === false || v === 0 || v === '' || v === '0') return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === 'object') return Object.keys(v).length === 0;
+  return false;
+}
+function phpTrim(v) { return String(v == null ? '' : v).replace(/^[ \t\n\r\0\x0B]+|[ \t\n\r\0\x0B]+$/g, ''); }
+function phpCoalesce(o, keys) { for (var i = 0; i < keys.length; i++) if (phpHas(o, keys[i]) && o[keys[i]] != null) return o[keys[i]]; return ''; }
+function clone(v) { return JSON.parse(JSON.stringify(v)); }
+var cmContactDigits = sdContactDigits;                                        /* cm_contact_digits ≡ sd_contact_digits (عین منتقل‌شده) */
+var cmContactValEmpty = sdContactValEmpty;                                    /* cm_contact_val_empty ≡ sd_contact_val_empty */
+function cmContactChanKey(t) {
+  if (!phpIsArr(t)) {
+    var d0 = cmContactDigits(t);
+    return d0 !== '' ? 'n:' + d0 : 's:' + phpTrim(t).toLowerCase();
+  }
+  var n = (phpHas(t, 'n') && t.n != null) ? phpTrim(t.n) : '';
+  if (n === '') return '';
+  var d = cmContactDigits(n);
+  return d !== '' ? 'n:' + d : 's:' + n.toLowerCase();
+}
+function cmContactMergeChanList(incoming, stored) {
+  var out = [], seen = {};
+  function push(t) {
+    if (!phpIsArr(t) && typeof t !== 'string') return;
+    if (typeof t === 'string') t = { n: t };
+    var k = cmContactChanKey(t);
+    if (k === '' || phpHas(seen, k)) return;
+    seen[k] = 1; out.push(t);
+  }
+  if (phpIsArr(incoming)) Object.keys(incoming).forEach(function (i) { push(incoming[i]); });
+  if (phpIsArr(stored)) Object.keys(stored).forEach(function (i) { push(stored[i]); });
+  return out;
+}
+function cmContactPersonKey(p) {
+  var nm = phpTrim(phpCoalesce(p, ['nm'])).toLowerCase();
+  if (nm !== '') return 'nm:' + nm;
+  var bits = {};
+  ['tels', 'mobs', 'mails'].forEach(function (ch) {
+    if (!phpHas(p, ch) || !phpIsArr(p[ch])) return;
+    Object.keys(p[ch]).forEach(function (i) { var k = cmContactChanKey(p[ch][i]); if (k !== '') bits[k] = 1; });
+  });
+  var keys = Object.keys(bits);
+  if (!keys.length) return '';
+  keys.sort();
+  return 'ch:' + keys.join('|');
+}
+function cmContactMergePeople(incoming, stored) {
+  var out = [], byKey = {};
+  function ingest(p, isIncoming) {
+    if (!phpIsArr(p)) return;
+    var k = cmContactPersonKey(p);
+    if (k === '') { if (isIncoming) out.push(p); return; }
+    if (!phpHas(byKey, k)) { byKey[k] = out.length; out.push(p); return; }
+    var idx = byKey[k];
+    var base = clone(out[idx]);
+    ['tels', 'mobs', 'mails'].forEach(function (ch) {
+      base[ch] = cmContactMergeChanList(phpHas(base, ch) && base[ch] != null ? base[ch] : [], phpHas(p, ch) && p[ch] != null ? p[ch] : []);
+    });
+    ['nm', 'nmEn', 'role', 'dept', 'note', 'src'].forEach(function (f) {
+      var bv = phpTrim(phpCoalesce(base, [f])), pv = phpTrim(phpCoalesce(p, [f]));
+      if (bv === '' && pv !== '') base[f] = p[f];
+    });
+    if (phpEmpty(base.primary) && !phpEmpty(p.primary)) base.primary = true;
+    out[idx] = base;
+  }
+  if (phpIsArr(incoming)) Object.keys(incoming).forEach(function (i) { ingest(incoming[i], true); });
+  if (phpIsArr(stored)) Object.keys(stored).forEach(function (i) { ingest(stored[i], false); });
+  return out;
+}
+function cmContactRecordBaseIsCurrent(inRec, srvRec) {
+  var srvAt = phpTrim(phpCoalesce(srvRec, ['updatedAt', 'updatedAtISO']));
+  if (srvAt === '') return true;
+  var inBase = phpTrim(phpCoalesce(inRec, ['updatedAt']));
+  if (inBase === '') return false;
+  return inBase === srvAt;
+}
+function cmContactMergeRecord(inRec, srvRec, stats, ccClear, fresh) {
+  inRec = clone(inRec);
+  ['_ccClear', '_ccBaseAt'].forEach(function (mk) { if (phpHas(inRec, mk)) delete inRec[mk]; });
+  var isFresh = fresh && cmContactRecordBaseIsCurrent(inRec, srvRec);
+  if (ccClear && isFresh) return inRec;
+  if (isFresh) return inRec;
+  var changed = false;
+  ['people', 'coTels', 'phones', 'ph'].forEach(function (fk) {
+    if (!phpHas(inRec, fk)) {
+      if (phpHas(srvRec, fk) && !cmContactValEmpty(srvRec[fk])) { inRec[fk] = srvRec[fk]; changed = true; }
+      return;
+    }
+    if (fk === 'people') {
+      var prevP = phpIsArr(srvRec.people) ? srvRec.people : [];
+      var curP = phpIsArr(inRec.people) ? inRec.people : [];
+      if (!phpEmpty(prevP)) {
+        var merged = cmContactMergePeople(curP, prevP);
+        if (JSON.stringify(merged) !== JSON.stringify(curP)) { inRec.people = merged; changed = true; }
+      }
+    } else if (fk === 'ph') {
+      var inPh = typeof inRec.ph === 'string' ? phpTrim(inRec.ph) : '';
+      var pvPh = (phpHas(srvRec, 'ph') && typeof srvRec.ph === 'string') ? phpTrim(srvRec.ph) : '';
+      if (inPh === '' && pvPh !== '') { inRec.ph = srvRec.ph; changed = true; }
+    } else {
+      var prevV = phpIsArr(srvRec[fk]) ? srvRec[fk] : [];
+      var curV = phpIsArr(inRec[fk]) ? inRec[fk] : [];
+      if (!phpEmpty(prevV)) {
+        var mergedV = cmContactMergeChanList(curV, prevV);
+        if (JSON.stringify(mergedV) !== JSON.stringify(curV)) { inRec[fk] = mergedV; changed = true; }
+      }
+    }
+  });
+  if (ccClear && stats) stats.staleClearIgnored = (stats.staleClearIgnored || 0) + 1;
+  if (changed && stats) stats.staleRecordsMerged = (stats.staleRecordsMerged || 0) + 1;
+  return inRec;
+}
+function syncRecordIdForKeyJs(key, r) {
+  if (!phpIsArr(r)) return '';
+  if (key === 'ptf_crm_offers') return phpTrim(phpCoalesce(r, ['no', 'cd', 'id']));
+  return phpTrim(phpCoalesce(r, ['_id', 'cd', 'no', 'id', 'code', 'invoiceCd']));
+}
+function syncContactRecordsMergeJs(incomingJson, serverJson) {
   var inc, srv;
   try { inc = JSON.parse(String(incomingJson)); srv = JSON.parse(String(serverJson)); } catch (e) { return null; }
-  if (!Array.isArray(inc) || !Array.isArray(srv) || !inc.length || !srv.length) return null;
-  var keys = ['people', 'coTels', 'phones', 'ph'];
+  if (!phpIsArr(inc) || !phpIsArr(srv) || phpEmpty(inc) || phpEmpty(srv)) return null;
   var srvById = {};
-  srv.forEach(function (r) {
-    if (!r || typeof r !== 'object') return;
-    var id = String(r._id || r.cd || r.no || r.id || r.code || r.invoiceCd || '');
+  Object.keys(srv).forEach(function (i) {
+    var r = srv[i];
+    if (!phpIsArr(r)) return;
+    var id = syncRecordIdForKeyJs('', r);
     if (id !== '') srvById[id] = r;
   });
-  var changed = false;
-  inc.forEach(function (r, i) {
-    if (!r || typeof r !== 'object') return;
-    var id = String(r._id || r.cd || r.no || r.id || r.code || r.invoiceCd || '');
-    if (id === '' || !srvById[id]) return;
-    var pr = srvById[id];
-    keys.forEach(function (k) {
-      if (Object.prototype.hasOwnProperty.call(r, k)) return;
-      if (!Object.prototype.hasOwnProperty.call(pr, k)) return;
-      var pv = pr[k];
-      var nonEmpty = Array.isArray(pv) ? pv.length > 0 : String(pv == null ? '' : pv).trim() !== '';
-      if (!nonEmpty) return;
-      r[k] = pv;
-      changed = true;
-    });
-    inc[i] = r;
+  var changed = false, stats = {};
+  Object.keys(inc).forEach(function (i) {
+    var r = inc[i];
+    if (!phpIsArr(r)) return;
+    var id = syncRecordIdForKeyJs('', r);
+    if (id === '' || !phpHas(srvById, id)) return;
+    var srvRec = srvById[id];
+    var ccClear = !phpEmpty(r._ccClear);
+    var inAt = phpTrim(phpCoalesce(r, ['updatedAtISO']));
+    var srvAt = phpTrim(phpCoalesce(srvRec, ['updatedAt', 'updatedAtISO']));
+    var fresh = inAt !== '' && srvAt !== '' && inAt > srvAt;                  /* strcmp > 0 (ISO — ASCII) */
+    var merged = cmContactMergeRecord(r, srvRec, stats, ccClear, fresh);
+    if (JSON.stringify(merged) !== JSON.stringify(r)) { inc[i] = merged; changed = true; }
   });
   if (!changed) return null;
   return JSON.stringify(inc);
@@ -518,28 +649,99 @@ function syncContactFieldsFillJs(incomingJson, serverJson) {
   T('۵.۶ telHref ارقام فارسی → لینک تماس سالم',
     A5.win.telHref({ n: '۰۹۱۲۹۹۹۸۸۷۷', ext: '' }) === 'tel:09129998877', A5.win.telHref({ n: '۰۹۱۲۹۹۹۸۸۷۷', ext: '' }));
 
-  /* ── ۶) R6 — پرکردن کلیدِ غایبِ تماس در data_push ── */
-  head('۶. R6: قرارداد «فیلد غایب = تغییر نکرده» برای data_push');
+  /* ── ۶) R6→R7 — اتحاد رکوردبه‌رکوردِ فیلدهای تماس در data_push (v34.39.30) ──
+     R6 (sync_contact_fields_fill) فقط کلیدِ غایب را پر می‌کرد؛ R7 جانشین آن است و
+     R6 را به‌عنوان قاعدهٔ ۱ در خود دارد. تنها قراردادی که عمداً عوض شد ۶.۲ است:
+     «کلیدِ حاضرِ خالی» دیگر به‌خودیِ خود نیت پاک‌سازی نیست — فقط رکوردِ «تازه»
+     (مبنای فعلیِ سرور + ویرایش تازه) می‌تواند پاک کند (۶.۹). */
+  head('۶. R7 (جانشین R6): اتحاد رکوردبه‌رکوردِ فیلدهای تماس در data_push');
+  var R7CASES = [];
+  function M7(incArr, srvJson) {
+    var incJson = JSON.stringify(incArr);
+    R7CASES.push([incJson, srvJson]);
+    var out = syncContactRecordsMergeJs(incJson, srvJson);
+    return out === null ? null : JSON.parse(out);
+  }
   var srv6 = JSON.stringify([{ cd: 'CUST-1', co: 'x', people: [{ nm: 'رابط', tels: [{ n: '۰۲۱۱' }], mobs: [], mails: [] }], coTels: [{ n: '۰۲۱۲' }], phones: [], ph: '' }]);
-  var out61 = syncContactFieldsFillJs(JSON.stringify([{ cd: 'CUST-1', co: 'x-heal', ind: 'آب', venSt: 'unreg' }]), srv6);
-  T('۶.۱ stub بی‌کلید (heal) → کلیدهای تماس از سرور پر می‌شود',
-    out61 !== null && JSON.parse(out61)[0].coTels[0].n === '۰۲۱۲' && JSON.parse(out61)[0].people[0].nm === 'رابط', out61);
-  var out62 = syncContactFieldsFillJs(JSON.stringify([{ cd: 'CUST-1', co: 'x', people: [], coTels: [] }]), srv6);
-  T('۶.۲ کلیدِ حاضر (حتی خالی) محترم است — پر نمی‌شود (نیت صریح فرم)', out62 === null, out62);
-  var out63 = syncContactFieldsFillJs(JSON.stringify([{ cd: 'CUST-NEW', co: 'نو' }]), srv6);
-  T('۶.۳ رکورد جدید (غایب روی سرور) دست‌نخورده', out63 === null, out63);
-  var out64 = syncContactFieldsFillJs(JSON.stringify([{ cd: 'CUST-1', co: 'x', ph: '۰۲۱۹' }]), srv6);
-  T('۶.۴ فقط کلیدهای غایب پر می‌شوند؛ حاضرها از ورودی می‌آیند',
-    out64 !== null && JSON.parse(out64)[0].ph === '۰۲۱۹' && JSON.parse(out64)[0].coTels[0].n === '۰۲۱۲', out64);
-  T('۶.۵ سیم‌کشی: data_push هر دو مجموعه customers و suppliers را پر می‌کند',
-    /case 'data_push':[\s\S]*sync_contact_fields_fill\(/.test(apiCrm) && /ptf_crm_customers' \|\| \$k === 'ptf_crm_suppliers/.test(apiCrm),
+  var out61 = M7([{ cd: 'CUST-1', co: 'x-heal', ind: 'آب', venSt: 'unreg' }], srv6);
+  T('۶.۱ stub بی‌کلید (heal) → کلیدهای تماس از سرور پر می‌شود (قاعدهٔ R6 درون R7)',
+    out61 !== null && out61[0].coTels[0].n === '۰۲۱۲' && out61[0].people[0].nm === 'رابط' && out61[0].co === 'x-heal', JSON.stringify(out61));
+  var out62 = M7([{ cd: 'CUST-1', co: 'x', people: [], coTels: [] }], srv6);
+  T('۶.۲ R7: کلیدِ حاضرِ خالی روی رکوردِ بی‌مبنا/کهنه شمارهٔ سرور را نمی‌شوید — UNION (جایگزین قرارداد R6 «کلید حاضر همیشه محترم»)',
+    out62 !== null && out62[0].coTels.length === 1 && out62[0].coTels[0].n === '۰۲۱۲' && out62[0].people.length === 1 && out62[0].people[0].nm === 'رابط', JSON.stringify(out62));
+  var out63 = M7([{ cd: 'CUST-NEW', co: 'نو' }], srv6);
+  T('۶.۳ رکورد جدید (غایب روی سرور) دست‌نخورده', out63 === null, JSON.stringify(out63));
+  var out64 = M7([{ cd: 'CUST-1', co: 'x', ph: '۰۲۱۹' }], srv6);
+  T('۶.۴ کلیدهای غایب پر می‌شوند؛ مقدارِ حاضرِ غیرخالی از ورودی می‌آید',
+    out64 !== null && out64[0].ph === '۰۲۱۹' && out64[0].coTels[0].n === '۰۲۱۲' && out64[0].people[0].nm === 'رابط', JSON.stringify(out64));
+  T('۶.۵ سیم‌کشی: data_push هر دو مجموعه customers و suppliers را با sync_contact_records_merge اتحاد می‌دهد',
+    /case 'data_push':[\s\S]*sync_contact_records_merge\(/.test(apiCrm) && /ptf_crm_customers' \|\| \$k === 'ptf_crm_suppliers/.test(apiCrm),
     'api/crm.php');
-  T('۶.۶ restore/allow_wipe پر نمی‌شوند (جایگزینی مجاز)',
-    /!\$restore && !\$allow_wipe && \(\$k === 'ptf_crm_customers'[\s\S]{0,160}sync_contact_fields_fill\(/.test(apiCrm),
+  T('۶.۶ restore/allow_wipe اتحاد نمی‌گیرند (جایگزینی مجاز)',
+    /!\$restore && !\$allow_wipe && \(\$k === 'ptf_crm_customers'[\s\S]{0,160}sync_contact_records_merge\(/.test(apiCrm),
     'api/crm.php');
-  T('۶.۷ نام تابع و فهرست فیلدها در سورس PHP هست',
-    apiCrm.indexOf("'people', 'coTels', 'phones', 'ph'") > -1,
-    'api/crm.php');
+  T('۶.۷ فهرست فیلدهای تماس در کتابخانهٔ مشترک + مسیر entity_upsert (sales-domain.php) روی همان کتابخانه alias شده',
+    cmLib.indexOf("['people', 'coTels', 'phones', 'ph']") > -1 &&
+    /require_once __DIR__ \. '\/contact-merge-lib\.php'/.test(apiSd) &&
+    /function sd_contact_merge_people\([^)]*\)[^{]*\{\s*return cm_contact_merge_people\(/.test(apiSd),
+    'api/contact-merge-lib.php + api/sales-domain.php');
+
+  /* صحنهٔ دقیق گزارش (RCA R7 / S1): شماره روی دستگاه دیگر دوباره ثبت شد؛ blob کهنهٔ این
+     دستگاه (مبنای قدیمی، ولی updatedAtISO تازه از ویرایشی دیگر) آن شماره را ندارد. */
+  var srvS1 = JSON.stringify([{ cd: 'CUST-7', co: 'شرکت هفت', updatedAt: '2026-09-24T10:00:00.000Z',
+    people: [{ nm: 'مهندس رابط', tels: [{ n: '۰۲۱۴۴۴۴' }, { n: '۰۹۱۲۷۷۷۶۶۵۵', lb: 'دوباره ثبت‌شده' }], mobs: [], mails: [] }], coTels: [], phones: [], ph: '' }]);
+  var out68 = M7([{ cd: 'CUST-7', co: 'شرکت هفت (ویرایش)', updatedAt: '2026-09-20T08:00:00.000Z', updatedAtISO: '2026-09-24T11:00:00.000Z',
+    people: [{ nm: 'مهندس رابط', tels: [{ n: '۰۲۱۴۴۴۴' }], mobs: [], mails: [] }], coTels: [], phones: [], ph: '' }], srvS1);
+  T('۶.۸ ★ R7-S1: blob کهنه بدون شمارهٔ دوباره‌ثبت‌شده → شمارهٔ سرور حفظ می‌شود و ویرایش غیرتماسی هم می‌ماند',
+    out68 !== null && recHasNums(out68[0], '09127776655') && recHasNums(out68[0], '0214444') &&
+    out68[0].people.length === 1 && out68[0].people[0].tels.length === 2 && out68[0].co === 'شرکت هفت (ویرایش)', JSON.stringify(out68));
+
+  var srvF = JSON.stringify([{ cd: 'CUST-8', co: 'y', updatedAt: '2026-09-24T10:00:00.000Z',
+    people: [{ nm: 'رابط', tels: [{ n: '۰۲۱۵' }], mobs: [], mails: [] }], coTels: [{ n: '۰۲۱۶' }], phones: [], ph: '' }]);
+  var out69 = M7([{ cd: 'CUST-8', co: 'y', updatedAt: '2026-09-24T10:00:00.000Z', updatedAtISO: '2026-09-24T12:00:00.000Z',
+    _ccClear: 1, _ccBaseAt: '2026-09-24T10:00:00.000Z', people: [], coTels: [], phones: [], ph: '' }], srvF);
+  T('۶.۹ رکورد تازه (مبنای فعلی + ویرایش تازه) + _ccClear → LWW: پاک‌سازی آگاهانه محترم است و مهرها برداشته می‌شوند',
+    out69 !== null && out69[0].people.length === 0 && out69[0].coTels.length === 0 &&
+    !Object.prototype.hasOwnProperty.call(out69[0], '_ccClear') && !Object.prototype.hasOwnProperty.call(out69[0], '_ccBaseAt'), JSON.stringify(out69));
+  var out610 = M7([{ cd: 'CUST-8', co: 'y', updatedAt: '2026-09-20T08:00:00.000Z', updatedAtISO: '2026-09-24T12:00:00.000Z',
+    _ccClear: 1, people: [], coTels: [] }], srvF);
+  T('۶.۱۰ _ccClear روی مبنای کهنه نادیده گرفته می‌شود (UNION) و مهر پیش از ذخیره برداشته می‌شود',
+    out610 !== null && recHasNums(out610[0], '0215') && recHasNums(out610[0], '0216') &&
+    !Object.prototype.hasOwnProperty.call(out610[0], '_ccClear'), JSON.stringify(out610));
+  var out611 = M7([{ cd: 'CUST-8', co: 'y', updatedAt: '2026-09-24T10:00:00.000Z', updatedAtISO: '2026-09-24T12:00:00.000Z',
+    people: [{ nm: 'رابط', tels: [{ n: '۰۲۱۵' }], mobs: [], mails: [] }], coTels: [{ n: '۰۲۱۷' }], phones: [], ph: '' }], srvF);
+  T('۶.۱۱ رکورد تازه بدون مهر → LWW: ورودی بی‌تغییر ذخیره می‌شود (جایگزینی ۰۲۱۶ با ۰۲۱۷ محترم است)', out611 === null, JSON.stringify(out611));
+  var out612 = M7([{ cd: 'CUST-8', co: 'y', coTels: [{ n: '0216' }] }], srvF);
+  T('۶.۱۲ UNION با تطبیق ارقام فارسی/انگلیسی: شمارهٔ هم‌ارز تکرار نمی‌شود؛ کلید غایب پر می‌شود',
+    out612 !== null && out612[0].coTels.length === 1 && out612[0].coTels[0].n === '0216' && out612[0].people[0].nm === 'رابط', JSON.stringify(out612));
+
+  /* ── هم‌سنجی پورت JS با PHP واقعی (sync_contact_records_merge + contact-merge-lib) ──
+     فقط اگر php با mbstring در دسترس باشد (GitHub Actions)؛ وگرنه skip با هشدار. */
+  var cp6 = require('child_process'), path6 = require('path');
+  var phpProbe = cp6.spawnSync('php', ['-r', 'echo function_exists("mb_strtolower") ? "ok" : "no-mbstring";'], { encoding: 'utf8' });
+  if (phpProbe.error || phpProbe.status !== 0 || String(phpProbe.stdout || '').trim() !== 'ok') {
+    T('۶.۱۳ هم‌سنجی با PHP واقعی — php/mbstring در دسترس نیست (skip؛ روی CI اجرا می‌شود)', true);
+  } else {
+    var phpFnSrc = function (src, name) {
+      var at = src.indexOf('\nfunction ' + name + '(');
+      if (at < 0) return '';
+      var endAt = src.indexOf('\n}\n', at);
+      return endAt < 0 ? '' : src.slice(at + 1, endAt + 2);
+    };
+    var fnRecId = phpFnSrc(apiCrm, 'sync_record_id_for_key'), fnMerge = phpFnSrc(apiCrm, 'sync_contact_records_merge');
+    var libPath = path6.resolve('api/contact-merge-lib.php').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    var phpCode = "require '" + libPath + "';\n" + fnRecId + '\n' + fnMerge + '\n' +
+      "$cases = json_decode(base64_decode('" + Buffer.from(JSON.stringify(R7CASES), 'utf8').toString('base64') + "'), true);\n" +
+      '$out = [];\n' +
+      'foreach ($cases as $c) { $r = sync_contact_records_merge($c[0], $c[1]); $out[] = ($r === null) ? null : json_decode($r, true); }\n' +
+      'echo json_encode($out, JSON_UNESCAPED_UNICODE);';
+    var run6 = cp6.spawnSync('php', ['-d', 'display_errors=stderr', '-r', phpCode], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    var phpOut = null; try { phpOut = JSON.parse(String(run6.stdout || '')); } catch (eJ) {}
+    var jsOut = R7CASES.map(function (c) { var r = syncContactRecordsMergeJs(c[0], c[1]); return r === null ? null : JSON.parse(r); });
+    T('۶.۱۳ PHP واقعی با پورت JS هم‌خروجی است (' + R7CASES.length + ' سناریوی بخش ۶)',
+      !!fnRecId && !!fnMerge && Array.isArray(phpOut) && JSON.stringify(phpOut) === JSON.stringify(jsOut),
+      (!fnRecId || !fnMerge) ? 'تابع در api/crm.php پیدا نشد' : ('status=' + run6.status + ' stderr=' + String(run6.stderr || '').slice(0, 400) + ' stdout=' + String(run6.stdout || '').slice(0, 400)));
+  }
 
   console.log('\n' + (failures ? failures + ' FAIL' : 'ALL PASSED') + ' — tester676 (v' + version + ')');
   process.exit(failures ? 1 : 0);
