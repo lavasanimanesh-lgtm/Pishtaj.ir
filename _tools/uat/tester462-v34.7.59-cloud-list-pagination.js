@@ -21,10 +21,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.39.31', ver.crm_version === 'v34.39.31', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.39.31', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.31'") > -1);
-T('sw RELEASE = v34.39.31', sw.indexOf("RELEASE = 'v34.39.31'") > -1);
-T('storage.js cache-bust 34.39.31', idx.indexOf('storage.js?v=34.39.31') > -1);
+T('VERSION.json = v34.39.32', ver.crm_version === 'v34.39.32', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.39.32', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.32'") > -1);
+T('sw RELEASE = v34.39.32', sw.indexOf("RELEASE = 'v34.39.32'") > -1);
+T('storage.js cache-bust 34.39.32', idx.indexOf('storage.js?v=34.39.32') > -1);
 
 /* ---------- سرور ---------- */
 T('list توکن ورودی می‌پذیرد', php.indexOf("$token = (string)($in['token'] ?? ($_GET['token'] ?? ''))") > -1);
