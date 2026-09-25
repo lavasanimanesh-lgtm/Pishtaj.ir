@@ -251,12 +251,12 @@ var scanDone = R4.ptfContactRecoverScan(function () {}).then(function (res) {
 
 head('۷. نسخه و گیت');
 var ver = JSON.parse(read('VERSION.json'));
-T('۷.۰ VERSION.json = v34.39.24', ver.crm_version === 'v34.39.24', ver.crm_version);
+T('۷.۰ VERSION.json = v34.39.40', ver.crm_version === 'v34.39.40', ver.crm_version);
 T('۷.۱ tester616 در run-ci-gate.js ثبت است', gate.indexOf('tester616-v34.38.9-backup-blindspot-and-partial-recovery.js') > -1);
-T('۷.۲ قرارداد UI/sw/SD = 34.39.24',
-  /window\.PTF_CRM_RELEASE = 'v34\.39\.24'/.test(read('crm/index.html')) &&
-  /CACHE = 'ptf-crm-v34\.39\.24'/.test(read('crm/sw.js')) &&
-  /SD_SERVICE_VERSION = '34\.39\.24'/.test(read('api/sales-domain.php')));
+T('۷.۲ قرارداد UI/sw/SD = 34.39.40',
+  /window\.PTF_CRM_RELEASE = 'v34\.39\.40'/.test(read('crm/index.html')) &&
+  /CACHE = 'ptf-crm-v34\.39\.40'/.test(read('crm/sw.js')) &&
+  /SD_SERVICE_VERSION = '34\.39\.40'/.test(read('api/sales-domain.php')));
 T('۷.۳ تسترهای رگرسیون تماس همچنان در گیت‌اند (زنجیرهٔ CONTACT-WIPE/GHOST)',
   gate.indexOf('tester604-v34.37.7-contact-wipe.js') > -1 &&
   gate.indexOf('tester611-v34.38.4-contact-wipe-ind-heal.js') > -1 &&

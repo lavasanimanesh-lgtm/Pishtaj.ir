@@ -16,7 +16,7 @@ if (is_dir($kc_dir) && !file_exists($kc_dir . '/.kc-cleanup-done')) {
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
-/* v34.39.33 (CONTACT-SYNC-DIAG-2 / R2): پاسخ‌های این API هرگز نباید کش شوند —
+/* v34.39.40 (CONTACT-SYNC-DIAG-2 / R2): پاسخ‌های این API هرگز نباید کش شوند —
    نه توسط مرورگر (کش هیوریستیک GET) و نه توسط هیچ واسطی (LiteSpeed/CDN).
    گزارش کارفرما: «ثبت روی سرور زدم ولی تشخیص دوباره همان پیام قدیمی را از
    پاسخ کش‌شدهٔ اجرای قبل نشان داد». data_pull/data_push/data_manifest و همهٔ

@@ -1,16 +1,16 @@
-/* tester680 — v34.39.33 (CONTACT-SYNC-DIAG-2 — SERVER-VERIFIED WRITE)
+/* tester680 — v34.39.40 (CONTACT-SYNC-DIAG-2 — SERVER-VERIFIED WRITE)
    رگرسیون کاملِ ریشه‌های گزارش کارفرما ۱۴۰۵/۰۷/۰۴:
    «ثبت روی سرور را زدم ولی تشخیص دوباره گفت روی سرور نیست»
 
    ریشه‌ها (RCA):
      R1) شاخهٔ ptfEntitySaveCollection با reason='contact-sync-diag' کلیدهای تماس را
          پیش از upsert حذف می‌کرد (سپر CONTACT-STALE) + شاخهٔ setData فقط محلی می‌نوشت؛
-         هر دو «✅ ثبت شد» می‌گفتند ⇒ موفقیت کاذب. v34.39.33: هیچ fallback محلی نمانده.
+         هر دو «✅ ثبت شد» می‌گفتند ⇒ موفقیت کاذب. v34.39.40: هیچ fallback محلی نمانده.
      R2) خواندن: URL یکسان بین دو اجرا + بدون no-store ⇒ پاسخ کش‌شده = «همان پیام».
-         v34.39.33: buster یکتا + cache:'no-store' + هدر no-store سرور.
+         v34.39.40: buster یکتا + cache:'no-store' + هدر no-store سرور.
      R3) تطبیق شماره فقط دقیق/پسوندی بود (۰۹۱۲… ≠ ۹۸۹۱۲…) ⇒ «روی سرور نیست» کاذب.
-         v34.39.33: canonNum — ۰/۹۸/+۹۸/۰۰۹۸ هم‌ارز.
-     R4) بدون حلقهٔ تأیید. v34.39.33: ثبت = فرمان + بازخوانی؛ موفقیت فقط با دیدنِ
+         v34.39.40: canonNum — ۰/۹۸/+۹۸/۰۰۹۸ هم‌ارز.
+     R4) بدون حلقهٔ تأیید. v34.39.40: ثبت = فرمان + بازخوانی؛ موفقیت فقط با دیدنِ
          شماره در پاسخ تازهٔ سرور (state='verified'). */
 require('./harness');
 var fs = require('fs'), path = require('path');
@@ -83,21 +83,21 @@ var SRV_REC = {
   coTels: [{ n: '021 8800 9999' }], phones: []
 };
 
-SECTION('v34.39.33 — معماری: حذف ریشه‌های موفقیت کاذب (R1)');
+SECTION('v34.39.40 — معماری: حذف ریشه‌های موفقیت کاذب (R1)');
 T('هیچ فراخوانی ptfEntitySaveCollection در ماژول نمانده (فقط نام در کامنت RCA)', !/window\.ptfEntitySaveCollection\s*\(|[^\w.]ptfEntitySaveCollection\s*\(/.test(src));
 T('هیچ مسیر local-only با پیام «legacy» موفقیت باقی نمانده (legacy = خطا)', /state:\s*'legacy'/.test(src) === false || src.indexOf('مسیر فرمان در لحظهٔ ارسال غیرفعال بود') > -1);
 T('مسیر فرمان (ptfEntityUpsert) تنها مسیر نوشتن است', src.indexOf("window.ptfEntityUpsert(KEY, patched") > -1);
 T('در غیاب مسیر فرمان، هیچ نوشتن محلی انجام نمی‌شود (unavailable ⇒ return بدون setData)', src.indexOf("done({ state: 'unavailable', operationId: opId });") > -1);
 
-SECTION('v34.39.33 — قرارداد نسخه و جلوگیری از استقرار ناهمگن');
-T('PTF_CRM_RELEASE = v34.39.33', /window\.PTF_CRM_RELEASE\s*=\s*'v34\.39\.33'/.test(idx));
-T('sw.js RELEASE/CACHE = v34.39.33', /var RELEASE = 'v34\.39\.33'/.test(sw) && /CACHE = 'ptf-crm-v34\.39\.33'/.test(sw));
-T('اسکریپت تشخیص با نسخهٔ جدید در index.html (cache-bust)', idx.indexOf('contact-sync-diag.js?v=34.39.33') > -1);
+SECTION('v34.39.40 — قرارداد نسخه و جلوگیری از استقرار ناهمگن');
+T('PTF_CRM_RELEASE = v34.39.40', /window\.PTF_CRM_RELEASE\s*=\s*'v34\.39\.40'/.test(idx));
+T('sw.js RELEASE/CACHE = v34.39.40', /var RELEASE = 'v34\.39\.40'/.test(sw) && /CACHE = 'ptf-crm-v34\.39\.40'/.test(sw));
+T('اسکریپت تشخیص با نسخهٔ جدید در index.html (cache-bust)', idx.indexOf('contact-sync-diag.js?v=34.39.40') > -1);
 T('هیچ ?v=34.39.32 باقی نمانده', idx.indexOf('v=34.39.32') === -1);
-T('VERSION.json crm_version = v34.39.33', ver.crm_version === 'v34.39.33');
-T('SD_SERVICE_VERSION = 34.39.33 (هم‌راستا با UI)', /SD_SERVICE_VERSION = '34\.39\.33'/.test(sdp));
+T('VERSION.json crm_version = v34.39.40', ver.crm_version === 'v34.39.40');
+T('SD_SERVICE_VERSION = 34.39.40 (هم‌راستا با UI)', /SD_SERVICE_VERSION = '34\.39\.40'/.test(sdp));
 
-SECTION('v34.39.33 — هدر no-store سرور (R2)');
+SECTION('v34.39.40 — هدر no-store سرور (R2)');
 T('api/crm.php: Cache-Control no-store برای همهٔ پاسخ‌ها', crmp.indexOf("header('Cache-Control: no-store, no-cache, must-revalidate, private');") > -1 && crmp.indexOf("header('Pragma: no-cache');") > -1);
 T('api/sales-domain.php: Cache-Control no-store', sdp.indexOf("header('Cache-Control: no-store, no-cache, must-revalidate, private');") > -1);
 
@@ -143,7 +143,7 @@ T('شمارهٔ کوتاه رد می‌شود', global.ptfCsdPlanFix(SRV_REC, 'c
 
 SECTION('R2 — fetchServerRec: buster + no-store + krevs از لایهٔ سینک');
 freshLoad();
-localStorage.setItem('ptf_sync_krevs', JSON.stringify({ 'ptf_crm_customers': 7, 'ptf_crm_offers': 3 }));
+global.ptfSyncKrevs = function () { return { 'ptf_crm_customers': 7, 'ptf_crm_offers': 3 }; }; /* A10: krevs فقط از لایهٔ سینک */
 env.fetchImpl = function () { return Promise.resolve(resp(customersPayload([SRV_REC], 9))); };
 global.ptfCsdFetchServerRec().then(function (sr) {
   T('خواندن موفق — رکورد سرور برگشت', sr.arr.length === 1 && sr.arr[0].cd === 'CUST-101');
@@ -153,6 +153,7 @@ global.ptfCsdFetchServerRec().then(function (sr) {
   T('کلید مشتریان از krevs ارسالی حذف شد (سرور مجبور به فرستادنش می‌شود)', call.url.indexOf('ptf_crm_customers') === -1 && decodeURIComponent(call.url).indexOf('"ptf_crm_offers":3') > -1);
   /* krevs از window.ptfSyncKrevs وقتی هست (A10) */
   global.ptfSyncKrevs = function () { return { 'ptf_crm_customers': 12, 'ptf_crm_leads': 4 }; };
+  T('A10: هیچ دسترسی مستقیم localStorage در سورس ماژول نیست', !/localStorage\s*\.\s*(setItem|getItem|removeItem)\s*\(/.test(src));
   return global.ptfCsdFetchServerRec();
 }).then(function () {
   T('krevs از لایهٔ سینک خوانده شد (نه localStorage مستقیم)', env.fetchCalls.length === 2 && env.fetchCalls[1].url.indexOf('ptf_crm_customers') === -1);
@@ -229,7 +230,7 @@ function commitTests() {
     env.upsertImpl = function (c, rec, opts) { opts.cb({ state: 'uncertain', error: { commitOutcome: 'uncertain' } }); };
     global.ptfCsdCommitFix(SRV_REC, SRV_REC, '09121234567', function (r) {
       T('uncertain ⇒ uncertain (نه verified)', r.state === 'uncertain');
-      DONE('tester680 — v34.39.33 CONTACT-SYNC-DIAG-2 (server-verified write)');
+      DONE('tester680 — v34.39.40 CONTACT-SYNC-DIAG-2 (server-verified write)');
     });
   }
 }

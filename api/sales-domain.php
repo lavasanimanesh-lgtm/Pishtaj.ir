@@ -32,7 +32,7 @@ register_shutdown_function(function (): void {
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
-/* v34.39.33 (CONTACT-SYNC-DIAG-2 / R2): پاسخ فرمان/رسید هرگز کش نشود — مثل api/crm.php. */
+/* v34.39.40 (CONTACT-SYNC-DIAG-2 / R2): پاسخ فرمان/رسید هرگز کش نشود — مثل api/crm.php. */
 header('Cache-Control: no-store, no-cache, must-revalidate, private');
 header('Pragma: no-cache');
 require_once __DIR__ . '/auth.php';
@@ -66,7 +66,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.33';
+const SD_SERVICE_VERSION = '34.39.40';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1639,6 +1639,45 @@ function sd_finance_repair_plan(array $months,array $expectedChairIn=[],array $e
     return ['readOnly'=>true,'mutation'=>false,'planVersion'=>'finance-repair-plan-v1','serverGlobalRevision'=>$manifest['serverGlobalRevision'],'keyRevisions'=>$keyRevisions,'scopeMonths'=>$months,'summary'=>$summary,'items'=>$items,'planHash'=>$manifest['planHash']];
 }
 
+/* v34.19.0 (RECYCLE) + v34.39.40 (CONTACT-SYNC-DIAG-2 / R5): نقشهٔ kinds کپی کاملِ
+   sync_tombstone_kinds_for_key از api/crm.php است (برای خنثی‌سازی بلوکِ id هنگام
+   بازیافت) — با تغییر آن نقشه اینجا هم همگام شود. این گارد قبلاً به‌اشتباه
+   وسط زنجیرهٔ elseif دیسپچر (بین attachment_* و entity_upsert) قرار داشت و چون
+   sd_tombstone_kinds پیش از آن هیچ‌جا تعریف نمی‌شد، شرط همیشه true می‌شد و زنجیرهٔ
+   elseif (entity_upsert/entity_delete/entity_restore/revoke_invoice_ref/
+   entity_tombstones_neutralize و elseٔ unknown_action) هرگز ارزیابی نمی‌شد — هر
+   فرمان entity پاسخ خالیِ ok:true بدون هیچ نوشتی برمی‌گرداند (موفقیت کاذبِ
+   «ثبت روی سرور» بدون ثبت واقعی). گارد به پیش از دیسپچر منتقل شد. */
+if (!function_exists('sd_tombstone_kinds')) {
+    function sd_tombstone_kinds($key) {
+        $map = [
+            'ptf_crm_offers' => ['offer','offers','to','co','tc'],
+            'ptf_crm_rfqs' => ['rfq','request','inq','inquiry'],
+            'ptf_crm_customers' => ['customer','customers','cust'],
+            'ptf_crm_suppliers' => ['supplier','suppliers','sup'],
+            'ptf_crm_products' => ['product','products','prod'],
+            'ptf_crm_leads' => ['lead','leads'],
+            'ptf_crm_invoices' => ['invoice','invoices','inv'],
+            'ptf_crm_payables' => ['payable','payables','pay'],
+            'ptf_crm_cheques' => ['cheque','check','chq'],
+            'ptf_crm_deals' => ['deal','deals','salesfile'],
+            'ptf_crm_projects' => ['project','projects','salesfile'],
+            'ptf_crm_letters' => ['letter','letters'],
+            'ptf_crm_contracts' => ['contract','contracts'],
+            'ptf_crm_rfqsmart' => ['rfqsmart','supplyrfq'],
+            'ptf_crm_buycmp' => ['buycmp','buycompare'],
+            'ptf_crm_inqitems' => ['inqitem','inqitems','iqi'],
+            'ptf_crm_case_receipts' => ['receipt','case_receipt','rpay'],
+            'ptf_crm_receipt_allocations' => ['allocation','receipt_allocation'],
+            'ptf_crm_fin_attachments' => ['attachment','financial_attachment'],
+            'ptf_crm_sharetx' => ['sharetx','share_transaction','shareholder_salary','chair_in','chair_out','draw','salary','salary_payment'],
+            'ptf_crm_opex' => ['opex','expense','recurring_opex','shareholder_salary'],
+            'ptf_crm_shareholders' => ['shareholder','shareholders'],
+            'ptf_crm_corrections' => ['correction'],
+        ];
+        return $map[$key] ?? [];
+    }
+}
 $readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run', 'duplicate_case_plan', 'archived_case_purge_plan', 'command_status', 'finance_repair_plan'], true);
 if ($readOnly) {
     /* v34.7.45: compact authoritative receipt lookup. A large command may commit but
@@ -3020,38 +3059,8 @@ try {
         $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'financial_attachment','entityId'=>$result['attachmentId']??$result['deleted']??'','kind'=>$action,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),'ownerType'=>$ownerType,'ownerId'=>$ownerId];
         $changes=['ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];
     }
-    /* v34.19.0 (RECYCLE): کپی کامل نقشهٔ tombstone از sync_tombstone_kinds_for_key
-       در api/crm.php — برای خنثی‌سازی بلوکِ id هنگام بازیافت. با تغییر آن نقشه اینجا هم همگام شود. */
-    if (!function_exists('sd_tombstone_kinds')) {
-        function sd_tombstone_kinds($key) {
-            $map = [
-                'ptf_crm_offers' => ['offer','offers','to','co','tc'],
-                'ptf_crm_rfqs' => ['rfq','request','inq','inquiry'],
-                'ptf_crm_customers' => ['customer','customers','cust'],
-                'ptf_crm_suppliers' => ['supplier','suppliers','sup'],
-                'ptf_crm_products' => ['product','products','prod'],
-                'ptf_crm_leads' => ['lead','leads'],
-                'ptf_crm_invoices' => ['invoice','invoices','inv'],
-                'ptf_crm_payables' => ['payable','payables','pay'],
-                'ptf_crm_cheques' => ['cheque','check','chq'],
-                'ptf_crm_deals' => ['deal','deals','salesfile'],
-                'ptf_crm_projects' => ['project','projects','salesfile'],
-                'ptf_crm_letters' => ['letter','letters'],
-                'ptf_crm_contracts' => ['contract','contracts'],
-                'ptf_crm_rfqsmart' => ['rfqsmart','supplyrfq'],
-                'ptf_crm_buycmp' => ['buycmp','buycompare'],
-                'ptf_crm_inqitems' => ['inqitem','inqitems','iqi'],
-                'ptf_crm_case_receipts' => ['receipt','case_receipt','rpay'],
-                'ptf_crm_receipt_allocations' => ['allocation','receipt_allocation'],
-                'ptf_crm_fin_attachments' => ['attachment','financial_attachment'],
-                'ptf_crm_sharetx' => ['sharetx','share_transaction','shareholder_salary','chair_in','chair_out','draw','salary','salary_payment'],
-                'ptf_crm_opex' => ['opex','expense','recurring_opex','shareholder_salary'],
-                'ptf_crm_shareholders' => ['shareholder','shareholders'],
-                'ptf_crm_corrections' => ['correction'],
-            ];
-            return $map[$key] ?? [];
-        }
-    }
+    /* v34.39.40 (CONTACT-SYNC-DIAG-2 / R5): گارد تعریف sd_tombstone_kinds از اینجا
+       (وسط زنجیرهٔ elseif) به پیش از دیسپچر منتقل شد — توضیح کامل بالای فایلِ دیسپچر. */
     elseif ($action === 'entity_upsert' || $action === 'entity_delete') {
         /* v34.8.13 (PHASE-C2): فرمان عمومی موجودیت — سرور مالک رکورد است. */
         $collection = sd_text($body['collection'] ?? '', 60);

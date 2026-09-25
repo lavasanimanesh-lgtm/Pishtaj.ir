@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester669 — v34.39.24 (HOME-MINBTN)
+   tester669 — v34.39.40 (HOME-MINBTN)
    درخواست کارفرما: «در دسکتاپ کلمهٔ نمای روز و کادر دور آن حذف، فقط آیکون ماه/خورشید؛
    در زبان هم کلمهٔ EN حذف و فقط آیکون پرچمِ مینیمال، کادر هم حذف.»
    قرارداد:
@@ -59,8 +59,8 @@ T('۳.۴ رگرسیون‌زدا: موجِ پنل، آیکونِ شیت، آکا
   /#mainNav \.nav-drop\.open>\.nav-drop-menu\{max-height:240px/.test(home) &&
   home.indexOf('html.ptf-dark #mainNav .nav-mega') > -1 &&
   idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
-T('۳.۵ VERSION.json = v34.39.24', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.24');
+T('۳.۵ VERSION.json = v34.39.40', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.40');
 
-DONE('tester669-v34.39.24-minbtn');
+DONE('tester669-v34.39.40-minbtn');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
