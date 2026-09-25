@@ -718,9 +718,14 @@ function syncContactRecordsMergeJs(incomingJson, serverJson) {
   /* ── هم‌سنجی پورت JS با PHP واقعی (sync_contact_records_merge + contact-merge-lib) ──
      فقط اگر php با mbstring در دسترس باشد (GitHub Actions)؛ وگرنه skip با هشدار. */
   var cp6 = require('child_process'), path6 = require('path');
-  var phpProbe = cp6.spawnSync('php', ['-r', 'echo function_exists("mb_strtolower") ? "ok" : "no-mbstring";'], { encoding: 'utf8' });
-  if (phpProbe.error || phpProbe.status !== 0 || String(phpProbe.stdout || '').trim() !== 'ok') {
+  /* روی GitHub Actions نتیجه به‌صورت annotation هم ثبت می‌شود تا «اجرا شد» یا «skip شد»
+     بدون دسترسی به لاگ کامل (gh run view) دیده شود — skip خاموش روی CI تضمین کاذب است. */
+  var GHA6 = !!process.env.GITHUB_ACTIONS;
+  var phpProbe = cp6.spawnSync('php', ['-r', 'echo PHP_VERSION, "|", function_exists("mb_strtolower") ? "ok" : "no-mbstring";'], { encoding: 'utf8' });
+  var probeBits = String(phpProbe.stdout || '').trim().split('|');
+  if (phpProbe.error || phpProbe.status !== 0 || probeBits[1] !== 'ok') {
     T('۶.۱۳ هم‌سنجی با PHP واقعی — php/mbstring در دسترس نیست (skip؛ روی CI اجرا می‌شود)', true);
+    if (GHA6) console.log('::warning title=tester676 ۶.۱۳::هم‌سنجی R7 با PHP واقعی اجرا نشد — php یا mbstring روی runner نیست (' + (phpProbe.error ? phpProbe.error.code : String(phpProbe.stdout || '').trim()) + ')');
   } else {
     var phpFnSrc = function (src, name) {
       var at = src.indexOf('\nfunction ' + name + '(');
@@ -738,9 +743,10 @@ function syncContactRecordsMergeJs(incomingJson, serverJson) {
     var run6 = cp6.spawnSync('php', ['-d', 'display_errors=stderr', '-r', phpCode], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
     var phpOut = null; try { phpOut = JSON.parse(String(run6.stdout || '')); } catch (eJ) {}
     var jsOut = R7CASES.map(function (c) { var r = syncContactRecordsMergeJs(c[0], c[1]); return r === null ? null : JSON.parse(r); });
-    T('۶.۱۳ PHP واقعی با پورت JS هم‌خروجی است (' + R7CASES.length + ' سناریوی بخش ۶)',
-      !!fnRecId && !!fnMerge && Array.isArray(phpOut) && JSON.stringify(phpOut) === JSON.stringify(jsOut),
+    var same6 = !!fnRecId && !!fnMerge && Array.isArray(phpOut) && JSON.stringify(phpOut) === JSON.stringify(jsOut);
+    T('۶.۱۳ PHP واقعی (' + probeBits[0] + ') با پورت JS هم‌خروجی است (' + R7CASES.length + ' سناریوی بخش ۶)', same6,
       (!fnRecId || !fnMerge) ? 'تابع در api/crm.php پیدا نشد' : ('status=' + run6.status + ' stderr=' + String(run6.stderr || '').slice(0, 400) + ' stdout=' + String(run6.stdout || '').slice(0, 400)));
+    if (GHA6) console.log('::notice title=tester676 ۶.۱۳::هم‌سنجی R7 با PHP واقعی ' + probeBits[0] + ' اجرا شد — ' + (same6 ? 'هم‌خروجی با پورت JS' : 'ناهمخوان با پورت JS') + ' در ' + R7CASES.length + ' سناریو');
   }
 
   console.log('\n' + (failures ? failures + ' FAIL' : 'ALL PASSED') + ' — tester676 (v' + version + ')');
