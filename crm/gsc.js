@@ -644,6 +644,158 @@
     });
   };
 
+  /* ═══ v34.39.31 (GSC-AI-REPORT): گزارش هوشمند سئو — یک کلیک = تشخیص کامل ═══
+     جریان: gsc.php?action=ai_report (همهٔ داده + دیجست متنی) → llm.php?action=seo_gsc_report
+     (تحلیل ساختاریافته) → گزارش مارک‌داون یکجا: تحلیل + پیوست داده. خروجی برای این است
+     که کارفرما آن را عیناً به دستیار هوشمند بدهد و بدون رفت‌وبرگشت اضافه، تصمیم
+     بهینه‌سازی دقیق گرفته شود (همان داده‌ای که AI داخلی دیده، دستیار هم می‌بیند). */
+  function gscAiSevColor(s) {
+    s = String(s || '').toLowerCase();
+    if (s === 'critical') return '#b91c1c';
+    if (s === 'high') return '#c2410c';
+    if (s === 'medium') return '#b45309';
+    return '#475569';
+  }
+  function gscAiSevFa(s) {
+    s = String(s || '').toLowerCase();
+    return { critical: 'بحرانی', high: 'مهم', medium: 'متوسط', low: 'جزئی' }[s] || String(s || '');
+  }
+  function gscAiBuildReport(d, a) {
+    var gen = String(d.generated || '').replace('T', ' ').slice(0, 16);
+    var md = '';
+    md += '# گزارش هوشمند سئو — pishtaj.ir\n';
+    md += '- تولید: ' + gen + ' · ابزار: CRM ' + (window.PTF_CRM_RELEASE || '') + ' (GSC-AI-REPORT)' + (d.cached ? ' · (دادهٔ کش‌شده)' : '') + '\n';
+    md += '- بازهٔ جاری: ' + d.start + ' تا ' + d.end + ' (' + d.days + ' روز) · دورهٔ مقایسه: ' + d.prev_start + ' تا ' + d.prev_end + '\n';
+    md += '- منبع داده: Google Search Console API (dataState=final) — سهمیهٔ URL Inspection مصرف نشده\n\n';
+    var okAi = !!(a && a.ok && a.data);
+    if (okAi) {
+      var A = a.data;
+      md += '## ۱) جمع‌بندی تحلیلی هوش مصنوعی\n';
+      md += 'نمرهٔ سلامت سئو: ' + (A.health_score != null ? A.health_score + '/100' : '—') + '\n\n';
+      md += String(A.summary || '') + '\n\n';
+      md += '## ۲) یافته‌ها (تشخیص، به ترتیب اهمیت)\n';
+      (A.findings || []).forEach(function (f) {
+        md += '### [' + gscAiSevFa(f.severity) + '] ' + String(f.title || '') + '\n';
+        md += '- شاهد از داده: ' + String(f.evidence || '') + '\n';
+        md += '- اقدام مشخص: ' + String(f.action || '') + '\n';
+        md += '- اثر مورد انتظار: ' + String(f.impact || '') + '\n';
+      });
+      md += '\n## ۳) بردهای سریع (قابل اجرا همین هفته)\n';
+      (A.quick_wins || []).forEach(function (w, i) {
+        md += (i + 1) + '. ' + String(w.what || '') + ' — چرا: ' + String(w.why || '') + ' | چگونه: ' + String(w.how || '') + '\n';
+      });
+      md += '\n## ۴) گام‌های بعدی پیشنهادی\n';
+      (A.next_steps || []).forEach(function (s, i) { md += (i + 1) + '. ' + String(s || '') + '\n'; });
+      var gaps = A.content_gaps || [];
+      if (gaps.length) {
+        md += '\n## ۵) شکاف‌های محتوایی از دل کوئری‌ها\n';
+        gaps.forEach(function (g) { md += '- ' + String(g || '') + '\n'; });
+      }
+      md += '\n';
+    } else {
+      md += '## ۱) تحلیل هوش مصنوعی\n⚠️ تحلیل AI در دسترس نبود (' + escP((a && a.error) || 'خطای نامشخص') + ') — پیوست دادهٔ زیر کامل است و به‌تنهایی برای تشخیص کافی است.\n\n';
+    }
+    md += '## ' + (okAi ? '۶' : '۲') + ') پیوست — دادهٔ کامل سرچ کنسول (همان ورودی تحلیل AI)\n';
+    md += '```\n' + String(d.digest_text || '') + '\n```\n\n';
+    md += '---\nاین گزارش خودکفاست: تحلیل بالا + دادهٔ کامل پیوست. آن را عیناً به دستیار هوشمند بدهید تا با اتکا به همین اعداد، اقدام اصلاحی صفحه/کوئریِ مشخص پیشنهاد دهد.\n';
+    return md;
+  }
+  window.gscAiReport = function () {
+    var box = document.createElement('div');
+    box.className = 'md-b';
+    box.style.display = 'grid';
+    box.onclick = function (e) { if (e.target === box) box.remove(); };
+    box.innerHTML = '<div class="md" style="max-width:900px;max-height:92vh;overflow:auto;line-height:2">' +
+      '<h3>🤖 گزارش هوشمند سئو</h3><div id="gscAiBody" style="font-size:12.5px"></div>' +
+      '<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div>';
+    document.getElementById('panels').appendChild(box);
+    var body = function () { return document.getElementById('gscAiBody'); };
+    body().innerHTML = '<div style="color:#64748b">⏳ گام ۱ از ۲ — جمع‌آوری دادهٔ کامل از Google Search Console (کوئری‌ها، صفحات، روند، دستگاه، کشور، پوشش، ردیاب ایندکس)…</div>';
+    api('ai_report', { days: _days }, function (d) {
+      if (!d || !d.ok) {
+        body().innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px;color:#b91c1c">⚠️ جمع‌آوری داده ناموفق:<br><code style="direction:ltr">' + escP((d && d.error) || 'خطا') + '</code></div>';
+        return;
+      }
+      window._ptfGscAiDigest = d;
+      body().innerHTML = '<div style="color:#64748b">✅ دادهٔ ' + n(d.totals && d.totals.queries || 0) + ' کوئری و ' + n((d.pages && d.pages.top) ? d.pages.top.length : 0) + ' صفحهٔ برتر دریافت شد.</div>' +
+        '<div style="color:#64748b;margin-top:6px">⏳ گام ۲ از ۲ — تحلیل ساختاریافته با هوش مصنوعی (تشخیص، شواهد، اولویت‌ها)…</div>';
+      gscLLM('seo_gsc_report', { digest: d.digest_text }, function (a) {
+        var md = gscAiBuildReport(d, a);
+        window._ptfGscAiReport = md;
+        try { audit('GSC', 'تولید گزارش هوشمند سئو (' + _days + ' روز)', ''); } catch (eA) {}
+        var A = (a && a.ok && a.data) ? a.data : null;
+        var h = '';
+        if (!A) {
+          h += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:9px 12px;color:#b45309;margin-bottom:8px">⚠️ تحلیل AI ناموفق بود (' + escP((a && a.error) || 'خطا') + ') — گزارش فقط با دادهٔ کامل ساخته شد.</div>';
+        } else {
+          var score = A.health_score != null ? Math.max(0, Math.min(100, Math.round(+A.health_score || 0))) : null;
+          var scoreClr = score === null ? '#64748b' : (score >= 70 ? '#059669' : (score >= 45 ? '#b45309' : '#b91c1c'));
+          h += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:10px 14px;margin-bottom:8px">' +
+            '<b style="font-size:14px">نمرهٔ سلامت سئو</b>' +
+            '<b style="font-size:22px;color:' + scoreClr + '">' + (score !== null ? score + '/100' : '—') + '</b>' +
+            '<span style="font-size:12px;color:#475569;flex:1;min-width:220px">' + escP(String(A.summary || '').slice(0, 600)) + (String(A.summary || '').length > 600 ? '…' : '') + '</span></div>';
+          (A.findings || []).forEach(function (f) {
+            h += '<div style="border:1px solid var(--brd);border-right:4px solid ' + gscAiSevColor(f.severity) + ';border-radius:10px;padding:9px 12px;margin-bottom:7px;background:#fff">' +
+              '<b>[' + gscAiSevFa(f.severity) + '] ' + escP(f.title || '') + '</b>' +
+              '<div style="font-size:12px;color:#475569;margin-top:4px">🔍 شاهد: ' + escP(f.evidence || '') + '</div>' +
+              '<div style="font-size:12px;color:#0f172a;margin-top:3px">🎯 اقدام: ' + escP(f.action || '') + '</div>' +
+              (f.impact ? '<div style="font-size:11.5px;color:#64748b;margin-top:3px">📈 اثر: ' + escP(f.impact) + '</div>' : '') +
+              '</div>';
+          });
+          if ((A.quick_wins || []).length) {
+            h += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 12px;margin-bottom:8px"><b style="font-size:12.5px">⚡ بردهای سریع</b>' +
+              (A.quick_wins || []).map(function (w) {
+                return '<div style="font-size:12px;margin-top:5px;line-height:1.9">• <b>' + escP(w.what || '') + '</b> — ' + escP(w.why || '') + '<br><span style="color:#64748b">چگونه: ' + escP(w.how || '') + '</span></div>';
+              }).join('') + '</div>';
+          }
+          if ((A.next_steps || []).length) {
+            h += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px 12px;margin-bottom:8px"><b style="font-size:12.5px">🧭 گام‌های بعدی</b><ol style="margin:6px 18px 0 0;padding:0;font-size:12px;line-height:2">' +
+              (A.next_steps || []).map(function (s) { return '<li>' + escP(String(s || '')) + '</li>'; }).join('') + '</ol></div>';
+          }
+        }
+        h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0">' +
+          '<button class="bt" style="background:#0e7490;color:#fff" onclick="gscAiCopy()">📋 کپی کل گزارش (برای دادن به دستیار هوشمند)</button>' +
+          '<button class="bt bt-o" onclick="gscAiDownload()">⬇️ دانلود Markdown</button>' +
+          '<button class="bt bt-o" onclick="gscAiReport()">🔁 تولید مجدد</button>' +
+          '<span style="font-size:11px;color:#94a3b8">گزارش شامل تحلیل + پیوست دادهٔ کامل است؛ خودکفا و آمادهٔ تحلیل بیرونی</span></div>';
+        h += '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:#0e7490">📎 نمایش دادهٔ خام سرچ کنسول (پیوست گزارش)</summary>' +
+          '<pre dir="ltr" style="white-space:pre-wrap;font-size:10.5px;line-height:1.9;background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:10px;max-height:340px;overflow:auto">' + escP(String(d.digest_text || '')) + '</pre></details>';
+        body().innerHTML = h;
+      });
+    });
+  };
+  window.gscAiCopy = function () {
+    var md = window._ptfGscAiReport || '';
+    if (!md) return;
+    var done = function () { if (typeof ptfToast === 'function') ptfToast('✅ گزارش کپی شد — آن را به دستیار هوشمند بچسبانید', 'ok'); else alert('✅ گزارش کپی شد'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(md).then(done, function () { gscAiCopyFallback(md, done); });
+    } else gscAiCopyFallback(md, done);
+  };
+  function gscAiCopyFallback(md, done) {
+    var ta = document.createElement('textarea');
+    ta.value = md;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { alert('کپی خودکار ممکن نشد — متن در پنجرهٔ جدید باز شد؛ دستی کپی کنید.'); window.open('data:text/plain;charset=utf-8,' + encodeURIComponent(md), '_blank'); }
+    ta.remove();
+  }
+  window.gscAiDownload = function () {
+    var md = window._ptfGscAiReport || '';
+    if (!md) return;
+    var dt = new Date();
+    var pad = function (x) { return (x < 10 ? '0' : '') + x; };
+    var name = 'pishtaj-seo-report-' + dt.getFullYear() + pad(dt.getMonth() + 1) + pad(dt.getDate()) + '-' + pad(dt.getHours()) + pad(dt.getMinutes()) + '.md';
+    var blob = new Blob(['\ufeff' + md], { type: 'text/markdown;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 400);
+  };
+
   /* ============ روتینگ ============ */
   var _go = window.goPanel;
   window.goPanel = function (id, btn) {
@@ -661,6 +813,7 @@
         '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscSetDays(180)">۶ ماه</button>' +
         '<button class="bt" style="padding:5px 11px;font-size:12px" onclick="gscRefresh()">⟳ به‌روزرسانی</button>' +
         '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="gscSubmitSitemap()">📤 ثبت نقشه در سرچ کنسول</button>' +
+        '<button class="bt" style="padding:5px 11px;font-size:12px;background:#0e7490;color:#fff" title="جمع‌آوری کامل دادهٔ گوگل + تحلیل هوش مصنوعی + گزارش یکجا برای تصمیم‌گیری سریع سئو (v34.39.31)" onclick="gscAiReport()">🤖 گزارش هوشمند سئو</button>' +
         '<span style="font-size:11px;color:#94a3b8">داده هر ۳۰ دقیقه کش می‌شود</span></div>' +
         '<div id="gscWrap"></div>';
       api('status', null, function (s) {
