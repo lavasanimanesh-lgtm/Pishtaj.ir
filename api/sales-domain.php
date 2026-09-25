@@ -32,6 +32,9 @@ register_shutdown_function(function (): void {
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
+/* v34.39.33 (CONTACT-SYNC-DIAG-2 / R2): پاسخ فرمان/رسید هرگز کش نشود — مثل api/crm.php. */
+header('Cache-Control: no-store, no-cache, must-revalidate, private');
+header('Pragma: no-cache');
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/db-lib.php';
 require_once __DIR__ . '/contact-merge-lib.php'; /* v34.39.30 (CONTACT-ROOTS R7): primitives مشترک اتحاد تماس — sd_* روی همان تابع‌ها alias شده‌اند */
@@ -63,7 +66,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.24';
+const SD_SERVICE_VERSION = '34.39.33';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
