@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester651 — v34.39.32 (SEO-WATCHLIST-LIVE): قفلِ «حالت زنده» ابزار واچ‌لیست هفتگی.
+/* tester651 — v34.39.40 (SEO-WATCHLIST-LIVE): قفلِ «حالت زنده» ابزار واچ‌لیست هفتگی.
    از وقتی GSC وصل است، دیگر اکسپورت CSV لازم نیست: _tools/seo_weekly_watchlist.py --live
    همان داده‌ای را که پنل CRM نشان می‌دهد مستقیم از api/gsc.php (action=overview) می‌گیرد،
    روند را در _audit/SEO-WATCHLIST.json به‌روز می‌کند و گزارش هفتگی می‌سازد — بدون نوشتنِ

@@ -142,11 +142,11 @@ T('۳.۵ sfEventFileDeleteCommit فایل را در _deletedFileKeys قرار م
 /* ───────────────────── ۴) انطباق نسخه و نگهبان ───────────────────── */
 head('۴. انطباق نسخه و نگهبان گیت');
 
-T('۴.۱ VERSION.json روی نسخه v34.39.32 است', verJson.crm_version === 'v34.39.32');
-T('۴.۲ شاخص رهاسازی در index.html روی v34.39.32 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.32'") > -1);
-T('۴.۳ سرویس‌ورکر روی نسخه v34.39.32 است', read('crm/sw.js').indexOf("RELEASE = 'v34.39.32'") > -1);
-T('۴.۴ مانیفست روی نسخه 34.39.32 است', JSON.parse(read('crm/manifest.json')).version === '34.39.32');
-T('۴.۵ sales-domain.php روی نسخه 34.39.32 است', read('api/sales-domain.php').indexOf("const SD_SERVICE_VERSION = '34.39.32'") > -1);
+T('۴.۱ VERSION.json روی نسخه v34.39.40 است', verJson.crm_version === 'v34.39.40');
+T('۴.۲ شاخص رهاسازی در index.html روی v34.39.40 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.40'") > -1);
+T('۴.۳ سرویس‌ورکر روی نسخه v34.39.40 است', read('crm/sw.js').indexOf("RELEASE = 'v34.39.40'") > -1);
+T('۴.۴ مانیفست روی نسخه 34.39.40 است', JSON.parse(read('crm/manifest.json')).version === '34.39.40');
+T('۴.۵ sales-domain.php روی نسخه 34.39.40 است', read('api/sales-domain.php').indexOf("const SD_SERVICE_VERSION = '34.39.40'") > -1);
 
 console.log('\n=== tester605-v34.38.16: ' + p + ' PASS / ' + f + ' FAIL ===\n');
 if (f > 0) process.exit(1);

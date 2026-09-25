@@ -1,28 +1,46 @@
 /* =====================================================================
-   PTF CRM — contact-sync-diag.js — v34.39.29 (CONTACT-SYNC-DIAG)
-   «شماره را روی دستگاه دیگر دوباره وارد کردم ولی برای من نمایش داده نمی‌شود»
+   PTF CRM — contact-sync-diag.js — v34.39.40 (CONTACT-SYNC-DIAG-2 — SERVER-VERIFIED WRITE)
+   «شماره را ثبت روی سرور زدم ولی تشخیص دوباره گفت روی سرور نیست»
    ---------------------------------------------------------------------
-   گزارش کارفرما (۱۴۰۵/۰۷/۰۳): شماره تماسِ یکی از افراد پاک شده بود؛ یکی از
-   کاربران آن را دوباره اضافه کرد، اما برای مدیر نمایش داده نمی‌شود.
-   این ابزار مشخص می‌کند دقیقاً کدام یک از سه وضعیت رخ داده:
-     ① تغییر به سرور رسیده ولی دستگاهِ مشاهده‌کننده کش کهنه نشان می‌دهد
-        → با رفرش حل می‌شود (خطای «من نمی‌بینم» — در حالی که داده سالم است)
-     ② تغییر روی همین دستگاه است اما هنوز در صف آفلاین مانده
-        → تا ارسال، هیچ دستگاه دیگری نمی‌بیند
-     ③ تغییر اصلاً به سرور نرسیده (صف گیرکردهٔ دستگاهِ واردکننده / نشست
-        منقضی) → با «وضعیت دستگاه» آن دستگاه حل می‌شود؛ یا از همین‌جا
-        (admin/chairman) شمارهٔ معلوم مستقیماً روی سرور ثبت می‌شود
-   معماری: فاز B — سرور (MySQL) منبع حقیقت است؛ هر دستگاه کش ۳۰ ثانیه +
-   آینهٔ IndexedDB دارد و نوشتن‌ها debounce + صف آفلاین دارند. «نمایش
-   داده‌نشدن» تقریباً همیشه یکی از این سه است، نه «باگ نمایش».
-   قواعد امنیت:
-     D1) تشخیص فقط خواندنی است (data_pull / sync_read) — هیچ چیزی تغییر نمی‌کند؛
-     D2) ثبت سریع فقط برای admin/chairman (هم‌پایهٔ بازیابی تماس‌ها)؛
-     D3) مبنای ثبت، آخرین نسخهٔ سرور است (نه کش این دستگاه) و با مهر
-         _ccBaseAt = updatedAt سرور → merge سرور آن را «ویرایش تازه» می‌شمارد
-         و هیچ رکورد دیگری دست نمی‌زند (یک entity_upsert؛ حذف انبوه غیرممکن)؛
-     D4) اگر شماره در هر کانالی از رکورد وجود داشته باشد، ثبت رد می‌شود
-         (S2 — بازنویسی/تکرارِ بی‌دلیل).
+   گزارش کارفرما (۱۴۰۵/۰۷/۰۴): در ابزار تشخیص سینک تماس، مشتری انتخاب و شماره
+   وارد و «ثبت روی سرور» زده شد؛ پیام موفقیت آمد، اما «اجرای تشخیص» دوباره
+   همان «روی سرور وجود ندارد» را نشان داد. RCA کامل (REPORT-CONTACT-SYNC-
+   ROOT-CAUSE-2-2026-09-25.md) سه ریشهٔ هم‌زدد داشت:
+
+     R1) مسیرهای جایگزینِ نوشتن با موفقیتِ کاذب — شاخهٔ ptfEntitySaveCollection
+         با reason='contact-sync-diag' از فهرست CONTACT_TOUCH_REASONS نبود ⇒
+         روترِ COLLECTION کلیدهای people/coTels/phones/ph را پیش از upsert از
+         payload «حذف» می‌کرد (سپر ضدپاک‌شدن) یعنی همان شماره‌ای که قرار بود
+         ثبت شود حذف می‌شد؛ شاخهٔ setData فقط محلی می‌نوشت — و هر دو «✅ ثبت شد»
+         می‌گفتند. دقیقاً در سناریویی که ابزار برایش ساخته شده (صف گیرکرده /
+         نشست منقضی / استقرار ناهمگن) شماره هرگز به سرور نمی‌رسید.
+     R2) خواندن تازه از سرور قابل اتکا نبود — URL دلتا بین دو اجرا بایت‌به‌بایت
+         یکسان بود، بدون cache:'no-store' و بدون buster؛ سرور هم هیچ Cache-Control
+         نمی‌فرستاد ⇒ هر واسطی (مرورگر/LiteSpeed/CDN) می‌توانست پاسخ اجرای اول
+         را دوباره بدهد («همان پیام»).
+     R3) تطبیق شماره فقط دقیق/پسوندی بود — ۰۹۱۲… محلی در برابر ۹۸۹۱۲… ذخیره‌شده
+         «روی سرور نیست» می‌شد در حالی که بود.
+
+   قرارداد تازهٔ v34.39.40 — «ثبت روی سرور = فرمان + بازخوانی تأیید»:
+     W1) فقط و فقط مسیر فرمان اتمیک ptfEntityUpsert (entity_upsert با رسید).
+         هیچ fallback محلی‌تنهایی وجود ندارد؛ اگر مسیر فرمان در دسترس نباشد،
+         صادقانه خطا می‌دهد و هیچ چیزی نمی‌نویسد (به‌جای دروغِ «ثبت شد»).
+     W2) بعد از ACK، همان لحظه رکورد از سرور بازخوانی (cache-bust) می‌شود و
+         فقط اگر شماره واقعاً در پاسخ سرور دیده شد «✅ ثبت و تأیید شد» نشان
+         می‌دهد؛ جدول‌های مقایسه خودکار تازه می‌شوند. اگر ACK آمد ولی بازخوانی
+         شماره را نداشت ⇒ «⛔ تأیید نشد» + شناسهٔ رسید (operationId) برای
+         پشتیبانی. موفقیت بدون تأییدِ سرور دیگر قابل گزارش نیست.
+     W3) خواندن: krevs از لایهٔ سینک (window.ptfSyncKrevs — A10)، پارامتر
+         buster یکتا در هر اجرا، cache:'no-store'، و تفکیک صریح «سرور خالی /
+         کلید در پاسخ نبود / خطا» به‌جای جمع‌بندیِ «روی سرور نیست».
+     W4) تطبیق شماره با فرم کانونی ایرانی (۰/۹۸/+۹۸/۰۰۹۸ هم‌ارز) + ارقام
+         فارسی/عربی + حفظ تطبیق پسوندی قدیمی.
+   قواعد امنیت قدیف (حفظ شده):
+     D1) تشخیص فقط خواندنی است؛
+     D2) ثبت فقط برای admin/chairman؛
+     D3) مبنای ثبت، آخرین نسخهٔ سرور است (_ccBaseAt) — merge سرور آن را
+         «ویرایش تازه» می‌شمارد و هیچ رکورد دیگری دست نمی‌زند؛
+     D4) شمارهٔ تکراری رد می‌شود.
    ===================================================================== */
 (function () {
   'use strict';
@@ -37,14 +55,24 @@
   function digits(v) {
     var s = String(v == null ? '' : v);
     try { if (typeof window.ptfToEnDigits === 'function') s = window.ptfToEnDigits(s); } catch (e) {}
-    /* مستقل: ارقام فارسی و عربی را هم بدون وابستگی نرمال می‌کنیم
-       (هم‌سنگ sd_contact_digits سرور) */
+    /* مستقل: ارقام فارسی و عربی را هم بدون وابستگی نرمال می‌کنیم */
     s = s.replace(/[\u06F0-\u06F9\u0660-\u0669]/g, function (ch) {
       var c = ch.charCodeAt(0);
       return c >= 0x06F0 ? String(c - 0x06F0) : String(c - 0x0660);
     });
     return s.replace(/\D+/g, '');
-  }  function authHeaders() {
+  }
+  /* R3 — فرم کانونی شمارهٔ ایرانی: ۰۹۱۲… / ۹۸۹۱۲… / +۹۸۹۱۲… / ۰۰۹۸۹۱۲… هم‌ارز.
+     برای رشته‌های کوتاه/نامشخص دست نمی‌زنیم. */
+  function canonNum(v) {
+    var d = digits(v);
+    if (!d) return '';
+    if (d.length >= 12 && d.indexOf('0098') === 0) d = d.slice(4);
+    else if (d.length >= 12 && d.indexOf('98') === 0) d = d.slice(2);
+    if (d.length >= 10 && d.charAt(0) === '0') d = d.slice(1);
+    return d;
+  }
+  function authHeaders() {
     var hd = {};
     try {
       hd['X-CRM-Role'] = curRole();
@@ -73,13 +101,15 @@
     if (rec.ph) { var n2 = digits(rec.ph); if (n2) out.push({ d: n2, where: 'ph', label: 'فیلد تماس (legacy)' }); }
     return out;
   }
+  /* R3 — تطبیق کانونی + تطبیق پایان‌شماره (پشتیبانِ قدمی) */
   function hasNum(rec, q) {
-    var d = digits(q);
-    if (!d) return false;
+    var dq = canonNum(q);
+    if (!dq) return false;
+    var raw = digits(q);
     return channelNums(rec).some(function (c) {
-      /* تطبیق دقیق + تطبیق پایان‌شماره (کاربر ممکن است بدون صفرِ اول یا
-         پیش‌شمارهٔ کشور وارد کند — فقط برای تشخیص، نه برای ثبت) */
-      return c.d === d || (d.length >= 8 && c.d.length > d.length && c.d.slice(-d.length) === d);
+      if (canonNum(c.d) === dq) return true;
+      if (c.d === raw) return true;
+      return raw.length >= 8 && c.d.length > raw.length && c.d.slice(-raw.length) === raw;
     });
   }
   function hasAny(rec) { return channelNums(rec).length > 0; }
@@ -105,7 +135,7 @@
         body: 'تغییر هنوز در صف آفلاینِ این دستگاه است. تا ارسال، دستگاه‌های دیگر آن را نمی‌بینند. اینترنت را پایدار نگه دارید تا صف خالی شود (تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه). اگر صف گیر کرده، نشست را دوباره باز کنید.' };
       if (!sHas && !lHas) return { code: 'never-synced', tone: 'amber',
         title: '🔎 شماره هرگز به سرور نرسیده است',
-        body: 'سرور این شماره را ندارد و این دستگاه هم. تغییری که «کاربر دیگر» وارد کرد، از دستگاهِ خودش بیرون نرفته. از آن کاربر بخواهید روی دستگاهِ خودش: CRM ← تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه — بررسی کند: ① آیا «تغییرات در انتظار ارسال» دارد؟ ② آیا نشست منقضی شده؟ اگر تغییری در انتظار است، با اینترنت پایدار صبر کند تا ارسال شود؛ اگر نشست مشکل دارد، دوباره وارد شود. تا آن لحظه هیچ دستگاه دیگری نمی‌بیند. (اگر شماره را می‌دانید، از فرم پایین مستقیم روی سرور ثبت می‌شود — فقط admin/رییس هیات.)' };
+        body: 'سرور این شماره را ندارد و این دستگاه هم. تغییری که «کاربر دیگر» وارد کرد، از دستگاهِ خودش بیرون نرفته. از آن کاربر بخواهید روی دستگاهِ خودش: CRM ← تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه — بررسی کند: ① آیا «تغییرات در انتظار ارسال» دارد؟ ② آیا نشست منقضی شده؟ اگر تغییری در انتظار است، با اینترنت پایدار صبر کند تا ارسال شود؛ اگر نشست مشکل دارد، دوباره وارد شود. تا آن لحظه هیچ دستگاه دیگری نمی‌بیند. (اگر شماره را می‌دانید، از فرم پایین مستقیم روی سرور ثبت می‌شود — فقط admin/رییس هیات؛ پس از ثبت، همین پنجره به‌طور خودکار از سرور بازخوانی و تأیید می‌کند.)' };
       return { code: 'ok', tone: 'green',
         title: '✅ شماره هم روی سرور هست و هم روی این دستگاه',
         body: 'شماره کامل هم‌گام است. اگر در جایی از لیست نمی‌بینیدید، احتمالاً در کانال دیگری ذخیره شده (تلفن شرکت در مقابل تلفنِ شخص رابط) — دو جدول پایین را مقایسه کنید.' };
@@ -117,7 +147,7 @@
     if (lAny && !sAny) return { code: 'local-pending', tone: 'amber',
       title: '⏳ تماس‌های این دستگاه هنوز به سرور نرسیده',
       body: 'تغییر در صف آفلاینِ همین دستگاه است — تا ارسال کامل، برای بقیه دیده نمی‌شود.' };
-    if (!sAny && !lAny) return { code: 'never-synced', tone: 'amber',
+    if (!sAny && !sAny && !lAny) return { code: 'never-synced', tone: 'amber',
       title: '🔎 نه سرور تماس دارد و نه این دستگاه',
       body: 'تغییری که روی دستگاه دیگری وارد شده به سرور نرسیده است. «وضعیت دستگاه» آن دستگاه را چک کنید (صف آفلاین / نشست منقضی). اگر شماره را می‌دانید، از فرم پایین روی سرور ثبت می‌شود.' };
     return { code: 'ok', tone: 'green',
@@ -127,6 +157,7 @@
   window.ptfCsdChannelNums = channelNums;
   window.ptfCsdHasNum = hasNum;
   window.ptfCsdVerdict = verdict;
+  window.ptfCsdCanonNum = canonNum;
 
   /* برنامهٔ ثبت سریع: روی کپیِ رکورد سرور کار می‌کند — {ok, rec, err} */
   function planFix(serverRec, target, phone, kind) {
@@ -141,7 +172,7 @@
       rec.coTels.push({ n: String(phone).trim(), ext: '', lb: 'ثبت دستی (تشخیص سینک)' });
     } else if (target === 'phones') {
       rec.phones = Array.isArray(rec.phones) ? rec.phones : [];
-      rec.phones.push({ n: String(phone).trim(), lb: 'ثبت دستی (تشخیص سینک)' });
+      rec.phones.push({ n: String(phone).trim(), ext: '', lb: 'ثبت دستی (تشخیص سینک)' });
     } else if (target.indexOf('people:') === 0) {
       var bits = target.split(':');
       var idx = +bits[1];
@@ -163,35 +194,43 @@
   }
   window.ptfCsdPlanFix = planFix;
 
-  /* وضعیت این دستگاه برای نمایش در گزارش */
-  function deviceInfo() {
-    var out = { phaseB: false, pending: [], failures: [], lastError: '', krev: '' };
-    try { out.phaseB = !!(typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()); } catch (e) {}
-    try { out.pending = (typeof window.ptfBPendingKeys === 'function' ? window.ptfBPendingKeys() : []) || []; } catch (e2) {}
-    try { out.failures = (typeof window.ptfSyncWriteFailures === 'function' ? window.ptfSyncWriteFailures() : []) || []; } catch (e3) {}
-    try { out.lastError = String((typeof window.ptfSyncLastError === 'function' ? window.ptfSyncLastError() : '') || ''); } catch (e4) {}
-    try { var m = readKrevs(); out.krev = String(m[KEY] == null ? '' : m[KEY]); } catch (e5) {}
-    return out;
-  }
-  window.ptfCsdDeviceInfo = deviceInfo;
+  /* ---------- R2/W3: خواندن مطمئن از سرور ---------- */
 
-  /* تازه‌ترین نسخهٔ کلید از سرور — با کپیِ همان دلتای سینک، فقط همین کلید
-     را می‌خواهیم (krevs محلی منهای ptf_crm_customers → سرور فقط آن را می‌فرستد). */
+  /* krevs فقط از لایهٔ سینک (A10 — UI هرگز LS را مستقیم نمی‌خواند). نبودِ accessor
+     یعنی نقشهٔ خالی ⇒ سرور کل مجموعه‌ها را تازه می‌فرستد — برای تشخیص، درست و کافی است. */
   function readKrevs() {
-    try { if (typeof window.ptfSyncKrevs === 'function') return window.ptfSyncKrevs() || {}; } catch (e) {}
+    try {
+      if (typeof window.ptfSyncKrevs === 'function') {
+        var m = window.ptfSyncKrevs();
+        if (m && typeof m === 'object') return m;
+      }
+    } catch (e) {}
     return {};
   }
+  window.ptfCsdReadKrevs = readKrevs;
+
+  /* تازه‌ترین نسخهٔ کلید از سرور — همان دلتای سینک با یک تفاوت‌های حیاتی:
+     ① پارامتر buster یکتا در هر فراخوانی (URL هرگز بین دو اجرا یکسان نیست)؛
+     ② cache:'no-store' (هیچ لایه‌ای پاسخ کهنه ندهد)؛
+     ③ پاسخ «سرور خالی» و «کلید در پاسخ نبود» از هم تفکیک می‌شوند. */
   function fetchServerRec() {
     var krevs = readKrevs();
     delete krevs[KEY];
-    var url = API + '?action=data_pull&since=0&krevs=' + encodeURIComponent(JSON.stringify(krevs));
-    return fetch(url, { headers: authHeaders() }).then(function (r) {
+    var url = API + '?action=data_pull&since=0&krevs=' + encodeURIComponent(JSON.stringify(krevs)) + '&_csd=' + Date.now();
+    return fetch(url, { headers: authHeaders(), cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).then(function (d) {
       if (!d || d.ok === false) throw new Error((d && d.error) || 'server_error');
-      if (d.fresh && !(d.data && Object.prototype.hasOwnProperty.call(d.data, KEY))) return { rec: null, rev: 0, fresh: true, arr: [] };
-      var raw = d.data ? d.data[KEY] : null;
+      /* since=0 ⇒ fresh یعنی سرور هیچ rev سراسری ندارد = سرور خالی است (نه «رکورد نیست») */
+      if (d.fresh) return { rec: null, rev: (d && d.rev) || 0, fresh: true, arr: [] };
+      if (!d.data || !Object.prototype.hasOwnProperty.call(d.data, KEY)) {
+        var err = new Error('key_not_in_response');
+        err.keyMissing = true;
+        err.rev = (d && d.rev) || 0;
+        throw err;
+      }
+      var raw = d.data[KEY];
       var arr = [];
       if (raw != null) {
         arr = (typeof raw === 'string') ? JSON.parse(raw) : raw;
@@ -204,35 +243,71 @@
   }
   window.ptfCsdFetchServerRec = fetchServerRec;
 
-  /* ---------- ثبت سریع (admin/chairman) ---------- */
-  function commitFix(patched, serverRec, done) {
+  /* وضعیت این دستگاه برای نمایش در گزارش */
+  function deviceInfo() {
+    var out = { phaseB: false, pending: [], failures: [], lastError: '', krev: '' };
+    try { out.phaseB = !!(typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()); } catch (e) {}
+    try { out.pending = (typeof window.ptfBPendingKeys === 'function' ? window.ptfBPendingKeys() : []) || []; } catch (e2) {}
+    try { out.failures = (typeof window.ptfSyncWriteFailures === 'function' ? window.ptfSyncWriteFailures() : []) || []; } catch (e3) {}
+    try { out.lastError = String((typeof window.ptfSyncLastError === 'function' ? window.ptfSyncLastError() : '') || ''); } catch (e4) {}
+    try { var m = readKrevs(); out.krev = String(m[KEY] == null ? '' : m[KEY]); } catch (e5) {}
+    return out;
+  }
+  window.ptfCsdDeviceInfo = deviceInfo;
+
+  /* ---------- W1/W2: ثبت سریع (admin/chairman) — فقط فرمان + تأیید ---------- */
+
+  /* بازخوانی تأیید: رکورد تازه از سرور + جست‌وجوی کانونی همان شماره */
+  function verifyOnServer(cd, phoneDigitsQ) {
+    return fetchServerRec().then(function (sr) {
+      var rec = null;
+      for (var i = 0; i < (sr.arr || []).length; i++) if (sr.arr[i] && String(sr.arr[i].cd) === String(cd)) { rec = sr.arr[i]; break; }
+      var ch = null;
+      if (rec && phoneDigitsQ) {
+        var dq = canonNum(phoneDigitsQ);
+        var chans = channelNums(rec);
+        for (var j = 0; j < chans.length; j++) if (canonNum(chans[j].d) === dq) { ch = chans[j]; break; }
+      }
+      var found = !!(rec && (phoneDigitsQ ? ch : hasAny(rec)));
+      return { found: found, rec: rec, rev: sr.rev, channel: ch ? ch.label : '' };
+    });
+  }
+  window.ptfCsdVerifyOnServer = verifyOnServer;
+
+  /* ثبت: یک مسیر، بدون fallback محلی.
+     خروجی‌های ممکن برای done:
+       {state:'unavailable'}            مسیر فرمان در دسترس نیست — هیچ چیزی نوشته نشد
+       {state:'verified', operationId, rev, serverRec, channel}   ثبت شد و از سرور تأیید شد
+       {state:'unverified', operationId, rev}  سرور ACK داد ولی بازخوانی شماره را نداشت
+       {state:'verify-error', operationId, error} ACK شد ولی بازخوانی خطا داد
+       {state:'rejected'|'uncertain'|'legacy', error?, operationId}  فرمان نرسید/نامشخص بود
+  */
+  function commitFix(patched, serverRec, phoneQ, done) {
+    var opId = 'csd' + Date.now();
+    if (typeof window.ptfEntityUpsert !== 'function' || !(window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED[KEY])) {
+      done({ state: 'unavailable', operationId: opId });
+      return;
+    }
     var cb = function (res) {
-      try { if (typeof audit === 'function') audit('تشخیص سینک تماس', '💾 ثبت سریع شماره روی سرور — مشتری ' + String(serverRec && serverRec.cd) + ' — نتیجه: ' + (res && res.state), 'CONTACT-SYNC'); } catch (eA) {}
-      done(res);
+      try { if (typeof audit === 'function') audit('تشخیص سینک تماس', '💾 فرمان ثبت شماره روی سرور — مشتری ' + String(serverRec && serverRec.cd) + ' — نتیجه: ' + (res && res.state), 'CONTACT-SYNC'); } catch (eA) {}
+      if (!res || res.state !== 'acked') {
+        done({ state: (res && res.state) || 'rejected', error: res && res.error, operationId: opId });
+        return;
+      }
+      /* ACK گرفتیم — تا بازخوانیِ همان شماره از سرور نیاید، «ثبت شد» نمی‌گوییم */
+      verifyOnServer(serverRec && serverRec.cd, phoneQ).then(function (v) {
+        done({ state: v.found ? 'verified' : 'unverified', operationId: opId, rev: v.rev, serverRec: v.rec, channel: v.channel });
+      }, function (eV) {
+        done({ state: 'verify-error', operationId: opId, error: (eV && eV.message) || String(eV) });
+      });
     };
     try {
-      if (typeof window.ptfEntityUpsert === 'function' && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED[KEY]) {
-        window.ptfEntityUpsert(KEY, patched, { cb: cb, operationId: 'csd' + Date.now() });
-        return;
-      }
-    } catch (eCmd) {}
-    /* fallback: روتر diff-محور با prevArr دقیقاً خود رکورد سرور → دقیقاً یک upsert */
-    try {
-      if (typeof window.ptfEntitySaveCollection === 'function') {
-        window.ptfEntitySaveCollection(KEY, [patched], { prevArr: [JSON.parse(JSON.stringify(serverRec))], reason: 'contact-sync-diag' });
-        cb({ state: 'legacy' });
-        return;
-      }
-    } catch (e2) {}
-    try {
-      var all = (typeof getData === 'function' ? getData(KEY) : []) || [];
-      var idx = -1;
-      for (var i = 0; i < all.length; i++) if (all[i] && String(all[i].cd) === String(serverRec.cd)) { idx = i; break; }
-      if (idx >= 0) all[idx] = patched; else all.unshift(patched);
-      if (typeof setData === 'function') setData(KEY, all);
-      cb({ state: 'legacy' });
-    } catch (e3) { cb({ state: 'rejected', error: e3 && e3.message }); }
+      window.ptfEntityUpsert(KEY, patched, { cb: cb, operationId: opId });
+    } catch (eCmd) {
+      done({ state: 'error', error: (eCmd && eCmd.message) || String(eCmd), operationId: opId });
+    }
   }
+  window.ptfCsdCommitFix = commitFix;
 
   /* ---------- UI ---------- */
   var lastServerRec = null;
@@ -267,12 +342,13 @@
       opts += '<option value="people:' + i + ':tel">👤 ' + esc(nm) + ' — تلفن</option>';
       opts += '<option value="people:' + i + ':mob">📱 ' + esc(nm) + ' — موبایل</option>';
     });
+    var prefill = (lastDiag && lastDiag.q) ? esc(lastDiag.q) : '';
     return '<div style="margin-top:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px">' +
       '<b style="font-size:12.5px">➕ ثبت سریع شمارهٔ معلوم روی سرور (فقط admin/رییس هیات)</b>' +
-      '<div style="font-size:11.5px;color:#475569;margin-top:4px">روی <b>آخرین نسخهٔ سرور</b> اعمال می‌شود (نه کش این دستگاه) و با مسیر استاندارد دستور ثبت می‌شود؛ اگر شماره جایی دیگر از رکورد وجود داشته باشد، ثبت رد می‌شود.</div>' +
+      '<div style="font-size:11.5px;color:#475569;margin-top:4px">روی <b>آخرین نسخهٔ سرور</b> اعمال و با <b>فرمان اتمیک سروری</b> ثبت می‌شود؛ بعد از ثبت، همین پنجره <b>بلافاصله از سرور بازخوانی و تأیید می‌کند</b> — پیام موفقیت فقط بعد از دیدنِ شماره در پاسخ تازهٔ سرور نشان داده می‌شود (v34.39.40). اگر شماره جایی دیگر از رکورد وجود داشته باشد، ثبت رد می‌شود.</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
       '<div class="fld" style="flex:2;min-width:200px"><label>مقصد</label><select id="csdFixTarget">' + opts + '</select></div>' +
-      '<div class="fld" style="flex:2;min-width:180px"><label>شماره تماس</label><input id="csdFixPhone" dir="ltr" placeholder="09121234567" autocomplete="off"></div>' +
+      '<div class="fld" style="flex:2;min-width:180px"><label>شماره تماس</label><input id="csdFixPhone" dir="ltr" placeholder="09121234567" autocomplete="off" value="' + prefill + '"></div>' +
       '</div>' +
       '<div style="margin-top:8px"><button class="bt" id="csdFixBtn" style="background:#0369a1">💾 ثبت روی سرور</button> <span id="csdFixSt" style="font-size:12px;margin-right:8px"></span></div>' +
       '</div>';
@@ -288,7 +364,7 @@
     var di = ctx.di;
     var pendingCust = di.pending.indexOf(KEY) > -1;
     var devRows =
-      '• حالت سرور-محور (فاز B): <b>' + (di.phaseB ? 'فعال' : 'غیرفعال — این دستگاه هنوز دادهٔ محلی را مرجع می‌داند') + '</b><br>' +
+      '• حالت سرور-محور (فاز B): <b>' + (di.phaseB ? 'فعال' : 'غیرفعال — این دستگاه هنوز دادهٔ محلی را مرجع می‌دارد') + '</b><br>' +
       '• کلیدهای در صف ارسالِ این دستگاه: <b>' + (di.pending.length ? esc(di.pending.join('، ')) : 'هیچ') + '</b>' +
       (pendingCust ? '<br><b style="color:#b45309">⚠️ رکوردهای مشتری در صف ارسالِ همین دستگاه است — تا ارسال، نسخهٔ سرور ممکن است با این دستگاه فرق داشته باشد و ممکن است این دستگاه بعداً روی سرور بنویسد.</b>' : '') +
       (di.failures.length ? '<br>• نوشتن‌های ناموفقِ اخیر: <b>' + esc(di.failures.join('، ')) + '</b>' : '') +
@@ -302,33 +378,67 @@
       contactsTable(ctx.serverRec, '🖥 نسخهٔ سرور (تازه‌ترین)', 'rev سرور: ' + (ctx.rev || '—')) +
       '</div>';
     html += '<div style="margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;font-size:12px;color:#475569;line-height:1.9"><b>🖥 وضعیت این دستگاه:</b><br>' + devRows + '</div>';
-    /* فرم ثبت سریع فقط وقتی: رکورد روی سرور هست اما شماره هنوز به سرور نرسیده.
-       در «stale-local» داده روی سرور سالم است و کاری لازم نیست؛ در «record-missing»
-       اصلاً رکوردی برای نوشتن نیست. */
+    /* فرم ثبت سریع فقط وقتی: رکورد روی سرور هست اما شماره هنوز به سرور نرسیده. */
     if (ctx.serverRec && v.code === 'never-synced') html += fixFormHtml();
     res.innerHTML = html;
     var fb = document.getElementById('csdFixBtn');
     if (fb) fb.onclick = onFixClick;
+  }
+  function cmdErrMsg(res, opId) {
+    try {
+      if (typeof window.ptfEntityCommandMessage === 'function') {
+        var m = window.ptfEntityCommandMessage({ state: res && res.state, error: res && res.error }, 'ثبت شماره روی سرور');
+        if (m) return m;
+      }
+    } catch (e) {}
+    return 'روی سرور انجام نشد — ' + esc((res && res.error && (res.error.message || res.error)) || String((res && res.state) || 'خطای نامشخص'));
   }
   function onFixClick() {
     var st = document.getElementById('csdFixSt');
     var target = document.getElementById('csdFixTarget') ? document.getElementById('csdFixTarget').value : '';
     var phone = document.getElementById('csdFixPhone') ? document.getElementById('csdFixPhone').value : '';
     var kind = target.indexOf(':mob') > -1 ? 'mob' : 'tel';
+    var cd = lastServerRec ? String(lastServerRec.cd) : '';
     if (!lastServerRec) { if (st) st.innerHTML = 'اول «اجرای تشخیص» را بزنید.'; return; }
     var plan = planFix(lastServerRec, target, phone, kind);
     if (!plan.ok) { if (st) st.innerHTML = '<span style="color:#b45309">⚠️ ' + esc(plan.err) + '</span>'; return; }
-    if (!confirm('این شماره روی سرور برای مشتری «' + lastServerRec.cd + '» ثبت می‌شود.\nادامه می‌دهید؟')) return;
-    if (st) st.innerHTML = 'در حال ارسال…';
-    commitFix(plan.rec, lastServerRec, function (res2) {
-      if (st) {
-        if (res2 && (res2.state === 'acked' || res2.state === 'legacy')) {
-          st.innerHTML = '<span style="color:#047857">✅ ثبت شد — حالا «اجرای تشخیص» را دوباره بزنید تا از سرور تازه بخواند.</span>';
-          try { if (typeof ptfToast === 'function') ptfToast('شماره روی سرور ثبت شد', 'ok'); } catch (eT) {}
-        } else {
-          st.innerHTML = '<span style="color:#b91c1c">⛔ ثبت انجام نشد: ' + esc((res2 && res2.error) || String(res2 && res2.state)) + ' — اینترنت/نشست را چک کنید.</span>';
-        }
+    if (!confirm('این شماره با فرمان اتمیک سروری برای مشتری «' + cd + '» ثبت می‌شود و بلافاصله از سرور بازخوانی/تأیید می‌گردد.\nادامه می‌دهید؟')) return;
+    if (st) st.innerHTML = '📡 در حال ارسال فرمان به سرور…';
+    var fb = document.getElementById('csdFixBtn');
+    if (fb) fb.disabled = true;
+    commitFix(plan.rec, lastServerRec, phone, function (res2) {
+      if (fb) fb.disabled = false;
+      if (!st) return;
+      if (res2 && res2.state === 'verified') {
+        try { if (typeof ptfToast === 'function') ptfToast('شماره روی سرور ثبت و بازخوانی تأیید شد', 'ok'); } catch (eT) {}
+        /* جدول‌ها را با نسخهٔ تأییدشدهٔ سرور خودکار تازه کن — دیگر لازم نیست کاربر خودش تشخیص را دوباره بزند */
+        refreshAfterFix(cd, phone, '✅ <b>ثبت و تأیید شد</b> — شماره همین حالا از سرور بازخوانی شد (rev ' + esc(res2.rev || '—') + (res2.channel ? ' — ' + esc(res2.channel) : '') + '). دو جدول بالا با نسخهٔ تازهٔ سرور به‌روز شدند؛ برای دستگاه‌های دیگر، تا سینک بعدی (حداکثر ~۳۰ ثانیه یا رفرش) صبر کنید.');
+      } else if (res2 && res2.state === 'unverified') {
+        st.innerHTML = '<span style="color:#b91c1c">⛔ سرور فرمان را پذیرفت اما در بازخوانیِ تازه، شماره در رکورد پیدا نشد — رسید: <b dir="ltr">' + esc(res2.operationId || '') + '</b>. محتمل‌ترین علت ناهمگنی نسخهٔ فایل‌های مستقر (مخلوط‌شدن فایل قدیمی/جدید) است: کل مجموعهٔ v34.39.40 را روی هاست بارگذاری کنید و صفحه را با Ctrl+F5 تازه کنید؛ اگر تکرار شد همین رسید را برای پشتیبانی بفرستید.</span>';
+      } else if (res2 && res2.state === 'verify-error') {
+        st.innerHTML = '<span style="color:#b45309">⚠️ ثبت روی سرور انجام شد اما بازخوانی تأیید ناموفق بود (' + esc(res2.error || '') + ') — رسید: <b dir="ltr">' + esc(res2.operationId || '') + '</b>. چند ثانیه بعد «اجرای تشخیص» را دوباره بزنید.</span>';
+      } else if (res2 && res2.state === 'unavailable') {
+        st.innerHTML = '<span style="color:#b91c1c">⛔ مسیر فرمان سروری (sales-domain-v2.js / entity_upsert) در این صفحه در دسترس نیست — <b>هیچ چیزی ثبت نشد و عمداً هیچ نوشتنِ محلی انجام نشد</b>. صفحه را با Ctrl+F5 کامل تازه کنید و دوباره امتحان کنید؛ اگر تکرار شد، نسخهٔ مستعر قدیمی/ناهمگن است — کل مجموعهٔ v34.39.40 را روی هاست بارگذاری کنید. (راه جایگزین: فرم ویرایش خودِ مشتری.)</span>';
+      } else if (res2 && res2.state === 'legacy') {
+        st.innerHTML = '<span style="color:#b91c1c">⛔ مسیر فرمان در لحظهٔ ارسال غیرفعال بود — ثبت نشد. دوباره تلاش کنید؛ اگر تکرار شد صفحه را Ctrl+F5 کنید.</span>';
+      } else {
+        st.innerHTML = '<span style="color:#b91c1c">⛔ ' + cmdErrMsg(res2) + '</span>';
       }
+    });
+  }
+  /* تازه‌سازی خودکار جدول‌ها پس از ثبتِ تأییدشده */
+  function refreshAfterFix(cd, q, note) {
+    var st = document.getElementById('csdStatus');
+    var localAll = [];
+    try { localAll = (typeof getData === 'function' ? getData(KEY) : []) || []; } catch (e) {}
+    var localRec = findRec(localAll, cd);
+    var di = deviceInfo();
+    fetchServerRec().then(function (sr) {
+      lastServerRec = findRec(sr.arr, cd);
+      renderResult({ cd: cd, q: q, localRec: localRec, serverRec: lastServerRec, rev: sr.rev, di: di });
+      if (st) st.innerHTML = note || ('✅ خواندن از سرور انجام شد (rev: ' + (sr.rev || '—') + ').');
+    }).catch(function (e) {
+      if (st) st.innerHTML = note || '';
     });
   }
 
@@ -348,6 +458,12 @@
     var di = deviceInfo();
     if (st) st.innerHTML = '📡 در حال خواندن تازه‌ترین نسخه از سرور…';
     fetchServerRec().then(function (sr) {
+      if (sr.fresh) {
+        /* R2 — «سرور خالی» با «رکورد نیست» فرق دارد */
+        if (st) st.innerHTML = '⚠️ سرور گزارش کرد هیچ دادهٔ همگام‌شده‌ای برای ارسال ندارد (rev سراسری ۰) — اگر انتظار داده دارید، نشست/نقش یا آدرس سرور را بررسی کنید و از تنظیمات ← وضعیت دستگاه، اتصال را چک کنید.';
+        try { if (typeof addLog === 'function') addLog('🩺 تشخیص سینک تماس — سرور خالی گزارش کرد (fresh)'); } catch (eL) {}
+        return;
+      }
       var serverRec = findRec(sr.arr, cd);
       lastServerRec = serverRec;
       if (st) st.innerHTML = '✅ خواندن از سرور انجام شد (rev: ' + (sr.rev || '—') + ').';
@@ -355,7 +471,11 @@
       try { if (typeof audit === 'function') audit('تشخیص سینک تماس', '🩺 تشخیص مشتری ' + cd + (q ? ' — شماره ' + q : '') + ' → ' + verdict(serverRec, localRec, q).code, 'CONTACT-SYNC'); } catch (eA) {}
       try { console.log('[contact-sync-diag] cd=' + cd, 'verdict=' + verdict(serverRec, localRec, q).code, 'serverRev=' + sr.rev); } catch (eC) {}
     }).catch(function (e) {
-      if (st) st.innerHTML = '⛔ خطا در خواندن از سرور: ' + esc((e && e.message) || e) + ' — اتصال اینترنت و نشست (ورود دوباره) را چک کنید. تا آن‌زمان فقط دادهٔ محلی قابل اعتماد است.';
+      if (e && e.keyMissing) {
+        if (st) st.innerHTML = '⛔ سرور پاسخ داد اما کلید «مشتریان» را در پاسخ نیاورد (rev: ' + (e.rev || '—') + ') — این وضعیت نقش/نشست یا ناهمگنی نسخهٔ فایل‌های سرور را نشان می‌دهد. یک‌بار خارج و دوباره وارد شوید؛ اگر تکرار شد کل مجموعهٔ v34.39.40 را روی هاست بارگذاری کنید.';
+      } else {
+        if (st) st.innerHTML = '⛔ خطا در خواندن از سرور: ' + esc((e && e.message) || e) + ' — اتصال اینترنت و نشست (ورود دوباره) را چک کنید. تا آن‌زمان فقط دادهٔ محلی قابل اعتماد است.';
+      }
       try { if (typeof addLog === 'function') addLog('🩺 تشخیص سینک تماس — خطا: ' + ((e && e.message) || e)); } catch (eL) {}
     });
   }
@@ -376,7 +496,7 @@
       '<div class="md" style="max-width:920px;max-height:92vh;overflow:auto">' +
       '<h3 style="margin:0 0 8px">🩺 تشخیص سینک تماس مشتری</h3>' +
       '<div style="font-size:12px;color:#475569;line-height:1.9;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;margin-bottom:10px">' +
-      'برای موقعیت «شماره‌ای که پاک شده بود روی دستگاهِ کاربرِ دیگر دوباره وارد شد ولی برای من نمایش داده نمی‌شود»: این ابزار <b>تازه‌ترین رکورد را مستقیم از سرور</b> (منبع حقیقت، دور زدن کش ۳۰ ثانیه) می‌خواند، با <b>کشِ همین دستگاه</b> و <b>صف آفلاین</b> مقایسه می‌کند و دقیقاً می‌گوید مشکل از کدام‌یک است. تشخیص <b>فقط خواندنی</b> است و هیچ تغییری ایجاد نمی‌کند.' +
+      'برای موقعیت «شماره‌ای که پاک شده بود روی دستگاهِ کاربرِ دیگر دوباره وارد شد ولی برای من نمایش داده نمی‌شود»: این ابزار <b>تازه‌ترین رکورد را مستقیم از سرور</b> (منبع حقیقت، دور زدن کش ۳۰ ثانیه) می‌خواند، با <b>کشِ همین دستگاه</b> و <b>صف آفلاین</b> مقایسه می‌کند و دقیقاً می‌گوید مشکل از کدام‌یک است. تشخیص <b>فقط خواندنی</b> است و هیچ تغییری ایجاد نمی‌کند. (v34.39.40 — ثبتِ سریع فقط با فرمان اتمیک سروری + بازخوانی تأیید.)' +
       '</div>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">' +
       '<div class="fld" style="flex:3;min-width:240px"><label>مشتری</label><select id="csdCd">' + opts + '</select></div>' +

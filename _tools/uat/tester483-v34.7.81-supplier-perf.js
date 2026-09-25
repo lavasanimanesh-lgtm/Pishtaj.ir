@@ -23,10 +23,10 @@ var slf = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.39.32', ver.crm_version === 'v34.39.32', ver.crm_version);
-T('index.html PTF_CRM_RELEASE = v34.39.32', /window\.PTF_CRM_RELEASE = 'v34\.39\.32'/.test(idx));
-T('sw.js RELEASE = v34.39.32', /RELEASE = 'v34\.39\.32'/.test(sw));
-T('cache-bust در index.html = 34.39.32', /bridge\.js\?v=34\.39\.32/.test(idx) && /supplier-finance\.js\?v=34\.39\.32/.test(idx));
+T('VERSION.json = v34.39.40', ver.crm_version === 'v34.39.40', ver.crm_version);
+T('index.html PTF_CRM_RELEASE = v34.39.40', /window\.PTF_CRM_RELEASE = 'v34\.39\.40'/.test(idx));
+T('sw.js RELEASE = v34.39.40', /RELEASE = 'v34\.39\.40'/.test(sw));
+T('cache-bust در index.html = 34.39.40', /bridge\.js\?v=34\.39\.40/.test(idx) && /supplier-finance\.js\?v=34\.39\.40/.test(idx));
 
 /* ---------- سرور: get_inbox ---------- */
 T('get_inbox با ptf_echo_json (gzip) ارسال می‌شود', /case 'get_inbox':[\s\S]*?ptf_echo_json\(/.test(api));
