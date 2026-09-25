@@ -336,8 +336,8 @@ console.log('\n── ۴) قرارداد سرور: همهٔ اکشن‌های س
     var j = llm.indexOf('out_json(', i);
     return j > -1 ? llm.slice(j, j + 34) : '';
   }
-  T('۴.۱ شمار اکشن‌های سئو روی llm_call_json = ۹', (llm.match(/out_json\(llm_call_json\(/g) || []).length === 9, String((llm.match(/out_json\(llm_call_json\(/g) || []).length));
-  ['seo_review', 'seo_expand', 'seo_clusters', 'seo_intlinks', 'seo_alt', 'seo_meta', 'seo_product', 'seo_article'].forEach(function (a) {
+  T('۴.۱ شمار اکشن‌های سئو روی llm_call_json = ۱۰', (llm.match(/out_json\(llm_call_json\(/g) || []).length === 10, String((llm.match(/out_json\(llm_call_json\(/g) || []).length));
+  ['seo_review', 'seo_expand', 'seo_clusters', 'seo_intlinks', 'seo_alt', 'seo_meta', 'seo_product', 'seo_article', 'seo_gsc_report'].forEach(function (a) {
     var call = firstOutJsonAfter("if ($action === '" + a + "')");
     T('۴.۲ ' + a + ' از llm_call_json (salvage+retry) عبور می‌کند', call.indexOf('out_json(llm_call_json(') === 0, call);
   });
@@ -396,7 +396,7 @@ console.log('\n── ۷) بهداشت ──');
   T('۷.۱ VERSION.json = v34.39.40', ver.crm_version === 'v34.39.40', ver.crm_version);
   T('۷.۲ tester590 در گیت CI ثبت شده است', gate.indexOf('tester590-v34.36.2-ai-json-repair.js') > -1);
   T('۷.۳ یادداشت انتشار این نسخه موجود است', fs.existsSync('RELEASE-NOTES-v34.38.1.md'));
-  T('۷.۴ پینِ به‌روزِ tester565 (۹ اکشن) با تغییر هم‌خوان است', fs.readFileSync('_tools/uat/tester565-v34.20.0-cms-complaints.js', 'utf8').indexOf('length === 9') > -1);
+  T('۷.۴ پینِ به‌روزِ tester565 (۱۰ اکشن) با تغییر هم‌خوان است', fs.readFileSync('_tools/uat/tester565-v34.20.0-cms-complaints.js', 'utf8').indexOf('length === 10') > -1);
   T('۷.۵ هیچ کلید/رمزی در پیام‌های خطا نشت نمی‌کند', !/(apiKey|\$cfg\['key'\]|secret)/.test(blk(llm, 'function out_json', 'switch ($action)')));
 })();
 

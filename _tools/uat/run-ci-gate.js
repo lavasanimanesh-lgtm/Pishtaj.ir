@@ -346,6 +346,7 @@ var SUITE = [
   { g: 'CRM/مالی (39.23): RENT-CASH-UNTIL-PAID — تکرارشونده و اجارهٔ متصل به چک تا پرداخت نهایی خروج نقدی نیست', f: '_tools/uat/tester677-v34.39.23-rent-cash-until-paid.js' },
   { g: 'CRM/مالی (39.23): SUP-FX-RATE-EDIT — ویرایش نرخ تسعیر فاکتور و پرداخت ارزی تأمین‌کننده', f: '_tools/uat/tester678-v34.39.23-supplier-fx-rate-edit.js' },
   { g: 'CRM/مالی (39.24): CHQ-OPEX-EDIT-LINK — اتصال/جدا کردن چک صادره به ماه‌های هزینه جاری از ویرایش چک + رفع پنهان‌شدن بخش اتصال در ثبت (ضد دوباره‌شماری اجارهٔ چک‌محور)', f: '_tools/uat/tester679-v34.39.24-cheque-opex-edit-link.js' },
+  { g: 'CRM/تشخیص سینک تماس (39.40): CONTACT-SYNC-DIAG-2 — نوشتنِ سرور-تأییدشده (تک‌مسیر entity_upsert + بازخوانی verified + buster/no-store + canonNum + A10 بدون LS مستقیم)', f: '_tools/uat/tester680-v34.39.40-contact-sync-verified.js' },
 ];
 
 var SYNTAX = [

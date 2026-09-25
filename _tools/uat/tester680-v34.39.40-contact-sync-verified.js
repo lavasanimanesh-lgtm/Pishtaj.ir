@@ -93,7 +93,7 @@ SECTION('v34.39.40 — قرارداد نسخه و جلوگیری از استقر
 T('PTF_CRM_RELEASE = v34.39.40', /window\.PTF_CRM_RELEASE\s*=\s*'v34\.39\.40'/.test(idx));
 T('sw.js RELEASE/CACHE = v34.39.40', /var RELEASE = 'v34\.39\.40'/.test(sw) && /CACHE = 'ptf-crm-v34\.39\.40'/.test(sw));
 T('اسکریپت تشخیص با نسخهٔ جدید در index.html (cache-bust)', idx.indexOf('contact-sync-diag.js?v=34.39.40') > -1);
-T('هیچ ?v=34.39.32 باقی نمانده', idx.indexOf('v=34.39.32') === -1);
+T('هیچ cache-bust نسخهٔ قبلی (?v=34.39.32/33) باقی نمانده', idx.indexOf('v=34.39.32') === -1 && idx.indexOf('v=34.39.33') === -1);
 T('VERSION.json crm_version = v34.39.40', ver.crm_version === 'v34.39.40');
 T('SD_SERVICE_VERSION = 34.39.40 (هم‌راستا با UI)', /SD_SERVICE_VERSION = '34\.39\.40'/.test(sdp));
 

@@ -45,6 +45,7 @@ var off = read('crm/offers.js');
 var pf = read('crm/phonefmt.js');
 var sd = read('crm/sales-domain-v2.js');
 var apiCrm = read('api/crm.php');
+var apiCm = read('api/contact-merge-lib.php');
 var version = JSON.parse(read('VERSION.json')).crm_version;
 
 /* ═════════════════ ۰) قراردادهای ساختاری (قفل نتیجهٔ RCA — نشانگر v34.39.40) ═════════════════ */
@@ -71,12 +72,14 @@ T('۰.۶ R5: entityMatches haystack کامل + fold ارقام (CONTACT-ROOTS R5
 T('۰.۷ R5: telHref ارقام فارسی را نگه می‌دارد',
   /function telHref\(t\) \{[^}]*ptfToEnDigits/.test(off),
   'offers.js telHref');
-T('۰.۸ R6: api/crm.php تابع sync_contact_fields_fill (CONTACT-ROOTS R6)',
-  apiCrm.indexOf('function sync_contact_fields_fill') > -1 && apiCrm.indexOf('CONTACT-ROOTS R6') > -1,
-  'api/crm.php');
-T('۰.۹ R6: سیم‌کشی data_push برای هر دو customers و suppliers و مستثنی restore/allow_wipe',
-  /case 'data_push':[\s\S]*sync_contact_fields_fill\(/.test(apiCrm) &&
-  /!\$restore && !\$allow_wipe[\s\S]{0,200}sync_contact_fields_fill\(|!\$restore && !\$allow_wipe && \(\$k === 'ptf_crm_customers'/.test(apiCrm),
+T('۰.۸ R7: api/crm.php تابع sync_contact_records_merge (CONTACT-ROOTS R7، جانشین R6)',
+  apiCrm.indexOf('function sync_contact_records_merge') > -1 && apiCrm.indexOf('CONTACT-ROOTS R7') > -1 &&
+  apiCrm.indexOf("require_once __DIR__ . '/contact-merge-lib.php'") > -1 &&
+  apiCm.indexOf('function cm_contact_merge_record') > -1,
+  'api/crm.php + contact-merge-lib.php');
+T('۰.۹ R7: سیم‌کشی data_push برای هر دو customers و suppliers و مستثنی restore/allow_wipe',
+  /case 'data_push':[\s\S]*sync_contact_records_merge\(/.test(apiCrm) &&
+  /!\$restore && !\$allow_wipe && \(\$k === 'ptf_crm_customers' \|\| \$k === 'ptf_crm_suppliers'\)[\s\S]{0,180}sync_contact_records_merge\(/.test(apiCrm),
   'api/crm.php data_push');
 try {
   var parserMod = require('php-parser');
@@ -531,15 +534,15 @@ function syncContactFieldsFillJs(incomingJson, serverJson) {
   var out64 = syncContactFieldsFillJs(JSON.stringify([{ cd: 'CUST-1', co: 'x', ph: '۰۲۱۹' }]), srv6);
   T('۶.۴ فقط کلیدهای غایب پر می‌شوند؛ حاضرها از ورودی می‌آیند',
     out64 !== null && JSON.parse(out64)[0].ph === '۰۲۱۹' && JSON.parse(out64)[0].coTels[0].n === '۰۲۱۲', out64);
-  T('۶.۵ سیم‌کشی: data_push هر دو مجموعه customers و suppliers را پر می‌کند',
-    /case 'data_push':[\s\S]*sync_contact_fields_fill\(/.test(apiCrm) && /ptf_crm_customers' \|\| \$k === 'ptf_crm_suppliers/.test(apiCrm),
+  T('۶.۵ سیم‌کشی: data_push هر دو مجموعه customers و suppliers را اتحاد می‌کند',
+    /case 'data_push':[\s\S]*sync_contact_records_merge\(/.test(apiCrm) && /ptf_crm_customers' \|\| \$k === 'ptf_crm_suppliers/.test(apiCrm),
     'api/crm.php');
-  T('۶.۶ restore/allow_wipe پر نمی‌شوند (جایگزینی مجاز)',
-    /!\$restore && !\$allow_wipe && \(\$k === 'ptf_crm_customers'[\s\S]{0,160}sync_contact_fields_fill\(/.test(apiCrm),
+  T('۶.۶ restore/allow_wipe اتحاد نمی‌شوند (جایگزینی مجاز)',
+    /!\$restore && !\$allow_wipe && \(\$k === 'ptf_crm_customers'[\s\S]{0,180}sync_contact_records_merge\(/.test(apiCrm),
     'api/crm.php');
-  T('۶.۷ نام تابع و فهرست فیلدها در سورس PHP هست',
-    apiCrm.indexOf("'people', 'coTels', 'phones', 'ph'") > -1,
-    'api/crm.php');
+  T('۶.۷ نام تابع و فهرست فیلدها در کتابخانهٔ مشترک تماس هست',
+    apiCm.indexOf("['people', 'coTels', 'phones', 'ph']") > -1 && apiCrm.indexOf('function sync_contact_records_merge') > -1,
+    'api/contact-merge-lib.php');
 
   console.log('\n' + (failures ? failures + ' FAIL' : 'ALL PASSED') + ' — tester676 (v' + version + ')');
   process.exit(failures ? 1 : 0);

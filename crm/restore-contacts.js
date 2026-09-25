@@ -182,7 +182,9 @@
     console.log('[restore-contacts] list_backups fetch, role=', (typeof curRole === 'function' ? curRole() : '?'));
     return fetch(API + '?action=list_backups', { headers: h(false) })
       .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        /* v34.39.27: فقط پاسخِ صریحاً ناموفق (ok === false) خطاست — پاسخ‌های duck-typed بدون فیلد ok
+           (قرارداد tester615/616) نباید به «HTTP undefined» بخورند؛ برای Response واقعی مرورگر هم‌ارز است. */
+        if (r.ok === false) throw new Error('HTTP ' + r.status);
         return r.json();
       })
       .then(function (d) {
@@ -194,7 +196,7 @@
   function fetchBackupCustomers(name) {
     return fetch(API + '?action=get_backup&name=' + encodeURIComponent(name), { headers: h(false) })
       .then(function (r) {
-        if (!r.ok) throw new Error('get_backup HTTP ' + r.status);
+        if (r.ok === false) throw new Error('get_backup HTTP ' + r.status);
         return r.text();
       })
       .then(function (t) {

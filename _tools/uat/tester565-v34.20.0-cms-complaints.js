@@ -44,8 +44,9 @@ T('JSON: retry فقط یک‌بار و در شکستِ هر دو، خطای او
 T('JSON: out_json پاسخ از پیش تجزیه‌شده (jsonData) را می‌پذیرد', OJ.indexOf("isset($res['jsonData'])") > -1);
 /* v34.38.0 (AI-JSON-REPAIR): شمار پین از ۳ → ۹ — همهٔ اکشن‌های سئوی مدیریت سایت
    (seo_meta/seo_product/seo_article از v34.20.0 + seo_fix/seo_review/seo_expand/
-   seo_clusters/seo_intlinks/seo_alt از v34.38.0) باید از مسیر مقاوم عبور کنند. */
-T('JSON: هر ۹ اکشن سئو از llm_call_json عبور می‌کنند', (llm.match(/out_json\(llm_call_json\(/g) || []).length === 9);
+   seo_clusters/seo_intlinks/seo_alt از v34.38.0) باید از مسیر مقاوم عبور کنند.
+   v34.39.40 (GSC-AI-REPORT): seo_gsc_report هم از همین مسیر مقاوم می‌گذرد → ۱۰. */
+T('JSON: هر ۱۰ اکشن سئو از llm_call_json عبور می‌کنند', (llm.match(/out_json\(llm_call_json\(/g) || []).length === 10);
 T('JSON: seo_product دقیقاً همین مسیر', /seo_product[\s\S]{0,4200}out_json\(llm_call_json\(\$cfg, \$sys, \$user, null, null, 1600\)\)/.test(llm));
 
 /* ═══ بهداشت ═══ */

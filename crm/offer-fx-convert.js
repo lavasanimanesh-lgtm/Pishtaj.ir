@@ -350,7 +350,7 @@
     try { if (typeof offerQuickPreview === 'function') offerQuickPreview(_termDlgFx.src.no); } catch (e) {}
   };
   window.sfFxTermsSave = function (compNo) {
-    if (!_termDlgFx) return;
+    if (!_termDlgFx) { alert('⛔ پنجرهٔ شرایط نسخهٔ ارزی باز نیست.'); return; }
     var rate = (typeof ptfNum === 'function') ? ptfNum(((document.getElementById('sfFxTermsRate') || {}).value || '')) : 0;
     var curEl = document.getElementById('sfFxTermsCur');
     var targetCur = curEl ? curEl.value : _termDlgFx.targetCur;
@@ -427,7 +427,7 @@
 
     function finish(newNo) {
       if (!newNo || /^TMP-/.test(String(newNo))) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
-      if (offersAll().some(function (x) { return x.no === newNo; })) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
+      if (offersAll().some(function (x) { return newNo && x.no === newNo; })) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
       var items = (o.items || []).map(function (it) {
         var c = convertItemToFx(it, rate, targetCur);
         delete c.lineId;

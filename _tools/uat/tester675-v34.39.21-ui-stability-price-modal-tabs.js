@@ -222,7 +222,13 @@ test('B2: cmpQuoteSave دیگر همهٔ md-b های visible را نمی‌کش�
   })());
 test('B3: هر ۴ مسیر ثبت/حذف (cmpQuoteSave / cmpBuy / cmpSplitSave / cmpBulkBuyGo) از refresh درجا می‌آیند و oldCmp.remove() ندارند',
   (function () {
-    function seg(fnName, len) { var i = buycompareSrc.indexOf(fnName); return i < 0 ? '' : buycompareSrc.slice(i, i + (len || 12000)); }
+    /* v34.39.40: برش تا پایانِ خودِ تابع (`\n  };` در تورفتگی سطح بالا) نه طول ثابت — cmpBuy با فیلد noFinance
+       (REALBUY-OPTIONAL) از ۱۲٬۰۰۰ کاراکتر بلندتر شد و cmpRefreshModal بیرونِ پنجره می‌افتاد (منفی کاذب). */
+    function seg(fnName, len) {
+      var i = buycompareSrc.indexOf(fnName); if (i < 0) return '';
+      var e = buycompareSrc.indexOf('\n  };', i);
+      return buycompareSrc.slice(i, e > i ? e : i + (len || 12000));
+    }
     var s1 = seg('window.cmpQuoteSave'), s2 = seg('window.cmpBuy ='), s3 = seg('window.cmpSplitSave'), s4 = seg('window.cmpBulkBuyGo');
     var ok = [s1, s2, s3, s4].every(function (s) { return s.indexOf('cmpRefreshModal') > -1; });
     var noKill = [s2, s3, s4].every(function (s) { return s.indexOf("oldCmp.remove()") < 0; });
