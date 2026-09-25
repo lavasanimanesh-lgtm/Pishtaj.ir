@@ -34,6 +34,7 @@ header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/db-lib.php';
+require_once __DIR__ . '/contact-merge-lib.php'; /* v34.39.30 (CONTACT-ROOTS R7): primitives مشترک اتحاد تماس — sd_* روی همان تابع‌ها alias شده‌اند */
 
 function sd_out(array $payload, int $status = 200): void {
     http_response_code($status);
@@ -62,7 +63,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.27';
+const SD_SERVICE_VERSION = '34.39.31';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -426,20 +427,8 @@ function sd_identity($value): string {
    صورت مقدارهای قبلی حفظ و شمارش در sanitize برمی‌گردد. هم‌سنگِ قاعدهٔ
    merge v34.8.34 («کلید غایب = تغییرنکرده»): «کلید حاضرِ خالی = پاک‌سازی عمدی
    فقط با مهر». فیلد نیت (_ccClear) پیش از ذخیره حذف می‌شود. */
-function sd_contact_val_empty($v): bool {
-    if (is_array($v)) {
-        foreach ($v as $it) {
-            if (is_array($it)) {
-                foreach ((isset($it['tels']) && is_array($it['tels']) ? $it['tels'] : []) as $t) { if (is_array($t) && isset($t['n']) && trim((string)$t['n']) !== '') return false; }
-                foreach ((isset($it['mobs']) && is_array($it['mobs']) ? $it['mobs'] : []) as $t) { if (is_array($t) && isset($t['n']) && trim((string)$t['n']) !== '') return false; }
-                foreach ((isset($it['mails']) && is_array($it['mails']) ? $it['mails'] : []) as $t) { if (is_array($t) && isset($t['n']) && trim((string)$t['n']) !== '') return false; }
-                if (isset($it['n']) && trim((string)$it['n']) !== '') return false;
-            } elseif (is_string($it) && trim($it) !== '') return false;
-        }
-        return true;
-    }
-    return trim((string)$v) === '';
-}
+function sd_contact_val_empty($v): bool { return cm_contact_val_empty($v); }
+
 function sd_row_has_contact(array $r, string $k): bool {
     if (!array_key_exists($k, $r)) return false;
     $v = $r[$k];
@@ -513,86 +502,16 @@ function sd_contact_wipe_guard(array $row, array $prev, array &$stats, bool $ccC
        شماره‌ای که فقط روی سرور هست را بی‌صدا حذف نمی‌کند.
      • ph اسکالر: اگر payload خالی و prev پر باشد، prev حفظ می‌شود.
    با _ccClear=1 (نیت صریح پاک‌سازی از فرم ویرایش) اتحاد اعمال نمی‌شود. */
-function sd_contact_digits($v): string {
-    $s = strtr(trim((string)$v), [
-        '۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9',
-        '٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9',
-    ]);
-    return (string)preg_replace('/\D+/', '', $s);
-}
-function sd_contact_chan_key($t): string {
-    if (!is_array($t)) {
-        $d = sd_contact_digits($t);
-        return $d !== '' ? 'n:'.$d : 's:'.mb_strtolower(trim((string)$t), 'UTF-8');
-    }
-    $n = isset($t['n']) ? trim((string)$t['n']) : '';
-    if ($n === '') return '';
-    $d = sd_contact_digits($n);
-    return $d !== '' ? 'n:'.$d : 's:'.mb_strtolower($n, 'UTF-8');
-}
-function sd_contact_merge_chan_list($incoming, $stored): array {
-    $out = []; $seen = [];
-    $push = function ($t) use (&$out, &$seen) {
-        if (!is_array($t) && !is_string($t)) return;
-        if (is_string($t)) $t = ['n' => $t];
-        $k = sd_contact_chan_key($t);
-        if ($k === '' || isset($seen[$k])) return;
-        $seen[$k] = 1;
-        $out[] = $t;
-    };
-    if (is_array($incoming)) foreach ($incoming as $t) $push($t);
-    if (is_array($stored)) foreach ($stored as $t) $push($t);
-    return $out;
-}
-function sd_contact_person_key(array $p): string {
-    $nm = mb_strtolower(trim((string)($p['nm'] ?? '')), 'UTF-8');
-    if ($nm !== '') return 'nm:'.$nm;
-    $bits = [];
-    foreach (['tels','mobs','mails'] as $ch) {
-        if (!isset($p[$ch]) || !is_array($p[$ch])) continue;
-        foreach ($p[$ch] as $t) {
-            $k = sd_contact_chan_key($t);
-            if ($k !== '') $bits[$k] = 1;
-        }
-    }
-    if (!$bits) return '';
-    $keys = array_keys($bits); sort($keys);
-    return 'ch:'.implode('|', $keys);
-}
-function sd_contact_merge_people($incoming, $stored): array {
-    $out = []; $byKey = [];
-    $ingest = function ($p, bool $isIncoming) use (&$out, &$byKey) {
-        if (!is_array($p)) return;
-        $k = sd_contact_person_key($p);
-        if ($k === '') {
-            /* شخص بدون نام و بدون کانال — فقط اگر incoming باشد نگه دار (فرم تازه) */
-            if ($isIncoming) $out[] = $p;
-            return;
-        }
-        if (!isset($byKey[$k])) {
-            $byKey[$k] = count($out);
-            $out[] = $p;
-            return;
-        }
-        $idx = $byKey[$k];
-        $base = $out[$idx];
-        /* اتحاد کانال‌ها؛ فیلدهای اسکالرِ خالی از طرف دیگر پر می‌شود */
-        foreach (['tels','mobs','mails'] as $ch) {
-            $base[$ch] = sd_contact_merge_chan_list($base[$ch] ?? [], $p[$ch] ?? []);
-        }
-        foreach (['nm','nmEn','role','dept','note','src'] as $f) {
-            $bv = trim((string)($base[$f] ?? ''));
-            $pv = trim((string)($p[$f] ?? ''));
-            if ($bv === '' && $pv !== '') $base[$f] = $p[$f];
-        }
-        if (empty($base['primary']) && !empty($p['primary'])) $base['primary'] = true;
-        $out[$idx] = $base;
-    };
-    /* اول incoming (ترتیب فرم کاربر)، بعد stored (شماره‌های غایب از payload کهنه) */
-    if (is_array($incoming)) foreach ($incoming as $p) $ingest($p, true);
-    if (is_array($stored)) foreach ($stored as $p) $ingest($p, false);
-    return $out;
-}
+function sd_contact_digits($v): string { return cm_contact_digits($v); }
+
+function sd_contact_chan_key($t): string { return cm_contact_chan_key($t); }
+
+function sd_contact_merge_chan_list($incoming, $stored): array { return cm_contact_merge_chan_list($incoming, $stored); }
+
+function sd_contact_person_key(array $p): string { return cm_contact_person_key($p); }
+
+function sd_contact_merge_people($incoming, $stored): array { return cm_contact_merge_people($incoming, $stored); }
+
 function sd_contact_stale_merge(array $row, array $prev, array &$stats, bool $ccClear): array {
     /* مهر نسخه/نیت هرگز در رکورد نهایی نماند (چه clear، چه fresh، چه stale). */
     $clientBase = '';

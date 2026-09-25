@@ -756,19 +756,19 @@ function sync_record_id_for_key($key, $r) {
     return trim((string)($r['_id'] ?? $r['cd'] ?? $r['no'] ?? $r['id'] ?? $r['code'] ?? $r['invoiceCd'] ?? ''));
 }
 
-/* ═══ v34.39.22 (CONTACT-ROOTS R6 — CONTACT-FIELDS-FILL) ═══
-   data_push کل blob را جایگزین می‌کند و سپرهای موجود فقط «حذف ردیف» را می‌بینند
-   (MASS-DELETE-SHIELD / US-384) — «شستشوی فیلد» درون ردیفِ زنده را نه. رکوردِ بدون
-   کلیدِ تماس (stub بازسازی heal، مهاجرت ناقص، fallback مسیر legacy) شماره‌های
-   ثبت‌شدهٔ کاربران را روی سرور بی‌صدا می‌پراند — الگوی «مالِ من سالم، مالِ او پاک».
-   قرارداد v34.8.34: «فیلدی که در payload نیست یعنی تغییر نکرده» — کلیدِ تماسِ غایبِ
-   ورودی وقتی سرور مقدارِ غیرتهی دارد، از سرور پر می‌شود. کلیدِ حاضر (حتی خالی)
-   محترم است (نیت صریح فرم — گاردهای entity_upsert آن را می‌پایند). */
-function sync_contact_fields_fill($incomingJson, $serverJson) {
+/* ═══ v34.39.30 (CONTACT-ROOTS R7 — RECORD-LEVEL CONTACT MERGE در data_push) ═══
+   flush عادی فاز B همین مسیر blob است (نه entity_upsert). گارد R6 فقط کلیدهای
+   «غایب» را پر می‌کرد؛ رکورد کهنهٔ دستگاه (krevs تازه + دادهٔ کهنه، restore محلی،
+   desync آینه، sendBeacon، کلاینت قدیمی بدون base) کلید «حاضر اما کهنه» را با
+   بازنویسیِ wholesale پاک می‌کرد — RCA «شماره دوباره اضافه شد ولی نمایش داده
+   نمی‌شود». حالا رکوردبه‌رکورد با همان semantics مشترکِ cm_contact_merge_record:
+   کلید غایب پر می‌شود (R6)؛ رکورد تازه (مبنای فعلی + ویرایش تازه) LWW؛ هر
+   مبنای کهنه/نامشخص UNION — کانالِ فقط-سرور هرگز حذف نمی‌شود؛ _ccClear کهنه
+   نادیده گرفته می‌شود. (تابع R6 قبلی حذف شد — جایگزین کامل همین تابع است.) */
+function sync_contact_records_merge($incomingJson, $serverJson) {
     $inc = json_decode((string)$incomingJson, true);
     $srv = json_decode((string)$serverJson, true);
     if (!is_array($inc) || !is_array($srv) || !$inc || !$srv) return null;
-    $keys = ['people', 'coTels', 'phones', 'ph'];
     $srvById = [];
     foreach ($srv as $r) {
         if (!is_array($r)) continue;
@@ -776,21 +776,22 @@ function sync_contact_fields_fill($incomingJson, $serverJson) {
         if ($id !== '') $srvById[$id] = $r;
     }
     $changed = false;
+    $stats = [];
     foreach ($inc as $i => $r) {
         if (!is_array($r)) continue;
         $id = sync_record_id_for_key('', $r);
         if ($id === '' || !isset($srvById[$id])) continue;
-        $pr = $srvById[$id];
-        foreach ($keys as $fk) {
-            if (array_key_exists($fk, $r)) continue;
-            if (!array_key_exists($fk, $pr) || empty($pr[$fk])) continue;
-            $r[$fk] = $pr[$fk];
-            $changed = true;
-        }
-        $inc[$i] = $r;
+        $srvRec = $srvById[$id];
+        $ccClear = !empty($r['_ccClear']);
+        $inAt = trim((string)($r['updatedAtISO'] ?? ''));
+        $srvAt = trim((string)($srvRec['updatedAt'] ?? $srvRec['updatedAtISO'] ?? ''));
+        $fresh = ($inAt !== '' && $srvAt !== '' && strcmp($inAt, $srvAt) > 0);
+        $merged = cm_contact_merge_record($r, $srvRec, $stats, $ccClear, $fresh);
+        if ($merged !== $r) { $inc[$i] = $merged; $changed = true; }
     }
     if (!$changed) return null;
-    return json_encode($inc, JSON_UNESCAPED_UNICODE);
+    $out = json_encode($inc, JSON_UNESCAPED_UNICODE);
+    return is_string($out) ? $out : null;
 }
 /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: server-side last line of defence.
    We do not silently repair existing commercial documents. Instead, a payload
@@ -1196,6 +1197,7 @@ if (!is_dir($data_dir)) {
    - حالت dual (دورهٔ مهاجرت): نوشتن هم در فایل و هم در دیتابیس (خطای دیتابیس هرگز مسیر فایل را نمی‌شکند).
    - حالت mysql (پس از سوییچ نهایی): خواندن از دیتابیس (منبع حقیقت) با fallback به فایل. */
 require_once __DIR__ . '/db-lib.php';
+require_once __DIR__ . '/contact-merge-lib.php'; /* v34.39.30 (CONTACT-ROOTS R7): semantics مشترک اتحاد فیلدهای تماس */
 
 function load_data($key) {
     global $data_dir;
@@ -2766,12 +2768,13 @@ switch($action) {
             /* Restore تاییدشده باید snapshot انتخابی را authoritative کند؛ tombstone جدیدتر
                سرور نباید رکوردهای همان بک‌آپ را دوباره حذف کند. */
             $v = sync_apply_tombstones($k, $v, $restore ? '' : $serverArchiveJson, $incomingArchiveJson);
-            /* ═══ v34.39.22 (CONTACT-ROOTS R6): کلیدِ غایبِ تماس مشتری/تامین‌کننده از سرور
-               پر می‌شود (فیلد غایب = تغییر نکرده) تا push مسیر legacy شماره‌های ثبت‌شدهٔ
-               کاربران را با رکوردِ ناقص (heal/migrate/fallback) بی‌صدا نپراند. */
+            /* ═══ v34.39.30 (CONTACT-ROOTS R7): اتحاد رکوردبه‌رکوردِ فیلدهای تماس —
+               کلید غایب پر می‌شود (R6) و رکوردِ کهنهٔ «کلید حاضر» دیگر شماره‌های
+               تازهٔ سرور را با بازنویسیِ wholesale پاک نمی‌کند (UNION/LWW بر اساس
+               تازگی و مبنای رکورد؛ هم‌معنای entity_upsert). */
             if (!$restore && !$allow_wipe && ($k === 'ptf_crm_customers' || $k === 'ptf_crm_suppliers')) {
-                $cfFill = sync_contact_fields_fill($v, sync_key_read($sdir, $k) ?: '[]');
-                if ($cfFill !== null) $v = $cfFill;
+                $cfMerged = sync_contact_records_merge($v, sync_key_read($sdir, $k) ?: '[]');
+                if ($cfMerged !== null) $v = $cfMerged;
             }
             /* v34.8.7: کلیدهای مشترکِ union پیش از بررسی base merge سروری می‌گیرند؛
                تعارضِ base برای آنها بی‌معناست چون نتیجهٔ merge نویسندهٔ هیچ دستگاهی را

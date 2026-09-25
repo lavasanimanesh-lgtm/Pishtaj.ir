@@ -339,6 +339,24 @@ function gsc_query($cfg, $dimensions, $days, $rowLimit = 500) {
     ]);
 }
 
+/* v34.39.31 (GSC-AI-REPORT): مانند gsc_query ولی با بازهٔ صریح — برای مقایسهٔ
+   دورهٔ قبل و ابعاد تکمیلی (دستگاه/کشور) در گزارش هوشمند. silent=true خطا را به‌جای
+   کشتن کل درخواست، به‌صورت __error برمی‌گرداند تا گزارش تاب‌آور بماند. */
+function gsc_query_range($cfg, $dimensions, $start, $end, $rowLimit = 500, $silent = false) {
+    $site = $cfg['site_url'];
+    if (strpos($site, 'sc-domain:') !== 0) {
+        $site = rtrim($site, '/') . '/';
+    }
+    $path = 'webmasters/v3/sites/' . rawurlencode($site) . '/searchAnalytics/query';
+    return gsc_api($cfg, $path, [
+        'startDate'  => $start,
+        'endDate'    => $end,
+        'dimensions' => $dimensions,
+        'rowLimit'   => $rowLimit,
+        'dataState'  => 'final',
+    ], 'POST', $silent);
+}
+
 function gsc_cache_read() {
     global $CACHE_FILE;
     if (!is_file($CACHE_FILE)) return null;
@@ -516,6 +534,36 @@ function gsc_public_indexable($ROOT) {
     return $out;
 }
 
+/* ═══ v34.39.31 (GSC-AI-REPORT): دیجست متنیِ فارسی از دادهٔ سرچ کنسول ═══
+   خروجی همین متن است که (۱) ورودی تحلیل LLM می‌شود و (۲) عیناً در پیوست گزارش
+   نهایی می‌نشیند — دستیار هوشمندِ بیرونی دقیقاً همان داده‌ای را می‌بیند که تحلیل
+   داخلی دیده. اعداد با ارقام لاتین و بدون جداکننده تا ماشین‌خوان بماند. */
+function gsc_ai_pct($a, $b) {
+    if ($b > 0) return round((($a - $b) / $b) * 100, 1);
+    return null;
+}
+function gsc_ai_row($r, $keyIdx = 0) {
+    return [
+        'k' => (string)($r['keys'][$keyIdx] ?? ''),
+        'clicks' => (float)($r['clicks'] ?? 0),
+        'impressions' => (float)($r['impressions'] ?? 0),
+        'ctr' => (float)($r['ctr'] ?? 0),
+        'position' => (float)($r['position'] ?? 0),
+    ];
+}
+function gsc_ai_totals($rows) {
+    $t = ['clicks' => 0.0, 'impressions' => 0.0, 'posW' => 0.0, 'n' => 0];
+    foreach ($rows as $r) {
+        $t['clicks'] += (float)($r['clicks'] ?? 0);
+        $t['impressions'] += (float)($r['impressions'] ?? 0);
+        $t['posW'] += (float)($r['position'] ?? 0) * max((float)($r['impressions'] ?? 0), 1);
+        $t['n']++;
+    }
+    $t['ctr'] = $t['impressions'] > 0 ? $t['clicks'] / $t['impressions'] : 0;
+    $t['pos'] = $t['impressions'] > 0 ? $t['posW'] / $t['impressions'] : 0;
+    return $t;
+}
+
 /* ---------- اکشن‌ها ---------- */
 switch ($action) {
 
@@ -659,6 +707,314 @@ switch ($action) {
             'no_click'  => array_slice($noClick, 0, 30),
         ];
         gsc_cache_write($out);
+        $out['cached'] = false;
+        jok($out);
+        break;
+
+    /* ═══ v34.39.31 (GSC-AI-REPORT): جمع‌آوری جامع + دیجست متنی برای گزارش هوشمند سئو ═══
+       یک فراخوانی = همهٔ دادهٔ لازم برای تشخیص: دورهٔ جاری و دورهٔ قبل (کوئری/صفحه)،
+       روند روزانه، دستگاه/کشور، توزیع جایگاه، فرصت‌ها/بدون‌کلیک/در حال رشد یا افت،
+       پوشش نقشه-به-داده، ردیاب ایندکس، واچ‌لیست و وضعیت نقشه‌ها. بخش‌های تکمیلی
+       silent اند تا خطای گوگل کل گزارش را نکشد. */
+    case 'ai_report':
+        $cfg = gsc_cfg_or_jerr();
+        $days = (int)($_REQUEST['days'] ?? 90);
+        if ($days < 7) $days = 7;
+        if ($days > 180) $days = 180;
+        $force = !empty($_REQUEST['refresh']);
+        $AI_CACHE = $DATA . '/gsc-ai-report.json';
+        if (!$force && is_file($AI_CACHE)) {
+            $c = json_decode((string)@file_get_contents($AI_CACHE), true);
+            if (is_array($c) && (int)($c['days'] ?? 0) === $days && (int)($c['ts'] ?? 0) > time() - 1800) {
+                $c['cached'] = true;
+                jok($c);
+            }
+        }
+
+        $end = date('Y-m-d', strtotime('-2 days'));
+        $start = date('Y-m-d', strtotime('-' . $days . ' days'));
+        $prevEnd = date('Y-m-d', strtotime('-' . ($days + 1) . ' days'));
+        $prevStart = date('Y-m-d', strtotime('-' . (2 * $days) . ' days'));
+
+        /* هستهٔ لازم — خطا یکسره گزارش را نمی‌سازد (مثل overview) */
+        $q = gsc_query_range($cfg, ['query'], $start, $end, 1000);
+        $p = gsc_query_range($cfg, ['page'], $start, $end, 500);
+        $d = gsc_query_range($cfg, ['date'], $start, $end, 400);
+        /* تکمیلی — تاب‌آور */
+        $pq = gsc_query_range($cfg, ['query'], $prevStart, $prevEnd, 1000, true);
+        $pp = gsc_query_range($cfg, ['page'], $prevStart, $prevEnd, 500, true);
+        $dev = gsc_query_range($cfg, ['device'], $start, $end, 50, true);
+        $ctry = gsc_query_range($cfg, ['country'], $start, $end, 50, true);
+        $hasPrevQ = !isset($pq['__error']);
+        $hasPrevP = !isset($pp['__error']);
+
+        $rowsQ = array_map('gsc_ai_row', $q['rows'] ?? []);
+        $rowsP = array_map('gsc_ai_row', $p['rows'] ?? []);
+        $rowsD = array_map('gsc_ai_row', $d['rows'] ?? []);
+        usort($rowsD, function ($a, $b) { return strcmp($a['k'], $b['k']); });
+        $rowsPQ = $hasPrevQ ? array_map('gsc_ai_row', $pq['rows'] ?? []) : [];
+        $rowsPP = $hasPrevP ? array_map('gsc_ai_row', $pp['rows'] ?? []) : [];
+
+        $tCur = gsc_ai_totals($rowsQ);
+        $tPrev = gsc_ai_totals($rowsPQ);
+
+        /* برند در برابر غیربرند (دورهٔ جاری) */
+        $brand = ['clicks' => 0.0, 'imp' => 0.0]; $nonbrand = ['clicks' => 0.0, 'imp' => 0.0];
+        $posBands = ['1-3' => [0, 0.0, 0.0], '4-10' => [0, 0.0, 0.0], '11-20' => [0, 0.0, 0.0],
+                     '21-30' => [0, 0.0, 0.0], '31-50' => [0, 0.0, 0.0], '51-100' => [0, 0.0, 0.0],
+                     '100+' => [0, 0.0, 0.0]];
+        foreach ($rowsQ as $r) {
+            if ($r['k'] === '') continue;
+            if (gsc_is_brand($r['k'])) { $brand['clicks'] += $r['clicks']; $brand['imp'] += $r['impressions']; }
+            else { $nonbrand['clicks'] += $r['clicks']; $nonbrand['imp'] += $r['impressions']; }
+            $bkt = $r['position'] <= 3 ? '1-3' : ($r['position'] <= 10 ? '4-10' : ($r['position'] <= 20 ? '11-20'
+                 : ($r['position'] <= 30 ? '21-30' : ($r['position'] <= 50 ? '31-50' : ($r['position'] <= 100 ? '51-100' : '100+')))));
+            $posBands[$bkt][0]++; $posBands[$bkt][1] += $r['impressions']; $posBands[$bkt][2] += $r['clicks'];
+        }
+
+        /* نقشه‌های کوئری/صفحه برای دلتاها */
+        $qMapCur = []; foreach ($rowsQ as $r) if ($r['k'] !== '') $qMapCur[$r['k']] = $r;
+        $qMapPrev = []; foreach ($rowsPQ as $r) if ($r['k'] !== '') $qMapPrev[$r['k']] = $r;
+        $pMapCur = []; foreach ($rowsP as $r) if ($r['k'] !== '') $pMapCur[$r['k']] = $r;
+        $pMapPrev = []; foreach ($rowsPP as $r) if ($r['k'] !== '') $pMapPrev[$r['k']] = $r;
+
+        $rising = []; $falling = []; $lost = [];
+        foreach ($qMapCur as $qs => $r) {
+            if (gsc_is_brand($qs)) continue;
+            $pi = isset($qMapPrev[$qs]) ? $qMapPrev[$qs]['impressions'] : 0;
+            $dI = $r['impressions'] - $pi;
+            if ($dI > 0 && $r['impressions'] >= 10)
+                $rising[] = ['q' => $qs, 'imp' => $r['impressions'], 'prevImp' => $pi, 'clicks' => $r['clicks'], 'pos' => $r['position']];
+            if ($dI < 0 && $pi >= 10)
+                $falling[] = ['q' => $qs, 'imp' => $r['impressions'], 'prevImp' => $pi, 'clicks' => $r['clicks'], 'pos' => $r['position']];
+        }
+        if ($hasPrevQ) {
+            foreach ($qMapPrev as $qs => $r) {
+                if (gsc_is_brand($qs) || isset($qMapCur[$qs])) continue;
+                if ($r['impressions'] >= 10)
+                    $lost[] = ['q' => $qs, 'imp' => 0, 'prevImp' => $r['impressions'], 'clicks' => 0, 'pos' => 0];
+            }
+        }
+        usort($rising, function ($a, $b) { return ($b['imp'] - $b['prevImp']) <=> ($a['imp'] - $a['prevImp']); });
+        usort($falling, function ($a, $b) { return ($a['imp'] - $a['prevImp']) <=> ($b['imp'] - $b['prevImp']); });
+        usort($lost, function ($a, $b) { return $b['prevImp'] <=> $a['prevImp']; });
+
+        $pRising = []; $pFalling = [];
+        foreach ($pMapCur as $u => $r) {
+            $pi = isset($pMapPrev[$u]) ? $pMapPrev[$u]['impressions'] : 0;
+            $dI = $r['impressions'] - $pi;
+            if ($dI > 0 && $r['impressions'] >= 20)
+                $pRising[] = ['url' => $u, 'imp' => $r['impressions'], 'prevImp' => $pi, 'clicks' => $r['clicks'], 'pos' => $r['position']];
+            if ($dI < 0 && $pi >= 20)
+                $pFalling[] = ['url' => $u, 'imp' => $r['impressions'], 'prevImp' => $pi, 'clicks' => $r['clicks'], 'pos' => $r['position']];
+        }
+        usort($pRising, function ($a, $b) { return ($b['imp'] - $b['prevImp']) <=> ($a['imp'] - $a['prevImp']); });
+        usort($pFalling, function ($a, $b) { return ($a['imp'] - $a['prevImp']) <=> ($b['imp'] - $b['prevImp']); });
+
+        /* فرصت‌ها و بدون‌کلیک — همان قواعد overview */
+        $wins = []; $noClick = [];
+        foreach ($rowsQ as $r) {
+            if ($r['k'] === '' || gsc_is_brand($r['k'])) continue;
+            if ($r['impressions'] >= 5 && $r['position'] >= 6 && $r['position'] <= 30) $wins[] = $r;
+            if ($r['impressions'] >= 5 && $r['clicks'] == 0) $noClick[] = $r;
+        }
+        usort($wins, function ($a, $b) { return $b['impressions'] <=> $a['impressions']; });
+        usort($noClick, function ($a, $b) { return $b['impressions'] <=> $a['impressions']; });
+
+        $zeroClickPages = [];
+        foreach ($rowsP as $r) {
+            if ($r['impressions'] >= 20 && $r['clicks'] == 0) $zeroClickPages[] = $r;
+        }
+        usort($zeroClickPages, function ($a, $b) { return $b['impressions'] <=> $a['impressions']; });
+
+        /* صفحات برتر مرتب بر اساس کلیک */
+        $topPages = $rowsP;
+        usort($topPages, function ($a, $b) { return $b['clicks'] <=> $a['clicks']; });
+
+        /* پوشش: نقشهٔ محلی + داشتن داده (بدون فراخوانی اضافه) */
+        $sitemapUrls = gsc_sitemap_urls($ROOT);
+        $sitemapTotal = count($sitemapUrls);
+        $withData = 0;
+        foreach ($rowsP as $r) if ($r['impressions'] > 0) $withData++;
+
+        /* ردیاب ایندکس (از state محلی) */
+        $tracker = gsc_tracker_load($GSC_TRACKER);
+        $trk = ['known' => 0, 'indexed' => 0, 'pending' => 0, 'new' => 0, 'error' => 0, 'lastRun' => ''];
+        foreach (($tracker['byUrl'] ?? []) as $u => $st) {
+            $trk['known']++;
+            $s = (string)($st['state'] ?? '');
+            if ($s === 'indexed') $trk['indexed']++;
+            elseif ($s === 'new') $trk['new']++;
+            elseif ($s === 'error') $trk['error']++;
+            else $trk['pending']++;
+        }
+        $trk['lastRun'] = (string)($tracker['meta']['lastRun'] ?? '');
+
+        /* واچ‌لیست + آخرین جایگاه از تازه‌ترین اسنپ‌شات */
+        $watch = gsc_watch_load($DATA);
+        $lastSnap = null;
+        $snaps = glob($GSC_SNAP_DIR . '/*.json') ?: [];
+        if ($snaps) { sort($snaps); $lastSnap = json_decode((string)@file_get_contents($snaps[count($snaps) - 1]), true); }
+        $watchRows = [];
+        foreach (($watch['items'] ?? []) as $wq => $meta) {
+            $pos = null;
+            if (is_array($lastSnap)) {
+                foreach (($lastSnap['topQueries'] ?? []) as $tq) {
+                    if ((string)($tq['k'] ?? '') === (string)$wq) { $pos = (float)($tq['position'] ?? 0); break; }
+                }
+            }
+            $watchRows[] = ['q' => $wq, 'pos' => $pos];
+        }
+
+        /* نقشه‌های ثبت‌شده در GSC — silent */
+        $sitemaps = null;
+        /* سایت با همان نرمال‌سازیِ خودِ کوئری‌ها (که موفق بوده‌اند) — نه gsc_resolve_site
+           که در صورت عدم تطابق jerr می‌زند و گزارشِ کامل‌شده را در انتها می‌کُشد. */
+        $smSite = $cfg['site_url'];
+        if (strpos($smSite, 'sc-domain:') !== 0) $smSite = rtrim($smSite, '/') . '/';
+        $smr = gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($smSite) . '/sitemaps', null, 'GET', true);
+        if (!isset($smr['__error'])) {
+            $sitemaps = [];
+            foreach (array_slice($smr['sitemap'] ?? [], 0, 6) as $sm) {
+                $sitemaps[] = ['path' => (string)($sm['path'] ?? ''), 'state' => (string)($sm['state'] ?? ''),
+                    'errors' => (string)($sm['errors'] ?? '0'), 'warnings' => (string)($sm['warnings'] ?? '0'),
+                    'lastDownloaded' => (string)($sm['lastDownloaded'] ?? '')];
+            }
+        }
+
+        /* ─── دیجست متنی — هستهٔ گزارش ─── */
+        $L = [];
+        $L[] = '## KPI — ' . $days . ' روز (' . $start . ' تا ' . $end . ') در برابر دورهٔ قبل (' . $prevStart . ' تا ' . $prevEnd . ')';
+        $dC = $hasPrevQ ? gsc_ai_pct($tCur['clicks'], $tPrev['clicks']) : null;
+        $dI = $hasPrevQ ? gsc_ai_pct($tCur['impressions'], $tPrev['impressions']) : null;
+        $L[] = 'کلیک: ' . round($tCur['clicks']) . ($dC !== null ? ' (' . ($dC >= 0 ? '+' : '') . $dC . '%)' : ' (بدون دادهٔ دورهٔ قبل)')
+             . ' | نمایش: ' . round($tCur['impressions']) . ($dI !== null ? ' (' . ($dI >= 0 ? '+' : '') . $dI . '%)' : '')
+             . ' | CTR کل: ' . round($tCur['ctr'] * 100, 2) . '%'
+             . ' | میانگین جایگاه وزنی: ' . round($tCur['pos'], 1);
+        $brandShareClicks = $tCur['clicks'] > 0 ? round($brand['clicks'] / $tCur['clicks'] * 100, 1) : 0;
+        $L[] = 'کوئری دارای نمایش: ' . count($qMapCur) . ' | کلیک برندی: ' . round($brand['clicks']) . ' (' . $brandShareClicks . '% از کل) | کلیک غیربرندی: ' . round($nonbrand['clicks']) . ' | نمایش غیربرندی: ' . round($nonbrand['imp']);
+        $L[] = '';
+        $L[] = '## توزیع جایگاه و CTR (کوئری‌های دورهٔ جاری)';
+        foreach ($posBands as $band => $b) {
+            $ctrB = $b[1] > 0 ? round($b[2] / $b[1] * 100, 2) : 0;
+            $L[] = 'جایگاه ' . $band . ': ' . $b[0] . ' کوئری | ' . round($b[1]) . ' نمایش | ' . round($b[2]) . ' کلیک | CTR ' . $ctrB . '%';
+        }
+        $L[] = '';
+        if (count($rowsD) > 1) {
+            $L[] = '## روند روزانه (تاریخ: کلیک/نمایش)';
+            $half = (int)ceil(count($rowsD) / 2);
+            $firstHalf = array_slice($rowsD, 0, $half);
+            $secondHalf = array_slice($rowsD, $half);
+            $sumH = function ($rows) { $c = 0.0; $i = 0.0; foreach ($rows as $r) { $c += $r['clicks']; $i += $r['impressions']; } return round($c) . '/' . round($i); };
+            $L[] = 'نیمهٔ اول (' . $firstHalf[0]['k'] . ' تا ' . $firstHalf[count($firstHalf) - 1]['k'] . '): ' . $sumH($firstHalf);
+            $L[] = 'نیمهٔ دوم (' . $secondHalf[0]['k'] . ' تا ' . $secondHalf[count($secondHalf) - 1]['k'] . '): ' . $sumH($secondHalf);
+            $best = null;
+            foreach ($rowsD as $r) {
+                if ($r['impressions'] < 10) continue;
+                if ($best === null || $r['clicks'] > $best['clicks']) $best = $r;
+            }
+            if ($best) $L[] = 'بهترین روز: ' . $best['k'] . ' با ' . round($best['clicks']) . ' کلیک / ' . round($best['impressions']) . ' نمایش';
+            $L[] = '';
+        }
+        $fmtQ = function ($r) { return $r['k'] . ' | نمایش ' . round($r['impressions']) . ' | کلیک ' . round($r['clicks']) . ' | جایگاه ' . round($r['position'], 1) . ' | CTR ' . round($r['ctr'] * 100, 2) . '%'; };
+        $topNonBrand = array_values(array_filter($rowsQ, function ($r) { return $r['k'] !== '' && !gsc_is_brand($r['k']); }));
+        usort($topNonBrand, function ($a, $b) { return $b['impressions'] <=> $a['impressions']; });
+        $L[] = '## کوئری‌های برتر غیربرندی (' . min(40, count($topNonBrand)) . ' از ' . count($topNonBrand) . ')';
+        foreach (array_slice($topNonBrand, 0, 40) as $r) $L[] = $fmtQ($r);
+        $L[] = '';
+        $L[] = '## فرصت‌های سریع (جایگاه 6-30، نمایش >= 5، غیربرندی)';
+        foreach (array_slice($wins, 0, 20) as $r) $L[] = $fmtQ($r);
+        $L[] = '';
+        $L[] = '## نمایش دارد ولی کلیک ندارد (به ترتیب نمایش)';
+        foreach (array_slice($noClick, 0, 15) as $r) $L[] = $fmtQ($r);
+        $L[] = '';
+        if ($hasPrevQ) {
+            $fmtR = function ($r) { return $r['q'] . ' | نمایش ' . round($r['prevImp']) . ' ← ' . round($r['imp']) . ' | کلیک ' . round($r['clicks']) . ' | جایگاه ' . round($r['pos'], 1); };
+            $L[] = '## کوئری‌های در حال رشد (دورهٔ قبل → الان)';
+            foreach (array_slice($rising, 0, 12) as $r) $L[] = $fmtR($r);
+            $L[] = '';
+            $L[] = '## کوئری‌های در حال افت';
+            foreach (array_slice($falling, 0, 12) as $r) $L[] = $fmtR($r);
+            $L[] = '';
+            if ($lost) {
+                $L[] = '## کوئری‌های حذف‌شده از نتایج (دورهٔ قبل داشت، الان نمایش صفر)';
+                foreach (array_slice($lost, 0, 10) as $r) $L[] = $r['q'] . ' | نمایش قبلی ' . round($r['prevImp']);
+                $L[] = '';
+            }
+        }
+        $fmtP = function ($r) { return str_replace('https://pishtaj.ir', '', $r['k']) . ' | نمایش ' . round($r['impressions']) . ' | کلیک ' . round($r['clicks']) . ' | جایگاه ' . round($r['position'], 1) . ' | CTR ' . round($r['ctr'] * 100, 2) . '%'; };
+        $L[] = '## صفحات برتر (به ترتیب کلیک)';
+        foreach (array_slice($topPages, 0, 30) as $r) $L[] = $fmtP($r);
+        $L[] = '';
+        if ($hasPrevP) {
+            $fmtPR = function ($r) { return str_replace('https://pishtaj.ir', '', $r['url']) . ' | نمایش ' . round($r['prevImp']) . ' ← ' . round($r['imp']) . ' | کلیک ' . round($r['clicks']) . ' | جایگاه ' . round($r['pos'], 1); };
+            $L[] = '## صفحات در حال رشد';
+            foreach (array_slice($pRising, 0, 10) as $r) $L[] = $fmtPR($r);
+            $L[] = '';
+            $L[] = '## صفحات در حال افت';
+            foreach (array_slice($pFalling, 0, 10) as $r) $L[] = $fmtPR($r);
+            $L[] = '';
+        }
+        $L[] = '## صفحات بدون کلیک با نمایش >= 20';
+        foreach (array_slice($zeroClickPages, 0, 12) as $r) $L[] = $fmtP($r);
+        $L[] = '';
+        if (!isset($dev['__error']) && !empty($dev['rows'])) {
+            $L[] = '## دستگاه';
+            foreach ($dev['rows'] as $r) {
+                $rr = gsc_ai_row($r);
+                $L[] = $rr['k'] . ' | نمایش ' . round($rr['impressions']) . ' | کلیک ' . round($rr['clicks']) . ' | جایگاه ' . round($rr['position'], 1);
+            }
+            $L[] = '';
+        }
+        if (!isset($ctry['__error']) && !empty($ctry['rows'])) {
+            $crows = array_map('gsc_ai_row', $ctry['rows']);
+            usort($crows, function ($a, $b) { return $b['clicks'] <=> $a['clicks']; });
+            $L[] = '## کشورهای برتر';
+            foreach (array_slice($crows, 0, 8) as $rr) {
+                $L[] = $rr['k'] . ' | نمایش ' . round($rr['impressions']) . ' | کلیک ' . round($rr['clicks']);
+            }
+            $L[] = '';
+        }
+        $L[] = '## پوشش و ایندکس';
+        $L[] = 'URLهای نقشهٔ سایت: ' . $sitemapTotal . ' | دارای داده در بازه: ' . $withData . ' (' . ($sitemapTotal > 0 ? round($withData / $sitemapTotal * 100, 1) : 0) . '%)' . ' | بدون داده: ' . max(0, $sitemapTotal - $withData);
+        $L[] = 'ردیاب ایندکس: ' . $trk['known'] . ' صفحهٔ شناخته‌شده | تأییدشده ایندکس: ' . $trk['indexed'] . ' | در صف بررسی: ' . $trk['pending'] . ' | جدید ثبت‌شده: ' . $trk['new'] . ' | خطا: ' . $trk['error'] . ($trk['lastRun'] ? ' | آخرین اجرا: ' . $trk['lastRun'] : '');
+        if (is_array($sitemaps)) {
+            foreach ($sitemaps as $sm) {
+                $L[] = 'نقشهٔ GSC: ' . str_replace('https://pishtaj.ir', '', $sm['path']) . ' | وضعیت ' . $sm['state'] . ' | خطا ' . $sm['errors'] . ' | هشدار ' . $sm['warnings'] . ($sm['lastDownloaded'] ? ' | آخرین دریافت ' . $sm['lastDownloaded'] : '');
+            }
+        }
+        if ($watchRows) {
+            $L[] = '';
+            $L[] = '## واچ‌لیست جایگاه';
+            foreach ($watchRows as $w) $L[] = $w['q'] . ' | جایگاه ' . ($w['pos'] !== null ? round($w['pos'], 1) : 'خارج از ۳۰تای برتر اسنپ‌شات');
+        }
+        $digest = implode("\n", $L);
+
+        $out = [
+            'days' => $days, 'start' => $start, 'end' => $end,
+            'prev_start' => $prevStart, 'prev_end' => $prevEnd,
+            'generated' => date('c'), 'ts' => time(),
+            'totals' => [
+                'clicks' => round($tCur['clicks']), 'impressions' => round($tCur['impressions']),
+                'ctr' => round($tCur['ctr'] * 100, 2), 'pos' => round($tCur['pos'], 1),
+                'queries' => count($qMapCur),
+                'brand_clicks' => round($brand['clicks']), 'nonbrand_clicks' => round($nonbrand['clicks']),
+                'delta_clicks_pct' => $dC, 'delta_impressions_pct' => $dI,
+            ],
+            'bands' => $posBands,
+            'queries' => ['top' => array_slice($topNonBrand, 0, 40), 'quickwins' => array_slice($wins, 0, 20),
+                          'no_click' => array_slice($noClick, 0, 15), 'rising' => array_slice($rising, 0, 12),
+                          'falling' => array_slice($falling, 0, 12), 'lost' => array_slice($lost, 0, 10)],
+            'pages' => ['top' => array_slice($topPages, 0, 30), 'rising' => array_slice($pRising, 0, 10),
+                        'falling' => array_slice($pFalling, 0, 10), 'zero_click' => array_slice($zeroClickPages, 0, 12)],
+            'dates' => $rowsD,
+            'coverage' => ['sitemap_total' => $sitemapTotal, 'with_data' => $withData],
+            'tracker' => $trk,
+            'watch' => $watchRows,
+            'sitemaps' => $sitemaps,
+            'digest_text' => $digest,
+        ];
+        @file_put_contents($AI_CACHE, json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
         $out['cached'] = false;
         jok($out);
         break;

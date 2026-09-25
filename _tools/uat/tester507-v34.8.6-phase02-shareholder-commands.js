@@ -38,7 +38,7 @@ assert.ok(section(treasury, 'window.ptfTreasuryChairOut = function', 'window.ptf
 console.log('  ✔ salary, draw and chair movements use server commands');
 
 console.log('── Phase 2 shareholder UI runtime ──');
-/* v34.39.27 (TIME-INDEPENDENT): ماه draw/پرداخت حقوق در shareholders.js با faMonthNow()
+/* v34.39.31 (TIME-INDEPENDENT): ماه draw/پرداخت حقوق در shareholders.js با faMonthNow()
    (Intl + Asia/Tehran واقعی) ساخته می‌شود؛ پینِ '1405/06' با ورود ماه جدید قرمز می‌شد.
    ماه انتظار از همان مسیر ماژول محاسبه می‌شود تا سنجه در هر ماهی معتبر بماند. */
 var TEH_MONTH = (function () {
