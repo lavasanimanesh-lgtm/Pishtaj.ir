@@ -725,7 +725,8 @@ switch ($action) {
         $AI_CACHE = $DATA . '/gsc-ai-report.json';
         if (!$force && is_file($AI_CACHE)) {
             $c = json_decode((string)@file_get_contents($AI_CACHE), true);
-            if (is_array($c) && (int)($c['days'] ?? 0) === $days && (int)($c['ts'] ?? 0) > time() - 1800) {
+            /* v34.39.32: نسخهٔ ساختار دیجست — کش قدیمی فاقد تطبیق کوئری↔صفحه است */
+            if (is_array($c) && (int)($c['v'] ?? 0) >= 2 && (int)($c['days'] ?? 0) === $days && (int)($c['ts'] ?? 0) > time() - 1800) {
                 $c['cached'] = true;
                 jok($c);
             }
@@ -745,6 +746,9 @@ switch ($action) {
         $pp = gsc_query_range($cfg, ['page'], $prevStart, $prevEnd, 500, true);
         $dev = gsc_query_range($cfg, ['device'], $start, $end, 50, true);
         $ctry = gsc_query_range($cfg, ['country'], $start, $end, 50, true);
+        /* v34.39.32: تطبیق کوئری↔صفحه — کلید تشخیص کندیبالیزیشن و «کدام صفحه را برای
+           کدام کوئری بهینه کنیم»؛ silent تا نبودش گزارش را نشکند. */
+        $qp = gsc_query_range($cfg, ['query', 'page'], $start, $end, 3000, true);
         $hasPrevQ = !isset($pq['__error']);
         $hasPrevP = !isset($pp['__error']);
 
@@ -887,8 +891,14 @@ switch ($action) {
         $L[] = '## KPI — ' . $days . ' روز (' . $start . ' تا ' . $end . ') در برابر دورهٔ قبل (' . $prevStart . ' تا ' . $prevEnd . ')';
         $dC = $hasPrevQ ? gsc_ai_pct($tCur['clicks'], $tPrev['clicks']) : null;
         $dI = $hasPrevQ ? gsc_ai_pct($tCur['impressions'], $tPrev['impressions']) : null;
-        $L[] = 'کلیک: ' . round($tCur['clicks']) . ($dC !== null ? ' (' . ($dC >= 0 ? '+' : '') . $dC . '%)' : ' (بدون دادهٔ دورهٔ قبل)')
-             . ' | نمایش: ' . round($tCur['impressions']) . ($dI !== null ? ' (' . ($dI >= 0 ? '+' : '') . $dI . '%)' : '')
+        /* v34.39.32: «دورهٔ قبل: 0» ≠ «بدون دادهٔ دورهٔ قبل» — خوانندهٔ گزارش نباید
+           صفرِ واقعی را با نبود داده اشتباه بگیرد. */
+        $dCLbl = $dC !== null ? (' (' . ($dC >= 0 ? '+' : '') . $dC . '%)')
+             : ($hasPrevQ ? ' (دورهٔ قبل: ' . round($tPrev['clicks']) . ' کلیک)' : ' (بدون دادهٔ دورهٔ قبل)');
+        $dILbl = $dI !== null ? (' (' . ($dI >= 0 ? '+' : '') . $dI . '%)')
+             : ($hasPrevQ ? ' (دورهٔ قبل: ' . round($tPrev['impressions']) . ' نمایش)' : '');
+        $L[] = 'کلیک: ' . round($tCur['clicks']) . $dCLbl
+             . ' | نمایش: ' . round($tCur['impressions']) . $dILbl
              . ' | CTR کل: ' . round($tCur['ctr'] * 100, 2) . '%'
              . ' | میانگین جایگاه وزنی: ' . round($tCur['pos'], 1);
         $brandShareClicks = $tCur['clicks'] > 0 ? round($brand['clicks'] / $tCur['clicks'] * 100, 1) : 0;
@@ -975,12 +985,44 @@ switch ($action) {
             }
             $L[] = '';
         }
+        /* v34.39.32: تطبیق کوئری↔صفحهٔ سرو‌کننده — برای کوئری‌های مهم (برتر/فرصت/بدون‌کلیک)،
+           دو URL اصلی گوگل با نمایش/جایگاه. دو URL برای یک کوئری = سیگنال کندیبالیزیشن. */
+        if (!isset($qp['__error']) && !empty($qp['rows'])) {
+            $qpMap = [];
+            foreach ($qp['rows'] as $r) {
+                $qs = (string)($r['keys'][0] ?? '');
+                $u  = (string)($r['keys'][1] ?? '');
+                if ($qs === '' || $u === '') continue;
+                $qpMap[$qs][] = ['u' => $u, 'imp' => (float)($r['impressions'] ?? 0), 'pos' => (float)($r['position'] ?? 0)];
+            }
+            $seenQp = [];
+            $qpList = array_merge(array_slice($topNonBrand, 0, 40), array_slice($wins, 0, 20), array_slice($noClick, 0, 15));
+            $qpLines = [];
+            foreach ($qpList as $r) {
+                $qs = (string)($r['k'] ?? '');
+                if ($qs === '' || isset($seenQp[$qs]) || gsc_is_brand($qs) || !isset($qpMap[$qs])) continue;
+                $seenQp[$qs] = 1;
+                $urls = $qpMap[$qs];
+                usort($urls, function ($a, $b) { return $b['imp'] <=> $a['imp']; });
+                $parts = [];
+                foreach (array_slice($urls, 0, 2) as $uu) {
+                    $parts[] = str_replace('https://pishtaj.ir', '', $uu['u']) . ' (نمایش ' . round($uu['imp']) . '، جایگاه ' . round($uu['pos'], 1) . ')';
+                }
+                $qpLines[] = $qs . ' ← ' . implode(' + ', $parts);
+            }
+            if ($qpLines) {
+                $L[] = '## تطبیق کوئری ↔ صفحهٔ سرو‌کننده (دو صفحه برای یک کوئری = احتمال کندیبالیزیشن)';
+                foreach ($qpLines as $ql) $L[] = $ql;
+                $L[] = '';
+            }
+        }
         $L[] = '## پوشش و ایندکس';
         $L[] = 'URLهای نقشهٔ سایت: ' . $sitemapTotal . ' | دارای داده در بازه: ' . $withData . ' (' . ($sitemapTotal > 0 ? round($withData / $sitemapTotal * 100, 1) : 0) . '%)' . ' | بدون داده: ' . max(0, $sitemapTotal - $withData);
         $L[] = 'ردیاب ایندکس: ' . $trk['known'] . ' صفحهٔ شناخته‌شده | تأییدشده ایندکس: ' . $trk['indexed'] . ' | در صف بررسی: ' . $trk['pending'] . ' | جدید ثبت‌شده: ' . $trk['new'] . ' | خطا: ' . $trk['error'] . ($trk['lastRun'] ? ' | آخرین اجرا: ' . $trk['lastRun'] : '');
         if (is_array($sitemaps)) {
             foreach ($sitemaps as $sm) {
-                $L[] = 'نقشهٔ GSC: ' . str_replace('https://pishtaj.ir', '', $sm['path']) . ' | وضعیت ' . $sm['state'] . ' | خطا ' . $sm['errors'] . ' | هشدار ' . $sm['warnings'] . ($sm['lastDownloaded'] ? ' | آخرین دریافت ' . $sm['lastDownloaded'] : '');
+                $smState = $sm['state'] !== '' ? $sm['state'] : 'نامشخص'; /* v34.39.32: state خالی را صادقانه نشان بده */
+                $L[] = 'نقشهٔ GSC: ' . str_replace('https://pishtaj.ir', '', $sm['path']) . ' | وضعیت ' . $smState . ' | خطا ' . $sm['errors'] . ' | هشدار ' . $sm['warnings'] . ($sm['lastDownloaded'] ? ' | آخرین دریافت ' . $sm['lastDownloaded'] : '');
             }
         }
         if ($watchRows) {
@@ -991,6 +1033,7 @@ switch ($action) {
         $digest = implode("\n", $L);
 
         $out = [
+            'v' => 2,
             'days' => $days, 'start' => $start, 'end' => $end,
             'prev_start' => $prevStart, 'prev_end' => $prevEnd,
             'generated' => date('c'), 'ts' => time(),
