@@ -1,4 +1,4 @@
-/* tester656 — v34.39.31 (ADV-CV-SERVER-SIDE-PDF-001):
+/* tester656 — v34.39.32 (ADV-CV-SERVER-SIDE-PDF-001):
    P1 FINALIZATION: «PDF باینری سمت سرور» — گزارش نهایی ADV-CV حالا علاوه بر HTML
    (Print/Save-as-PDF)، PDF باینری واقعی با wkhtmltopdf سمت سرور می‌سازد:
    - admin_report_final_issue در لحظهٔ صدور، PDF را به‌صورت best-effort می‌سازد؛
@@ -18,7 +18,7 @@ var php = fs.readFileSync(path.join(ROOT, 'api/tools.php'), 'utf8');
 var ui = fs.readFileSync(path.join(ROOT, 'crm/tool-report-drafts.js'), 'utf8');
 var idx = fs.readFileSync(path.join(ROOT, 'crm/index.html'), 'utf8');
 
-console.log('── PDF باینری سمت سرور برای گزارش نهایی ADV-CV (v34.39.31) ──');
+console.log('── PDF باینری سمت سرور برای گزارش نهایی ADV-CV (v34.39.32) ──');
 
 /* ── قرارداد استاتیک — سرور ── */
 function guarded(action) {
@@ -77,7 +77,7 @@ assert.ok(/admin_report_final_pdf_get[\s\S]{0,500}X-CRM-Token/.test(ui) && ui.in
   'دانلود PDF از API با هدر X-CRM-Token (fetch/blob — نه لینک ساده)');
 assert.ok(/ptfToolReportDraftGenerateServerPdf[\s\S]{0,700}ptfToolReportDraftFinalGet\(draftId\)/.test(ui),
   'بعد از تولید موفق، modal با متادیتای به‌روز باز می‌شود');
-assert.ok(idx.indexOf('tool-report-drafts.js?v=34.39.31') > -1, 'cache-bust فایل UI اعمال شده');
+assert.ok(idx.indexOf('tool-report-drafts.js?v=34.39.32') > -1, 'cache-bust فایل UI اعمال شده');
 console.log('  ✔ استاتیک: UI — دکمه‌ها، blob با توکن، modal به‌روزشده، cache-bust');
 
 /* ── مدل رفتاری مستقل — sanitize نام فایل ── */
@@ -109,7 +109,7 @@ if (!phpOk || fs.existsSync(secretsPath)) {
   console.log('  ⏭  رفتاری(PHP): رد شد (php موجود نیست یا ptf-secrets.php واقعی هست — فقط محیط محلی)');
   /* Static assertions above are still authoritative. Emit an explicit PASS so
      run-ci-gate can classify this documented skip on PHP-less workstations. */
-  console.log('PASS tester656 v34.39.31 server-side-pdf (PHP behavior skipped)');
+  console.log('PASS tester656 v34.39.32 server-side-pdf (PHP behavior skipped)');
 } else {
   var os = require('os');
   var crypto = require('crypto');
@@ -266,9 +266,9 @@ if (!phpOk || fs.existsSync(secretsPath)) {
       try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch (e) {}
     }
     if (process.exitCode) {
-      console.log('FAIL tester656 v34.39.31 server-side-pdf');
+      console.log('FAIL tester656 v34.39.32 server-side-pdf');
       process.exit(1);
     }
-    console.log('PASS tester656 v34.39.31 server-side-pdf');
+    console.log('PASS tester656 v34.39.32 server-side-pdf');
   })().catch(function (e) { console.log('FAIL tester656 (runner): ' + e.message); process.exit(1); });
 }

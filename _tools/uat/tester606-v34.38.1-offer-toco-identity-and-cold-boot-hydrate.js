@@ -135,21 +135,21 @@ T('۴.۶ ابطال کش نام مشتری در هر سه مسیر نوشتن (s
   csSrc.indexOf('ptfCustCacheDrop') > -1);
 
 /* ───────────────────── ۵) انطباق نسخه و نگهبان ───────────────────── */
-head('۵. انطباق نسخه v34.39.31 و نگهبان گیت');
+head('۵. انطباق نسخه v34.39.32 و نگهبان گیت');
 
 var verJson = JSON.parse(read('VERSION.json'));
 var sw = read('crm/sw.js');
-T('۵.۱ VERSION.json روی v34.39.31 است', verJson.crm_version === 'v34.39.31', verJson.crm_version);
-T('۵.۲ شاخص رهاسازی index.html روی v34.39.31 است',
-  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.31'") > -1);
-T('۵.۳ سرویس‌ورکر روی v34.39.31 است',
-  sw.indexOf("RELEASE = 'v34.39.31'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.39.31'") > -1);
-T('۵.۴ مانیفست روی 34.39.31 است', JSON.parse(read('crm/manifest.json')).version === '34.39.31');
-T('۵.۵ sales-domain.php روی 34.39.31 است',
-  read('api/sales-domain.php').indexOf("const SD_SERVICE_VERSION = '34.39.31'") > -1);
+T('۵.۱ VERSION.json روی v34.39.32 است', verJson.crm_version === 'v34.39.32', verJson.crm_version);
+T('۵.۲ شاخص رهاسازی index.html روی v34.39.32 است',
+  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.32'") > -1);
+T('۵.۳ سرویس‌ورکر روی v34.39.32 است',
+  sw.indexOf("RELEASE = 'v34.39.32'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.39.32'") > -1);
+T('۵.۴ مانیفست روی 34.39.32 است', JSON.parse(read('crm/manifest.json')).version === '34.39.32');
+T('۵.۵ sales-domain.php روی 34.39.32 است',
+  read('api/sales-domain.php').indexOf("const SD_SERVICE_VERSION = '34.39.32'") > -1);
 var busts = idx.match(/\?v=([0-9.]+)/g) || [];
-var badBust = busts.filter(function (b) { return b !== '?v=34.39.31'; });
-T('۵.۶ همه cache-bust های index.html یکدست 34.39.31 هستند',
+var badBust = busts.filter(function (b) { return b !== '?v=34.39.32'; });
+T('۵.۶ همه cache-bust های index.html یکدست 34.39.32 هستند',
   busts.length > 50 && badBust.length === 0, badBust.slice(0, 5).join(','));
 T('۵.۷ یادداشت انتشار v34.38.1 موجود است', fs.existsSync(path.join(ROOT, 'RELEASE-NOTES-v34.38.1.md')));
 T('۵.۸ تستر در گیت CI ثبت شده است',

@@ -13,13 +13,13 @@ SECTION('Release v34.38.16: پین‌های رسمی');
 (function releasePins() {
   var ver = JSON.parse(read('VERSION.json'));
   var idx = read('crm/index.html'), sw = read('crm/sw.js');
-  T('VERSION.json = v34.39.31', ver.crm_version === 'v34.39.31', ver.crm_version);
-  T('index release و cache-bust روی 34.39.31 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.31'") > -1 && idx.indexOf('?v=34.7.96') === -1);
-  T('service worker release/cache/assets روی 34.39.31 است', sw.indexOf("RELEASE = 'v34.39.31'") > -1 && sw.indexOf("ASSET_VERSION = '34.39.31'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.39.31'") > -1);
-  T('manifest.version = 34.39.31', JSON.parse(read('crm/manifest.json')).version === '34.39.31');
-  T('clear-cache روی v34.39.31 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.39.31'") > -1);
-  T('shell fallback روی v34.39.31 است', read('crm/shell.js').indexOf("'v34.39.31'") > -1);
-  T('sales-domain service روی 34.39.31 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.39.31'") > -1);
+  T('VERSION.json = v34.39.32', ver.crm_version === 'v34.39.32', ver.crm_version);
+  T('index release و cache-bust روی 34.39.32 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.32'") > -1 && idx.indexOf('?v=34.7.96') === -1);
+  T('service worker release/cache/assets روی 34.39.32 است', sw.indexOf("RELEASE = 'v34.39.32'") > -1 && sw.indexOf("ASSET_VERSION = '34.39.32'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.39.32'") > -1);
+  T('manifest.version = 34.39.32', JSON.parse(read('crm/manifest.json')).version === '34.39.32');
+  T('clear-cache روی v34.39.32 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.39.32'") > -1);
+  T('shell fallback روی v34.39.32 است', read('crm/shell.js').indexOf("'v34.39.32'") > -1);
+  T('sales-domain service روی 34.39.32 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.39.32'") > -1);
 })();
 
 SECTION('AR: یک Receipt، یک قرارداد عددی در خزانه و حساب مشتری');
@@ -109,7 +109,7 @@ function salaryOpex(cd, name, amt, month) {
   };
 }
 
-/* v34.39.31 (TIME-INDEPENDENT — ورود ماه ۱۴۰۵/۰۷ دو سنجه را قرمز کرد):
+/* v34.39.32 (TIME-INDEPENDENT — ورود ماه ۱۴۰۵/۰۷ دو سنجه را قرمز کرد):
    opex.js در زمان load خودش window.ptfFaMonthNow را با Intl واقعی (میزبان) بازنویسی
    می‌کند؛ stub داخل context اثری ندارد و پین‌کردن ماه در تست، هر ماه جدید قرمز می‌سازد.
    ماه انتظار باید از همان مسیر واقعی کد محاسبه شود. */
@@ -207,7 +207,7 @@ function opexContext(seed) {
 
 SECTION('OPEX: فرمان server-authoritative پس از Sync و projection قابل مشاهده');
 (function serverAuthoritativeColdStart() {
-  var month = tehranMonthNow(); /* v34.39.31: پین ماه حذف شد — فرمان ماه تهرانِ واقعی را می‌فرستد */
+  var month = tehranMonthNow(); /* v34.39.32: پین ماه حذف شد — فرمان ماه تهرانِ واقعی را می‌فرستد */
   var serverRows = [salaryOpex('SH1', 'اول', 100, month), salaryOpex('SH2', 'دوم', 200, month), { cd: 'OPX-TPL-RENT', _opexRowId: 'OPXR-TPL-RENT', cat: 'اجاره‌بها', amt: 300, month: month, tplId: 'TPL-RENT', recurringKey: 'opex-template:TPL-RENT:' + month, status: 'active', serverReconciled: true, serverMaterialized: true }];
   var c = opexContext({
     settings: { opexTpl: [{ id: 'TPL-RENT', cat: 'اجاره‌بها', amt: 300, desc: 'اجاره' }] },
@@ -274,7 +274,7 @@ SECTION('OPEX: همهٔ وضعیت‌های terminal از جمع و helperها �
   T('ptfOpexSumFiscal نیز terminalها را حذف می‌کند', c.ptfOpexSumFiscal('1405').total === 10, JSON.stringify(c.ptfOpexSumFiscal('1405')));
   T('انتخاب هزینه برای چک terminalها را برنمی‌گرداند', c.ptfOpexUnlinkedForCheque().length === 1 && c.ptfOpexUnlinkedForCheque()[0].cd === 'ACTIVE');
   T('وجود فقط ردیف terminal مانع pending template نیست', c.ptfOpexPendingTpls('1405/06').some(function (x) { return x.id === 'TPL-X'; }));
-  /* v34.39.31: هدف سنجه «ماه جاریِ واقعی» است نه ماه پین‌شده — با ورود ماه جدید پین قرمز می‌شد. */
+  /* v34.39.32: هدف سنجه «ماه جاریِ واقعی» است نه ماه پین‌شده — با ورود ماه جدید پین قرمز می‌شد. */
   var _curM = tehranMonthNow();
   T('وجود فقط ردیف terminal، ماه جاری را از future-month حذف نمی‌کند', c.ptfOpexFutureMonthsForTpl('TPL-X', String(_curM).split('/')[0]).some(function (x) { return x.month === _curM; }));
   var beforeSchedule = JSON.stringify(c.rows('ptf_crm_opex'));

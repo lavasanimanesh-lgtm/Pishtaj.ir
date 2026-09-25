@@ -700,18 +700,22 @@
     md += '---\nاین گزارش خودکفاست: تحلیل بالا + دادهٔ کامل پیوست. آن را عیناً به دستیار هوشمند بدهید تا با اتکا به همین اعداد، اقدام اصلاحی صفحه/کوئریِ مشخص پیشنهاد دهد.\n';
     return md;
   }
-  window.gscAiReport = function () {
+  window.gscAiReport = function (refresh) {
+    /* v34.39.32: تولید مجدد = بستن مودال قبلی + دور زدن کش (refresh=1) */
+    var old = document.getElementById('gscAiMdl');
+    if (old) old.remove();
     var box = document.createElement('div');
     box.className = 'md-b';
+    box.id = 'gscAiMdl';
     box.style.display = 'grid';
     box.onclick = function (e) { if (e.target === box) box.remove(); };
     box.innerHTML = '<div class="md" style="max-width:900px;max-height:92vh;overflow:auto;line-height:2">' +
-      '<h3>🤖 گزارش هوشمند سئو</h3><div id="gscAiBody" style="font-size:12.5px"></div>' +
+      '<h3>🤖 گزارش هوشمند سئو' + (refresh ? ' <span style="font-size:11px;color:#64748b">(با دادهٔ تازه)</span>' : '') + '</h3><div id="gscAiBody" style="font-size:12.5px"></div>' +
       '<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div>';
     document.getElementById('panels').appendChild(box);
     var body = function () { return document.getElementById('gscAiBody'); };
-    body().innerHTML = '<div style="color:#64748b">⏳ گام ۱ از ۲ — جمع‌آوری دادهٔ کامل از Google Search Console (کوئری‌ها، صفحات، روند، دستگاه، کشور، پوشش، ردیاب ایندکس)…</div>';
-    api('ai_report', { days: _days }, function (d) {
+    body().innerHTML = '<div style="color:#64748b">⏳ گام ۱ از ۲ — جمع‌آوری دادهٔ کامل از Google Search Console (کوئری‌ها، صفحات، تطبیق کوئری↔صفحه، روند، دستگاه، کشور، پوشش، ردیاب ایندکس)…</div>';
+    api('ai_report', { days: _days, refresh: refresh ? 1 : '' }, function (d) {
       if (!d || !d.ok) {
         body().innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px;color:#b91c1c">⚠️ جمع‌آوری داده ناموفق:<br><code style="direction:ltr">' + escP((d && d.error) || 'خطا') + '</code></div>';
         return;
@@ -725,6 +729,10 @@
         try { audit('GSC', 'تولید گزارش هوشمند سئو (' + _days + ' روز)', ''); } catch (eA) {}
         var A = (a && a.ok && a.data) ? a.data : null;
         var h = '';
+        /* v34.39.32: پاسخ ناقص AI (خروجی مدل بریده شده) — هشدار بده، گزارش همچنان معتبر است */
+        if (A && !(A.findings || []).length && (A.health_score == null || A.health_score === '')) {
+          h += '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:9px 12px;color:#c2410c;margin-bottom:8px">⚠️ تحلیل هوش مصنوعی این بار ناقص برگشت (خروجی مدل وسط راه بریده شد). دادهٔ پیوست کامل و معتبر است؛ برای تحلیل کامل «🔁 تولید مجدد» را بزنید.</div>';
+        }
         if (!A) {
           h += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:9px 12px;color:#b45309;margin-bottom:8px">⚠️ تحلیل AI ناموفق بود (' + escP((a && a.error) || 'خطا') + ') — گزارش فقط با دادهٔ کامل ساخته شد.</div>';
         } else {
@@ -756,7 +764,7 @@
         h += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0">' +
           '<button class="bt" style="background:#0e7490;color:#fff" onclick="gscAiCopy()">📋 کپی کل گزارش (برای دادن به دستیار هوشمند)</button>' +
           '<button class="bt bt-o" onclick="gscAiDownload()">⬇️ دانلود Markdown</button>' +
-          '<button class="bt bt-o" onclick="gscAiReport()">🔁 تولید مجدد</button>' +
+          '<button class="bt bt-o" onclick="gscAiReport(1)">🔁 تولید مجدد (با دادهٔ تازه)</button>' +
           '<span style="font-size:11px;color:#94a3b8">گزارش شامل تحلیل + پیوست دادهٔ کامل است؛ خودکفا و آمادهٔ تحلیل بیرونی</span></div>';
         h += '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:#0e7490">📎 نمایش دادهٔ خام سرچ کنسول (پیوست گزارش)</summary>' +
           '<pre dir="ltr" style="white-space:pre-wrap;font-size:10.5px;line-height:1.9;background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:10px;max-height:340px;overflow:auto">' + escP(String(d.digest_text || '')) + '</pre></details>';

@@ -1120,19 +1120,29 @@ switch ($action) {
             $digest = trim((string)($in['digest'] ?? ''));
             if ($digest === '') { echo json_encode(['ok' => false, 'error' => 'دادهٔ سرچ کنسول (digest) لازم است'], JSON_UNESCAPED_UNICODE); exit; }
             if (mb_strlen($digest, 'UTF-8') > 24000) $digest = mb_substr($digest, 0, 24000, 'UTF-8');
+            /* v34.39.32: قرارداد خروجی مقاوم به بریدن — اعداد و آرایه‌ها اول، نثر آخر؛
+               سقف طول هر فیلد صریح؛ در اجرای اولِ واقعی خروجی وسط summary بریده شد و
+               بخش‌های یافته/بردها خالی ماند (salvage فقط summary را نجات داد). */
             $sys = $SEO_RULES
                 . 'Task: you are a senior technical SEO analyst. You receive a Google Search Console digest of pishtaj.ir '
                 . '(Iranian industrial supplier: piping, valves, flanges, instrumentation for oil/gas/petrochemical projects). '
-                . 'Persian/Latin mixed queries are normal. Diagnose from the DATA ONLY: CTR-vs-position anomalies (e.g. band 1-3 with CTR far below ~15-30% = title/snippet problem), '
-                . 'high-impression zero-click queries (intent or content mismatch), falling/lost queries (ranking loss or cannibalization), '
-                . 'zero-click pages (thin content or noindex risk), coverage gap (sitemap_total vs with_data = indexing problem), '
-                . 'brand dependency (brand share of clicks), device imbalance. '
+                . 'Persian/Latin mixed queries are normal. Diagnose from the DATA ONLY: CTR-vs-position anomalies (e.g. a page at position 3-5 with CTR 0% = title/intent problem), '
+                . 'high-impression zero-click queries (intent or content mismatch), rising/falling/lost queries, '
+                . 'zero-click pages (thin content), coverage gap (sitemap_total vs with_data), '
+                . 'brand dependency (brand share of clicks), possible cannibalization (same query served by 2 pages in the query-to-page section). '
                 . 'EVERY finding must cite exact numbers, queries and URLs from the digest as evidence, and every action must name the specific page or query to change. '
                 . 'No generic advice (no «محتوای باکیفیت تولید کنید»). Be decisive and prioritized. '
-                . 'Reply ONLY valid JSON: {"summary":"...","health_score":0-100,"findings":[{"title":"...","severity":"critical|high|medium|low","evidence":"...","action":"...","impact":"..."}],"quick_wins":[{"what":"...","why":"...","how":"..."}],"next_steps":["..."],"content_gaps":["..."]}. '
-                . 'findings: 3-7 items ordered by severity; quick_wins: 2-5 items implementable this week; next_steps: 3-6 short imperative sentences; content_gaps: 0-6 missing topics inferred from queries with impressions but weak position.';
+                . 'OUTPUT CONTRACT — reply with ONE valid JSON object and NOTHING else (no markdown fence, no prose around it), '
+                . 'total under 1400 tokens, fields EXACTLY in this order with these caps: '
+                . '{"health_score":0-100,'
+                . '"findings":[{"title":"<=8 words","severity":"critical|high|medium|low","evidence":"exact numbers/query/URL from digest, <=25 words","action":"exact change to that page/query, <=25 words","impact":"<=10 words"}],'
+                . '"quick_wins":[{"what":"<=10 words","why":"<=12 words","how":"<=15 words"}],'
+                . '"next_steps":["<=14 words each"],'
+                . '"content_gaps":["topic + target query, <=10 words each"],'
+                . '"summary":"executive summary, <=45 words"} '
+                . 'findings: 3-6 items ordered by severity; quick_wins: 2-4; next_steps: 3-6; content_gaps: 0-6. Never exceed the caps.';
             $user = "دیجست دادهٔ سرچ کنسول (فارسی، اعداد لاتین):\n\n" . $digest;
-            out_json(llm_call_json($cfg, $sys, $user, null, null, 3400));
+            out_json(llm_call_json($cfg, $sys, $user, null, null, 4200)); /* v34.39.32: سرِ بیشتر برای قرارداد فشرده */
             break;
         }
 

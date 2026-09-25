@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =============================================================================
-   tester668 — v34.39.31 (HOME-WAVE)
+   tester668 — v34.39.32 (HOME-WAVE)
    درخواست کارفرما: «یک موج مورب رنگی روی کادرِ «دپارتمان تامین / صنعت هدف / RFQ»
    (پنل شیشه‌ای هیرو) هر چند ثانیه یک‌بار عبور کند.»
    قرارداد:
@@ -52,8 +52,8 @@ T('۲.۴ رگرسیون‌زدا: ردیفِ تم آیکونی، آکاردئو�
   home.indexOf('html.ptf-dark #mainNav .nav-mega') > -1 &&
   /animation:ptfCurS 26s linear infinite/.test(home) && /<b>۳<\/b>/.test(idx) && /<b>۶\+<\/b>/.test(idx) &&
   idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
-T('۲.۵ VERSION.json = v34.39.31', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.31');
+T('۲.۵ VERSION.json = v34.39.32', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.32');
 
-DONE('tester668-v34.39.31-hero-wave');
+DONE('tester668-v34.39.32-hero-wave');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
