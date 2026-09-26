@@ -790,7 +790,8 @@ function sync_contact_records_merge($incomingJson, $serverJson) {
         if ($id === '' || !isset($srvById[$id])) continue;
         $srvRec = $srvById[$id];
         $ccClear = !empty($r['_ccClear']);
-        $inAt = trim((string)($r['updatedAtISO'] ?? ''));
+        // v34.39.41: incoming may carry _ccBaseAt-based freshness — accept ISO or legacy updatedAt
+        $inAt = trim((string)($r['updatedAtISO'] ?? $r['updatedAt'] ?? ''));
         $srvAt = trim((string)($srvRec['updatedAt'] ?? $srvRec['updatedAtISO'] ?? ''));
         $fresh = ($inAt !== '' && $srvAt !== '' && strcmp($inAt, $srvAt) > 0);
         $merged = cm_contact_merge_record($r, $srvRec, $stats, $ccClear, $fresh);

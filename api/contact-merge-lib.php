@@ -131,11 +131,16 @@ function cm_contact_val_empty($v): bool {
     return trim((string)$v) === '';
 }
 
-/** آیا رکوردِ ورودی بر «مبنای نسخهٔ فعلی سرور» است؟ (معادل base-match در entity_upsert) */
+/** آیا رکوردِ ورودی بر «مبنای نسخهٔ فعلی سرور» است؟ (معادل base-match در entity_upsert)
+ * v34.39.41 (CONTACT-BASE-FIX — ۱۴۰۵/۰۷/۰۴): پیش‌تر فقط updatedAt (زمان جدید رکورد)
+ * با srvAt مقایسه می‌شد، نه _ccBaseAt (مبنای ویرایش). چون هر ویرایش updatedAtISO
+ * را به «همین لحظه» می‌گذارد، مقایسه همیشه نامساوی ⇒ همهٔ ویرایش‌ها «کهنه» شمرده
+ * می‌شدند و پاک‌سازیِ آگاهانه (_ccClear) حتی روی مبنای تازه نادیده گرفته می‌شد.
+ * اکنون اولویت: _ccBaseAt → _ccBaseAtISO → updatedAt (سازگاری با کلاینت‌های قدیمی). */
 function cm_contact_record_base_is_current(array $inRec, array $srvRec): bool {
-    $srvAt = trim((string)($srvRec['updatedAt'] ?? $srvRec['updatedAtISO'] ?? ''));
+    $srvAt = trim((string)($srvRec['updatedAt'] ?? $srvRec['updatedAtISO'] ?? $srvRec['updatedAt'] ?? ''));
     if ($srvAt === '') return true;   /* سرور نسخه‌ای ثبت نکرده → هر چیزی فعلی شمرده می‌شود */
-    $inBase = trim((string)($inRec['updatedAt'] ?? ''));
+    $inBase = trim((string)($inRec['_ccBaseAt'] ?? $inRec['_ccBaseAtISO'] ?? $inRec['updatedAt'] ?? $inRec['updatedAtISO'] ?? ''));
     if ($inBase === '') return false; /* رکورد بدون نسخهٔ سروری → مبنای نامشخص */
     return $inBase === $srvAt;
 }

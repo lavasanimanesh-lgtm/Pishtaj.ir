@@ -243,14 +243,21 @@
   }
   window.ptfCsdFetchServerRec = fetchServerRec;
 
-  /* وضعیت این دستگاه برای نمایش در گزارش */
+  /* وضعیت این دستگاه برای نمایش در گزارش — v34.39.41: [object Object] ⇒ JSON + dirty */
   function deviceInfo() {
-    var out = { phaseB: false, pending: [], failures: [], lastError: '', krev: '' };
+    var out = { phaseB: false, pending: [], failures: [], lastError: '', lastErrorDetail: '', krev: '', dirty: [] };
     try { out.phaseB = !!(typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()); } catch (e) {}
     try { out.pending = (typeof window.ptfBPendingKeys === 'function' ? window.ptfBPendingKeys() : []) || []; } catch (e2) {}
     try { out.failures = (typeof window.ptfSyncWriteFailures === 'function' ? window.ptfSyncWriteFailures() : []) || []; } catch (e3) {}
-    try { out.lastError = String((typeof window.ptfSyncLastError === 'function' ? window.ptfSyncLastError() : '') || ''); } catch (e4) {}
+    try {
+      var le = (typeof window.ptfSyncLastError === 'function' ? window.ptfSyncLastError() : null);
+      if (le && typeof le === 'object') {
+        try { out.lastError = JSON.stringify(le); } catch (eJ) { out.lastError = String(le.detail || le.reason || le.error || ''); }
+        out.lastErrorDetail = String(le.detail || le.reason || le.error || le.status || '');
+      } else out.lastError = String(le || '');
+    } catch (e4) {}
     try { var m = readKrevs(); out.krev = String(m[KEY] == null ? '' : m[KEY]); } catch (e5) {}
+    try { out.dirty = (typeof window.ptfSyncPendingKeys === 'function' ? window.ptfSyncPendingKeys() : []) || []; } catch (e6) {}
     return out;
   }
   window.ptfCsdDeviceInfo = deviceInfo;
@@ -363,13 +370,24 @@
     var toneTx = { green: '#065f46', amber: '#92400e', red: '#991b1b' }[v.tone] || '#334155';
     var di = ctx.di;
     var pendingCust = di.pending.indexOf(KEY) > -1;
+    var dirtyCust = (di.dirty || []).indexOf(KEY) > -1;
+    var lastErrShort = '';
+    try {
+      if (di.lastError) {
+        var leObj = JSON.parse(di.lastError);
+        lastErrShort = (leObj.detail || leObj.reason || leObj.status || '') + (leObj.t ? ' — ' + leObj.t : '') + (leObj.keys ? ' — کلیدها: ' + esc(leObj.keys.join('، ')) : '');
+        if (!lastErrShort) lastErrShort = di.lastError;
+      }
+    } catch (eP) { lastErrShort = di.lastError; }
     var devRows =
       '• حالت سرور-محور (فاز B): <b>' + (di.phaseB ? 'فعال' : 'غیرفعال — این دستگاه هنوز دادهٔ محلی را مرجع می‌دارد') + '</b><br>' +
-      '• کلیدهای در صف ارسالِ این دستگاه: <b>' + (di.pending.length ? esc(di.pending.join('، ')) : 'هیچ') + '</b>' +
+      '• تغییرات محلیِ همگام‌نشده (ptf_sync_dirty): <b>' + ((di.dirty && di.dirty.length) ? esc(di.dirty.join('، ')) : 'هیچ') + '</b>' +
+      (dirtyCust && !pendingCust ? '<br><b style="color:#b45309">⚠️ تغییرات مشتری محلی‌ست ولی در صف IDB دیده نمی‌شود — گیرِ صف/مرورگر/سینک (نشست/فازB/IDB)؛ «در صف: هیچ» با وجود dirty یعنی همگام‌سازی صف را تخلیه کرده ولی محلی هنوز مانده.</b>' : '') +
+      '<br>• صفِ آفلاینِ آمادهٔ ارسال (IDB/B-queue): <b>' + (di.pending.length ? esc(di.pending.join('، ')) : 'هیچ') + '</b>' +
       (pendingCust ? '<br><b style="color:#b45309">⚠️ رکوردهای مشتری در صف ارسالِ همین دستگاه است — تا ارسال، نسخهٔ سرور ممکن است با این دستگاه فرق داشته باشد و ممکن است این دستگاه بعداً روی سرور بنویسد.</b>' : '') +
       (di.failures.length ? '<br>• نوشتن‌های ناموفقِ اخیر: <b>' + esc(di.failures.join('، ')) + '</b>' : '') +
-      (di.lastError ? '<br>• آخرین خطای سینک: <b>' + esc(di.lastError) + '</b>' : '') +
-      '• نسخهٔ (rev) کلید مشتریان در این دستگاه: <b dir="ltr">' + esc(di.krev || '—') + '</b>';
+      (di.lastError ? '<br>• آخرین خطای سینک: <b>' + esc(lastErrShort) + '</b>' + (di.lastError.length > 220 ? '<br><span style="font-size:11px;direction:ltr;word-break:break-all;color:#64748b">' + esc(di.lastError.slice(0,1200)) + '</span>' : '') : '') +
+      '<br>• نسخهٔ (rev) کلید مشتریان در این دستگاه: <b dir="ltr">' + esc(di.krev || '—') + '</b>';
     var html = '<div style="background:' + toneBg + ';border:1px solid ' + toneBd + ';border-radius:12px;padding:12px 14px">' +
       '<b style="font-size:14px;color:' + toneTx + '">' + esc(v.title) + '</b>' +
       '<div style="font-size:12.5px;color:#334155;line-height:1.9;margin-top:6px">' + esc(v.body) + '</div></div>';
