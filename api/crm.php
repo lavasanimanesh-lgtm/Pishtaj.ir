@@ -801,6 +801,49 @@ function sync_contact_records_merge($incomingJson, $serverJson) {
     $out = json_encode($inc, JSON_UNESCAPED_UNICODE);
     return is_string($out) ? $out : null;
 }
+/* ═══ v34.39.42 (WATERMARK-OWNER — RCA 2026-09-26) ═══
+   مبنای تصمیمِ «ویرایشِ تازه / کهنه» در اتحادِ تماس، مهرِ نسخهٔ رکورد است
+   (updatedAt / updatedAtISO — رجوع کنید به cm_contact_record_base_is_current و
+   sd_contact_stale_merge). این مهر تا امروز از payload کلاینت می‌آمد و یک
+   data_push عمده‌فروشیِ کهنه آن را **به عقب** می‌برد؛ از آن لحظه نخستین ویرایشِ
+   هر دستگاهی که مهر محلی‌اش با آن مقدار برابر بود «تازه» تشخیص داده می‌شد و
+   شاخهٔ LWW شماره‌هایی را که فقط روی سرور بودند بی‌صدا حذف می‌کرد (بازتولید:
+   سناریوهای I و J در _tools/uat/e2e-contact-watermark-rewind-v34.39.42.js).
+   قاعدهٔ تازه: مهر متعلق به سرور است و هرگز عقب نمی‌رود. ویرایشِ واقعیِ دستگاه
+   (مهرِ ورودیِ جدیدتر) محترم می‌ماند؛ payload کهنه دیگر نمی‌تواند آن را پس ببرد. */
+function sync_stamp_server_version($incomingJson, $serverJson) {
+    $inc = json_decode((string)$incomingJson, true);
+    if (!is_array($inc) || !$inc) return null;
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($srv) || !$srv) return null;
+    $srvById = [];
+    foreach ($srv as $r) {
+        if (!is_array($r)) continue;
+        $id = sync_record_id_for_key('', $r);
+        if ($id !== '') $srvById[$id] = $r;
+    }
+    if (!$srvById) return null;
+    $changed = false;
+    foreach ($inc as $i => $r) {
+        if (!is_array($r)) continue;
+        $id = sync_record_id_for_key('', $r);
+        if ($id === '' || !isset($srvById[$id])) continue;
+        $srvRec = $srvById[$id];
+        /* هر مهر جداگانه و با همان قالب خودش مقایسه می‌شود (updatedAt با updatedAt،
+           updatedAtISO با updatedAtISO) تا اختلافِ قالبِ زمانی نتیجه را عوض نکند. */
+        foreach (['updatedAt', 'updatedAtISO'] as $tf) {
+            $srvAt = trim((string)($srvRec[$tf] ?? ''));
+            if ($srvAt === '') continue;
+            $inAt = trim((string)($r[$tf] ?? ''));
+            if ($inAt !== '' && strcmp($inAt, $srvAt) >= 0) continue; /* جدیدتر یا برابر = ویرایش واقعی */
+            $inc[$i][$tf] = $srvAt;                                    /* عقب‌گرد ممنوع */
+            $changed = true;
+        }
+    }
+    if (!$changed) return null;
+    $out = json_encode($inc, JSON_UNESCAPED_UNICODE);
+    return is_string($out) ? $out : null;
+}
 /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: server-side last line of defence.
    We do not silently repair existing commercial documents. Instead, a payload
    that would increase exact duplicate offer lines compared with the server
@@ -2781,8 +2824,15 @@ switch($action) {
                تازهٔ سرور را با بازنویسیِ wholesale پاک نمی‌کند (UNION/LWW بر اساس
                تازگی و مبنای رکورد؛ هم‌معنای entity_upsert). */
             if (!$restore && !$allow_wipe && ($k === 'ptf_crm_customers' || $k === 'ptf_crm_suppliers')) {
-                $cfMerged = sync_contact_records_merge($v, sync_key_read($sdir, $k) ?: '[]');
+                $cfServerJson = sync_key_read($sdir, $k) ?: '[]';
+                $cfMerged = sync_contact_records_merge($v, $cfServerJson);
                 if ($cfMerged !== null) $v = $cfMerged;
+                /* v34.39.42 (WATERMARK-OWNER): پس از اتحادِ تماس، مهرِ نسخهٔ رکورد
+                   به مالکیتِ سرور برمی‌گردد — یک push کهنه دیگر نمی‌تواند مهر را عقب
+                   ببرد و ویرایشِ بعدیِ همان دستگاه را «تازه» جا بزند (ریشهٔ حذفِ
+                   بی‌صدای شماره‌ها). توضیح کامل بالای sync_stamp_server_version. */
+                $stamped = sync_stamp_server_version($v, $cfServerJson);
+                if ($stamped !== null) $v = $stamped;
             }
             /* v34.8.7: کلیدهای مشترکِ union پیش از بررسی base merge سروری می‌گیرند؛
                تعارضِ base برای آنها بی‌معناست چون نتیجهٔ merge نویسندهٔ هیچ دستگاهی را

@@ -157,7 +157,17 @@ function cm_contact_merge_record(array $inRec, array $srvRec, array &$stats, boo
     }
     $isFresh = $fresh && cm_contact_record_base_is_current($inRec, $srvRec);
     if ($ccClear && $isFresh) return $inRec;  /* پاک‌سازی آگاهانه از دیدِ تازه */
-    if ($isFresh) return $inRec;              /* LWW — ویرایش بر مبنای نسخهٔ فعلی */
+    /* ═══ v34.39.42 (NO-IMPLICIT-WIPE — RCA 2026-09-26) ═══
+       شاخهٔ «LWWِ بی‌قید» برداشته شد. این تابع فقط از مسیر data_push صدا می‌شود
+       (api/crm.php → sync_contact_records_merge)؛ یعنی یک blob عمده‌فروشی از یک
+       دستگاه، نه ویرایشِ آگاهانهٔ فرم. در آن مسیر، «رکورد تازه تشخیص داده شد»
+       هرگز به معنی «حذفِ کانالی که فقط روی سرور است» نیست — حتی با مهرِ درست،
+       محتوای یک دستگاه می‌تواند کهنه باشد (واترمارک تازه + داده کهنه) و همین
+       شاخه شماره‌های دستگاهِ دیگر را بی‌صدا می‌شوید (بازتولید: سناریوی D).
+       از این پس: پاک‌سازی فقط با مهرِ صریحِ _ccClear (بالا) یا از مسیر فرمانِ
+       اتمیکِ entity_upsert (sd_contact_stale_merge) اعمال می‌شود؛ مسیر push
+       همواره union است و فقط می‌افزاید. */
+    if ($isFresh && is_array($stats)) $stats['freshNoImplicitWipe'] = ($stats['freshNoImplicitWipe'] ?? 0) + 1;
     /* —— مبنای کهنه/نامشخص: R6 (پُرکردن کلید غایب) + UNION (حذفِ فقط-سرور ممنوع) —— */
     $changed = false;
     foreach (['people', 'coTels', 'phones', 'ph'] as $fk) {
