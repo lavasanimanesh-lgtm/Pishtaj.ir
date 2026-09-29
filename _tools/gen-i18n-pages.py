@@ -399,7 +399,7 @@ FOOTER = """<footer class="ix-foot">
     <div><b>{brand}</b><p>{foot}</p></div>
     <div><b>{explore}</b><p style="display:grid;gap:8px"><a href="about.html">{nav_about}</a><a href="services.html">{nav_svc}</a><a href="projects.html">{nav_proj}</a><a href="../rfq/">{nav_rfq}</a></p></div>
     <div><b>{languages}</b><p style="display:grid;gap:8px">{langs_foot}</p></div>
-    <div><b>{contact}</b><p><a href="tel:+982146087679" dir="ltr">+98 21 46087679</a><br><a href="mailto:Info@pishrotajheez.ir">Info@pishrotajheez.ir</a></p></div>
+    <div><b>{contact}</b><p><a href="tel:+982146087679" dir="ltr">+98 21 46087679</a><br><a href="mailto:ifo@pishtaj.ir">ifo@pishtaj.ir</a></p></div>
   </div>
   <div class="container" style="border-top:1px solid rgba(255,255,255,.08);padding-top:16px;font-size:13px;color:#64748b">{rights}</div>
 </footer>
@@ -519,7 +519,7 @@ def home(code, t):
   </div></section>
   <section class="ix-sec" id="contact" style="background:linear-gradient(180deg,#f8fafc,#eff6ff)"><div class="container">
     <div class="ix-cta">
-      <div><h2>{t['send']}</h2><p>{t['desk']} <a href="tel:+982146087679" dir="ltr" style="color:#ffb033;font-weight:900">+98 21 46087679</a> · <a href="mailto:Info@pishrotajheez.ir" style="color:#ffb033">Info@pishrotajheez.ir</a><br>{t['addr']}</p></div>
+      <div><h2>{t['send']}</h2><p>{t['desk']} <a href="tel:+982146087679" dir="ltr" style="color:#ffb033;font-weight:900">+98 21 46087679</a> · <a href="mailto:ifo@pishtaj.ir" style="color:#ffb033">ifo@pishtaj.ir</a><br>{t['addr']}</p></div>
       <div class="ix-actions"><a class="btn btn-primary" href="../rfq/">{t['open']}</a><a class="btn btn-ghost" href="https://wa.me/989925868479" target="_blank" rel="noopener">WhatsApp</a></div>
     </div>
   </div></section>
@@ -550,7 +550,7 @@ def about(code, t):
 <div class="ix-card" style="max-width:860px">
   <h2>{t['who']}</h2><p class="ix-lead">{t['who_p']}</p>
   <h3>{t['how']}</h3><p class="ix-lead">{t['how_p']}</p>
-  <p><b>{t['addr']}</b><br><span dir="ltr">+98 21 46087679</span><br>Info@pishrotajheez.ir</p>
+  <p><b>{t['addr']}</b><br><span dir="ltr">+98 21 46087679</span><br>ifo@pishtaj.ir</p>
   <p style="margin-top:18px"><a class="btn btn-primary" href="services.html">{t['all_svc']}</a></p>
 </div>"""
     return inner(code, t, "about.html", "about", t["about_h1"], t["about_sub"], body, "about_title")

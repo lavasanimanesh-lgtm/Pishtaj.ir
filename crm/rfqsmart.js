@@ -1580,7 +1580,7 @@
       '<div class="tt">Request for Quotation (RFQ)</div>' + toLine +
       '<div class="sub">' + dear + 'Please quote unit price and delivery time for the items below and return to Pishro Tajhiz Fartak.</div>' +
       '<table><thead><tr><th style="width:6%">No.</th><th>Description</th>' + (_hasModel ? '<th style="width:12%">Model</th>' : '') + '<th style="width:' + (_hasModel ? '18%' : '24%') + '">Technical Specification</th><th style="width:8%">Qty</th><th style="width:8%">Unit</th><th style="width:14%">Unit Price (IRR)</th><th style="width:12%">Delivery</th></tr></thead><tbody>' + tbody + '</tbody></table>' +
-      '<div class="note">Please mention RFQ No <b dir="ltr">' + escP(r.no) + '</b> in your reply. Reply: Info@pishtaj.ir | Tel: 021-46087679</div>' +
+      '<div class="note">Please mention RFQ No <b dir="ltr">' + escP(r.no) + '</b> in your reply. Reply: ifo@pishtaj.ir | Tel: 021-46087679</div>' +
       '<div class="ftr">Pishro Tajhiz Fartak Co. | Tehran | www.pishtaj.ir</div></body></html>';
   };
 
