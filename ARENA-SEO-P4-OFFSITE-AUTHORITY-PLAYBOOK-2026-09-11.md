@@ -13,7 +13,7 @@
 |---|---|---|
 | نام کسب‌وکار | پیشرو تجهیز فرتاک | Pishro Tajhiz Fartak (PTF) |
 | تلفن | ۰۲۱-۴۶۰۸۷۶۷۹ | +98 21 46087679 |
-| ایمیل رسمی | ifo@pishtaj.ir | ifo@pishtaj.ir |
+| ایمیل رسمی | info@pishtaj.ir | info@pishtaj.ir |
 | وب‌سایت | https://pishtaj.ir | https://pishtaj.ir |
 | آدرس | بلوار کوهک، مجتمع تجاری اداری طوبی، بلوک A اداری، طبقه ۱۶، تهران | Unit 1, 16th Floor, Block A, Tooba Complex, Koohak Blvd., Tehran, Iran |
 | سال تأسیس | ۱۴۰۰ | 2021 |

@@ -95,7 +95,7 @@ $headers = [];
 $headers[] = 'MIME-Version: 1.0';
 $headers[] = 'Content-Type: text/plain; charset=UTF-8';
 $headers[] = 'From: PTF Website <no-reply@pishtaj.ir>';
-$headers[] = 'Bcc: ifo@pishtaj.ir';
+$headers[] = 'Bcc: info@pishtaj.ir';
 if ($email !== '') { $headers[] = 'Reply-To: ' . $email; }
 
 $mailSent = @mail($to, '=?UTF-8?B?' . base64_encode($mailSubject) . '?=', $body, implode("\r\n", $headers));

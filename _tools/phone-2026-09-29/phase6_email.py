@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Phase 6 — contact mailbox: Info@pishrotajheez.ir / info@pishtaj.ir -> ifo@pishtaj.ir
+"""Phase 6 — contact mailbox: Info@pishrotajheez.ir (dead domain) -> info@pishtaj.ir
+
+NOTE (2026-09-29, follow-up): the first run of this phase wrote "ifo@pishtaj.ir" — a typo
+that dropped the "n" of the mailbox name. That misspelling was repaired site-wide back to
+info@pishtaj.ir. The misspelled form is still listed in VARIANTS below (built at runtime so
+it is not spelled out anywhere in the repo) so re-running this phase keeps the site correct.
 
 Touches every live, outward-facing surface:
   * 724 site pages (707 .html + 17 extensionless knowledge-center/article-0NN) — footers + JSON-LD
@@ -18,7 +23,9 @@ import sys, os, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _common import *          # noqa
 
-VARIANTS = ["Info@pishrotajheez.ir", "info@pishrotajheez.ir", "Info@pishtaj.ir", "info@pishtaj.ir"]
+TYPO = EMAIL.replace("info@", "ifo@")   # the 2026-09-29 misspelling (dropped "n")
+
+VARIANTS = ["Info@pishrotajheez.ir", "info@pishrotajheez.ir", TYPO, "Info@pishtaj.ir"]
 
 EXTRA = [
     "_tools/site-shell", "_tools/gen-i18n-pages.py",
