@@ -82,7 +82,7 @@
   /* ---------- نسخه همراه ارزی یک پیشنهاد ریالی (اگر قبلاً ساخته شده) ---------- */
   window.ptfFxCompanionOf = function (no, targetCur) {
     if (!no) return null;
-    var list = offersAll().filter(function (o) { return o && o.fxOf === no; });
+    var list = window.ptfFxCompanionsOf(no);
     if (targetCur) {
       return list.filter(function (o) { return (o.currency || '') === targetCur; })[0] || null;
     }
@@ -90,7 +90,8 @@
   };
   window.ptfFxCompanionsOf = function (no) {
     if (!no) return [];
-    return offersAll().filter(function (o) { return o && o.fxOf === no; });
+    /* fxOf اصلی؛ fxConvert.from برای رکوردهایی که fxOf در همگام‌سازی از دست داده‌اند */
+    return offersAll().filter(function (o) { return o && (o.fxOf === no || (!o.fxOf && !o.rialOf && o.fxConvert && o.fxConvert.from === no && o.currency && o.currency !== 'IRR')); });
   };
   // برای سازگاری با کد قدیمی که فقط یک companion ارزی می‌خواهد
   window.ptfIrrFxCompanionOf = window.ptfFxCompanionOf;
@@ -658,7 +659,7 @@
       if ((o.kind !== 'CO' && o.kind !== 'TC') || !isIrrOffer(o) || typeof window.ptfFxCompanionsOf !== 'function') return '';
       var comps = window.ptfFxCompanionsOf(o.no);
       if (!comps || !comps.length) return '';
-      return '<div style="margin-top:6px;background:#fff7ed;border:1px solid #fde68a;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#92400e;display:flex;flex-wrap:wrap;align-items:center;gap:6px" title="نسخه ارزی همین پیشنهاد">' +
+      return '<div style="margin-top:6px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#047857;display:flex;flex-wrap:wrap;align-items:center;gap:6px" title="نسخه ارزی همین پیشنهاد">' +
         '<span>💱 نسخه ارزی (همان شماره)</span>' +
         '<span style="display:inline-flex;gap:4px;flex-wrap:wrap">' +
         comps.map(function (_comp) {

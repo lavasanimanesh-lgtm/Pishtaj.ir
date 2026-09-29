@@ -246,6 +246,86 @@ function sms_send($phone, $text, &$errOut = null) {
     $errOut = 'provider نامعتبر';
     return false;
 }
+/* ===== اعلان ثبت استعلام/تامین‌کننده از سایت: پیامک به مدیر + پیام بات در گروه شرکت =====
+   شماره گیرنده را می‌توان در sms-config.php با کلید 'site_alert_mobiles' (آرایه) تغییر داد.
+   بات: همان bot-config.php ماژول notify-bot.php (telegram_token/telegram_chat_id و/یا bale_token/bale_chat_id).
+   ارسال پس از بازگرداندن پاسخ به کاربر انجام می‌شود تا فرم سایت کند نشود؛ خطا فقط لاگ می‌شود. */
+function ptf_bot_cfg() {
+    $paths = [
+        dirname(__DIR__, 2) . '/bot-config.php',
+        dirname(__DIR__, 3) . '/bot-config.php',
+        dirname(__DIR__) . '/bot-config.php',
+        __DIR__ . '/bot-config.php',
+    ];
+    $fa = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹','٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+    $en = ['0','1','2','3','4','5','6','7','8','9','0','1','2','3','4','5','6','7','8','9'];
+    foreach ($paths as $p) {
+        if (!file_exists($p)) continue;
+        $c = include $p;
+        if (!is_array($c)) continue;
+        foreach (['telegram_token', 'telegram_chat_id', 'bale_token', 'bale_chat_id'] as $k) {
+            if (isset($c[$k]) && is_string($c[$k])) $c[$k] = trim(str_replace($fa, $en, $c[$k]));
+        }
+        return $c;
+    }
+    return null;
+}
+function ptf_bot_group_send($text, &$errs = []) {
+    $cfg = ptf_bot_cfg();
+    if (!$cfg) { $errs[] = 'bot-config.php یافت نشد'; return false; }
+    $targets = [];
+    if (!empty($cfg['telegram_token']) && !empty($cfg['telegram_chat_id'])) $targets[] = ['https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage', $cfg['telegram_chat_id'], 'telegram'];
+    if (!empty($cfg['bale_token']) && !empty($cfg['bale_chat_id'])) $targets[] = ['https://tapi.bale.ai/bot' . $cfg['bale_token'] . '/sendMessage', $cfg['bale_chat_id'], 'bale'];
+    $ok = false;
+    foreach ($targets as $t) {
+        $ch = curl_init($t[0]);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 12, CURLOPT_CONNECTTIMEOUT => 6,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS => json_encode(['chat_id' => $t[1], 'text' => $text], JSON_UNESCAPED_UNICODE)]);
+        curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $cerr = curl_error($ch);
+        curl_close($ch);
+        if ($code >= 200 && $code < 300) $ok = true; else $errs[] = $t[2] . ':' . $code . ($cerr ? ' (' . $cerr . ')' : '');
+    }
+    if (!$targets) $errs[] = 'هیچ کانال باتی در bot-config.php کامل نیست';
+    return $ok;
+}
+function ptf_site_alert($smsText, $botText) {
+    /* صف + یک shutdown؛ ptf_site_alert_flush یک‌بار مصرف است (idempotent) */
+    if (!isset($GLOBALS['__ptf_site_alerts'])) {
+        $GLOBALS['__ptf_site_alerts'] = [];
+        register_shutdown_function(function () {
+            if (empty($GLOBALS['__ptf_site_alerts'])) return;
+            if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+            ptf_site_alert_flush();
+        });
+    }
+    $GLOBALS['__ptf_site_alerts'][] = [$smsText, $botText];
+}
+function ptf_site_alert_flush() {
+    $queue = $GLOBALS['__ptf_site_alerts'] ?? [];
+    $GLOBALS['__ptf_site_alerts'] = [];
+    foreach ($queue as $item) {
+        list($smsText, $botText) = $item;
+        $log = [];
+        try {
+            $c = sms_cfg();
+            if (is_array($c) && !empty($c['api_key'])) {
+                $mobiles = (!empty($c['site_alert_mobiles']) && is_array($c['site_alert_mobiles'])) ? $c['site_alert_mobiles'] : ['09126473290'];
+                foreach ($mobiles as $m) {
+                    $e = null;
+                    if (!sms_send((string)$m, $smsText, $e)) $log[] = 'sms ' . $m . ': ' . $e;
+                }
+            } else {
+                $log[] = 'sms: sms-config.php یافت نشد یا api_key ندارد';
+            }
+        } catch (Throwable $t) { $log[] = 'sms: ' . $t->getMessage(); }
+        try { $be = []; ptf_bot_group_send($botText, $be); if ($be) $log[] = 'bot: ' . implode(' | ', $be); }
+        catch (Throwable $t) { $log[] = 'bot: ' . $t->getMessage(); }
+        if ($log) error_log('PTF site alert: ' . implode(' ; ', $log));
+    }
+}
 function otp_store_load() {
     global $data_dir_early;
     $f = $data_dir_early . '/otp.json';
@@ -1953,6 +2033,10 @@ switch($action) {
         ];
         save_data('rfqs', $rfqs);
         push_event_rec('rfq_site', 'یک استعلام هوشمند از سایت ثبت شد: ' . clean($_POST['company'] ?? '') . ' (' . $code . ')', ['code' => $code]);
+        ptf_site_alert(
+            "پیشرو تجهیز فرتاک\nاستعلام جدید از سایت ثبت شد\nکد: " . $code . "\nشرکت: " . mb_substr(clean($_POST['company'] ?? ''), 0, 60) . "\nتلفن: " . clean($_POST['phone'] ?? ''),
+            "📥 استعلام جدید از سایت\nکد پیگیری: " . $code . "\nشرکت: " . clean($_POST['company'] ?? '') . "\nنام: " . clean($_POST['name'] ?? '') . "\nتلفن: " . clean($_POST['phone'] ?? '') . "\nموضوع: " . clean($_POST['subject'] ?? '') . "\nحوزه: " . clean($_POST['category'] ?? '') . "\n⏳ در انتظار بررسی در CRM"
+        );
         echo json_encode(['ok' => true, 'code' => $code], JSON_UNESCAPED_UNICODE);
         break;
 
@@ -2257,6 +2341,10 @@ switch($action) {
         ];
         save_data('suppliers', $suppliers);
         push_event_rec('supplier_site', 'یک تامین‌کننده در سایت ثبت‌نام کرد و منتظر بررسی است: ' . clean($_POST['company'] ?? '') . ' (' . $code . ')', ['code' => $code]);
+        ptf_site_alert(
+            "پیشرو تجهیز فرتاک\nتامین‌کننده جدید در سایت ثبت‌نام کرد\nکد: " . $code . "\nشرکت: " . mb_substr(clean($_POST['company'] ?? ''), 0, 60) . "\nتلفن: " . $sup_phone,
+            "🏭 ثبت‌نام تامین‌کننده جدید در سایت\nکد: " . $code . "\nشرکت: " . clean($_POST['company'] ?? '') . "\nنام: " . clean($_POST['name'] ?? '') . "\nتلفن: " . $sup_phone . "\nحوزه: " . clean($_POST['category'] ?? '') . "\nبرندها: " . clean($_POST['brands'] ?? '') . "\n⏳ در انتظار بررسی در CRM"
+        );
         echo json_encode(['ok' => true, 'code' => $code, 'warning' => $attachmentWarning, 'attachment' => $attachmentReceipt, 'attachmentError' => $attachmentError, 'attachmentDiag' => $attachmentDiag, 'declaredFile' => $supDeclFile], JSON_UNESCAPED_UNICODE);
         break;
 

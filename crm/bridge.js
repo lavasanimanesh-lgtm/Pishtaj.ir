@@ -1326,6 +1326,10 @@
       '<option value="">همه درخواست‌ها</option>' +
       '<option value="none">بدون پیشنهاد</option>' +
       '<option value="has">دارای پیشنهاد</option>' +
+      /* v34.39.41 (RFQ-ASSIGNEE-TABS): بدون این دو گزینه، مقداردهی select به mine/assigned
+         نادیده گرفته می‌شد (value → '') و تب‌های «ارجاع به من»/«با مسئول» همه را نشان می‌دادند. */
+      '<option value="mine">👤 ارجاع به من</option>' +
+      '<option value="assigned">📌 با مسئول</option>' +
       '</select>' +
       /* v34.23.0: فیلتر منبع درخواست — شکایت مالک: درخواست‌های ثبت‌شده از سایت باید جدا فیلتر شوند */
       '<select id="rSrcFlt" onchange="ptfRfqSrcFlt(this.value)" title="فیلتر منبع" style="padding:8px 10px;border:2px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px;background:#f8fafc;max-width:180px">' +
@@ -1534,8 +1538,14 @@
     try {
       var me = (typeof curSession === 'function' ? curSession() : null) || {};
       var u = String(me.user || me.username || '').trim();
-      if (!u || !r || !r.assignee) return false;
-      return String(r.assignee.user || '').trim() === u;
+      if (!r || !r.assignee) return false;
+      var a = r.assignee;
+      if (typeof a === 'string') a = { user: a };
+      var au = String(a.user || a.username || '').trim();
+      if (u && au) return au === u;
+      var nm = String(me.name || me.nm || '').trim();
+      var an = String(a.name || a.nm || '').trim();
+      return !!(nm && an && nm === an);
     } catch (e) { return false; }
   };
 
