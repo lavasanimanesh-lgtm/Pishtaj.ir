@@ -2,7 +2,7 @@
 
 دامنه: pishtaj.ir
 ایمیل دریافت فرم: lavasani.manesh@gmail.com
-رونوشت مخفی فرم: ifo@pishtaj.ir
+رونوشت مخفی فرم: info@pishtaj.ir
 
 فایل‌های اصلی:
 - index.html
@@ -32,7 +32,7 @@ https://pishtaj.ir
 
 تست فرم تماس:
 1) یک درخواست تستی از فرم تماس سایت ارسال کنید.
-2) اگر هاست تابع mail() را فعال کرده باشد، ایمیل به lavasani.manesh@gmail.com ارسال می‌شود و یک رونوشت مخفی به ifo@pishtaj.ir می‌رود.
+2) اگر هاست تابع mail() را فعال کرده باشد، ایمیل به lavasani.manesh@gmail.com ارسال می‌شود و یک رونوشت مخفی به info@pishtaj.ir می‌رود.
 3) برای اطمینان، یک نسخه از درخواست‌ها در مسیر زیر ذخیره می‌شود:
 public_html/api/logs/contacts.log
 4) فایل‌های پیوست فرم در مسیر زیر ذخیره می‌شوند:

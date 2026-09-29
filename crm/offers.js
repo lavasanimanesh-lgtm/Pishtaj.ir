@@ -444,7 +444,7 @@ var SELLER_INFO = {
   nationalId: '14010077558',
   contact: 'Sales Department',
   tel: '+98 (21) 4608 7679',
-  email: 'ifo@pishtaj.ir',
+  email: 'info@pishtaj.ir',
   address: 'Unit 1, 16th Floor, Administrative Block A, Tooba Commercial-Administrative Complex, Kouhak Blvd, Tehran, Iran',
   logo: '../assets/images/ptf-logo.png'
 };

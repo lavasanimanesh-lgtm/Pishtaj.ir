@@ -19,7 +19,7 @@ NEW_FA_NODASH = NEW_LOCAL.translate(_PERS)  # ۰۲۱۹۱۰۹۹۲۴۲
 
 # --- contact mailbox (2026-09-29) --------------------------------------------
 OLD_EMAIL = "Info@pishrotajheez.ir"
-EMAIL = "ifo@pishtaj.ir"
+EMAIL = "info@pishtaj.ir"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
