@@ -679,7 +679,7 @@ function renderOffers() {
   window._offCustFilter = custF;
   var offers = all.filter(function(o) {
     if (o.rialOf) return false; /* US-FX2RIAL: نسخه ریالی (همراه) ردیف مستقل نمی‌سازد — در همان ردیف پیشنهاد ارزی مبدأ نمایش داده می‌شود */
-    if (o.fxOf) return false; /* US-IRR2FX v34.39.28: نسخه ارزی همراه پیشنهاد ریالی — ردیف مستقل نمی‌سازد */
+    if (o.fxOf || (o.fxConvert && o.fxConvert.from && o.currency && o.currency !== 'IRR' && !o.rialOf)) return false; /* US-IRR2FX v34.39.28: نسخه ارزی همراه پیشنهاد ریالی — ردیف مستقل نمی‌سازد */
     if (tab !== 'ALL' && o.kind !== tab && !(tab === 'CO' && o.kind === 'TC')) return false; /* v20.1 US-442: TC قدیمی زیر تب مالی */
     if (custF && typeof ptfOfferMatchCust === 'function' && !ptfOfferMatchCust(o, custF)) return false; /* v21.3 US-450 */
     // US-142 AC1: جستجو شامل شماره درخواست کارفرما (inqNo)
@@ -814,20 +814,7 @@ function renderOffers() {
       if ((o.kind === 'CO' || o.kind === 'TC') && (!o.currency || o.currency === 'IRR') && typeof window.ptfFxCompanionsOf === 'function') {
         var _fxComps = window.ptfFxCompanionsOf(o.no);
         if (_fxComps && _fxComps.length) {
-          fxInline = '<div style="margin-top:6px;background:#fff7ed;border:1px solid #fde68a;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#92400e;display:flex;flex-wrap:wrap;align-items:center;gap:6px" title="نسخه ارزی همین پیشنهاد">' +
-            '<span>💱 نسخه ارزی (همان شماره)</span>' +
-            '<span style="display:inline-flex;gap:4px;flex-wrap:wrap">' +
-            _fxComps.map(function (fc) {
-              var _rt2 = (fc.fxConvert && +fc.fxConvert.rate) || 0;
-              var _cur2 = fc.currency || '';
-              return '<span style="display:inline-flex;gap:2px;align-items:center;background:#fff;border:1px solid #fde68a;border-radius:999px;padding:2px 6px"><b dir="ltr">' + escP(fc.no) + ' (' + escP(_cur2) + ')</b>' +
-                (_rt2 ? '<small style="opacity:.8">' + _rt2.toLocaleString('fa-IR') + '</small>' : '') +
-                '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px" onclick="offerQuickPreview(\'' + ptfOnClickArg(fc.no) + '\')" title="نمایش نسخه ارزی ' + escP(_cur2) + '">👁</button>' +
-                '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px" onclick="offerPrint(\'' + ptfOnClickArg(fc.no) + '\')" title="چاپ/PDF نسخه ارزی">🖨</button>' +
-                '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px;color:#b45309" onclick="ptfOfferFxTermsOpen(\'' + ptfOnClickArg(fc.no) + '\')" title="شرایط ارزی">🔧</button>' +
-                '</span>';
-            }).join(' ') +
-            '</span></div>';
+          fxInline = (typeof window.ptfIrrOfferFxInlineHtml === 'function') ? window.ptfIrrOfferFxInlineHtml(o) : '';
         }
       }
     } catch (eRi) { rialInline = ''; fxInline = ''; }
@@ -4323,6 +4310,8 @@ function renderCustomers2() {
   if (!tb) return;
   var q = ((document.getElementById('cSrch')||{}).value || '').trim();
   var list = q ? items.filter(function(e){ return entityMatches(e, q); }) : items;
+  /* جدیدترین مشتری در صدر فهرست */
+  if (typeof ptfCustSortNewest === 'function') list = ptfCustSortNewest(list);
   var h = '';
   list.forEach(function(c) {
     var pp = primaryPerson(c);
