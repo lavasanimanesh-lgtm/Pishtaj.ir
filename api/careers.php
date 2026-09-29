@@ -352,7 +352,7 @@ function careers_job_html($job) {
 <a class="brand" href="' . $pfx . '" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="' . $pfx . 'assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
 <button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
 <nav class="main-nav" id="mainNav" aria-label="منوی اصلی">' . careers_nav($pfx) . '</nav>
-<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a class="header-call" href="tel:02191099242">021-91099242</a>
 <a href="' . $pfx . 'en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none">🇬🇧 EN</a>
 </div></header>
 <nav class="ptf-bc" aria-label="مسیر صفحه"><div class="container"><ol><li><a href="/">خانه</a></li><li><a href="/careers/">فرصت شغلی</a></li><li><span aria-current="page">' . $titleFa . '</span></li></ol></div></nav>

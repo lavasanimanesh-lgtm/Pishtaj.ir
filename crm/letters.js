@@ -1272,7 +1272,7 @@ function letPrintObj(l, isPreview) {
         /* v87: آیکون تلفن به سمت چپِ شماره (بعد از span در RTL) */
         '<div class="ln"><span dir="ltr">(+۹۸)۲۱ ۴۶۰۸۷۶۷۹</span><svg viewBox="0 0 24 24" fill="none" stroke="#4b5057" stroke-width="1.8"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 2 .7 2.9a2 2 0 01-.5 2.1L8 10a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.5c.9.3 1.9.6 2.9.7a2 2 0 011.7 2z"/></svg></div>') +
     '<div class="ln en"><span style="display:flex;align-items:center;gap:2mm"><svg viewBox="0 0 24 24" fill="none" stroke="#4b5057" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg><span dir="ltr">www.pishtaj.ir</span></span>' +
-    '<span style="display:flex;align-items:center;gap:2mm"><svg viewBox="0 0 24 24" fill="none" stroke="#4b5057" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span dir="ltr">info@pishtaj.ir</span></span></div>' +
+    '<span style="display:flex;align-items:center;gap:2mm"><svg viewBox="0 0 24 24" fill="none" stroke="#4b5057" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span dir="ltr">ifo@pishtaj.ir</span></span></div>' +
     '</div>' +
     '<div class="bar-bot"><i class="s1"></i><i class="s2"></i><i class="s3"></i></div>' +
     '</body></html>';
@@ -1488,9 +1488,9 @@ window.ptfLetterheadPastePrint = function () {
     '<div class="ft">' +
     (isEn
       ? '<div class="ln en"><span dir="ltr">Unit 1, 16th Floor, Block A, Tooba Complex, Koohak Blvd., Tehran, Iran</span></div>' +
-        '<div class="ln en"><span dir="ltr">+98 21 4608 7679 | www.pishtaj.ir | info@pishtaj.ir</span></div>'
+        '<div class="ln en"><span dir="ltr">+98 21 4608 7679 | www.pishtaj.ir | ifo@pishtaj.ir</span></div>'
       : '<div class="ln"><span>تهـــران، بلـوار کوهــک، مجتمــع تجــاری اداری طوبـــی، بلــوک A اداری، طبقــه ۱۶، واحــد ۱</span></div>' +
-        '<div class="ln"><span dir="ltr">(+۹۸)۲۱ ۴۶۰۸۷۶۷۹ | www.pishtaj.ir | info@pishtaj.ir</span></div>') +
+        '<div class="ln"><span dir="ltr">(+۹۸)۲۱ ۴۶۰۸۷۶۷۹ | www.pishtaj.ir | ifo@pishtaj.ir</span></div>') +
     '</div>' +
     '<div class="bar-bot"><i class="s1"></i><i class="s2"></i><i class="s3"></i></div>' +
     '</body></html>';

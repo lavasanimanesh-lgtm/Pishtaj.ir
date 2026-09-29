@@ -66,15 +66,21 @@ T('۳.۵ صفر localStorage (کوکی تنها راهِ ماندگاریِ پا
   !/localStorage\.(get|set)Item/.test(motion));
 
 SECTION('④ شماره‌های رسمی (تأیید کارفرما)');
-T('۴.۱ داک تماس = تلفن رسمی سایت و همان tel در هدر/فوتر/JSON-LD',
-  /<a href="tel:02146087679" data-ptf-event="dock_call"/.test(idx) &&
-  (idx.match(/href="tel:02146087679"/g) || []).length >= 3 &&
+T('۴.۱ آیکون‌های تماس (هدر/داک) = شماره تماس شرکت ۰۲۱-۹۱۰۹۹۲۴۲؛ خط مستقیم بازرگانی فقط متن/لینک خودش',
+  /<a href="tel:02191099242" data-ptf-event="dock_call"/.test(idx) &&
+  /<a class="header-call" href="tel:02191099242">021-91099242<\/a>/.test(idx) &&
+  (idx.match(/href="tel:02191099242"/g) || []).length >= 3 &&
+  !/class="(?:header-call|floating-call)" href="tel:02146087679"/.test(idx) &&
+  !/<a href="tel:02146087679" data-ptf-event="dock_call"/.test(idx) &&
   idx.indexOf('"+982146087679"') > -1);
+T('۴.۱ب خط مستقیم بازرگانی ۰۲۱-۴۶۰۸۷۶۷۹ با عنوان «خط مستقیم بازرگانی» در کارت تماس و فوتر',
+  /خط مستقیم بازرگانی<\/strong>/.test(idx) &&
+  idx.indexOf('>021-46087679</b>') > -1);
 T('۴.۲ داک واتساپ = همان wa.me رسمی (+موبایل 09925868479 با همان لینک شناور)',
   /class="dock-wa"[^>]*aria-label="واتس‌اپ"|href="https:\/\/wa\.me\/989925868479\?[^"]*" target="_blank" rel="noopener" class="dock-wa"/.test(idx) &&
   (idx.match(/wa\.me\/989925868479/g) || []).length >= 2);
 T('۴.۳ هر دو آیتمِ داک لینکِ واقعی‌اند (<a href>) نه دکمهٔ تزئینی',
-  /id="ptfDock"[\s\S]*?<a href="tel:02146087679"[\s\S]*?<a href="https:\/\/wa\.me\//.test(idx));
+  /id="ptfDock"[\s\S]*?<a href="tel:02191099242"[\s\S]*?<a href="https:\/\/wa\.me\//.test(idx));
 
 SECTION('⑤ قرارداد کلی');
 T('۵.۱ cache-bust روی v34.39.14', /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));

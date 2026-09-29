@@ -1165,7 +1165,7 @@
     ];
     rows.forEach(function (r, i) { data.push([i + 1, r.tp || '', r.nm, r.spec || '', r.qty || 1, r.un || '', '', '', '', '']); });
     data.push([]);
-    data.push(['Please quote your best price, delivery time and validity. — Pishro Tajhiz Fartak Co. | www.pishtaj.ir | Info@pishtaj.ir | +98 21 46087679']);
+    data.push(['Please quote your best price, delivery time and validity. — Pishro Tajhiz Fartak Co. | www.pishtaj.ir | ifo@pishtaj.ir | +98 21 46087679']);
     var csv = '\uFEFF' + data.map(function (row) { return row.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -1209,7 +1209,7 @@
       '<div class="hd"><img src="' + SELLER_INFO.logo + '"><div class="t"><div class="co">Pishro Tajhiz Fartak Co.</div><div class="s">REQUEST FOR QUOTATION</div></div>' +
       '<div class="m"><b>RFQ No.:</b> ' + escP(inqNo) + '<br><b>Date:</b> ' + new Date().toISOString().slice(0, 10) + '<br><b>Items:</b> ' + rows.length + '</div></div>' +
       '<table><thead><tr><th style="width:4%">No.</th><th style="width:9%">Type</th><th>Description</th><th style="width:22%">Specification</th><th style="width:6%">Qty</th><th style="width:6%">Unit</th><th style="width:11%">Unit Price</th><th style="width:12%">Total</th></tr></thead><tbody>' + tbody + '</tbody></table>' +
-      '<div class="nt">Please quote your best price, delivery time and price validity for the above items.<br>Kindly send your quotation to <b>Info@pishtaj.ir</b> mentioning RFQ No.</div>' +
+      '<div class="nt">Please quote your best price, delivery time and price validity for the above items.<br>Kindly send your quotation to <b>ifo@pishtaj.ir</b> mentioning RFQ No.</div>' +
       '<script>window.onload=function(){setTimeout(function(){window.print()},450)}<\/script></body></html>');
     w.document.close();
     audit('استعلامات', 'خروجی PDF قالب شرکت از استعلام ' + inqNo, rows.length + ' قلم');
