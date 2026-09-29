@@ -260,7 +260,7 @@ Definition of Done:
 
 خروجی‌ها:
 - افزودن فایل تایید مالکیت گوگل: google5c693eeb139fbfb5.html
-- تغییر ایمیل دریافت فرم تماس به lavasani.manesh@gmail.com و BCC به ifo@pishtaj.ir
+- تغییر ایمیل دریافت فرم تماس به lavasani.manesh@gmail.com و BCC به info@pishtaj.ir
 - بازطراحی چارت سازمانی به صورت تصویر SVG حرفه‌ای
 - اصلاح عنوان و تکرار متن در صفحه پیام مدیریت
 - ایجاد بخش مقالات: /blog/

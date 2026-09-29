@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Phase 6 — contact mailbox: Info@pishrotajheez.ir / info@pishtaj.ir -> ifo@pishtaj.ir
+"""Phase 6 — contact mailbox: Info@pishrotajheez.ir / ifo@pishtaj.ir -> info@pishtaj.ir
+
+The company mailbox is info@pishtaj.ir (with the "n"). The first run of this
+phase wrongly canonicalised every address to the typo ifo@pishtaj.ir; this
+revision points the constant at info@pishtaj.ir and repairs the typo too.
 
 Touches every live, outward-facing surface:
   * 724 site pages (707 .html + 17 extensionless knowledge-center/article-0NN) — footers + JSON-LD
@@ -12,13 +16,13 @@ Deliberately NOT touched (they are not the company contact address):
   * no-reply@pishtaj.ir          — mail() From: sender in api/contact.php
   * lavasani.manesh@gmail.com    — the mailbox contact-form submissions are delivered TO
   * *_@arsalan.ir, *@gserviceaccount.com, uat@pishtaj.test, placeholder addresses
-  * _audit/ , RELEASE-NOTES-*    — historical records
+  * _audit/                        — historical records
 """
 import sys, os, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _common import *          # noqa
 
-VARIANTS = ["Info@pishrotajheez.ir", "info@pishrotajheez.ir", "Info@pishtaj.ir", "info@pishtaj.ir"]
+VARIANTS = ["Info@pishrotajheez.ir", "info@pishrotajheez.ir", "Info@pishtaj.ir", "ifo@pishtaj.ir"]
 
 EXTRA = [
     "_tools/site-shell", "_tools/gen-i18n-pages.py",
