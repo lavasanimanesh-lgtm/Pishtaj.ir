@@ -37,7 +37,7 @@
     dock.id = 'ptfDock';
     dock.setAttribute('aria-label', L[5]);
     dock.innerHTML = '<button type="button" id="ptfDockMenu" class="dock-menu" aria-label="' + L[6] + '" aria-controls="mainNav" aria-expanded="false"><span class="dm-bars" aria-hidden="true"><i></i><i></i><i></i></span><span>' + L[0] + '</span></button>'
-      + '<a href="tel:02146087679" data-ptf-event="dock_call" aria-label="' + L[1] + '">' + SVG_CALL + '<span>' + L[1] + '</span></a>'
+      + '<a href="tel:02191099242" data-ptf-event="dock_call" aria-label="' + L[1] + '">' + SVG_CALL + '<span>' + L[1] + '</span></a>'
       + '<a href="/rfq/" class="dock-cta" data-ptf-event="dock_rfq" aria-label="' + L[7] + '">' + SVG_RFQ + '<span>' + L[2] + '</span></a>'
       + '<a href="https://wa.me/989925868479?text=%D8%B3%D9%84%D8%A7%D9%85%D8%8C%20%D9%85%DB%8C%E2%80%8C%D8%AE%D9%88%D8%A7%D9%87%D9%85%20%D8%A7%D8%B3%D8%AA%D8%B9%D9%84%D8%A7%D9%85%20%D8%A8%DA%AF%DB%8C%D8%B1%D9%85" target="_blank" rel="noopener" class="dock-wa" data-ptf-event="dock_whatsapp" aria-label="' + L[3] + '">' + SVG_WA + '<span>' + L[3] + '</span></a>'
       + '<button type="button" id="ptfDockChat" aria-label="' + L[8] + '">' + SVG_CHAT + '<span>' + L[4] + '</span></button>';

@@ -896,7 +896,7 @@ def page_html(p):
 <nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
 <a href="../">خانه</a><a href="../about/">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../knowledge-center/">مرکز دانش</a><a href="../blog/">وبلاگ</a><a href="./" class="active">مقایسه‌ها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a>
 </nav>
-<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a class="header-call" href="tel:02191099242">021-91099242</a>
 </div></header>
 
 <main class="cmp-wrap">
@@ -913,7 +913,7 @@ def page_html(p):
       <h3>نیاز به استعلام یا مشاوره فنی دارید؟</h3>
       <p>مشخصات فنی پروژه (استاندارد، سایز، کلاس، کمیت) را ثبت کنید تا کارشناسان مهندسی فروش پیشنهاد فنی-تجاری دهند.</p>
       <a href="../rfq/?cat={p['cta_cat']}&subject={html_mod.escape(p['cta_subject'])}">ثبت استعلام در سامانه RFQ ←</a>
-      <a href="tel:02146087679" style="background:#fff;color:#1e293b">تماس با ۰۲۱-۴۶۰۸۷۶۷۹</a>
+      <a href="tel:02191099242" style="background:#fff;color:#1e293b">تماس با ۰۲۱-۹۱۰۹۹۲۴۲</a>
     </div>
     <div class="related"><h3>مطالب مرتبط</h3>{related_html}</div>
   </article>
@@ -967,7 +967,7 @@ def build_index(slugs_titles):
 <a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
 <button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
 <nav class="main-nav" id="mainNav"><a href="../">خانه</a><a href="../services/">خدمات</a><a href="../knowledge-center/">مرکز دانش</a><a href="../blog/">وبلاگ</a><a href="./" class="active">مقایسه‌ها</a><a href="../rfq/">استعلام</a></nav>
-<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a class="header-call" href="tel:02191099242">021-91099242</a>
 </div></header>
 <section class="cmp-hero"><div class="container"><h1>مرجع مقایسه‌های فنی تجهیزات صنعتی</h1><p>تصمیم‌گیری مهندسی و خرید با مقایسه‌های تخصصی A در برابر B — از متریال پایپینگ و فلنج تا ترانسمیتر، درایو و استانداردهای سرویس ترش.</p></div></section>
 <div class="cmp-grid">

@@ -1864,7 +1864,7 @@
       try {
         var _rfqMob = (typeof normMob === 'function') ? normMob(r.phone || '') : String(r.phone || '').replace(/\D/g, '');
         if (_rfqMob && typeof smsSendSingle === 'function') {
-          smsSendSingle(_rfqMob, 'پیشرو تجهیز فرتاک\nدرخواست شما با شمارهٔ ' + (code || '') + ' ثبت و در حال بررسی فنی و تامین است.\n021-46087679', null);
+          smsSendSingle(_rfqMob, 'پیشرو تجهیز فرتاک\nدرخواست شما با شمارهٔ ' + (code || '') + ' ثبت و در حال بررسی فنی و تامین است.\n021-91099242', null);
           if (typeof addLog === 'function') try { addLog('📱 پیامک ثبت درخواست به ' + (r.company || '') + ' (' + _rfqMob + ') ارسال شد'); } catch (eS2) {}
         }
       } catch (eSms) {}

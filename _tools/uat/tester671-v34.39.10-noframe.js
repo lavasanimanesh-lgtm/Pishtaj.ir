@@ -39,7 +39,7 @@ T('۳.۲ بودجه <۴۰K، آکولاد متوازن، مارکرِ ۱۰ لا�
   ['v34.39.0 — HOME-DYNAMIC-X','v34.39.1 — HOME-ELECTRIC-3D','v34.39.2 — HOME-DOCK-SUN','v34.39.3 — HOME-NIGHT-READ','v34.39.4 — HOME-ACCORD-NIGHTMEGA','v34.39.5 — HOME-ICONMIN','v34.39.6 — HOME-WAVE','v34.39.8 — HOME-MINBTN','v34.39.9 — HOME-CALM2','v34.39.10 — HOME-NOFRAME'].every(function(m){ return home.split(m).length === 2; }));
 T('۳.۳ رگرسیونِ کلی: برقِ ۲۶s/۱۵s، موجِ no-repeat، canonical‌ها',
   /animation:ptfCurS 26s linear infinite/.test(home) && /animation:ptfCurS 15s linear infinite/.test(home) &&
-  home.indexOf('background-repeat:no-repeat') > -1 && idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
+  home.indexOf('background-repeat:no-repeat') > -1 && idx.indexOf('href="tel:02191099242"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
 T('۳.۴ VERSION.json = v34.39.40', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.40');
 
 DONE('tester671-v34.39.40-noframe');

@@ -92,7 +92,7 @@ T('شماره‌گذاری PTF-RFQS-{سال}', code.indexOf("'PTF-RFQS-' + yr") 
 T('سربرگ گرادیان رسمی', code.indexOf('#e87200,#ee8100,#ecb003,#ecc506') > -1);
 T('جدول با ستون قیمت و زمان تحویل خالی', code.indexOf('placeholder="قیمت (') > -1 && code.indexOf('placeholder="تحویل (روز)"') > -1);
 T('مهلت پاسخ روی فرم', code.indexOf('مهلت پاسخ:') > -1);
-T('اطلاعات تماس PTF در فرم', code.indexOf('Info@pishtaj.ir') > -1 && code.indexOf('021-46087679') > -1);
+T('اطلاعات تماس PTF در فرم', code.indexOf('Info@pishtaj.ir') > -1 && code.indexOf('021-91099242') > -1);
 
 SECTION('AC5: ارسال ایمیل/واتساپ');
 T('لینک mailto با موضوع و متن', code.indexOf('mailto:') > -1 && code.indexOf('subject=') > -1);

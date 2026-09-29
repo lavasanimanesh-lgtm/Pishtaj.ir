@@ -443,7 +443,7 @@ var SELLER_INFO = {
   company: 'Pishro Tajhiz Fartak Co.',
   nationalId: '14010077558',
   contact: 'Sales Department',
-  tel: '+98 (21) 4608 7679',
+  tel: '+98 (21) 9109 9242',
   email: 'info@pishtaj.ir',
   address: 'Unit 1, 16th Floor, Administrative Block A, Tooba Commercial-Administrative Complex, Kouhak Blvd, Tehran, Iran',
   logo: '../assets/images/ptf-logo.png'
@@ -3224,7 +3224,7 @@ window.ptfOfferAfterServerCommit = function (o, meta) {
         var totalAmt = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
         var amtStr = totalAmt ? ('\nمبلغ کل: ' + totalAmt.toLocaleString('fa-IR') + ' ' + (o.currency === 'EUR' ? 'یورو' : o.currency === 'USD' ? 'دلار' : 'ریال')) : '';
         var smsText = 'پیشرو تجهیز فرتاک\nپیشنهاد مالی ' + (o.no || '') + inqRef + ' صادر شد.' + amtStr + '\n' +
-          (o.validUntil ? 'اعتبار: ' + o.validUntil + '\n' : '') + 'جهت بررسی با کارشناس فروش تماس بگیرید.\n021-46087679\npishtaj.ir';
+          (o.validUntil ? 'اعتبار: ' + o.validUntil + '\n' : '') + 'جهت بررسی با کارشناس فروش تماس بگیرید.\n021-91099242\npishtaj.ir';
         window.ptfSmsNotifyDialog(cust, smsText, 'صدور پیشنهاد مالی ' + o.no);
       }
     }

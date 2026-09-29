@@ -58,7 +58,7 @@ T('۳.۴ رگرسیون‌زدا: موجِ پنل، آیکونِ شیت، آکا
   home.indexOf('background-repeat:no-repeat') > -1 &&
   /#mainNav \.nav-drop\.open>\.nav-drop-menu\{max-height:240px/.test(home) &&
   home.indexOf('html.ptf-dark #mainNav .nav-mega') > -1 &&
-  idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
+  idx.indexOf('href="tel:02191099242"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
 T('۳.۵ VERSION.json = v34.39.40', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.40');
 
 DONE('tester669-v34.39.40-minbtn');

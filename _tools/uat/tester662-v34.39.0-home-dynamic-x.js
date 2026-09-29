@@ -130,7 +130,7 @@ T('۶.۱ عنوان و دیسکریپشن و canonical عوض نشده‌اند'
 T('۶.۲ h1 اصلی (ساختار SEO) کلمه‌به‌کلمه همان است',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی — تجهیزات حیاتی پروژه‌ها را <strong>مطمئن، سریع و دقیق</strong> تامین کنید') > -1);
 T('۶.۳ شماره تماس/واتساپ و فرم RFQ و هندلر ptfHomeRfqStatus سرجایش',
-  idx.indexOf('tel:02146087679') > -1 && idx.indexOf('wa.me/989925868479') > -1 &&
+  idx.indexOf('tel:02191099242') > -1 && idx.indexOf('wa.me/989925868479') > -1 &&
   /function ptfHomeRfqStatus/.test(idx) && /id="contactForm"/.test(idx));
 T('۶.۴ همان ده سکشن صفحهٔ اول حفظ شده (idها کم/زیاد نشده‌اند)',
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) {

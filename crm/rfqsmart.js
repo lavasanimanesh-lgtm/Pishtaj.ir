@@ -1428,8 +1428,8 @@
     }).join('');
     var tgRows = (r.targets || []).map(function (t, i) {
       var stBadge = t.st === 'replied' ? '<span class="bd b-st4">✅ پاسخ داد</span>' : t.st === 'declined' ? '<span class="bd" style="background:#fee2e2;color:#b91c1c">✖ رد کرد</span>' : (t.sends || []).length ? '<span class="bd" style="background:#dbeafe;color:#1d4ed8">📤 ارسال شد</span>' : '<span class="bd" style="background:#f1f5f9;color:#64748b">⏳ در انتظار ارسال</span>';
-      var waTxt = encodeURIComponent('با سلام،\nشرکت پیشرو تجهیز فرتاک\nاستعلام شماره ' + r.no + ' شامل ' + (r.items || []).length + ' قلم کالا خدمت شما ارسال می‌گردد. خواهشمند است ظرف ' + (r.deadline || '48 ساعت') + ' قیمت و زمان تحویل اعلام فرمایید.\n(فرم PDF مختص شما را از دکمه «🖨 PDF» کنار نامتان ذخیره و پیوست کنید)\nتلفن: 021-46087679');
-      var mailBody = encodeURIComponent('با سلام\r\n\r\nاستعلام شماره ' + r.no + ' از شرکت پیشرو تجهیز فرتاک به پیوست (فرم PDF) خدمتتان ارسال می‌گردد.\r\nمهلت پاسخ: ' + (r.deadline || '48 ساعت') + '\r\n\r\nبا احترام\r\nPishro Tajhiz Fartak Co.\r\nTel: +98 21 4608 7679');
+      var waTxt = encodeURIComponent('با سلام،\nشرکت پیشرو تجهیز فرتاک\nاستعلام شماره ' + r.no + ' شامل ' + (r.items || []).length + ' قلم کالا خدمت شما ارسال می‌گردد. خواهشمند است ظرف ' + (r.deadline || '48 ساعت') + ' قیمت و زمان تحویل اعلام فرمایید.\n(فرم PDF مختص شما را از دکمه «🖨 PDF» کنار نامتان ذخیره و پیوست کنید)\nتلفن: 021-91099242');
+      var mailBody = encodeURIComponent('با سلام\r\n\r\nاستعلام شماره ' + r.no + ' از شرکت پیشرو تجهیز فرتاک به پیوست (فرم PDF) خدمتتان ارسال می‌گردد.\r\nمهلت پاسخ: ' + (r.deadline || '48 ساعت') + '\r\n\r\nبا احترام\r\nPishro Tajhiz Fartak Co.\r\nTel: +98 21 9109 9242');
       return '<div style="border:1px solid var(--brd);border-radius:11px;padding:9px 12px;margin-bottom:6px">' +
         '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">' +
         '<span style="font-size:13px"><b>' + escP(t.co) + '</b> ' + stBadge +
@@ -1580,7 +1580,7 @@
       '<div class="tt">Request for Quotation (RFQ)</div>' + toLine +
       '<div class="sub">' + dear + 'Please quote unit price and delivery time for the items below and return to Pishro Tajhiz Fartak.</div>' +
       '<table><thead><tr><th style="width:6%">No.</th><th>Description</th>' + (_hasModel ? '<th style="width:12%">Model</th>' : '') + '<th style="width:' + (_hasModel ? '18%' : '24%') + '">Technical Specification</th><th style="width:8%">Qty</th><th style="width:8%">Unit</th><th style="width:14%">Unit Price (IRR)</th><th style="width:12%">Delivery</th></tr></thead><tbody>' + tbody + '</tbody></table>' +
-      '<div class="note">Please mention RFQ No <b dir="ltr">' + escP(r.no) + '</b> in your reply. Reply: Info@pishtaj.ir | Tel: 021-46087679</div>' +
+      '<div class="note">Please mention RFQ No <b dir="ltr">' + escP(r.no) + '</b> in your reply. Reply: Info@pishtaj.ir | Tel: 021-91099242</div>' +
       '<div class="ftr">Pishro Tajhiz Fartak Co. | Tehran | www.pishtaj.ir</div></body></html>';
   };
 

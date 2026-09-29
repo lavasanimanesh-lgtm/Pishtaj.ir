@@ -680,3 +680,8 @@ html.ptf-dark .ptf-meta b{color:#eef3fb}
 html.ptf-dark .ptf-table{background:#0f1a2e}
 html.ptf-dark .ptf-step{background:#0f1a2e;border-color:rgba(255,255,255,.1)}
 html.ptf-dark .ptf-card small{background:#1e1b4b!important;color:#c7d2fe!important}
+/* Footer "خط مستقیم بازرگانی" chip — present on every Persian page footer. */
+.ptf-footer-tel{transition:background .22s ease,border-color .22s ease,transform .22s ease,box-shadow .22s ease}
+.ptf-footer-tel:hover,.ptf-footer-tel:focus-visible{background:rgba(239,75,26,.26)!important;border-color:rgba(239,75,26,.75)!important;transform:translateY(-2px);box-shadow:0 10px 24px rgba(239,75,26,.24)}
+.ptf-footer-tel:focus-visible{outline:2px solid #ffb033;outline-offset:3px}
+@media(max-width:520px){.ptf-footer-tel{font-size:13px!important;padding:9px 14px!important}}

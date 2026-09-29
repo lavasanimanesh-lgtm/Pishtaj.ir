@@ -1165,7 +1165,7 @@
     ];
     rows.forEach(function (r, i) { data.push([i + 1, r.tp || '', r.nm, r.spec || '', r.qty || 1, r.un || '', '', '', '', '']); });
     data.push([]);
-    data.push(['Please quote your best price, delivery time and validity. — Pishro Tajhiz Fartak Co. | www.pishtaj.ir | Info@pishtaj.ir | +98 21 46087679']);
+    data.push(['Please quote your best price, delivery time and validity. — Pishro Tajhiz Fartak Co. | www.pishtaj.ir | Info@pishtaj.ir | +98 21 91099242']);
     var csv = '\uFEFF' + data.map(function (row) { return row.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));

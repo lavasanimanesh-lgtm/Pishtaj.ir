@@ -37,7 +37,7 @@ def build(base_path, out_path, *, title, desc, slug, h1, hero_p, hero_link, chip
     graph = [
         {"@type": ["Organization", "LocalBusiness"], "@id": "https://pishtaj.ir/#organization",
          "name": "شرکت پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/",
-         "logo": "https://pishtaj.ir/assets/images/ptf-logo.png", "telephone": "+982146087679", "areaServed": "IR"},
+         "logo": "https://pishtaj.ir/assets/images/ptf-logo.png", "telephone": "+982191099242", "areaServed": "IR"},
         {"@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"},
             {"@type": "ListItem", "position": 2, "name": "محصولات صنعتی", "item": hub},

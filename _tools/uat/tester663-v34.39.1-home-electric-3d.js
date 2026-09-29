@@ -120,7 +120,7 @@ T('۵.۶ VERSION.json = v34.39.40', JSON.parse(read('VERSION.json')).crm_version
 T('۵.۷ نگهبان بی‌تغییری: h1، canonical، tel/wa، ۱۰ بخش، theme-color دوحالته',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی — تجهیزات حیاتی پروژه‌ها را <strong>مطمئن، سریع و دقیق</strong> تامین کنید') > -1 &&
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
-  idx.indexOf('tel:02146087679') > -1 && idx.indexOf('wa.me/989925868479') > -1 &&
+  idx.indexOf('tel:02191099242') > -1 && idx.indexOf('wa.me/989925868479') > -1 &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   /name="theme-color" content="#ffffff"/.test(idx));
 

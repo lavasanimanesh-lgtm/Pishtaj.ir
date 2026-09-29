@@ -320,7 +320,7 @@
       '<div class="hd"><img src="../assets/images/ptf-logo-full.png" alt="PTF"><div class="no"><span class="paid">LICENSED REPORT</span><br>شماره محاسبه: <b dir="ltr">' + no + '</b><br>تاریخ: ' + new Date().toLocaleDateString('fa-IR') + '</div></div>' +
       '<h2>' + esc(L.tool) + '</h2>' + rows +
       (L.warns && L.warns.length ? '<div class="warn">' + L.warns.map(esc).join('<br>') + '</div>' : '') +
-      '<div class="disc">مرجع: ' + esc(L.ref || '') + '<br>⚠️ این محاسبه راهنمای اولیه است و مبنای طراحی نهایی نیست — تایید مهندس مسئول/سازنده الزامی است.<br>پیشرو تجهیز فرتاک — pishtaj.ir — 021-46087679</div>' +
+      '<div class="disc">مرجع: ' + esc(L.ref || '') + '<br>⚠️ این محاسبه راهنمای اولیه است و مبنای طراحی نهایی نیست — تایید مهندس مسئول/سازنده الزامی است.<br>پیشرو تجهیز فرتاک — pishtaj.ir — 021-91099242</div>' +
       '<script>window.onload=function(){setTimeout(function(){window.print()},400)}<\\/script></body></html>');
     w.document.close();
   }

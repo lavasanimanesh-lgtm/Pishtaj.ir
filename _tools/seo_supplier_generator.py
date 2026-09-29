@@ -18,7 +18,7 @@ def build_schema(service_name, service_type, description, offers, faqs, url, cru
         "name": "شرکت پیشرو تجهیز فرتاک",
         "url": "https://pishtaj.ir/",
         "logo": "https://pishtaj.ir/assets/images/ptf-logo.png",
-        "telephone": "+982146087679",
+        "telephone": "+982191099242",
         "areaServed": "IR",
     }
     bc = {
@@ -132,7 +132,7 @@ def render(p):
 <nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
 <a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/" class="active">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a>
 </nav>
-<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a class="header-call" href="tel:02191099242">021-91099242</a>
 <a href="../en/" class="lang-switch" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
 </div></header>
 <section class="svc-hero">

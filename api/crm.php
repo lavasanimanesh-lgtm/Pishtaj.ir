@@ -2447,12 +2447,12 @@ switch($action) {
         $smsSent = false;
         if ($done && $type === 'supplier' && $smsPhone !== '' && sms_enabled()) {
             if ($smsStatus === 'approved') {
-                $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nدرخواست ثبت‌نام تامین‌کنندگی شما تایید شد؛ به‌زودی کارشناسان ما با شما تماس می‌گیرند.\n021-46087679");
+                $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nدرخواست ثبت‌نام تامین‌کنندگی شما تایید شد؛ به‌زودی کارشناسان ما با شما تماس می‌گیرند.\n021-91099242");
             } elseif ($smsStatus === 'rejected') {
                 if ($smsRejectType === 'docs') {
-                    $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nمدارک شما ناقص است؛ لطفاً مدارک را تکمیل و دوباره از سایت ثبت‌نام کنید.\n021-46087679");
+                    $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nمدارک شما ناقص است؛ لطفاً مدارک را تکمیل و دوباره از سایت ثبت‌نام کنید.\n021-91099242");
                 } else {
-                    $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nدرخواست شما در این مرحله پذیرفته نشد" . ($note ? '.\n' . mb_substr($note, 0, 120) : '.') . "\n021-46087679");
+                    $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nدرخواست شما در این مرحله پذیرفته نشد" . ($note ? '.\n' . mb_substr($note, 0, 120) : '.') . "\n021-91099242");
                 }
             }
         }

@@ -152,7 +152,7 @@ T('۵.۶ بدون اسکریپت/CDN خارجی جدید', !/<(script|link)[^>]+
 T('۵.۷ نگهبان بی‌تغییری: h1، canonical، tel/wa، ۱۰ بخش، استعلام منو+هیرو',
   idx.indexOf('تامین‌کننده تجهیزات صنعتی — تجهیزات حیاتی پروژه‌ها را <strong>مطمئن، سریع و دقیق</strong> تامین کنید') > -1 &&
   /rel="canonical" href="https:\/\/pishtaj\.ir\/"/.test(idx) &&
-  idx.indexOf('tel:02146087679') > -1 && idx.indexOf('wa.me/989925868479') > -1 &&
+  idx.indexOf('tel:02191099242') > -1 && idx.indexOf('wa.me/989925868479') > -1 &&
   ['home', 'journey', 'why-ptf', 'about', 'services', 'brands', 'projects', 'stats', 'home-faq', 'contact'].every(function (id) { return idx.indexOf('id="' + id + '"') > -1; }) &&
   /<a href="rfq\/">استعلام<\/a>/.test(idx) && /<a class="btn btn-primary" href="rfq\/">/.test(idx));
 T('۵.۸ VERSION.json = v34.39.40', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.40');

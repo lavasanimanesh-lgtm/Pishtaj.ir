@@ -51,7 +51,7 @@ T('۲.۴ رگرسیون‌زدا: ردیفِ تم آیکونی، آکاردئو�
   /#mainNav \.nav-drop\.open>\.nav-drop-menu\{max-height:240px/.test(home) &&
   home.indexOf('html.ptf-dark #mainNav .nav-mega') > -1 &&
   /animation:ptfCurS 26s linear infinite/.test(home) && /<b>۳<\/b>/.test(idx) && /<b>۶\+<\/b>/.test(idx) &&
-  idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
+  idx.indexOf('href="tel:02191099242"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
 T('۲.۵ VERSION.json = v34.39.40', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.40');
 
 DONE('tester668-v34.39.40-hero-wave');

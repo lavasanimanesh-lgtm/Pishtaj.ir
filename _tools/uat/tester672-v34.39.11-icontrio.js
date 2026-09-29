@@ -39,7 +39,7 @@ T('۲.۱ ذره‌بین = لینک واقعی به search/ با aria-label و t
 T('۲.۲ لینکِ پرچمِ زبان بی‌درنگ بعد از ذره‌بین است (خوشهٔ چپ)',
   idx.indexOf('</a>\n      <a href="en/" class="lang-switch"') > -1 || /class="hdr-search"[\s\S]{0,220}<a href="en\/" class="lang-switch"/.test(idx));
 T('۲.۳ شمارهٔ تماسِ هدر سراسری حذف نشده — فقط دسکتاپ display:none (DOM/dock/فوتر/JSON-LD هست)',
-  lay.indexOf('@media(min-width:791px){.header-call{display:none}}') > -1 && idx.indexOf('href="tel:02146087679"') > -1 && home.indexOf('@media(max-width:560px){.header-call{display:none!important}}') > -1);
+  lay.indexOf('@media(min-width:791px){.header-call{display:none}}') > -1 && idx.indexOf('href="tel:02191099242"') > -1 && home.indexOf('@media(max-width:560px){.header-call{display:none!important}}') > -1);
 T('۲.۴ رگرسیون: لینکِ nav-search همچنان سراسری مخفی (ذره‌بین جایگزینش است، نه بازش)',
   home.indexOf('.nav-search{display:none!important}') > -1);
 T('۲.۵ رگرسیونِ شیت موبایل: تم آیکونیِ ۴۲ گوشهٔ شیت + جست‌وجوی شیت مخفی + آکاردئون + canonical‌ها',

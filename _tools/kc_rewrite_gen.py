@@ -23,7 +23,7 @@ HEAD_TOP = """<!doctype html><html lang="fa" dir="rtl"><head>
 """
 
 HEADER_NAV = """<a class="ptf-skip" href="#main-content" data-ptf-skip="yes">رفتن به محتوا</a>
-<header class="site-header scrolled"><div class="container nav-wrap"><a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a><nav class="main-nav" id="mainNav" aria-label="منوی اصلی"><a href="../">خانه</a><a href="../services/">خدمات</a><a href="../services/products/">محصولات</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a></nav><a class="header-call" href="tel:02146087679">021-46087679</a></div></header>
+<header class="site-header scrolled"><div class="container nav-wrap"><a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a><nav class="main-nav" id="mainNav" aria-label="منوی اصلی"><a href="../">خانه</a><a href="../services/">خدمات</a><a href="../services/products/">محصولات</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a></nav><a class="header-call" href="tel:02191099242">021-91099242</a></div></header>
 """
 
 FOOTER = """<footer class="footer" style="background:#111113;color:#cbd5e1;padding:3rem 0 1.5rem;border-top:4px solid var(--red)"><div class="container" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><span>© 2026 Pishro Tajhiz Fartak</span><a href="../rfq/" style="color:#e2e8f0;font-weight:800;text-decoration:none">ثبت استعلام</a></div></footer>
@@ -149,7 +149,7 @@ def build(a):
 </ul>
 <div style="display:flex;gap:10px;flex-wrap:wrap">
 <a href="../rfq/" style="display:inline-block;padding:11px 22px;border-radius:999px;background:#ef4b1a;color:#fff;font-weight:800;font-size:14px;text-decoration:none">ثبت استعلام آنلاین (RFQ)</a>
-<a href="tel:02146087679" style="display:inline-block;padding:11px 22px;border-radius:999px;background:#0f2744;color:#fff;font-weight:800;font-size:14px;text-decoration:none">تماس: ۰۲۱-۴۶۰۸۷۶۷۹</a>
+<a href="tel:02191099242" style="display:inline-block;padding:11px 22px;border-radius:999px;background:#0f2744;color:#fff;font-weight:800;font-size:14px;text-decoration:none">تماس: ۰۲۱-۹۱۰۹۹۲۴۲</a>
 </div>
 </section>
 </article></div></main>

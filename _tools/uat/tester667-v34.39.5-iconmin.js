@@ -67,14 +67,14 @@ T('۳.۵ صفر localStorage (کوکی تنها راهِ ماندگاریِ پا
 
 SECTION('④ شماره‌های رسمی (تأیید کارفرما)');
 T('۴.۱ داک تماس = تلفن رسمی سایت و همان tel در هدر/فوتر/JSON-LD',
-  /<a href="tel:02146087679" data-ptf-event="dock_call"/.test(idx) &&
-  (idx.match(/href="tel:02146087679"/g) || []).length >= 3 &&
-  idx.indexOf('"+982146087679"') > -1);
+  /<a href="tel:02191099242" data-ptf-event="dock_call"/.test(idx) &&
+  (idx.match(/href="tel:02191099242"/g) || []).length >= 3 &&
+  idx.indexOf('"+982191099242"') > -1);
 T('۴.۲ داک واتساپ = همان wa.me رسمی (+موبایل 09925868479 با همان لینک شناور)',
   /class="dock-wa"[^>]*aria-label="واتس‌اپ"|href="https:\/\/wa\.me\/989925868479\?[^"]*" target="_blank" rel="noopener" class="dock-wa"/.test(idx) &&
   (idx.match(/wa\.me\/989925868479/g) || []).length >= 2);
 T('۴.۳ هر دو آیتمِ داک لینکِ واقعی‌اند (<a href>) نه دکمهٔ تزئینی',
-  /id="ptfDock"[\s\S]*?<a href="tel:02146087679"[\s\S]*?<a href="https:\/\/wa\.me\//.test(idx));
+  /id="ptfDock"[\s\S]*?<a href="tel:02191099242"[\s\S]*?<a href="https:\/\/wa\.me\//.test(idx));
 
 SECTION('⑤ قرارداد کلی');
 T('۵.۱ cache-bust روی v34.39.14', /home\.css\?v=34\.39\.14/.test(idx) && /ptf-motion\.js\?v=34\.39\.14" defer/.test(idx));
