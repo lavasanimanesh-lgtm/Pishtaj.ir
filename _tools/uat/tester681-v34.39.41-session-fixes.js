@@ -315,5 +315,19 @@ console.log('\n[G] قرارداد نسخه v34.39.41');
   T('ریلیزنوت v34.39.41 موجود است', fs.existsSync(path.join(ROOT, 'RELEASE-NOTES-v' + V + '.md')));
 })();
 
+/* ================= H) استقرار استیجینگ فقط دستی ================= */
+console.log('\n[H] استقرار استیجینگ اختیاری (فقط دستی)');
+(function () {
+  var wf = read('.github/workflows/deploy-staging.yml');
+  var on = wf.slice(wf.indexOf('\non:'), wf.indexOf('\nconcurrency:'));
+  var active = on.split('\n').filter(function (l) { return !/^\s*#/.test(l); }).join('\n');
+  T('deploy-staging: workflow_dispatch (اجرای دستی) باقی است', /^\s{2}workflow_dispatch:/m.test(active));
+  T('deploy-staging: تریگر push خودکار حذف شد', !/^\s{2}push:/m.test(active), active);
+  T('deploy-staging: تریگر pull_request ندارد', !/^\s{2}pull_request:/m.test(active));
+  T('deploy-staging: cron هفتگی حذف شد', !/^\s{2}schedule:/m.test(active));
+  T('گزینهٔ full برای همگام‌سازی کامل دستی حفظ شد', /full:[\s\S]*type: boolean/.test(active) && wf.indexOf('github.event.inputs.full') > -1);
+  T('پروداکشن همچنان فقط دستی با تأیید DEPLOY است', /^\s{2}workflow_dispatch:/m.test(read('.github/workflows/deploy-production.yml')) && !/^\s{2}push:/m.test(read('.github/workflows/deploy-production.yml')));
+})();
+
 console.log('\n=== tester681 — v34.39.41 session fixes: ' + R.pass + ' PASS / ' + R.fail + ' FAIL ===');
 process.exit(R.fail ? 1 : 0);
