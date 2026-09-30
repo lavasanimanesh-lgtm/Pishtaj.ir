@@ -16,6 +16,12 @@
       می‌چربید ⇒ عنوانِ کارت در موبایل از دسکتاپ بزرگ‌تر و سرِ دوخط می‌شد.
    (④ جدا: `.ptf-bc` زیر هدرِ fixed پنهان بود و ۱۴۰px فاصلهٔ بالای کارت فضای مرده می‌ساخت.)
 
+   پیگرد (همان برنچ، SUP-NOTICE-DROP): کارفرما «متن «🔎 به دنبال تامین‌کننده … هستید؟»
+   کلاً پاک شود» را خواست ⇒ بلوک یادداشت از صفحه حذف شد (نه جابه‌جایی). این تست همان را
+   پین می‌کند: نه نشانهِ‌ای از بلوک بماند (markup + CSS)، نه چیزی از محتوای دیگرِ صفحه برود.
+   پیوند‌های `/suppliers/` و `/services/` که در آن بلوک بود، در ناو/فوترِ پوسته همچنان هستند
+   ⇒ حذف بلوک، گراف پیوند داخلی را نمی‌شکند (سنجهٔ ۱٫۴).
+
    قرارداد تست: کشکیدنِ واقعیِ CSS (اختصاص + !important + ترتیب فایل + مدیای زنده) روی
    قواعدِ style.css / discover.css / <style> صفحه / site-shell.css — نه فقط regex.
    روی کدِ پیش از اصلاح FAIL می‌شود.
@@ -149,13 +155,18 @@ T('۱.۱ هیچ پس‌زمینهٔ روشنی (ecfeff/a5f3fc/inline background)
 T('۱.۲ هدر فقط شامل عنوان و توضیح است (h1 + p، بدون div/aside)',
   (headerHtml.match(/<h1\b/g) || []).length === 1 && (headerHtml.match(/<p\b/g) || []).length === 1 &&
   !/<div\b|<aside\b|<section\b/.test(headerHtml.slice(headerHtml.indexOf('sup-header') > -1 ? 25 : 0).replace('<div class="sup-header">', '')));
-var bodyHtml = bStart > -1 ? PAGE.slice(bStart, PAGE.indexOf('<form id="supplierForm"', bStart)) : '';
-T('۱.۳ یادداشت راهنما به بدنهٔ روشن (بالای فرم) منتقل شد', /class="sup-notice"/.test(bodyHtml));
-T('۱.۴ متن و پیوندهای یادداشت کلمه‌به‌کلمه حفظ شده (SEO/link juice)',
-  /🔎 <b>به دنبال تامین‌کننده تجهیزات صنعتی هستید؟<\/b>/.test(PAGE) &&
-  PAGE.indexOf('شبکه تامین پیشرو تجهیز فرتاک ثبت‌نام کنند') > -1 &&
-  (PAGE.match(/<a href="\/suppliers\/"[^>]*>صفحه تامین‌کننده تجهیزات صنعتی نفت، گاز و پتروشیمی<\/a>/g) || []).length === 1 &&
-  (PAGE.match(/<a href="\/services\/"[^>]*>خدمات تامین تجهیزات صنعتی<\/a>/g) || []).length === 1);
+/* نسخهٔ بدون توضیح: توضیحاتِ خودِ فایل می‌توانند نام کلاس/رنگ را ذکر کنند */
+var PAGE_NC = PAGE.replace(/<!--[\s\S]*?-->/g, ' ').replace(/\/\*[\s\S]*?\*\//g, ' ');
+T('۱.۳ یادداشت «🔎 به دنبال تامین‌کننده … هستید؟» کلاً حذف شده (markup و CSS)',
+  /sup-notice/.test(PAGE_NC) === false &&
+  PAGE_NC.indexOf('به دنبال تامین‌کننده تجهیزات صنعتی هستید؟') === -1 &&
+  /#ecfeff|#a5f3fc/.test(PAGE_NC) === false &&
+  (PAGE_NC.match(/<aside/g) || []).length === 0);
+T('۱.۴ حذف، فقط همان بلوک را برداشته: تیتر/توضیح سرِ جایش و فرم بی‌واسطه بعد از هدر است',
+  PAGE.indexOf('سامانه ثبت‌نام تامین‌کنندگان و انبارداران صنعتی') > -1 &&
+  /<\/h1>\s*\n\s*<p>پیوستن به شبکه رسمی زنجیره تامین/.test(PAGE) &&
+  /<div class="sup-body">\s*\n\s*<form id="supplierForm"/.test(PAGE) &&
+  PAGE.indexOf('href="/suppliers/"') > -1 && PAGE.indexOf('href="/services/"') > -1);
 T('۱.۵ تگ‌های صفحه متوازن و بدون کاراکتر خرابِ انکدینگ',
   PAGE.split('<div').length === PAGE.split('</div>').length && PAGE.split('<aside').length === PAGE.split('</aside>').length && PAGE.indexOf('\ufffd') === -1);
 
@@ -174,18 +185,38 @@ T('۲.۴ تیتر در روز و شب روی پس‌زمینهٔ تیره خوا
 T('۲.۵ توضیح زیرِ تیتر هم کنتراست کافی دارد',
   ratio(valueFor('color', HEADER, 1280, false), '#2b2e34') >= 3);
 
-/* ────────────────────────── ۳) کنتراست یادداشت در بدنه ────────────────────────── */
-SECTION('یادداشت راهنما (کنتراست واقعی، روز و شب)');
-var nFg = valueFor('color', NOTICE, 1280, false), nBg = valueFor('background', NOTICE, 1280, false);
-var dFg = valueFor('color', NOTICE, 1280, true), dBg = valueFor('background', NOTICE, 1280, true);
-T('۳.۱ رنگ متن یادداشت در قاعدهٔ خودش صریح تعریف شده (وارثِ سفیدِ هدر نیست)', !!nFg && !!nBg);
-T('۳.۲ کنتراست روز ≥ ۴٫۵ (AA)', ratio(nFg, nBg) >= 4.5);
-T('۳.۳ کنتراست شب ≥ ۴٫۵ (اورراید ptf-dark وجود دارد)', ratio(dFg, dBg) >= 4.5);
-T('۳.۴ یادداشت در حالت شب روی پس‌زمینهٔ روشنِ پیش‌فرض نمی‌ماند',
-  /ptf-dark \.sup-notice\s*\{[^}]*#0c1526/.test(INLINE.replace(/\s+/g, ' ').replace(/ \{/g, '{')) || /#0c1526/.test(dBg));
-T('۳.۵ چیدمان یادداشت راست‌چینِ طبیعی است (centerِ هدر ارث نمی‌برد)',
-  /text-align:\s*(start|right)/.test(valueFor('text-align', NOTICE, 1280, false) || '') ||
-  /text-align\s*:\s*(start|right)/.test((ALL.filter(function (r) { return NOTICE(r.sel); })[0] || { decls: [] }).decls.map(function (d) { return d.prop + ':' + d.val; }).join(';')));
+/* ────────────────────────── ۳) هیچ ردّ پایی از بلوکِ حذف‌شده نمی‌ماند ────────────────────────── */
+SECTION('پاک‌سازی بعد از حذف بلوک');
+(function () {
+  var style = (PAGE.match(/<style>([\s\S]*?)<\/style>/) || [, ''])[1].replace(/\/\*[\s\S]*?\*\//g, ' ');
+  var selectors = [];
+  style.split('}').forEach(function (chunk) {
+    var at = chunk.indexOf('{'); if (at < 0) return;
+    var head = chunk.slice(0, at).trim();
+    if (/^@/.test(head)) return;
+    head.split(',').forEach(function (x) { selectors.push(x.trim()); });
+  });
+  var markup = PAGE.slice(PAGE.indexOf('<body'));
+  var orphans = selectors.filter(function (sel) {
+    return (sel.match(/\.[a-z][\w-]*/gi) || []).some(function (c) {
+      c = c.slice(1);
+      return c !== 'ptf-dark' && c !== 'sup-wrap' && c !== 'scrolled' &&
+        markup.indexOf('"' + c) === -1 && markup.indexOf(c + ' ') === -1 && markup.indexOf(' ' + c) === -1 &&
+        markup.indexOf(c + '"') === -1;
+    });
+  });
+  T('۳.۱ هیچ سلکتور بی‌مالکی از بلوکِ حذف‌شده در <style> صفحه نمانده', orphans.length === 0);
+  T('۳.۲ <style> صفحه هنوز آکولادِ متوازن و زیر بودجه دارد',
+    style.split('{').length === style.split('}').length && style.length < 6000);
+  var bodyPad = /\.sup-body\s*\{[^}]*padding:\s*38px 40px/.test(style) ? true : false;
+  T('۳.۳ بدنهٔ فرم بدون بلوکِ میانی، همان padding را نگه داشته (فرم بی‌درنگ بعد از هدر شروع می‌شود)', bodyPad);
+})();
+T('۳.۴ عنوان هدر در روز و شب روی گرادیان تیره کنتراست AA دارد (بی‌تغییری بعد از حذف بلوک)',
+  ratio(valueFor('color', H1, 1280, false), '#2b2e34') >= 4.5 &&
+  ratio(valueFor('color', H1, 1280, true), '#2b2e34') >= 4.5);
+T('۳.۵ توضیح زیر تیتر هم خواناست و وسط‌چینِ محدودبه‌عرض است (بدون پاراگرافِ دندانه‌دارِ اضافی)',
+  ratio(valueFor('color', HEADER, 1280, false), '#2b2e34') >= 3 &&
+  /max-width:\s*640px/.test((ALL.filter(function (r) { return /^\.sup-header p$/.test(r.sel); })[0] || { decls: [] }).decls.map(function (d) { return d.prop + ':' + d.val; }).join(';')));
 
 /* ────────────────────────── ۴) بالای صفحه: هدر/نوار مسیر ────────────────────────── */
 SECTION('تنفس بالای صفحه');

@@ -28,6 +28,8 @@
 <link rel="stylesheet" href="../assets/css/style.css" />
   <style>
     /* v34.39.44 (SUP-FORM-HEADER): پاکسازی هدر فرم ثبت‌نام تامین‌کننده
+       ⓪ یادداشت راهنمای «به دنبال تامین‌کننده … هستید؟» که داخل هدرِ تیره رها شده بود
+          (متن سفید روی #ecfeff ≈ نامرئی) طبق درخواست کارفرما کلاً حذف شد — بند SUP-NOTICE-DROP.
        ① نوار مسیر (ptf-bc) پیش‌تر در ۸۶px بالای صفحه، زیر هدرِ fixed پنهان بود و
           ۱۴۰px حاشیهٔ بالای کارت، فاصلهٔ بی‌دلیل + «متن شبح‌وار پشت هدر» می‌ساخت.
           حالا تنفسِ بالای صفحه به نوار مسیر منتقل شده و کارت با ۳۰px می‌چسبد.
@@ -41,15 +43,6 @@
     .sup-header { background: linear-gradient(135deg, #1c1c1e, #3a3d45); color: #fff; padding: 34px 30px 30px; text-align: center; border-bottom: 4px solid var(--red); }
     .sup-header h1 { font-size: clamp(21px, 3vw + 10px, 26px) !important; margin: 0 0 10px; color: #fff; font-weight: 900; line-height: 1.6; letter-spacing: 0; text-wrap: balance; }
     .sup-header p { color: rgba(255,255,255,.88); margin: 0 auto; font-size: 15px; line-height: 1.9; max-width: 640px; }
-    /* یادداشت راهنما: بلوک روشنی که داخل هدرِ تیره رها شده بود (متن سفید روی
-       پس‌زمینهٔ #ecfeff ≈ نامرئی) به بدنهٔ روشن و بالای فرم منتقل شد. */
-    .sup-notice { background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 14px; padding: 12px 16px; margin: 0 0 26px; font-size: 13.5px; line-height: 2.1; color: #0f4c5c; text-align: start; }
-    .sup-notice b { color: #0e7490; }
-    .sup-notice a { color: #0369a1; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
-    .sup-notice a:hover, .sup-notice a:focus { color: var(--red); }
-    html.ptf-dark .sup-notice { background: #0c1526; border-color: rgba(125,211,252,.3); color: #c9d6ea; }
-    html.ptf-dark .sup-notice b { color: #7dd3fc; }
-    html.ptf-dark .sup-notice a { color: #93c5fd; }
     .sup-body { padding: 38px 40px; }
     .field { margin-bottom: 22px; }
     .field label { display: block; font-weight: 900; font-size: 14px; line-height: 1.7; margin-bottom: 8px; color: #202228; }
@@ -79,9 +72,9 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .badge-code { display: inline-block; background: #f1f5f9; border: 2px dashed #10b981; color: #065f46; padding: 14px 28px; border-radius: 16px; font-size: 22px; font-weight: 900; margin: 20px 0; letter-spacing: 2px; }
     @media (max-width: 790px) { .ptf-bc { margin-top: 76px; } }
-    @media (max-width: 680px) { .sup-wrap { margin: 22px 12px 40px; } .sup-header { padding: 26px 18px 22px; } .sup-body { padding: 25px 18px; } .sup-notice { padding: 11px 13px; font-size: 13px; line-height: 2; margin-bottom: 20px; } .grid-2 { grid-template-columns: 1fr; } }
-    /* موبایل: تنفسِ کمترِ هدر و یادداشت تا کارتِ فرم در صفحه جا شود */
-    @media (max-width: 480px) { .sup-header { padding: 22px 14px 20px; } .sup-header p { font-size: 13.5px; } .sup-notice { border-radius: 12px; } }
+    @media (max-width: 680px) { .sup-wrap { margin: 22px 12px 40px; } .sup-header { padding: 26px 18px 22px; } .sup-body { padding: 25px 18px; } .grid-2 { grid-template-columns: 1fr; } }
+    /* موبایل: تنفسِ کمترِ هدر تا کارتِ فرم در صفحه جا شود */
+    @media (max-width: 480px) { .sup-header { padding: 22px 14px 20px; } .sup-header p { font-size: 13.5px; } }
   </style>
 
   <script type="application/ld+json">
@@ -203,10 +196,6 @@
       </div>
 
       <div class="sup-body">
-        <aside class="sup-notice">
-          🔎 <b>به دنبال تامین‌کننده تجهیزات صنعتی هستید؟</b> این صفحه مخصوص تامین‌کنندگان و انباردارانی است که می‌خواهند در شبکه تامین پیشرو تجهیز فرتاک ثبت‌نام کنند.
-          برای مشاهده تامین و سورسینگ تجهیزات به <a href="/suppliers/">صفحه تامین‌کننده تجهیزات صنعتی نفت، گاز و پتروشیمی</a> یا <a href="/services/">خدمات تامین تجهیزات صنعتی</a> مراجعه کنید.
-        </aside>
         <form id="supplierForm" action="../api/crm.php?action=add_supplier" method="post" enctype="multipart/form-data">
           <input type="hidden" name="action" value="add_supplier">
           <input type="hidden" name="code" id="sCode" value="">
