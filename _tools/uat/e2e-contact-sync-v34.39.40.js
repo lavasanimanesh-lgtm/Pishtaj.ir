@@ -23,7 +23,7 @@ const { PhpNode } = require('php-wasm/PhpNode');
 const fs = require('fs');
 const path = require('path');
 const REPO = '/home/user/Pishtaj.ir';
-const API_FILES = ['crm.php', 'sales-domain.php', 'auth.php', 'secrets.php', 'storage-lib.php', 'db-lib.php', 'contact-merge-lib.php'];
+const API_FILES = ['crm.php', 'sales-domain.php', 'auth.php', 'secrets.php', 'storage-lib.php', 'db-lib.php', 'contact-merge-lib.php', 'rfq-notify-lib.php'];
 
 /* ---------- helpers (هم‌سنگ منطق کلاینت) ---------- */
 function digits(s) {

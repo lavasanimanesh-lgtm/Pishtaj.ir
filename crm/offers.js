@@ -4327,12 +4327,12 @@ function renderCustomers2() {
     } catch (eOw) {}
     h += '<tr data-cust-cd="' + escP(c.cd) + '"><td><strong>' + escP(c.cd) + '</strong>' + venBadge +
       (own ? '<div style="font-size:10.5px;color:#64748b;margin-top:2px">👤 ' + escP(ownLb) + '</div>' : '') +
-      '</td><td>' + escP(c.co) +
+      '</td><td>' + (typeof window.ptfCustomerSummaryNameHtml === 'function' ? window.ptfCustomerSummaryNameHtml(c) : escP(c.co)) +
       ' <span style="background:' + (c.kind === 'حقیقی' ? '#fef3c7;color:#b45309' : '#e0e7ff;color:#4338ca') + ';border-radius:8px;padding:1px 7px;font-size:10.5px">' + escP(c.kind || 'حقوقی') + '</span></td><td>' + escP(c.ind||'-') + '</td>' +
       '<td>' + (pp ? escP(pp.nm) + ' <small style="color:#94a3b8">(' + escP(pp.role||'') + ')</small>' : '-') +
       ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
       '<td>' + ptfCustContactCell(c) + '</td>' +
-      '<td><button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده مشتری" aria-label="مشاهده مشتری" onclick="showEntityCard(\'ptf_crm_customers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
+      '<td>' + (typeof window.ptfCustomerSummaryActionHtml === 'function' ? window.ptfCustomerSummaryActionHtml(c) : '') + '<button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="اطلاعات و تماس‌های مشتری" aria-label="اطلاعات و تماس‌های مشتری" onclick="showEntityCard(\'ptf_crm_customers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
       '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش مشتری" aria-label="ویرایش مشتری" onclick="showCustModal(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">مشتری‌ای ثبت نشده</td></tr>';

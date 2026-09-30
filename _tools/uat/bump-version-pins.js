@@ -61,8 +61,10 @@ var FORMS = [
   { old: OLD, neu: NEW, label: 'لفظِ ساده' }
 ];
 
-/* هویتِ فایل‌ها: نامِ تستر + شمارهٔ نسخهٔ تاریخی — با bump عوض نمی‌شود. */
-var IDENTITY_RE = /tester\d+-v\d+\.\d+\.\d+-[A-Za-z0-9._-]*\.js/g;
+/* هویتِ فایل‌ها: نامِ تستر یا E2E + شمارهٔ نسخهٔ تاریخی — با bump عوض نمی‌شود.
+   E2Eها هم artefact تاریخی‌اند؛ تغییر e2e-site-alert-v… به نسخه جاری،
+   بدون تغییر فایل واقعی، قرارداد حضور آزمون PHP را در tester681 می‌شکست. */
+var IDENTITY_RE = /(?:tester\d+-v\d+\.\d+\.\d+-[A-Za-z0-9._-]*|e2e-[A-Za-z0-9._-]*-v\d+\.\d+\.\d+(?:-[A-Za-z0-9._-]*)?)\.js/g;
 function protect(src, bag) {
   return src.replace(IDENTITY_RE, function (m) {
     if (m.indexOf(OLD) < 0) return m;                 /* فقط آن‌هایی که bump می‌شدند */

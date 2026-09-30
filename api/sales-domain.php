@@ -38,8 +38,13 @@ header('Pragma: no-cache');
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/db-lib.php';
 require_once __DIR__ . '/contact-merge-lib.php'; /* v34.39.30 (CONTACT-ROOTS R7): primitives مشترک اتحاد تماس — sd_* روی همان تابع‌ها alias شده‌اند */
+require_once __DIR__ . '/rfq-notify-lib.php'; /* server-authoritative request events; secrets stay on server */
 
 function sd_out(array $payload, int $status = 200): void {
+    /* Recovery/idempotent early returns also pass here. Release the shared
+       business mutex before shutdown can perform Telegram network I/O. */
+    global $lock;
+    if (is_resource($lock)) { @flock($lock, LOCK_UN); @fclose($lock); }
     http_response_code($status);
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
@@ -66,7 +71,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.41';
+const SD_SERVICE_VERSION = '34.39.43';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1080,7 +1085,9 @@ function sd_recover_pending_transactions(): int {
             throw new RuntimeException('sales_transaction_wal_hash_mismatch');
         }
         sd_publish_changes($changes);
-        if (!@unlink($file)) throw new RuntimeException('sales_transaction_wal_cleanup_failed');
+        if (ptf_rfq_notify_after_commit(is_array($record['rfqNotifications'] ?? null) ? $record['rfqNotifications'] : [], $file)) {
+            if (!@unlink($file)) throw new RuntimeException('sales_transaction_wal_cleanup_failed');
+        }
         $recovered++;
     }
     return $recovered;
@@ -1097,11 +1104,21 @@ function sd_commit(array $changes, array $context): int {
         'requestHash'=>(string)($context['requestHash'] ?? ''),'owner'=>(string)($context['owner'] ?? ''),
         'createdAt'=>sd_now(),'changesHash'=>hash('sha256', $encoded),'changes'=>$changes
     ];
+    /* Journal the original before/after event BEFORE the first projection rename.
+       Recovery can then publish the notice once even if RFQs were already written.
+       Restores/import-style repair actions must not announce historical rows as new. */
+    if (isset($changes['ptf_crm_rfqs']) && is_array($changes['ptf_crm_rfqs']) && ptf_rfq_notify_enabled()
+        && !in_array((string)($context['action'] ?? ''), ['entity_restore', 'purge_test_data'], true)) {
+        $record['rfqNotifications'] = ptf_rfq_notify_events(sd_read('ptf_crm_rfqs'), $changes['ptf_crm_rfqs'],
+            'crm', (string)($context['owner'] ?? ''), 'command:' . $fingerprint);
+    }
     $walJson = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($walJson === false || file_put_contents($tmp, $walJson, LOCK_EX) === false) throw new RuntimeException('transaction_wal_write_failed');
     if (!rename($tmp, $wal)) throw new RuntimeException('transaction_wal_publish_failed');
     $rev = sd_publish_changes($changes);
-    if (!@unlink($wal)) throw new RuntimeException('transaction_wal_cleanup_failed');
+    if (ptf_rfq_notify_after_commit($record['rfqNotifications'] ?? [], $wal)) {
+        if (!@unlink($wal)) throw new RuntimeException('transaction_wal_cleanup_failed');
+    }
     return $rev;
 }
 function sd_result_data(array $changes): array {

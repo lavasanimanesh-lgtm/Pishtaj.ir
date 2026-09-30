@@ -99,7 +99,11 @@
     focusElement(items[0] || dialog);
   }
   function restoreModalFocus(overlay) {
-    if (!overlay || overlay._ptfFocusReturned) return;
+    if (!overlay) return;
+    /* Singleton dialogs may be replaced while minimized. Their dock entry must
+       disappear with the old overlay, rather than becoming a dead restore button. */
+    if (overlay._ptfDockDisk) { overlay._ptfDockDisk.remove(); overlay._ptfDockDisk = null; }
+    if (overlay._ptfFocusReturned) return;
     overlay._ptfFocusReturned = true;
     var previous = overlay._ptfReturnFocus;
     setTimeout(function () {
@@ -235,7 +239,9 @@
       var title = (md.querySelector('h3') ? md.querySelector('h3').textContent : 'پنجره').trim().slice(0, 34);
       if (mdb.parentNode !== document.body) document.body.appendChild(mdb);
       mdb.style.display = 'none';
+      if (mdb._ptfDockDisk) mdb._ptfDockDisk.remove();
       var disk = document.createElement('div');
+      mdb._ptfDockDisk = disk;
       disk.className = 'mx-disk';
       disk.tabIndex = 0;
       disk.setAttribute('role', 'button');
@@ -244,6 +250,7 @@
       function restoreFromDock() {
         mdb.style.display = 'grid';
         disk.remove();
+        mdb._ptfDockDisk = null;
         setTimeout(function () { focusModal(mdb, true); }, 0);
       }
       disk.onclick = function (ev) {
