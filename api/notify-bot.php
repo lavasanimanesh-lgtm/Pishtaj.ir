@@ -9,6 +9,7 @@
    ===================================================================== */
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+require_once __DIR__ . '/rfq-notify-lib.php';
 
 function bot_cfg() {
     $paths = [
@@ -83,7 +84,9 @@ switch ($action) {
         if (!empty($cfg['telegram_token']) && !empty($cfg['telegram_chat_id'])) $chans[] = 'تلگرام';
         if (!empty($cfg['bale_token']) && !empty($cfg['bale_chat_id'])) $chans[] = 'بله';
         if (!$chans) { echo json_encode(['ok' => false, 'error' => 'هیچ کانالی در bot-config.php کامل نیست'], JSON_UNESCAPED_UNICODE); break; }
-        echo json_encode(['ok' => true, 'info' => 'کانال‌های فعال: ' . implode('، ', $chans)], JSON_UNESCAPED_UNICODE);
+        $rfqAuto = ptf_rfq_notify_enabled();
+        echo json_encode(['ok' => true, 'rfq_notifications' => $rfqAuto,
+            'info' => 'کانال‌های فعال: ' . implode('، ', $chans) . "\nاعلان خودکار درخواست‌ها در گروه تلگرام: " . ($rfqAuto ? 'فعال' : 'غیرفعال — تنظیمات گروه/ربات را بررسی کنید')], JSON_UNESCAPED_UNICODE);
         break;
 
     /* v14.1 (US-355): جفت‌سازی چت شخصی کاربر — کاربر کد یکتا را به بات می‌فرستد،

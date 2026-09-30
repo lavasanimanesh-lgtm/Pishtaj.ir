@@ -11,7 +11,7 @@ const { PhpNode } = require('php-wasm/PhpNode');
 const fs = require('fs');
 const path = require('path');
 const REPO = path.resolve(__dirname, '../..');
-const API_FILES = ['crm.php', 'auth.php', 'secrets.php', 'storage-lib.php', 'db-lib.php', 'contact-merge-lib.php', 'sales-domain.php'];
+const API_FILES = ['crm.php', 'auth.php', 'secrets.php', 'storage-lib.php', 'db-lib.php', 'contact-merge-lib.php', 'rfq-notify-lib.php', 'sales-domain.php'];
 const SECRET = 'e2e-captcha-secret-0123456789abcdef0123456789abcdef';
 
 const R = { pass: 0, fail: 0 };
@@ -88,6 +88,7 @@ ${withOtp ? `$ph = $_POST['phone']; $_POST['otp_token'] = base64_encode($ts . '|
 $_GET = ['action' => '${action}']; $_REQUEST = array_merge($_GET, $_POST);
 require '/w/repo/api/crm.php';
 /* php-wasm توابع shutdown را اجرا نمی‌کند ⇒ همان flush که shutdown صدا می‌زند */
+if (function_exists('ptf_rfq_notify_flush')) ptf_rfq_notify_flush();
 if (function_exists('ptf_site_alert_flush')) ptf_site_alert_flush();`;
 }
 const RFQ = { company: 'شرکت آزمون پالایش', name: 'مهندس تست', phone: '09120000001', email: 'a@b.c', category: 'شیرآلات', subject: 'استعلام شیر کنترلی', message: 'متن' };

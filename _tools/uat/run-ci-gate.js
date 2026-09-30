@@ -348,16 +348,19 @@ var SUITE = [
   { g: 'CRM/مالی (39.24): CHQ-OPEX-EDIT-LINK — اتصال/جدا کردن چک صادره به ماه‌های هزینه جاری از ویرایش چک + رفع پنهان‌شدن بخش اتصال در ثبت (ضد دوباره‌شماری اجارهٔ چک‌محور)', f: '_tools/uat/tester679-v34.39.24-cheque-opex-edit-link.js' },
   { g: 'CRM/تشخیص سینک تماس (39.40): CONTACT-SYNC-DIAG-2 — نوشتنِ سرور-تأییدشده (تک‌مسیر entity_upsert + بازخوانی verified + buster/no-store + canonNum + A10 بدون LS مستقیم)', f: '_tools/uat/tester680-v34.39.40-contact-sync-verified.js' },
   { g: 'CRM+سایت (39.41): فوتر ۵ستونه + حذف فوتر CRM + مشتری جدید در صدر + کادر سبز نسخه ارزی + تب‌های ارجاع درخواست + اعلان پیامک/بات ثبت از سایت + بامپ نسخه', f: '_tools/uat/tester681-v34.39.41-session-fixes.js' },
+  { g: 'CRM/فروش (39.42): خلاصهٔ مشتری — هویت یکتا، درخواست/پیشنهاد/فروش، بدون دوباره‌شماری و با رعایت دسترسی مالی', f: '_tools/uat/tester682-v34.39.42-customer-summary.js' },
+  { g: 'CRM/درخواست (39.43): پیام گروه تلگرام پس از ثبت/وضعیت — صف پایدار، WAL، بدون تکرار و بدون نشت توکن', f: '_tools/uat/tester683-v34.39.43-rfq-telegram.js' },
 ];
 
 var SYNTAX = [
+  'crm/messengers.js',
   'crm/bridge.js', 'crm/myday.js', 'crm/rbac.js', 'crm/sync.js', 'crm/client-server.js',
-  'crm/boot-splash.js',
+  'crm/boot-splash.js', 'crm/modalx.js',
   'crm/finance-write-guard.js', 'crm/fiscal.js', 'crm/supplier-finance.js',
   'crm/opex.js', 'crm/shareholders.js', 'crm/cheque-panel.js', 'crm/petty.js', 'crm/cheques.js', 'crm/treasury.js',
   'crm/sales-domain-v2.js', 'crm/phonefmt.js', 'crm/official-invoice-v2.js', 'crm/ar-reconcile.js', 'crm/case-revision.js', 'crm/surplus.js',
   'crm/metrics-shared.js', 'crm/analyzer.js', 'crm/management-intelligence.js',
-  'crm/customer-finance.js', 'crm/finance-helpers.js', 'crm/insights.js', 'crm/cheque-module.js', 'crm/data-quality.js',
+  'crm/customer-finance.js', 'crm/customer-summary.js', 'crm/finance-helpers.js', 'crm/insights.js', 'crm/cheque-module.js', 'crm/data-quality.js',
   'crm/unofficial-invoice.js', 'crm/commission.js', 'crm/working-capital.js', 'crm/fx.js',
   'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js', 'crm/careers.js',
   'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js',

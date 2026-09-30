@@ -357,6 +357,8 @@
         '<h4 style="margin:0 0 8px">🤖 بات اعلان تلگرام/بله (US-333)</h4>' +
         '<div style="background:var(--crd,#f8fafc);border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:12.5px;margin-bottom:10px">' +
         'اعلان‌های حیاتی (چک، سیستم، ادمین) علاوه بر کارتابل به گروه شرکت در تلگرام/بله ارسال می‌شود.<br>' +
+        'ثبت درخواست و تغییر واقعی وضعیت آن، پس از ثبت روی سرور، خودکار به گروه تلگرام ارسال می‌شود؛ رفرش یا ذخیرهٔ بدون تغییر پیام تازه‌ای نمی‌فرستد.<br>' +
+        '<small>اعلان درخواست‌ها مستقل از گزینهٔ این مرورگر است؛ فعال/غیرفعال‌سازی مرکزی با <code>rfq_notifications</code> در فایل امن تنظیمات ربات انجام می‌شود.</small><br>' +
         '<small style="color:#94a3b8">پیش‌نیاز: فایل bot-config.php روی هاست طبق راهنمای BOT-SETUP-GUIDE.md</small></div>' +
         '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px">' +
         '<input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="localStorage.setItem(\'ptf_bot_enabled\',this.checked?\'1\':\'0\')"> فعال‌سازی ارسال به بات</label>' +

@@ -29,6 +29,8 @@ storage-config.php
 ../storage-config.php
 llm-config.php
 sms-config.php
+bot-config.php
+bot-config.staging.php
 
 # کلیدهای اتصال به Google Search Console (هرگز کامیت نشود)
 api/gsc-config.php

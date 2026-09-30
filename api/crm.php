@@ -270,11 +270,11 @@ function ptf_bot_cfg() {
     }
     return null;
 }
-function ptf_bot_group_send($text, &$errs = []) {
+function ptf_bot_group_send($text, &$errs = [], $skipTelegram = false) {
     $cfg = ptf_bot_cfg();
     if (!$cfg) { $errs[] = 'bot-config.php یافت نشد'; return false; }
     $targets = [];
-    if (!empty($cfg['telegram_token']) && !empty($cfg['telegram_chat_id'])) $targets[] = ['https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage', $cfg['telegram_chat_id'], 'telegram'];
+    if (!$skipTelegram && !empty($cfg['telegram_token']) && !empty($cfg['telegram_chat_id'])) $targets[] = ['https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage', $cfg['telegram_chat_id'], 'telegram'];
     if (!empty($cfg['bale_token']) && !empty($cfg['bale_chat_id'])) $targets[] = ['https://tapi.bale.ai/bot' . $cfg['bale_token'] . '/sendMessage', $cfg['bale_chat_id'], 'bale'];
     $ok = false;
     foreach ($targets as $t) {
@@ -288,10 +288,10 @@ function ptf_bot_group_send($text, &$errs = []) {
         curl_close($ch);
         if ($code >= 200 && $code < 300) $ok = true; else $errs[] = $t[2] . ':' . $code . ($cerr ? ' (' . $cerr . ')' : '');
     }
-    if (!$targets) $errs[] = 'هیچ کانال باتی در bot-config.php کامل نیست';
+    if (!$targets && !$skipTelegram) $errs[] = 'هیچ کانال باتی در bot-config.php کامل نیست';
     return $ok;
 }
-function ptf_site_alert($smsText, $botText) {
+function ptf_site_alert($smsText, $botText, $telegramHandled = false) {
     /* صف + یک shutdown؛ ptf_site_alert_flush یک‌بار مصرف است (idempotent) */
     if (!isset($GLOBALS['__ptf_site_alerts'])) {
         $GLOBALS['__ptf_site_alerts'] = [];
@@ -301,7 +301,7 @@ function ptf_site_alert($smsText, $botText) {
             ptf_site_alert_flush();
         });
     }
-    $GLOBALS['__ptf_site_alerts'][] = [$smsText, $botText];
+    $GLOBALS['__ptf_site_alerts'][] = [$smsText, $botText, $telegramHandled];
 }
 function ptf_site_alert_flush() {
     $queue = $GLOBALS['__ptf_site_alerts'] ?? [];
@@ -321,7 +321,9 @@ function ptf_site_alert_flush() {
                 $log[] = 'sms: sms-config.php یافت نشد یا api_key ندارد';
             }
         } catch (Throwable $t) { $log[] = 'sms: ' . $t->getMessage(); }
-        try { $be = []; ptf_bot_group_send($botText, $be); if ($be) $log[] = 'bot: ' . implode(' | ', $be); }
+        /* RFQ Telegram is already in the durable outbox; keep existing SMS/Bale,
+           and do not send a second Telegram message for the same registration. */
+        try { $be = []; ptf_bot_group_send($botText, $be, !empty($item[2])); if ($be) $log[] = 'bot: ' . implode(' | ', $be); }
         catch (Throwable $t) { $log[] = 'bot: ' . $t->getMessage(); }
         if ($log) error_log('PTF site alert: ' . implode(' ; ', $log));
     }
@@ -1286,6 +1288,7 @@ if (!is_dir($data_dir)) {
    - حالت mysql (پس از سوییچ نهایی): خواندن از دیتابیس (منبع حقیقت) با fallback به فایل. */
 require_once __DIR__ . '/db-lib.php';
 require_once __DIR__ . '/contact-merge-lib.php'; /* v34.39.30 (CONTACT-ROOTS R7): semantics مشترک اتحاد فیلدهای تماس */
+require_once __DIR__ . '/rfq-notify-lib.php'; /* RFQ events after a successful server write, not browser refresh */
 
 function load_data($key) {
     global $data_dir;
@@ -1305,12 +1308,30 @@ function load_data($key) {
 }
 
 function save_data($key, $data) {
-    global $data_dir;
+    global $data_dir, $action, $auth_info;
     $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    /* dual-write: ابتدا فایل (مسیر همیشه‌موفق)، سپس دیتابیس (در صورت فعال بودن) */
+    if ($json === false) return false;
+    /* Keep the existing non-RFQ storage contract. */
     $file = "$data_dir/$key.json";
-    file_put_contents($file, $json, LOCK_EX);
-    ptf_db_write($key, $json);
+    if ($key !== 'rfqs') {
+        $written = file_put_contents($file, $json, LOCK_EX);
+        ptf_db_write($key, $json);
+        return $written !== false;
+    }
+    /* Compare the actual previous site record under a write lock, not a browser
+       snapshot. Repeating set_status/refresh must not create a second notice. */
+    $lock = @fopen($file . '.lock', 'c+');
+    if (!$lock || !flock($lock, LOCK_EX)) { if (is_resource($lock)) fclose($lock); return false; }
+    try {
+        $before = load_data($key);
+        if (file_put_contents($file, $json, LOCK_EX) === false) return false;
+        ptf_db_write($key, $json);
+        if (is_array($data) && ptf_rfq_notify_enabled() && in_array($action, ['add_rfq_site','add_rfq','update_rfq','set_status'], true)) {
+            $events = ptf_rfq_notify_events($before, $data, 'site', (string)($auth_info['user'] ?? 'سایت'), 'site-write:' . bin2hex(random_bytes(16)));
+            ptf_rfq_notify_enqueue($events);
+        }
+        return true;
+    } finally { flock($lock, LOCK_UN); fclose($lock); }
 }
 
 /* ===== v33.22.0 (P1-MySQL-WIRE — سیم‌کشی مسیر سینک به MySQL همان هاست) =====
@@ -2031,11 +2052,16 @@ switch($action) {
             'date' => date('Y-m-d H:i'),
             'approvedBy' => null
         ];
-        save_data('rfqs', $rfqs);
+        if (!save_data('rfqs', $rfqs)) {
+            http_response_code(503);
+            echo json_encode(['ok'=>false, 'error'=>'rfq_write_failed'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         push_event_rec('rfq_site', 'یک استعلام هوشمند از سایت ثبت شد: ' . clean($_POST['company'] ?? '') . ' (' . $code . ')', ['code' => $code]);
         ptf_site_alert(
             "پیشرو تجهیز فرتاک\nاستعلام جدید از سایت ثبت شد\nکد: " . $code . "\nشرکت: " . mb_substr(clean($_POST['company'] ?? ''), 0, 60) . "\nتلفن: " . clean($_POST['phone'] ?? ''),
-            "📥 استعلام جدید از سایت\nکد پیگیری: " . $code . "\nشرکت: " . clean($_POST['company'] ?? '') . "\nنام: " . clean($_POST['name'] ?? '') . "\nتلفن: " . clean($_POST['phone'] ?? '') . "\nموضوع: " . clean($_POST['subject'] ?? '') . "\nحوزه: " . clean($_POST['category'] ?? '') . "\n⏳ در انتظار بررسی در CRM"
+            "📥 استعلام جدید از سایت\nکد پیگیری: " . $code . "\nشرکت: " . clean($_POST['company'] ?? '') . "\nنام: " . clean($_POST['name'] ?? '') . "\nتلفن: " . clean($_POST['phone'] ?? '') . "\nموضوع: " . clean($_POST['subject'] ?? '') . "\nحوزه: " . clean($_POST['category'] ?? '') . "\n⏳ در انتظار بررسی در CRM",
+            true /* Telegram handled by the RFQ outbox after successful save */
         );
         echo json_encode(['ok' => true, 'code' => $code], JSON_UNESCAPED_UNICODE);
         break;
@@ -2056,7 +2082,11 @@ switch($action) {
             'statusText' => clean($_POST['statusText'] ?? 'دریافت اولیه'),
             'date' => date('Y/m/d')
         ];
-        save_data('rfqs', $rfqs);
+        if (!save_data('rfqs', $rfqs)) {
+            http_response_code(503);
+            echo json_encode(['ok'=>false, 'error'=>'rfq_write_failed'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         echo json_encode(['ok' => true, 'code' => $code], JSON_UNESCAPED_UNICODE);
         break;
 
@@ -2069,7 +2099,11 @@ switch($action) {
                 $r['statusText'] = clean($_POST['statusText'] ?? $r['statusText']);
             }
         }
-        save_data('rfqs', $rfqs);
+        if (!save_data('rfqs', $rfqs)) {
+            http_response_code(503);
+            echo json_encode(['ok'=>false, 'error'=>'rfq_write_failed'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         echo json_encode(['ok' => true]);
         break;
 
@@ -2530,7 +2564,11 @@ switch($action) {
                 $done = true;
             }
         }
-        if ($done) save_data($key, $items);
+        if ($done && !save_data($key, $items)) {
+            http_response_code(503);
+            echo json_encode(['ok'=>false, 'error'=>'status_write_failed'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         /* v34.7.71 (SUP-SMS-001): پیامک ثبت/رد تامین‌کننده */
         $smsSent = false;
         if ($done && $type === 'supplier' && $smsPhone !== '' && sms_enabled()) {
@@ -3014,7 +3052,19 @@ switch($action) {
             }
             /* v33.22.0: نوشتن یکپارچه (فایل همیشه + MySQL با توجه به mode).
                در mode=mysql شکست DB یعنی منبع حقیقت ذخیره نشده → کل پاسخ ناموفق + retry کلاینت. */
+            $rfqBefore = null;
+            if ($k === 'ptf_crm_rfqs' && !$restore && !$allow_wipe && ptf_rfq_notify_enabled()) {
+                $rfqBefore = json_decode((string)(sync_key_read($sdir, $k) ?? '[]'), true);
+            }
             if (!sync_key_write($sdir, $k, $v, $pushNextRev)) { $dbWriteFailed = true; break; }
+            /* Legacy fallback still exists. Notify only the accepted RFQ write,
+               after conflict/tombstone/restore guards, not the incoming snapshot.
+               This is a per-key commit; another legacy key can still fail later. */
+            if (is_array($rfqBefore)) {
+                $rfqAfter = json_decode($v, true);
+                if (is_array($rfqAfter)) ptf_rfq_notify_enqueue(ptf_rfq_notify_events($rfqBefore, $rfqAfter, 'crm',
+                    (string)($auth_info['user'] ?? ''), 'sync:' . $pushNextRev . ':' . hash('sha256', $v)));
+            }
             $meta[$k] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
             $krevs[$k] = $pushNextRev;
             $saved_keys[] = $k;
