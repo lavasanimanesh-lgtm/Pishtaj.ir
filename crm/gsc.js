@@ -136,15 +136,23 @@
       return;
     }
     var t = _data.totals || {};
+    var q = _data.visible_queries || {};
+    var apiV2 = (+_data.v >= 2 && q.clicks != null);
+    var visibleClicks = q.clicks != null ? (+q.clicks || 0) : (+t.clicks || 0);
+    var brandClicks = q.brand_clicks != null ? (+q.brand_clicks || 0) : (+t.brand_clicks || 0);
+    var brandShare = visibleClicks ? (brandClicks / visibleClicks) : null;
     var ctr = t.impressions ? (t.clicks / t.impressions) : 0;
-    var brandShare = t.clicks ? (t.brand_clicks / t.clicks) : 0;
+    var brandSub = visibleClicks
+      ? n(brandClicks) + ' از ' + n(visibleClicks) + ' کلیکِ Queryهای قابل‌مشاهده'
+      : 'دادهٔ Query قابل‌مشاهده در این بازه نیست';
+    var aggregateLabel = apiV2 ? 'کل GSC' : 'Queryهای قابل‌مشاهده (API قدیمی)';
 
     var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">' +
-      card('نمایش', n(t.impressions), _data.days + ' روز اخیر') +
-      card('کلیک', n(t.clicks), 'CTR ' + pct(ctr)) +
-      card('کوئری', n(t.queries), 'دارای نمایش') +
-      card('صفحهٔ ۱', n(t.pos1), 'جایگاه ≤ ۱۰', '#059669') +
-      card('سهم کلیک برندی', pct(brandShare), brandShare > 0.7 ? '⚠️ وابسته به برند' : 'خوب', brandShare > 0.7 ? '#dc2626' : '#059669') +
+      card('نمایش ' + aggregateLabel, n(t.impressions), apiV2 ? _data.days + ' روز · بُعد date' : 'جمع Queryهای برگشتی از GSC') +
+      card('کلیک ' + aggregateLabel, n(t.clicks), 'CTR ' + pct(ctr) + (apiV2 ? ' · بُعد date' : ' · Queryهای قابل‌مشاهده')) +
+      card('Queryهای قابل‌مشاهده', n(q.count != null ? q.count : t.queries), 'ردیف‌های Query برگشتی از GSC') +
+      card('Queryهای صفحهٔ ۱', n(q.pos1 != null ? q.pos1 : t.pos1), 'جایگاه ≤ ۱۰ · فقط ردیف‌های قابل‌مشاهده', '#059669') +
+      card('سهم برند در Queryهای قابل‌مشاهده', brandShare === null ? '—' : pct(brandShare), brandSub, brandShare !== null && brandShare > 0.7 ? '#b45309' : '#059669') +
       '</div>';
 
     h += '<div id="gscTrend"></div>'; /* v34.12.0 (S3): روند اسنپ‌شات‌ها */
@@ -250,18 +258,25 @@
       box.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px;color:#b91c1c;font-size:12px">⚠️ ' + escP((d && d.error) || 'خطا') + '</div>';
       return;
     }
-    var pctDone = d.total ? Math.round((d.indexed / d.total) * 100) : 0;
+    var indexed = +d.indexed || 0;
+    var checked = d.checked_successfully != null ? (+d.checked_successfully || 0) : (indexed + (+d.pending || 0));
+    var uninspected = d.uninspected != null ? (+d.uninspected || 0) : (+d.new || 0);
+    var pctChecked = d.total ? Math.round((checked / d.total) * 100) : 0;
+    var indexedAmongChecked = checked ? Math.round((indexed / checked) * 100) : null;
     var h = '<div style="font-size:12px;line-height:2;color:#475569">' +
-      'کلِ صفحاتِ ایندکس‌پذیر: <b>' + n(d.total) + '</b> · ' +
-      'ایندکس‌شده: <b style="color:#059669">' + n(d.indexed) + '</b> · ' +
-      'ایندکس‌نشده: <b style="color:#dc2626">' + n(d.not_indexed) + '</b>' +
-      (d.error ? ' · خطا در بررسی: <b style="color:#b91c1c">' + n(d.error) + '</b>' : '') +
-      (d.remaining > 0 ? ' · <b>در صف: ' + n(d.remaining) + '</b>' : '') +
-      (d.checked_this_run ? ' · بررسی‌شدهٔ این بار: <b>' + n(d.checked_this_run) + '</b>' : '') +
+      'کلِ URLهای ایندکس‌پذیر: <b>' + n(d.total) + '</b> · ' +
+      'بازرسی موفق: <b>' + n(checked) + '</b> · ' +
+      'تأییدشده با وضعیت Indexed: <b style="color:#059669">' + n(indexed) + '</b> · ' +
+      'بازرسی‌شده بدون تأیید Indexed: <b style="color:#b45309">' + n(d.pending) + '</b> · ' +
+      'جدید/بررسی‌نشده: <b style="color:#64748b">' + n(uninspected) + '</b>' +
+      (d.error ? ' · خطای API: <b style="color:#b91c1c">' + n(d.error) + '</b>' : '') +
+      (d.remaining > 0 ? ' · <b>در صف بازرسی: ' + n(d.remaining) + '</b>' : '') +
+      (d.checked_this_run ? ' · تلاش‌های این بار: <b>' + n(d.checked_this_run) + '</b>' : '') +
       (extra && extra.note ? ' · <span style="color:#7c3aed">' + escP(extra.note) + '</span>' : '') +
       '</div>' +
-      '<div style="height:8px;background:#f1f5f9;border-radius:6px;overflow:hidden;margin:6px 0 2px"><div style="height:100%;width:' + pctDone + '%;background:linear-gradient(90deg,#10b981,#059669);border-radius:6px"></div></div>' +
-      '<div style="font-size:11px;color:#94a3b8">' + pctDone + '٪ ایندکس شده</div>';
+      '<div style="height:8px;background:#f1f5f9;border-radius:6px;overflow:hidden;margin:6px 0 2px"><div style="height:100%;width:' + pctChecked + '%;background:linear-gradient(90deg,#0ea5e9,#0284c7);border-radius:6px"></div></div>' +
+      '<div style="font-size:11px;color:#94a3b8">' + pctChecked + '٪ بازرسی موفق شده‌اند' +
+      (indexedAmongChecked !== null ? ' · در میان بازرسی‌های موفق، ' + indexedAmongChecked + '٪ وضعیت Indexed دارند' : ' · هنوز بازرسی URL Inspection ثبت نشده است؛ صفرِ تأیید به معنی صفرِ ایندکس نیست') + '</div>';
 
     if ((d.newly_indexed || []).length) {
       h += '<div style="margin-top:8px;font-size:12px;color:#059669"><b>✅ این بار ایندکس شد (' + (d.newly_indexed || []).length + '):</b></div>' +
@@ -276,12 +291,12 @@
 
     var pl = d.pending_list || [];
     if (pl.length) {
-      h += '<div style="margin-top:8px;font-size:12px;color:#b45309"><b>⏳ هنوز ایندکس نشده / جدید (' + pl.length + (pl.length >= 300 ? '+، فقط ۳۰۰ نخست' : '') + '):</b></div>' +
-        '<div style="max-height:260px;overflow:auto;margin-top:4px"><table class="cms-tbl"><thead><tr><th>صفحه</th><th>وضعیت</th><th>گوگل می‌گوید</th><th>عملیات</th></tr></thead><tbody>';
+      h += '<div style="margin-top:8px;font-size:12px;color:#b45309"><b>⏳ URLهای جدید یا نیازمند پیگیریِ بازرسی (' + pl.length + (pl.length >= 300 ? '+، فقط ۳۰۰ نخست' : '') + '):</b></div>' +
+        '<div style="max-height:260px;overflow:auto;margin-top:4px"><table class="cms-tbl"><thead><tr><th>صفحه</th><th>وضعیت بازرسی</th><th>گوگل می‌گوید</th><th>عملیات</th></tr></thead><tbody>';
       pl.forEach(function (r) {
-        var st = r.state === 'new' ? '<span style="color:#64748b">جدید (بررسی‌نشده)</span>'
-          : (r.state === 'error' ? '<span style="color:#b91c1c">خطا</span>'
-          : '<span style="color:#b45309">ایندکس‌نشده</span>');
+        var st = r.state === 'new' ? '<span style="color:#64748b">جدید (URL Inspection نشده)</span>'
+          : (r.state === 'error' ? '<span style="color:#b91c1c">خطای API؛ وضعیت نامعلوم</span>'
+          : '<span style="color:#b45309">بررسی‌شده؛ بدون تأیید Indexed</span>');
         var said = r.coverage ? escP(r.coverage) : (r.error ? escP(r.error) : '—');
         var vd = r.verdict && r.verdict !== 'UNKNOWN' ? ' · ' + escP(r.verdict) : '';
         /* v34.38.20 (INDEX-TRACKER-REQUEST-LINK): برای هر ردیفِ ایندکس‌نشده یک دکمهٔ
@@ -297,8 +312,8 @@
           '<td style="white-space:nowrap">' + actions + '</td></tr>';
       });
       h += '</tbody></table></div>';
-    } else if (!d.remaining && d.total) {
-      h += '<div style="margin-top:8px;color:#059669;font-size:12.5px"><b>✅ همهٔ صفحاتِ موجود ایندکس شده‌اند.</b></div>';
+    } else if (!d.remaining && d.total && indexed === +d.total) {
+      h += '<div style="margin-top:8px;color:#059669;font-size:12.5px"><b>✅ همهٔ URLهای بررسی‌شده وضعیت Indexed دارند.</b></div>';
     }
     box.innerHTML = h;
   };
@@ -463,7 +478,13 @@
   window.gscTrendLoad = function () {
     var box = document.getElementById('gscTrend'); if (!box) return;
     api('snaps', {}, function (d) {
-      if (!d.ok || !(d.series || []).length) { box.innerHTML = ''; return; }
+      if (!d || !d.ok) { box.innerHTML = ''; return; }
+      if (!(d.series || []).length) {
+        box.innerHTML = d.legacy_snaps_excluded
+          ? '<div style="margin-top:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 10px;font-size:11px;color:#92400e">اسنپ‌شات‌های قدیمی به‌دلیل نداشتن جمع تجمیعی GSC از نمودار کنار گذاشته شدند؛ روند با ثبت اسنپ‌شات‌های معتبر جدید ساخته می‌شود.</div>'
+          : '';
+        return;
+      }
       var ser = d.series;
       var max = Math.max.apply(null, ser.map(function (x) { return x.clicks; })) || 1;
       var bars = ser.slice(-30).map(function (x) {
@@ -476,7 +497,7 @@
         'نمایش <b style="color:' + (dl.impressions >= 0 ? '#059669' : '#dc2626') + '">' + (dl.impressions >= 0 ? '+' : '') + dl.impressions + '%</b></span>' : '';
       box.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:8px;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 12px">' +
         '<div style="display:flex;gap:2px;align-items:flex-end;height:48px">' + bars + '</div>' +
-        '<span style="font-size:11px;color:#94a3b8">' + ser.length + ' اسنپ‌شات روزانه</span>' + dlH + '</div>';
+        '<span style="font-size:11px;color:#94a3b8">' + ser.length + ' اسنپ‌شات معتبر' + (d.legacy_snaps_excluded ? ' · ' + n(d.legacy_snaps_excluded) + ' قدیمی کنار گذاشته شد' : '') + '</span>' + dlH + '</div>';
     });
   };
 
@@ -666,12 +687,12 @@
     md += '# گزارش هوشمند سئو — pishtaj.ir\n';
     md += '- تولید: ' + gen + ' · ابزار: CRM ' + (window.PTF_CRM_RELEASE || '') + ' (GSC-AI-REPORT)' + (d.cached ? ' · (دادهٔ کش‌شده)' : '') + '\n';
     md += '- بازهٔ جاری: ' + d.start + ' تا ' + d.end + ' (' + d.days + ' روز) · دورهٔ مقایسه: ' + d.prev_start + ' تا ' + d.prev_end + '\n';
-    md += '- منبع داده: Google Search Console API (dataState=final) — سهمیهٔ URL Inspection مصرف نشده\n\n';
+    md += '- منبع داده: Google Search Console API (dataState=final) — خودِ گزارش URL Inspection اجرا نمی‌کند\n\n';
     var okAi = !!(a && a.ok && a.data);
     if (okAi) {
       var A = a.data;
       md += '## ۱) جمع‌بندی تحلیلی هوش مصنوعی\n';
-      md += 'نمرهٔ سلامت سئو: ' + (A.health_score != null ? A.health_score + '/100' : '—') + '\n\n';
+      md += 'برآورد کیفی AI (معیار رسمی Google نیست): ' + (A.health_score != null ? A.health_score + '/100' : '—') + '\n\n';
       md += String(A.summary || '') + '\n\n';
       md += '## ۲) یافته‌ها (تشخیص، به ترتیب اهمیت)\n';
       (A.findings || []).forEach(function (f) {
@@ -721,7 +742,7 @@
         return;
       }
       window._ptfGscAiDigest = d;
-      body().innerHTML = '<div style="color:#64748b">✅ دادهٔ ' + n(d.totals && d.totals.queries || 0) + ' کوئری و ' + n((d.pages && d.pages.top) ? d.pages.top.length : 0) + ' صفحهٔ برتر دریافت شد.</div>' +
+      body().innerHTML = '<div style="color:#64748b">✅ دادهٔ ' + n(d.visible_queries && d.visible_queries.count || 0) + ' Query قابل‌مشاهده و ' + n((d.pages && d.pages.top) ? d.pages.top.length : 0) + ' صفحهٔ برتر دریافت شد.</div>' +
         '<div style="color:#64748b;margin-top:6px">⏳ گام ۲ از ۲ — تحلیل ساختاریافته با هوش مصنوعی (تشخیص، شواهد، اولویت‌ها)…</div>';
       gscLLM('seo_gsc_report', { digest: d.digest_text }, function (a) {
         var md = gscAiBuildReport(d, a);
@@ -739,7 +760,7 @@
           var score = A.health_score != null ? Math.max(0, Math.min(100, Math.round(+A.health_score || 0))) : null;
           var scoreClr = score === null ? '#64748b' : (score >= 70 ? '#059669' : (score >= 45 ? '#b45309' : '#b91c1c'));
           h += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:10px 14px;margin-bottom:8px">' +
-            '<b style="font-size:14px">نمرهٔ سلامت سئو</b>' +
+            '<b style="font-size:14px">برآورد کیفی AI</b><span style="font-size:10px;color:#64748b">(معیار رسمی Google نیست)</span>' +
             '<b style="font-size:22px;color:' + scoreClr + '">' + (score !== null ? score + '/100' : '—') + '</b>' +
             '<span style="font-size:12px;color:#475569;flex:1;min-width:220px">' + escP(String(A.summary || '').slice(0, 600)) + (String(A.summary || '').length > 600 ? '…' : '') + '</span></div>';
           (A.findings || []).forEach(function (f) {
