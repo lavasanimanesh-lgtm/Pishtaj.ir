@@ -217,13 +217,15 @@ function gsc_api($cfg, $path, $payload = null, $method = 'GET', $silent = false)
    اگر از آخرین اسنپ‌شات بیش از ۲۰ ساعت گذشته، وضعیت روز ذخیره می‌شود (سری زمانی برای
    روند و مقایسهٔ دوره‌ها). ═══ */
 $GSC_SNAP_DIR = $DATA . '/gsc-snaps';
-function gsc_snap_maybe($dir, $days, $sum, $dates) {
+function gsc_snap_maybe($dir, $days, $sum, $dates, $siteTotals = null) {
     if (!is_dir($dir)) @mkdir($dir, 0755, true);
     $existing = glob($dir . '/*.json') ?: [];
     usort($existing, function ($a, $b) { return strcmp($b, $a); }); /* جدیدترین اول */
     $today = date('Y-m-d');
-    if ($existing && basename($existing[0], '.json') === $today) return; /* امروز گرفته شده */
-    if ($existing && is_file($existing[0]) && time() - (int)@filemtime($existing[0]) < 20 * 3600) return; /* هنوز ۲۰ ساعت نشده */
+    $latest = $existing ? json_decode((string)@file_get_contents($existing[0]), true) : null;
+    $hasAccurateTotals = is_array($latest) && (int)($latest['metricVersion'] ?? 0) >= 2;
+    if ($hasAccurateTotals && basename($existing[0], '.json') === $today) return; /* امروز با مخرج درست گرفته شده */
+    if ($hasAccurateTotals && is_file($existing[0]) && time() - (int)@filemtime($existing[0]) < 20 * 3600) return; /* هنوز ۲۰ ساعت نشده */
     $top = function ($rows, $key, $lim) {
         $out = [];
         foreach (array_slice($rows, 0, $lim) as $r) {
@@ -232,10 +234,14 @@ function gsc_snap_maybe($dir, $days, $sum, $dates) {
         }
         return $out;
     };
+    $siteTotals = is_array($siteTotals) ? $siteTotals : [];
     $snap = [
+        'metricVersion' => 2,
         'date' => $today, 'days' => $days, 'ts' => date('c'),
-        'clicks' => (float)($sum['totals']['clicks'] ?? 0),
-        'impressions' => (float)($sum['totals']['impressions'] ?? 0),
+        'clicks' => (float)($siteTotals['clicks'] ?? $sum['clicks'] ?? 0),
+        'impressions' => (float)($siteTotals['impressions'] ?? $sum['impressions'] ?? 0),
+        'visibleQueryClicks' => (float)($sum['clicks'] ?? 0),
+        'visibleQueryImpressions' => (float)($sum['impressions'] ?? 0),
         'topQueries' => $top($sum['queries'] ?? [], 'query', 30),
         'topPages' => $top($sum['pages'] ?? [], 'page', 30),
     ];
@@ -649,7 +655,7 @@ switch ($action) {
         $force = !empty($_REQUEST['refresh']);
 
         $c = gsc_cache_read();
-        if (!$force && $c && (int)($c['days'] ?? 0) === $days
+        if (!$force && $c && (int)($c['v'] ?? 0) >= 2 && (int)($c['days'] ?? 0) === $days
             && (int)($c['ts'] ?? 0) > time() - 1800) {
             $c['cached'] = true;
             jok($c);
@@ -660,6 +666,8 @@ switch ($action) {
         $d = gsc_query($cfg, ['date'], $days, 400);
 
         $sum = gsc_summarize($q['rows'] ?? [], $p['rows'] ?? []);
+        /* totals کارت‌های اصلی از بُعد date؛ جزئیات برند/کوئری فقط از ردیف‌های قابل‌مشاهده‌اند. */
+        $siteTotals = gsc_ai_totals(array_map('gsc_ai_row', $d['rows'] ?? []));
         $dates = [];
         foreach (($d['rows'] ?? []) as $r) {
             if (empty($r['keys'][0])) continue;
@@ -670,7 +678,7 @@ switch ($action) {
             ];
         }
         usort($dates, function ($a, $b) { return strcmp($a['date'], $b['date']); });
-        gsc_snap_maybe($GSC_SNAP_DIR, $days, $sum, $dates); /* v34.12.0 (S3): اسنپ‌شات lazy روزانه */
+        gsc_snap_maybe($GSC_SNAP_DIR, $days, $sum, $dates, $siteTotals); /* اسنپ‌شات v2: جمع کلی از date، Queryها جدا */
         $wins = [];
         foreach ($sum['queries'] as $r) {
             if ($r['brand']) continue;
@@ -688,15 +696,24 @@ switch ($action) {
         usort($noClick, function ($a, $b) { return $b['impressions'] <=> $a['impressions']; });
 
         $out = [
+            'v' => 2,
             'days' => $days,
             'end'  => date('Y-m-d', strtotime('-2 days')),
             'ts'   => time(),
+            /* totals = جمع تجمیعی بُعد date؛ برند و شمار کوئری فقط در visible_queries. */
             'totals' => [
-                'queries' => $sum['queries_total'],
-                'clicks' => $sum['clicks'],
-                'impressions' => $sum['impressions'],
-                'brand_clicks' => $sum['brand_clicks'],
-                'brand_impressions' => $sum['brand_impressions'],
+                'clicks' => round($siteTotals['clicks']),
+                'impressions' => round($siteTotals['impressions']),
+                'ctr' => $siteTotals['ctr'],
+                'position' => round($siteTotals['pos'], 1),
+            ],
+            'visible_queries' => [
+                'count' => $sum['queries_total'],
+                'clicks' => round($sum['clicks']),
+                'impressions' => round($sum['impressions']),
+                'brand_clicks' => round($sum['brand_clicks']),
+                'brand_impressions' => round($sum['brand_impressions']),
+                'brand_click_share_pct' => $sum['clicks'] > 0 ? round($sum['brand_clicks'] / $sum['clicks'] * 100, 1) : 0,
                 'pos1' => $sum['pos1'], 'pos2' => $sum['pos2'],
                 'pos3' => $sum['pos3'], 'pos_far' => $sum['pos_far'],
             ],
@@ -725,8 +742,8 @@ switch ($action) {
         $AI_CACHE = $DATA . '/gsc-ai-report.json';
         if (!$force && is_file($AI_CACHE)) {
             $c = json_decode((string)@file_get_contents($AI_CACHE), true);
-            /* v34.39.32: نسخهٔ ساختار دیجست — کش قدیمی فاقد تطبیق کوئری↔صفحه است */
-            if (is_array($c) && (int)($c['v'] ?? 0) >= 2 && (int)($c['days'] ?? 0) === $days && (int)($c['ts'] ?? 0) > time() - 1800) {
+            /* v34.39.48: نسخهٔ ساختار دیجست — جداسازی KPI تجمیعی از queryهای قابل‌مشاهده */
+            if (is_array($c) && (int)($c['v'] ?? 0) >= 3 && (int)($c['days'] ?? 0) === $days && (int)($c['ts'] ?? 0) > time() - 1800) {
                 $c['cached'] = true;
                 jok($c);
             }
@@ -739,11 +756,13 @@ switch ($action) {
 
         /* هستهٔ لازم — خطا یکسره گزارش را نمی‌سازد (مثل overview) */
         $q = gsc_query_range($cfg, ['query'], $start, $end, 1000);
-        $p = gsc_query_range($cfg, ['page'], $start, $end, 500);
+        /* sitemap از 600+ URL عبور کرده؛ page limit باید برای پوششِ sitemap کافی باشد. */
+        $p = gsc_query_range($cfg, ['page'], $start, $end, 1000);
         $d = gsc_query_range($cfg, ['date'], $start, $end, 400);
         /* تکمیلی — تاب‌آور */
         $pq = gsc_query_range($cfg, ['query'], $prevStart, $prevEnd, 1000, true);
-        $pp = gsc_query_range($cfg, ['page'], $prevStart, $prevEnd, 500, true);
+        $pp = gsc_query_range($cfg, ['page'], $prevStart, $prevEnd, 1000, true);
+        $pd = gsc_query_range($cfg, ['date'], $prevStart, $prevEnd, 400, true);
         $dev = gsc_query_range($cfg, ['device'], $start, $end, 50, true);
         $ctry = gsc_query_range($cfg, ['country'], $start, $end, 50, true);
         /* v34.39.32: تطبیق کوئری↔صفحه — کلید تشخیص کندیبالیزیشن و «کدام صفحه را برای
@@ -751,6 +770,7 @@ switch ($action) {
         $qp = gsc_query_range($cfg, ['query', 'page'], $start, $end, 3000, true);
         $hasPrevQ = !isset($pq['__error']);
         $hasPrevP = !isset($pp['__error']);
+        $hasPrevD = !isset($pd['__error']);
 
         $rowsQ = array_map('gsc_ai_row', $q['rows'] ?? []);
         $rowsP = array_map('gsc_ai_row', $p['rows'] ?? []);
@@ -758,9 +778,14 @@ switch ($action) {
         usort($rowsD, function ($a, $b) { return strcmp($a['k'], $b['k']); });
         $rowsPQ = $hasPrevQ ? array_map('gsc_ai_row', $pq['rows'] ?? []) : [];
         $rowsPP = $hasPrevP ? array_map('gsc_ai_row', $pp['rows'] ?? []) : [];
+        $rowsPD = $hasPrevD ? array_map('gsc_ai_row', $pd['rows'] ?? []) : [];
 
-        $tCur = gsc_ai_totals($rowsQ);
-        $tPrev = gsc_ai_totals($rowsPQ);
+        /* «query» rows ممکن است به‌علت حریم خصوصی بخشی از داده را پنهان کنند؛
+           KPI کل از بُعد date می‌آید و جمعِ queryها جداگانه گزارش می‌شود. */
+        $tQueryCur = gsc_ai_totals($rowsQ);
+        $tQueryPrev = gsc_ai_totals($rowsPQ);
+        $tSiteCur = gsc_ai_totals($rowsD);
+        $tSitePrev = $hasPrevD ? gsc_ai_totals($rowsPD) : null;
 
         /* برند در برابر غیربرند (دورهٔ جاری) */
         $brand = ['clicks' => 0.0, 'imp' => 0.0]; $nonbrand = ['clicks' => 0.0, 'imp' => 0.0];
@@ -835,15 +860,41 @@ switch ($action) {
         $topPages = $rowsP;
         usort($topPages, function ($a, $b) { return $b['clicks'] <=> $a['clicks']; });
 
-        /* پوشش: نقشهٔ محلی + داشتن داده (بدون فراخوانی اضافه) */
+        /* سنجهٔ عملکردِ URLهای sitemap — دادهٔ Search Analytics، نه وضعیتِ ایندکس.
+           page rows با sitemap محلی هم‌تراز می‌شود؛ 1000 ردیف برای پوششِ همهٔ URLها کافی است. */
         $sitemapUrls = gsc_sitemap_urls($ROOT);
-        $sitemapTotal = count($sitemapUrls);
-        $withData = 0;
-        foreach ($rowsP as $r) if ($r['impressions'] > 0) $withData++;
+        $urlKey = function ($url) {
+            $parts = parse_url(trim((string)$url));
+            if (!is_array($parts)) return '';
+            $host = strtolower((string)($parts['host'] ?? ''));
+            if ($host === 'www.pishtaj.ir') $host = 'pishtaj.ir';
+            if ($host !== 'pishtaj.ir') return '';
+            $path = rawurldecode((string)($parts['path'] ?? '/'));
+            if ($path === '' || $path[0] !== '/') $path = '/' . $path;
+            $path = preg_replace('#index\\.html$#i', '', $path) ?? $path;
+            $path = rtrim($path, '/');
+            if ($path === '') $path = '/';
+            return 'https://pishtaj.ir' . $path;
+        };
+        $sitemapSet = [];
+        foreach (array_keys($sitemapUrls) as $u) {
+            $key = $urlKey($u);
+            if ($key !== '') $sitemapSet[$key] = true;
+        }
+        $sitemapTotal = count($sitemapSet);
+        $withDataSet = []; $outsideSitemapSet = [];
+        foreach ($rowsP as $r) {
+            if ($r['impressions'] <= 0) continue;
+            $key = $urlKey($r['k']);
+            if ($key !== '' && isset($sitemapSet[$key])) $withDataSet[$key] = true;
+            else $outsideSitemapSet[$key !== '' ? $key : (string)$r['k']] = true;
+        }
+        $withData = count($withDataSet);
+        $outsideSitemapWithData = count($outsideSitemapSet);
 
         /* ردیاب ایندکس (از state محلی) */
         $tracker = gsc_tracker_load($GSC_TRACKER);
-        $trk = ['known' => 0, 'indexed' => 0, 'pending' => 0, 'new' => 0, 'error' => 0, 'lastRun' => ''];
+        $trk = ['known' => 0, 'indexed' => 0, 'pending' => 0, 'new' => 0, 'error' => 0, 'checked' => 0, 'lastRun' => '', 'lastInspectionAt' => ''];
         foreach (($tracker['byUrl'] ?? []) as $u => $st) {
             $trk['known']++;
             $s = (string)($st['state'] ?? '');
@@ -852,7 +903,9 @@ switch ($action) {
             elseif ($s === 'error') $trk['error']++;
             else $trk['pending']++;
         }
+        $trk['checked'] = $trk['indexed'] + $trk['pending'];
         $trk['lastRun'] = (string)($tracker['meta']['lastRun'] ?? '');
+        $trk['lastInspectionAt'] = (string)($tracker['meta']['lastInspectionAt'] ?? '');
 
         /* واچ‌لیست + آخرین جایگاه از تازه‌ترین اسنپ‌شات */
         $watch = gsc_watch_load($DATA);
@@ -889,22 +942,43 @@ switch ($action) {
         /* ─── دیجست متنی — هستهٔ گزارش ─── */
         $L = [];
         $L[] = '## KPI — ' . $days . ' روز (' . $start . ' تا ' . $end . ') در برابر دورهٔ قبل (' . $prevStart . ' تا ' . $prevEnd . ')';
-        $dC = $hasPrevQ ? gsc_ai_pct($tCur['clicks'], $tPrev['clicks']) : null;
-        $dI = $hasPrevQ ? gsc_ai_pct($tCur['impressions'], $tPrev['impressions']) : null;
-        /* v34.39.32: «دورهٔ قبل: 0» ≠ «بدون دادهٔ دورهٔ قبل» — خوانندهٔ گزارش نباید
-           صفرِ واقعی را با نبود داده اشتباه بگیرد. */
-        $dCLbl = $dC !== null ? (' (' . ($dC >= 0 ? '+' : '') . $dC . '%)')
-             : ($hasPrevQ ? ' (دورهٔ قبل: ' . round($tPrev['clicks']) . ' کلیک)' : ' (بدون دادهٔ دورهٔ قبل)');
-        $dILbl = $dI !== null ? (' (' . ($dI >= 0 ? '+' : '') . $dI . '%)')
-             : ($hasPrevQ ? ' (دورهٔ قبل: ' . round($tPrev['impressions']) . ' نمایش)' : '');
-        $L[] = 'کلیک: ' . round($tCur['clicks']) . $dCLbl
-             . ' | نمایش: ' . round($tCur['impressions']) . $dILbl
-             . ' | CTR کل: ' . round($tCur['ctr'] * 100, 2) . '%'
-             . ' | میانگین جایگاه وزنی: ' . round($tCur['pos'], 1);
-        $brandShareClicks = $tCur['clicks'] > 0 ? round($brand['clicks'] / $tCur['clicks'] * 100, 1) : 0;
-        $L[] = 'کوئری دارای نمایش: ' . count($qMapCur) . ' | کلیک برندی: ' . round($brand['clicks']) . ' (' . $brandShareClicks . '% از کل) | کلیک غیربرندی: ' . round($nonbrand['clicks']) . ' | نمایش غیربرندی: ' . round($nonbrand['imp']);
+        $siteDeltaClicks = $hasPrevD && $tSitePrev !== null ? gsc_ai_pct($tSiteCur['clicks'], $tSitePrev['clicks']) : null;
+        $siteDeltaImpressions = $hasPrevD && $tSitePrev !== null ? gsc_ai_pct($tSiteCur['impressions'], $tSitePrev['impressions']) : null;
+        $queryDeltaClicks = $hasPrevQ ? gsc_ai_pct($tQueryCur['clicks'], $tQueryPrev['clicks']) : null;
+        $queryDeltaImpressions = $hasPrevQ ? gsc_ai_pct($tQueryCur['impressions'], $tQueryPrev['impressions']) : null;
+        $siteDCLbl = $siteDeltaClicks !== null ? (' (' . ($siteDeltaClicks >= 0 ? '+' : '') . $siteDeltaClicks . '%)')
+             : ($hasPrevD ? ' (دورهٔ قبل: ' . round($tSitePrev['clicks']) . ' کلیک)' : ' (مقایسه در دسترس نیست)');
+        $siteDILbl = $siteDeltaImpressions !== null ? (' (' . ($siteDeltaImpressions >= 0 ? '+' : '') . $siteDeltaImpressions . '%)')
+             : ($hasPrevD ? ' (دورهٔ قبل: ' . round($tSitePrev['impressions']) . ' نمایش)' : ' (مقایسه در دسترس نیست)');
+        $queryDCLbl = $queryDeltaClicks !== null ? (' (' . ($queryDeltaClicks >= 0 ? '+' : '') . $queryDeltaClicks . '%)')
+             : ($hasPrevQ ? ' (دورهٔ قبل: ' . round($tQueryPrev['clicks']) . ' کلیک)' : ' (مقایسه در دسترس نیست)');
+        $queryDILbl = $queryDeltaImpressions !== null ? (' (' . ($queryDeltaImpressions >= 0 ? '+' : '') . $queryDeltaImpressions . '%)')
+             : ($hasPrevQ ? ' (دورهٔ قبل: ' . round($tQueryPrev['impressions']) . ' نمایش)' : '');
+        $L[] = 'جمع کل عملکرد ارگانیک GSC (بُعد date): ' . round($tSiteCur['clicks']) . $siteDCLbl
+             . ' | نمایش ' . round($tSiteCur['impressions']) . $siteDILbl
+             . ' | CTR کل ' . round($tSiteCur['ctr'] * 100, 2) . '%'
+             . ' | میانگین جایگاه وزنی ' . round($tSiteCur['pos'], 1);
+        $L[] = 'ردیف‌های Query قابل‌مشاهده: ' . count($qMapCur) . ' | کلیک ' . round($tQueryCur['clicks']) . $queryDCLbl
+             . ' | نمایش ' . round($tQueryCur['impressions']) . $queryDILbl
+             . ' | CTR این ردیف‌ها ' . round($tQueryCur['ctr'] * 100, 2) . '%'
+             . ' | جایگاه وزنی این ردیف‌ها ' . round($tQueryCur['pos'], 1);
+        $brandShareClicks = $tQueryCur['clicks'] > 0 ? round($brand['clicks'] / $tQueryCur['clicks'] * 100, 1) : 0;
+        $queryRowsWithinTotals = $tQueryCur['clicks'] <= $tSiteCur['clicks'] + 0.5
+                              && $tQueryCur['impressions'] <= $tSiteCur['impressions'] + 0.5;
+        $L[] = 'برند/غیربرند فقط در Queryهای قابل‌مشاهده: برندی ' . round($brand['clicks']) . ' (' . $brandShareClicks . '% از کلیک‌های همین ردیف‌ها)'
+             . ' | غیربرندی ' . round($nonbrand['clicks']) . ' کلیک و ' . round($nonbrand['imp']) . ' نمایش.';
+        if ($queryRowsWithinTotals) {
+            $queryClickCoverage = $tSiteCur['clicks'] > 0 ? round($tQueryCur['clicks'] / $tSiteCur['clicks'] * 100, 1) : 0;
+            $queryImpCoverage = $tSiteCur['impressions'] > 0 ? round($tQueryCur['impressions'] / $tSiteCur['impressions'] * 100, 1) : 0;
+            $L[] = 'ردیف‌های Query قابل‌مشاهده پوششِ ' . $queryClickCoverage . '% از کلیک‌ها و ' . $queryImpCoverage . '% از نمایش‌های بُعد date را دارند؛ اختلافِ غیرقابل‌انتساب به ردیف Query: '
+                 . round(max(0, $tSiteCur['clicks'] - $tQueryCur['clicks'])) . ' کلیک / '
+                 . round(max(0, $tSiteCur['impressions'] - $tQueryCur['impressions'])) . ' نمایش.';
+        } else {
+            $L[] = '⚠️ جمع Query از جمع date بزرگ‌تر است؛ پیش از تفسیر، بازه/فیلتر/پراپرتی API را بررسی کنید.';
+        }
+        $L[] = 'نکتهٔ داده: GSC ممکن است بعضی عبارت‌های ناشناس/کم‌حجم را در بُعد Query نشان ندهد؛ اختلاف را به برند یا غیربرند نسبت ندهید.';
         $L[] = '';
-        $L[] = '## توزیع جایگاه و CTR (کوئری‌های دورهٔ جاری)';
+        $L[] = '## توزیع جایگاه و CTR (فقط ردیف‌های Query قابل‌مشاهده)';
         foreach ($posBands as $band => $b) {
             $ctrB = $b[1] > 0 ? round($b[2] / $b[1] * 100, 2) : 0;
             $L[] = 'جایگاه ' . $band . ': ' . $b[0] . ' کوئری | ' . round($b[1]) . ' نمایش | ' . round($b[2]) . ' کلیک | CTR ' . $ctrB . '%';
@@ -1016,9 +1090,14 @@ switch ($action) {
                 $L[] = '';
             }
         }
-        $L[] = '## پوشش و ایندکس';
-        $L[] = 'URLهای نقشهٔ سایت: ' . $sitemapTotal . ' | دارای داده در بازه: ' . $withData . ' (' . ($sitemapTotal > 0 ? round($withData / $sitemapTotal * 100, 1) : 0) . '%)' . ' | بدون داده: ' . max(0, $sitemapTotal - $withData);
-        $L[] = 'ردیاب ایندکس: ' . $trk['known'] . ' صفحهٔ شناخته‌شده | تأییدشده ایندکس: ' . $trk['indexed'] . ' | در صف بررسی: ' . $trk['pending'] . ' | جدید ثبت‌شده: ' . $trk['new'] . ' | خطا: ' . $trk['error'] . ($trk['lastRun'] ? ' | آخرین اجرا: ' . $trk['lastRun'] : '');
+        $L[] = '## عملکرد URLهای sitemap و وضعیتِ بازرسی ایندکس';
+        $L[] = 'URL یکتای sitemap محلی: ' . $sitemapTotal . ' | URLهای همین نقشه با حداقل یک impression در Performance: ' . $withData . ' (' . ($sitemapTotal > 0 ? round($withData / $sitemapTotal * 100, 1) : 0) . '%)'
+             . ' | بدون impression در این بازه: ' . max(0, $sitemapTotal - $withData) . ' | صفحاتِ دارای impression بیرون از sitemap: ' . $outsideSitemapWithData;
+        $L[] = 'این سنجه فقط دیده‌شدن در Performance است؛ «بدون داده» یعنی بی‌نمایش در این بازه، نه ایندکس‌نشده.';
+        $inspectionAt = $trk['lastInspectionAt'] !== '' ? $trk['lastInspectionAt'] : 'بازرسیِ URL Inspection ثبت نشده';
+        $L[] = 'ردیاب URL Inspection محلی (نه گزارش پوشش کل سایت): ' . $trk['known'] . ' URL شناخته‌شده | ' . $trk['indexed'] . ' بازرسی‌شده و تأییدشده Indexed | '
+             . $trk['pending'] . ' بازرسی‌شده اما بدون تأیید Indexed | ' . $trk['new'] . ' جدید/بررسی‌نشده | ' . $trk['error'] . ' خطای API | آخرین بازرسی واقعی: ' . $inspectionAt;
+        $L[] = 'صفرِ تأییدشده در ردیاب به معنی صفرِ ایندکس گوگل نیست؛ فقط نتیجهٔ مستقیمِ URL Inspection می‌تواند در این شمارش تأیید شود.';
         if (is_array($sitemaps)) {
             foreach ($sitemaps as $sm) {
                 $smState = $sm['state'] !== '' ? $sm['state'] : 'نامشخص'; /* v34.39.32: state خالی را صادقانه نشان بده */
@@ -1033,16 +1112,23 @@ switch ($action) {
         $digest = implode("\n", $L);
 
         $out = [
-            'v' => 2,
+            'v' => 3,
             'days' => $days, 'start' => $start, 'end' => $end,
             'prev_start' => $prevStart, 'prev_end' => $prevEnd,
             'generated' => date('c'), 'ts' => time(),
+            /* totals = دادهٔ تجمیعی بُعد date؛ visible_queries = جمع ردیف‌های Query که GSC برمی‌گرداند. */
             'totals' => [
-                'clicks' => round($tCur['clicks']), 'impressions' => round($tCur['impressions']),
-                'ctr' => round($tCur['ctr'] * 100, 2), 'pos' => round($tCur['pos'], 1),
-                'queries' => count($qMapCur),
+                'clicks' => round($tSiteCur['clicks']), 'impressions' => round($tSiteCur['impressions']),
+                'ctr' => round($tSiteCur['ctr'] * 100, 2), 'pos' => round($tSiteCur['pos'], 1),
+                'delta_clicks_pct' => $siteDeltaClicks, 'delta_impressions_pct' => $siteDeltaImpressions,
+            ],
+            'visible_queries' => [
+                'count' => count($qMapCur),
+                'clicks' => round($tQueryCur['clicks']), 'impressions' => round($tQueryCur['impressions']),
+                'ctr' => round($tQueryCur['ctr'] * 100, 2), 'pos' => round($tQueryCur['pos'], 1),
                 'brand_clicks' => round($brand['clicks']), 'nonbrand_clicks' => round($nonbrand['clicks']),
-                'delta_clicks_pct' => $dC, 'delta_impressions_pct' => $dI,
+                'brand_click_share_pct' => $brandShareClicks,
+                'delta_clicks_pct' => $queryDeltaClicks, 'delta_impressions_pct' => $queryDeltaImpressions,
             ],
             'bands' => $posBands,
             'queries' => ['top' => array_slice($topNonBrand, 0, 40), 'quickwins' => array_slice($wins, 0, 20),
@@ -1125,10 +1211,12 @@ switch ($action) {
     case 'snaps':
         $files = glob($GSC_SNAP_DIR . '/*.json') ?: [];
         sort($files);
-        $series = []; $lastTwo = [];
+        $series = []; $lastTwo = []; $legacySnaps = 0;
         foreach ($files as $i => $f) {
             $j = json_decode((string)@file_get_contents($f), true);
             if (!is_array($j) || empty($j['date'])) continue;
+            /* Snapshotهای قبلی مخرج date را ذخیره نمی‌کردند؛ نمودار کلیک/نمایش نباید از صفرهای کاذب ساخته شود. */
+            if ((int)($j['metricVersion'] ?? 0) < 2) { $legacySnaps++; continue; }
             $series[] = ['date' => $j['date'], 'clicks' => (float)($j['clicks'] ?? 0), 'impressions' => (float)($j['impressions'] ?? 0)];
             $lastTwo[] = $j;
             if (count($lastTwo) > 2) array_shift($lastTwo);
@@ -1139,7 +1227,7 @@ switch ($action) {
             $df = function ($x, $y) use ($a, $b) { return $a[$x] > 0 ? round((($b[$x] - $a[$x]) / $a[$x]) * 100, 1) : 0; };
             $delta = ['from' => $a['date'], 'to' => $b['date'], 'clicks' => $df('clicks', 0), 'impressions' => $df('impressions', 0)];
         }
-        jok(['series' => array_slice($series, -60), 'total_snaps' => count($series), 'delta' => $delta]);
+        jok(['series' => array_slice($series, -60), 'total_snaps' => count($series), 'legacy_snaps_excluded' => $legacySnaps, 'delta' => $delta]);
         break;
 
     /* v34.16.0 (S3-id/WATCH): افزودن/حذف کلمه از واچ‌لیست (سقف ۳۰) */
@@ -1422,7 +1510,16 @@ switch ($action) {
             }
         }
 
-        $tracker['meta'] = array('lastRun' => date('c'), 'totalIndexable' => count($universe), 'lastBatch' => $batch);
+        $trackerMeta = is_array($tracker['meta'] ?? null) ? $tracker['meta'] : array();
+        $trackerMeta['lastRun'] = date('c');
+        $trackerMeta['totalIndexable'] = count($universe);
+        $trackerMeta['lastBatch'] = $batch;
+        /* batch=0 فقط فهرست/گزارش را به‌روز می‌کند و هرگز به معنیِ بازرسیِ گوگل نیست. */
+        if ($checked > 0) {
+            $trackerMeta['lastInspectionAt'] = date('c');
+            $trackerMeta['lastInspectionBatch'] = $checked;
+        }
+        $tracker['meta'] = $trackerMeta;
         gsc_tracker_save($GSC_TRACKER, $tracker);
 
         /* ۴) شمارش + فهرست‌های نمایش */
@@ -1457,10 +1554,14 @@ switch ($action) {
         jok(array(
             'total'            => count($universe),
             'indexed'          => $indexedCount,
+            /* سازگاری با کلاینت قدیمی؛ UI/گزارش جدید باید از این تفکیک استفاده کند. */
             'not_indexed'      => $pendingCount + $newCount + $errorCount,
+            'not_confirmed_indexed' => $pendingCount + $newCount + $errorCount,
+            'checked_successfully' => $indexedCount + $pendingCount,
             'pending'          => $pendingCount,
             'error'            => $errorCount,
             'new'              => $newCount,
+            'uninspected'      => $newCount,
             'new_registered'   => $newRegistered,
             'checked_this_run' => $checked,
             'remaining'        => max(0, count($queue) - $checked),

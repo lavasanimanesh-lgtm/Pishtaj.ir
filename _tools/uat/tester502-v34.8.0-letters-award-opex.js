@@ -31,12 +31,12 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var version = JSON.parse(read('VERSION.json'));
 
 console.log('\n── پین نسخه و rollover ──');
-T('نسخهٔ رسمی دقیقاً v34.39.47 است', version.crm_version === 'v34.39.47', version.crm_version);
+T('نسخهٔ رسمی دقیقاً v34.39.48 است', version.crm_version === 'v34.39.48', version.crm_version);
 T('index، service worker، manifest و API هم‌نسخه‌اند',
-  read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.39.47'") > -1 &&
-  read('crm/sw.js').indexOf("RELEASE = 'v34.39.47'") > -1 &&
-  JSON.parse(read('crm/manifest.json')).version === '34.39.47' &&
-  api.indexOf("SD_SERVICE_VERSION = '34.39.47'") > -1);
+  read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.39.48'") > -1 &&
+  read('crm/sw.js').indexOf("RELEASE = 'v34.39.48'") > -1 &&
+  JSON.parse(read('crm/manifest.json')).version === '34.39.48' &&
+  api.indexOf("SD_SERVICE_VERSION = '34.39.48'") > -1);
 T('شمارهٔ نامعتبر v34.7.100 در نقاط رسمی باقی نمانده است',
   [read('VERSION.json'), read('crm/index.html'), read('crm/sw.js'), read('crm/manifest.json'), read('crm/clear-cache.html'), api].every(function (s) { return s.indexOf('34.7.100') === -1; }));
 

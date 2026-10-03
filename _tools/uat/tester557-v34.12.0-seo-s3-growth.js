@@ -29,9 +29,9 @@ T('FIX: کلاینت خطای فارسی سرور را کامل نشان می‌
 
 /* ═══ ۲) اسنپ‌شات روزانه ═══ */
 T('S3: gsc_snap_maybe با گپ ۲۰ ساعت + سقف ۱۸۰ روز', gscPhp.indexOf('function gsc_snap_maybe') > -1 && gscPhp.indexOf('20 * 3600') > -1 && gscPhp.indexOf('> 180') > -1);
-T('S3: اسنپ‌شات = جمع + ۳۰ کوئری + ۳۰ صفحه', /gsc_snap_maybe[\s\S]{0,1300}'topQueries'[\s\S]{0,300}'topPages'/.test(gscPhp));
+T('S3: اسنپ‌شات = جمع + ۳۰ کوئری + ۳۰ صفحه', /function gsc_snap_maybe[\s\S]{0,3000}'topQueries'[\s\S]{0,300}'topPages'/.test(gscPhp));
 T('S3: overview بعد از summarize اسنپ می‌گیرد', OVR.indexOf('gsc_snap_maybe($GSC_SNAP_DIR') > -1);
-T('S3: case snaps سری ۶۰ نقطه + دلتای درصدی دو نقطهٔ آخر', /case 'snaps'[\s\S]{0,1100}array_slice\(\$series, -60\)[\s\S]{0,80}'delta'/.test(gscPhp));
+T('S3: case snaps سری ۶۰ نقطهٔ معتبر + دلتای درصدی دو نقطهٔ آخر', /case 'snaps'[\s\S]{0,2200}array_slice\(\$series, -60\)[\s\S]{0,100}'legacy_snaps_excluded'[\s\S]{0,80}'delta'/.test(gscPhp));
 T('S3: اسنپ‌شات‌ها در crm/data/gsc-snaps', gscPhp.indexOf("gsc-snaps") > -1);
 
 /* ═══ ۳) خوشه‌بندی AI ═══ */
