@@ -15,10 +15,10 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var surplus = read('crm/surplus.js');
 var php = read('api/storage.php');
 
-T('VERSION.json = v34.39.43', ver.crm_version === 'v34.39.43', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.39.43', /window\.PTF_CRM_RELEASE = 'v34\.39\.43'/.test(idx));
-T('sw RELEASE = v34.39.43', sw.indexOf("RELEASE = 'v34.39.43'") > -1);
-T('storage.js cache-bust 34.39.43', /storage\.js\?v=34\.39\.43/.test(idx));
+T('VERSION.json = v34.39.46', ver.crm_version === 'v34.39.46', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.39.46', /window\.PTF_CRM_RELEASE = 'v34\.39\.46'/.test(idx));
+T('sw RELEASE = v34.39.46', sw.indexOf("RELEASE = 'v34.39.46'") > -1);
+T('storage.js cache-bust 34.39.46', /storage\.js\?v=34\.39\.46/.test(idx));
 
 T('compressImage WebP سپس JPEG می‌سازد', st.indexOf("cv.toBlob(function (webp)") > -1 && st.indexOf("'image/jpeg', 0.82") > -1 && st.indexOf('function pickBest') > -1);
 T('کوچک‌ترین خروجی انتخاب می‌شود', st.indexOf('opts.sort(function (a, b) { return a.size - b.size; })') > -1);

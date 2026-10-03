@@ -6,9 +6,9 @@ var fs = require('fs');
 var path = require('path');
 function read(p) { return fs.readFileSync(path.join(__dirname, '..', '..', p), 'utf8'); }
 
-var fails = 0;
+var fails = 0, passes = 0;
 function check(cond, msg) {
-  if (cond) console.log('  PASS  ' + msg);
+  if (cond) { passes++; console.log('  PASS  ' + msg); }
   else { fails++; console.log('  FAIL  ' + msg); }
 }
 
@@ -100,5 +100,6 @@ check(petty.indexOf('Object.keys(window.ptfPettyPendingByUser()).reduce(function
 var cf = read('crm/customer-finance.js');
 check(cf.indexOf('var rows = q ? window.cfAccountRows(q) : all;') > -1, 'حساب مشتریان: بدون جستجو، محاسبهٔ دوم حذف شد');
 
-console.log(fails === 0 ? '\nALL CHECKS PASSED ✔' : '\n' + fails + ' CHECK(S) FAILED ✘');
+console.log('\n=== tester687: ' + passes + ' PASS / ' + fails + ' FAIL ===');
+console.log(fails === 0 ? 'ALL CHECKS PASSED ✔' : fails + ' CHECK(S) FAILED ✘');
 process.exit(fails === 0 ? 0 : 1);

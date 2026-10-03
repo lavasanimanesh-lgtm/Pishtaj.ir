@@ -1,11 +1,11 @@
-/* tester681 — v34.39.43 — رگرسیون کامل همهٔ اصلاحات این نشست
+/* tester681 — v34.39.46 — رگرسیون کامل همهٔ اصلاحات این نشست
    A) فوتر سایت پنج‌ستونه (site-shell.css / overrides.css + cache-bust همهٔ صفحات)
    B) حذف فوتر تماس از صفحات CRM (به‌جز قالب سربرگ)
    C) مشتری جدید در صدر فهرست (ptfCustSortNewest + renderCustomers2 واقعی)
    D) کادر سبز نسخه ارزی زیر پیشنهاد ریالی (IRR→FX) — commit واقعی + renderOffers واقعی
    E) تب‌های «ارجاع به من / با مسئول» درخواست‌ها — کد واقعی bridge.js با select شبیه‌سازی‌شده
    F) اعلان پیامک/بات ثبت استعلام و تامین‌کننده (قرارداد سورس؛ اجرای PHP در e2e-site-alert-v34.39.41.js)
-   G) قرارداد بامپ نسخه v34.39.43 */
+   G) قرارداد بامپ نسخه v34.39.46 */
 require('./harness');
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
@@ -112,6 +112,9 @@ console.log('\n[B] حذف فوتر تماس از CRM');
 console.log('\n[C] مشتری جدید در صدر فهرست');
 (function () {
   var idx = fs.readFileSync(path.join(CRM, 'index.html'), 'utf8');
+  /* v34.39.45: ptfCustSortNewest به کمک‌های پین‌شدهٔ زمان/کد وابسته شد — آن‌ها هم استخراج می‌شوند */
+  eval.call(global, sliceFn(idx, 'function ptfCustTs(').replace('function ptfCustTs', 'global.ptfCustTs = function'));
+  eval.call(global, sliceFn(idx, 'function ptfCustCdKey(').replace('function ptfCustCdKey', 'global.ptfCustCdKey = function'));
   eval.call(global, sliceFn(idx, 'function ptfCustSortNewest(list) {').replace('function ptfCustSortNewest', 'global.ptfCustSortNewest = function'));
   var cds = function (l) { return l.map(function (x) { return x.cd; }).join(','); };
   T('ترتیب نزولی بر اساس شمارهٔ کد', cds(ptfCustSortNewest([{ cd: 'CUST-1405-0002' }, { cd: 'CUST-1405-0010' }, { cd: 'CUST-1405-0001' }])) === 'CUST-1405-0010,CUST-1405-0002,CUST-1405-0001');
@@ -295,9 +298,9 @@ console.log('\n[F] پیامک/بات ثبت استعلام و تامین‌کن�
 })();
 
 /* ================= G) نسخه ================= */
-console.log('\n[G] قرارداد نسخه v34.39.43');
+console.log('\n[G] قرارداد نسخه v34.39.46');
 (function () {
-  var V = '34.39.43';
+  var V = '34.39.46';
   var ver = JSON.parse(read('VERSION.json'));
   var idx = read('crm/index.html'), sw = read('crm/sw.js');
   T('VERSION.json', ver.crm_version === 'v' + V && ver.version === V && ver.release === 'v' + V);
@@ -312,7 +315,7 @@ console.log('\n[G] قرارداد نسخه v34.39.43');
   });
   T('clear-cache / device-reconnect / shell / cms', read('crm/clear-cache.html').indexOf("window.VER = 'v" + V + "'") > -1 && read('crm/device-reconnect.html').indexOf("var VER = 'v" + V + "'") > -1 && read('crm/shell.js').indexOf("'v" + V + "'") > -1 && read('crm/cms.js').indexOf("PTF_CMS_JS_VER = 'v" + V + "'") > -1);
   T('SD_SERVICE_VERSION', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '" + V + "'") > -1);
-  T('ریلیزنوت v34.39.43 موجود است', fs.existsSync(path.join(ROOT, 'RELEASE-NOTES-v' + V + '.md')));
+  T('ریلیزنوت v34.39.46 موجود است', fs.existsSync(path.join(ROOT, 'RELEASE-NOTES-v' + V + '.md')));
 })();
 
 /* ================= H) استقرار استیجینگ فقط دستی ================= */
@@ -329,5 +332,5 @@ console.log('\n[H] استقرار استیجینگ اختیاری (فقط دست
   T('پروداکشن همچنان فقط دستی با تأیید DEPLOY است', /^\s{2}workflow_dispatch:/m.test(read('.github/workflows/deploy-production.yml')) && !/^\s{2}push:/m.test(read('.github/workflows/deploy-production.yml')));
 })();
 
-console.log('\n=== tester681 — v34.39.43 session fixes: ' + R.pass + ' PASS / ' + R.fail + ' FAIL ===');
+console.log('\n=== tester681 — v34.39.46 session fixes: ' + R.pass + ' PASS / ' + R.fail + ' FAIL ===');
 process.exit(R.fail ? 1 : 0);

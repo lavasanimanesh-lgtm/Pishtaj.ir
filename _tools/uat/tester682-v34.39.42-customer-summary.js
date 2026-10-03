@@ -336,7 +336,8 @@ var proto = harness({ ptf_crm_customers: [{ _id: '__proto__', cd: 'constructor',
 T('prototype-like record keys are safe', proto.model('constructor').ok && proto.model('__proto__').requests.length === 1);
 var rh = harness(fixture()), offerSource = read('crm/offers.js'), indexSource = read('crm/index.html');
 ['primaryPerson', 'entityMatches', 'ptfCustContactChannels', 'ptfCustContactCell', 'renderCustomers2'].forEach(function (name) { vm.runInContext(fn(offerSource, name), rh.s); });
-['ptfCustSortNewest', 'ptfCustDualName'].forEach(function (name) { vm.runInContext(fn(indexSource, name), rh.s); });
+/* v34.39.45: ptfCustSortNewest به کمکی‌های پین‌شدهٔ کد/زمان وابسته شد — آن‌ها هم بارگذاری می‌شوند */
+['ptfCustTs', 'ptfCustCdKey', 'ptfCustSortNewest', 'ptfCustDualName'].forEach(function (name) { vm.runInContext(fn(indexSource, name), rh.s); });
 rh.s.renderCustomers2(); var rendered = rh.doc.nodes.cTb.innerHTML;
 T('real customer list name + explicit summary action open overview', rendered.indexOf('class="cs-name"') > -1 && rendered.indexOf('data-entity-action="summary"') > -1);
 T('real list uses canonical customer id for new entry point', rendered.indexOf('data-customer-id="customer-1"') > -1);

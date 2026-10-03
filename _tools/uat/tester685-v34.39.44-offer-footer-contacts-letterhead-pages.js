@@ -68,9 +68,9 @@ function makeOffer(kind) {
 }
 
 var tpls = ['letterhead', 'executive', 'mono', 'minimal', 'classic'];
-var fails = 0;
+var fails = 0, passes = 0;
 function check(cond, msg) {
-  if (cond) { console.log('  PASS  ' + msg); } else { fails++; console.log('  FAIL  ' + msg); }
+  if (cond) { passes++; console.log('  PASS  ' + msg); } else { fails++; console.log('  FAIL  ' + msg); }
 }
 
 ['CO', 'TO'].forEach(function (kind) {
@@ -100,5 +100,6 @@ function check(cond, msg) {
   });
 });
 
-console.log(fails === 0 ? '\nALL CHECKS PASSED ✔' : '\n' + fails + ' CHECK(S) FAILED ✘');
+console.log('\n=== tester685: ' + passes + ' PASS / ' + fails + ' FAIL ===');
+console.log(fails === 0 ? 'ALL CHECKS PASSED ✔' : fails + ' CHECK(S) FAILED ✘');
 process.exit(fails === 0 ? 0 : 1);

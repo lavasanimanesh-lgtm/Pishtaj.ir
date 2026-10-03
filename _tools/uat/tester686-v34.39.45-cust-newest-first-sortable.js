@@ -24,15 +24,21 @@ global.localStorage = {
 };
 global.window = global;
 global.document = { getElementById: function () { return { textContent: '', title: '' }; } };
+/* لایهٔ دادهٔ مینیمال — هم‌شکل صفحهٔ واقعی (getData/setData روی همان انبار)؛
+   از v34.39.46 وضعیت سورت فقط از مسیر لایهٔ داده خوانده/نوشته می‌شود (قرارداد A10) */
+global.getData = function (k) {
+  try { var raw = Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; if (!raw) return []; return JSON.parse(raw); } catch (e) { return []; }
+};
+global.setData = function (k, d) { try { store[k] = JSON.stringify(d); return true; } catch (e) { return false; } };
 function renderCustomers() { global.__rendered = (global.__rendered || 0) + 1; }
 
 /* eval غیرمستقیم → اعلان تابع‌ها به اسکوپ گلوبل می‌آیند (در سخت‌گیرانه محلی می‌ماندند) */
 (0, eval)(sortBlock); /* توابع: ptfCustTs, ptfCustSortNewest, ptfCustCdKey, ptfCustSortVal,
                     ptfCustSortBy, ptfCustSortClick, ptfCustSortMarks + وضعیت _ptfCustListSort */
 
-var fails = 0;
+var fails = 0, passes = 0;
 function check(cond, msg) {
-  if (cond) console.log('  PASS  ' + msg);
+  if (cond) { passes++; console.log('  PASS  ' + msg); }
   else { fails++; console.log('  FAIL  ' + msg); }
 }
 
@@ -84,7 +90,9 @@ check(window._ptfCustListSort.key === 'newest', 'کلیک سوم: بازگشت �
 ptfCustSortClick('cd');
 check(window._ptfCustListSort.key === 'cd' && window._ptfCustListSort.dir === 'desc', 'کد با نزولی شروع می‌شود');
 var persisted = JSON.parse(store['ptf_cust_list_sort'] || '{}');
-check(persisted.key === 'cd' && persisted.dir === 'desc', 'وضعیت سورت در localStorage ماندگار شد');
+check(persisted.key === 'cd' && persisted.dir === 'desc', 'وضعیت سورت از مسیر لایهٔ داده ماندگار شد (بدون localStorage مستقیم)');
+var roundTrip = getData('ptf_cust_list_sort');
+check(roundTrip && roundTrip.key === 'cd' && roundTrip.dir === 'desc', 'بازخوانی وضعیت از لایهٔ داده همان مقدار ذخیره‌شده است');
 
 console.log('\n== ۵) مسیرهای ثبت مشتری مهر createdAtISO می‌گیرند ==');
 check(offersJs.indexOf('rec.createdAtISO = new Date().toISOString();') > -1, 'saveCust2 (مودال اصلی) مهر ثبت می‌زند');
@@ -101,5 +109,6 @@ check(offersJs.indexOf('window._ptfCustListSort') > -1 && offersJs.indexOf('ptfC
   'renderCustomers2 سورت کاربر را اعمال می‌کند');
 check(offersJs.indexOf('ptfCustSortMarks') > -1, 'نشانگر سورت پس از رندر به‌روز می‌شود');
 
-console.log(fails === 0 ? '\nALL CHECKS PASSED ✔' : '\n' + fails + ' CHECK(S) FAILED ✘');
+console.log('\n=== tester686: ' + passes + ' PASS / ' + fails + ' FAIL ===');
+console.log(fails === 0 ? 'ALL CHECKS PASSED ✔' : fails + ' CHECK(S) FAILED ✘');
 process.exit(fails === 0 ? 0 : 1);
