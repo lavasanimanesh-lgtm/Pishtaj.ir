@@ -895,7 +895,14 @@
     return table || '<tr><td colspan="4">موردی مطابق جست‌وجو نیست</td></tr>';
   };
   window.cfFinanceHtml = function () {
-    var q = String(window._cfSearch || ''), all = window.cfAccountRows(''), rows = window.cfAccountRows(q);
+    /* v34.39.46 (FINHUB-PERF): پوستهٔ تنبل — ماندهٔ حساب مشتریان فقط وقتی تبش فعال شود */
+    if (typeof window.ptfFinHubLazyGate === 'function' && window.ptfFinHubLazyGate('custacc')) {
+      return '<div id="cfFinanceHubBox" data-finlazy="1" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">📘 حساب مشتریان</h4><small style="color:#64748b">برای افزایش سرعت، مانده‌ها فقط هنگام نمایش این تب محاسبه می‌شوند.</small></div>' +
+        '<button class="bt bt-o" onclick="cfFinanceRender()">↻ بارگذاری</button></div></div>';
+    }
+    var q = String(window._cfSearch || ''), all = window.cfAccountRows('');
+    /* v34.39.46: بدون جستجو همان نتیجهٔ تمام را استفاده کن — قبلاً دو بار کامل حساب می‌شد */
+    var rows = q ? window.cfAccountRows(q) : all;
     var openN = all.filter(accountIsOpen).length;
     var table = rows.map(function (r) {
       var open = accountIsOpen(r);
@@ -906,6 +913,11 @@
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('cf', 'balance', 'مطالبات باز') : '<th>مطالبات باز</th>') +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('cf', 'credit', 'اعتبار نزد مشتری') : '<th>اعتبار نزد مشتری</th>') + '<th></th>' +
       '</tr></thead><tbody id="cfFinanceTbl">' + (table || '<tr><td colspan="4">موردی مطابق جست‌وجو نیست</td></tr>') + '</tbody></table></div></div>';
+  };
+  /* v34.39.46 (FINHUB-PERF): رندر کامل باکس حساب مشتریان — نقطهٔ ورود رندر تنبل هاب */
+  window.cfFinanceRender = function () {
+    var el = document.getElementById('cfFinanceHubBox');
+    if (el) el.outerHTML = window.cfFinanceHtml();
   };
   window.cfFinanceSearch = function (v) {
     window._cfSearch = String(v || '');

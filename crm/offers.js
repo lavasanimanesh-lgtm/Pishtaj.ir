@@ -3949,7 +3949,15 @@ function saveCust2(cd) {
       if (!rec.con && !primaryPerson(rec) && oldC2.con) rec.con = oldC2.con;
       items[i] = rec;
     }
-  } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
+  } else {
+    /* v34.39.45 (CUST-SORT): مهر ثبت برای مشتری تازه — مبنای سورت «جدیدترین اول».
+       بدون این مهر، صدرنشینی مشتری جدید فقط به شمارهٔ کد وابسته بود و گاهی اتفاق نمی‌افتاد. */
+    rec.createdAtISO = new Date().toISOString();
+    if (!rec.crAt) rec.crAt = rec.createdAtISO;
+    if (!rec.crBy) { try { rec.crBy = (typeof curSession === 'function' && curSession()) ? (curSession().user || '') : ''; } catch (eCrBy) {} }
+    if (typeof dedupStamp === 'function') dedupStamp(rec);
+    items.unshift(rec);
+  }
   /* v34.38.25 (CONTACT-STALE-HOOK): نرمال‌سازی شماره‌ها پیش از پایدارسازی انجام
      می‌شود (نه در هوک پس از ذخیره) — payload اولیه و مسیر retry برخورد کد هر دو
      نرمال‌اند و هوک دیگر مجبور به بازنویسیِ پس از ذخیره نیست. ضدتکرار بالاتر
@@ -4227,8 +4235,11 @@ window.ptfHealMissingCustomersFromRfqs = function () {
       venSt: 'unreg',
       ds: 'بازسازی از درخواست ' + (r.cd || ''),
       healedFromRfq: r.cd || '',
-      owner: r.crBy || r.owner || ''
+      owner: r.crBy || r.owner || '',
+      /* v34.39.45 (CUST-SORT): مهر ثبت برای مشتری بازسازی‌شده (به‌جای گم‌شدن میان میراثی‌ها) */
+      createdAtISO: new Date().toISOString()
     };
+    stub.crAt = stub.createdAtISO;
     /* v34.38.7 (CONTACT-GHOST): کلیدهای تماسِ تهی (people:[] / con:'' / ph:'') هرگز در
        payload نمی‌آیند. merge سرور «کلید حاضر را بازنویسی می‌کند» — اگر رکورد معتبرِ
        همین کد با تماس از قبل روی سرور باشد و این stub به هر دلیلی غیر-expectCreate برسد،
@@ -4310,8 +4321,14 @@ function renderCustomers2() {
   if (!tb) return;
   var q = ((document.getElementById('cSrch')||{}).value || '').trim();
   var list = q ? items.filter(function(e){ return entityMatches(e, q); }) : items;
-  /* جدیدترین مشتری در صدر فهرست */
-  if (typeof ptfCustSortNewest === 'function') list = ptfCustSortNewest(list);
+  /* v34.39.45 (CUST-SORT): پیش‌فرض «جدیدترین مشتری در صدر فهرست»؛ اگر کاربر روی
+     سرستونی کلیک کرده باشد، سورت انتخابی او اعمال می‌شود. */
+  var st = window._ptfCustListSort || { key: 'newest', dir: 'desc' };
+  if (st.key === 'newest') {
+    if (typeof ptfCustSortNewest === 'function') list = ptfCustSortNewest(list);
+  } else if (typeof window.ptfCustSortBy === 'function') {
+    list = window.ptfCustSortBy(list, st.key, st.dir);
+  }
   var h = '';
   list.forEach(function(c) {
     var pp = primaryPerson(c);
@@ -4337,6 +4354,7 @@ function renderCustomers2() {
   });
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">مشتری‌ای ثبت نشده</td></tr>';
   if (document.getElementById('dCust')) document.getElementById('dCust').textContent = items.length;
+  try { if (typeof window.ptfCustSortMarks === 'function') window.ptfCustSortMarks(); } catch (eMarks) {} /* v34.39.45 (CUST-SORT) */
 }
 
 function renderSuppliers2() {

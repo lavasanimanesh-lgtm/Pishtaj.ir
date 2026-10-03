@@ -54,12 +54,42 @@
     return '<button type="button" class="fin-hub-tab' + (on ? ' active' : '') + '" data-fin-hub-tab="' + id + '" title="' + lb + '" aria-label="' + lb + '" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="finHubSet(\'' + id + '\')">' + finIcon(icon) + '<span class="fin-hub-tab-label">' + lb + '</span></button>';
   }
   function bar() {
-    if (!canHub()) return '';
+    if (!canHub()) { window._ptfFinHubOn = false; return ''; }
+    window._ptfFinHubOn = true; /* v34.39.46 (FINHUB-PERF): مبنای دروازهٔ رندر تنبل */
     return '<div id="finHubBar" class="fin-hub-bar">' +
       '<div class="fin-hub-layout"><div class="fin-hub-heading"><b class="fin-hub-title">' + finIcon('hub') + '<span>هاب مالی مدیریتی</span></b><small>تنخواه، هزینه جاری، سهامداران، سال مالی، گزارش تجمیعی و تراز رسمی/غیررسمی — تب‌بندی شده برای کاهش شلوغی پنل</small></div>' +
       '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('vat', 'ارزش افزوده', 'report') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('treasury', 'خزانه/بانک', 'treasury') + btn('commission', 'پورسانت فروش', 'report') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', '🧾 چک‌ها', 'cheque') + '</div></div></div>';
   }
   window.finHubSet = function (id) { window._finHubTab = id || 'petty'; finHubApply(); };
+
+  /* ═══ v34.39.46 (FINHUB-PERF — گزارش کندی کارفرما): رندر تنبل تب‌ها ═══
+     قبلاً دادهٔ همهٔ تب‌های سنگین (تراز، پورسانت، کیفیت داده، چک‌ها، حساب
+     مشتریان/تأمین‌کنندگان، گزارش تجمیعی، سال مالی) همان لحظهٔ باز شدن پنل
+     محاسبه می‌شد با اینکه فقط یک تب دیده می‌شود. حالا سازنده‌ها پوستهٔ خالی
+     (data-finlazy="1") می‌سازند و محتوای هر تب فقط اولین باری که تبش فعال شود
+     محاسبه می‌شود؛ دکمهٔ بازخوانی هر باکس همچنان محاسبهٔ کامل می‌کند. */
+  window.ptfFinHubLazyGate = function (tabId) {
+    if (!window._ptfFinHubOn) return false; /* بدون نوار هاب → رفتار قدیمی، بدون تنبل‌سازی */
+    return (window._finHubTab || 'petty') !== tabId;
+  };
+  function lazyFillOne(boxId, fn) {
+    var el = document.getElementById(boxId);
+    if (!el || el.getAttribute('data-finlazy') !== '1') return; /* قبلاً پر شده */
+    try { if (typeof window[fn] === 'function') window[fn](); } catch (eLf) {}
+  }
+  window.ptfFinHubLazyFill = function (t) {
+    var LAZY = {
+      ledger: [['ledgerReportBox', 'ptfLedgerReportRender']],
+      commission: [['commissionBox', 'ptfCommissionRefresh']],
+      quality: [['qualityBox', 'ptfDataQualityRender']],
+      cheque: [['chequeBox', 'ptfChequePanelRender']],
+      custacc: [['cfFinanceHubBox', 'cfFinanceRender']],
+      supacc: [['slLiquidity', 'slLiquidityRender'], ['slFinanceHubBox', 'slFinanceHubRender']],
+      workcap: [['wcFinanceHubBox', 'wcRender']],
+      fiscal: [['fiscalBox', 'ptfFiscalRender']]
+    };
+    (LAZY[t] || []).forEach(function (p) { lazyFillOne(p[0], p[1]); });
+  };
   window.finHubApply = function () {
     if (!canHub()) return;
     var t = tab();
@@ -102,6 +132,8 @@
     show('qualityBox', t === 'quality');
     show('salesIntegrityQuality', t === 'quality');
     show('chequeBox', t === 'cheque');
+    /* v34.39.46 (FINHUB-PERF): پر کردن پوستهٔ تنبل تب فعال — فقط بار اول */
+    window.ptfFinHubLazyFill(t);
     var old = document.getElementById('finHubBar');
     if (old) old.outerHTML = bar();
     window.finHubOrder();

@@ -107,7 +107,10 @@
     var charge = tx.reduce(function (s, x) { return s + (x.type === 'charge' ? +x.amt || 0 : 0); }, 0);
     var direct = tx.reduce(function (s, x) { return s + (x.type === 'direct' ? +x.amt || 0 : 0); }, 0);
     var settle = tx.reduce(function (s, x) { return s + (x.type === 'settle' ? +x.amt || 0 : 0); }, 0);
-    var pending = Object.keys(window.ptfPettyPendingByUser()).reduce(function (s, k) { return s + window.ptfPettyPendingByUser()[k]; }, 0);
+    /* v34.39.46 (FINHUB-PERF): قبلاً به تعداد کاربران +۱ بار صدا زده می‌شد (هر بار
+       پارس کامل تنخواه)؛ حالا یک بار و کش محلی. */
+    var perMap = window.ptfPettyPendingByUser();
+    var pending = Object.keys(perMap).reduce(function (s, k) { return s + perMap[k]; }, 0);
     var roleCtl = '';
     if (curRole() === 'admin' || curRole() === 'chairman') roleCtl = '<button class="bt bt-o" style="padding:5px 10px;font-size:12px" onclick="pettySetTreasurerRole()">تنخواه‌گردان: ' + escP(treasurerRole()) + '</button>';
     el.innerHTML = '<div style="background:linear-gradient(135deg,#ecfdf5,#f0f9ff);border:1px solid #a7f3d0;border-radius:14px;padding:12px 14px">' +
@@ -168,7 +171,19 @@
         sm.innerHTML = '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 14px;font-size:13px">💰 مطالبات تنخواه شما (در انتظار تسویه): <b>' + money(mine) + '</b></div>';
       }
     }
-    el.innerHTML = list.map(function (x) {
+    /* v34.39.46 (FINHUB-PERF — گزارش کندی کارفرما): صفحه‌بندی فهرست تنخواه — ۵۰ رکورد
+       در هر گام (هم‌خانواده فهرست تأمین‌کنندگان، v34.7.91). در مقیاس صدها/هزاران رکورد،
+       رندر یکجای همهٔ کارت‌ها پنل را فریز می‌کرد. تغییر فیلتر/جستجو صفحه را صفر می‌کند. */
+    var _sortSig = '';
+    try { var _ss = (window.ptfSortState || {}).petty; if (_ss && _ss.key) _sortSig = _ss.key + ':' + _ss.dir; } catch (eSrt) {}
+    var _pageSig = filter + '|' + _sortSig; /* تغییر فیلتر یا سورت → بازگشت به صفحهٔ اول */
+    if (_pageSig !== window._pttyPageSig) { window._pttyPage = 0; window._pttyPageSig = _pageSig; }
+    var per = 50;
+    var page = window._pttyPage || 0;
+    if (page > 0 && page * per >= list.length) page = Math.max(0, Math.ceil(list.length / per) - 1);
+    window._pttyPage = page;
+    var shown = list.slice(0, (page + 1) * per);
+    el.innerHTML = shown.map(function (x) {
       var files = (typeof window.ptfPettyRecordFiles === 'function' ? window.ptfPettyRecordFiles(x) : (x.files || [])).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="color:#0e7490">📎' + escP(f.name || 'فایل') + '</a>' : (f.url ? '<a href="javascript:void(0)" onclick="ptfPettyOpenLegacyUrl(\'' + ptfOnClickArg(f.url) + '\')" style="color:#0e7490">📎' + escP(f.name || 'سند قدیمی') + '</a>' : ''); }).join(' ');
       var isVoid = x.st === 'void';
       var canEdit = !isVoid && ((x.by === me.name) || canAll());
@@ -191,7 +206,12 @@
         (isVoid ? '<span class="bd" style="background:#fee2e2;color:#b91c1c">ابطال شد</span>' : (x.st === 'settled' ? '<span class="bd b-st4">تسویه شد</span>' : (isTreasurer() ? '<button class="bt" style="padding:4px 11px;font-size:12px;background:#059669" onclick="pettySettle(\'' + x.cd + '\')">✔ تسویه از حساب</button>' : '<span class="bd" style="background:#fef3c7;color:#b45309">در انتظار تسویه</span>'))) + '</span>' +
         '</div></div>';
     }).join('') || '<div style="text-align:center;color:#94a3b8;padding:22px">هزینه‌ای ثبت نشده</div>';
+    if (list.length > shown.length) {
+      el.innerHTML += '<div style="text-align:center;padding:8px"><button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fde68a" onclick="ptfPettyMore()">⬇ نمایش ' +
+        Math.min(per, list.length - shown.length) + ' مورد دیگر (' + shown.length + ' از ' + list.length + ')</button></div>';
+    }
   };
+  window.ptfPettyMore = function () { window._pttyPage = (window._pttyPage || 0) + 1; renderPetty(); };
 
   /* نرمال‌ساز اسناد قدیمی تنخواه. در نسخه‌های مختلف فایل به صورت files[]، file،
      docs، attachments، receipt، کلید رشته‌ای، URL/DataURL یا نام‌های متفاوت key
@@ -1815,6 +1835,9 @@
     if (id === 'petty') {
       var btns = document.querySelectorAll('.sb-i'); for (var i = 0; i < btns.length; i++) btns[i].classList.remove('act');
       if (btn) btn.classList.add('act'); document.getElementById('pgTitle').textContent = '🏛 هاب مالی';
+      /* v34.39.46 (FINHUB-PERF): هر بار باز شدن پنل از تب تنخواه شروع شود تا
+         رندر تنبل تب‌های سنگین اثر کند (تب قبلی در _finHubTab مانده بود) */
+      window._finHubTab = 'petty';
       document.getElementById('panels').innerHTML = buildPetty(); renderPetty(); return;
     }
     _go(id, btn);

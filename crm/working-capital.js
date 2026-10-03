@@ -287,6 +287,12 @@
     return rows || '<tr><td colspan="6" style="color:#64748b">مانده افتتاحیهٔ دستی ثبت نشده است.</td></tr>';
   }
   function html() {
+    /* v34.39.46 (FINHUB-PERF): پوستهٔ تنبل — گزارش تجمیعی فقط وقتی تبش فعال شود */
+    if (typeof window.ptfFinHubLazyGate === 'function' && window.ptfFinHubLazyGate('workcap')) {
+      return '<div id="wcFinanceHubBox" data-finlazy="1" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">📊 گزارش تجمیعی وضعیت مالی و سرمایه در گردش</h4><small style="color:#64748b">برای افزایش سرعت، محاسبه فقط هنگام نمایش این تب انجام می‌شود.</small></div>' +
+        '<button class="bt bt-o" onclick="wcRender()">↻ بارگذاری و بازخوانی</button></div></div>';
+    }
     var d = window.ptfFinanceOfficialData(), c = d.cfg, t = d.total, s = d.source, o = d.opening, mv = d.moves;
     if (!d.realBuyFinanceGap && typeof window.ptfRealBuyFinanceGap === 'function') {
       try { d.realBuyFinanceGap = window.ptfRealBuyFinanceGap(); } catch (eG) {}
