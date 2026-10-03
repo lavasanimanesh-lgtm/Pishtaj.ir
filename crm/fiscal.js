@@ -611,6 +611,12 @@
 
   function fiscalHtml() {
     if (!canFiscal()) return '';
+    /* v34.39.46 (FINHUB-PERF): پوستهٔ تنبل — توزیع سود سال فقط وقتی تبش فعال شود */
+    if (typeof window.ptfFinHubLazyGate === 'function' && window.ptfFinHubLazyGate('fiscal')) {
+      return '<div id="fiscalBox" class="ptf-fiscal-shell" data-finlazy="1" style="display:none;background:#f8fafc;border:1px solid var(--brd);border-radius:16px;padding:12px 14px;margin:12px 0">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🗓 سال مالی و توزیع سود</h4><small style="color:#64748b">برای افزایش سرعت، محاسبه فقط هنگام نمایش این تب انجام می‌شود.</small></div>' +
+        '<button class="bt bt-o" onclick="ptfFiscalRender()">↻ بارگذاری و بازخوانی</button></div></div>';
+    }
     var year = normFiscalYear(window._fiscalYear); /* v34.0.5-alpha */
     var distPct = Math.max(0, Math.min(100, n(window._fiscalDistPct == null ? 60 : window._fiscalDistPct))); /* v34.0.5-alpha: رقم فارسی/رشته → عدد ۰ تا ۱۰۰ */
     var d = ptfFiscalDistribution(year, distPct);

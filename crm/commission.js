@@ -366,6 +366,11 @@
   }
   window.ptfCommissionHtml = function () {
     if (!isSenior()) return '';
+    /* v34.39.46 (FINHUB-PERF): پوستهٔ تنبل — محاسبهٔ پورسانت فقط وقتی تبش فعال شود */
+    if (typeof window.ptfFinHubLazyGate === 'function' && window.ptfFinHubLazyGate('commission')) {
+      return '<section id="commissionBox" data-finlazy="1" style="display:none"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">برای افزایش سرعت، محاسبه فقط هنگام نمایش این تب انجام می‌شود.</small></div>' +
+        '<button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 بارگذاری و محاسبه</button></div></section>';
+    }
     styleOnce(); var c = cfg(), month = normMonth(window._cmMonth || faMonth()), res = window.ptfCommissionCalc({ month: month });
     var unassigned = res.rows.filter(function (r) { return r.user === '_unassigned' && r.base > 0; })[0];
     return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف: مبلغ پایهٔ فاکتور، بدون ارزش افزوده و پس از مرجوعی — پس از تسویه کامل پرونده (حتی بایگانی‌شده؛ تا تصویب/پرداخت پورسانت صفر نمی‌شود)</small></div><div class="cm-controls"><div class="fld"><label>دوره ماهانه شمسی</label>' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('cmMonth', month) : '<input id="cmMonth" value="' + esc(month) + '" placeholder="۱۴۰۵/۰۵" inputmode="numeric">') + '</div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +

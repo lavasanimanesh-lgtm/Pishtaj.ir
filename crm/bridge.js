@@ -1803,8 +1803,11 @@
       coWeb: r.email || '', coTels: [], coAddr: '',
       people: r.contact ? (function () { var chN = chOf(r.phone); return [{ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: chN.tels, mobs: chN.mobs, mails: r.email ? [{ n: r.email, lb: '' }] : [], primary: true, src: 'site' }]; })() : [],
       phones: [], con: r.contact || '', ph: r.phone || '',
-      ds: 'ثبت خودکار از درخواست سایت ' + (r.code || '') + '', srcSite: r.code || ''
+      ds: 'ثبت خودکار از درخواست سایت ' + (r.code || '') + '', srcSite: r.code || '',
+      /* v34.39.45 (CUST-SORT): مهر ثبت — مشتری ساخته‌شده از فرم سایت در صدر فهرست بنشیند */
+      createdAtISO: new Date().toISOString()
     };
+    newC.crAt = newC.createdAtISO;
     if (typeof dedupStamp === 'function') dedupStamp(newC);
     custs.unshift(newC);
     /* v34.8.22 (W1): مشتریِ ساخته‌شده از درخواست سایت با فرمان اتمیک سروری. */

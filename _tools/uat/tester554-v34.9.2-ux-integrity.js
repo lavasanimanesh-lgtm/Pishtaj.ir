@@ -55,7 +55,7 @@ T('A: مسیر آرایه‌ای قبلی دست‌نخورده ماند', sy.in
 })();
 
 /* ═══ B) مشتریان ═══ */
-T('B: مرتب‌سازی جدیدترین‌اول (ptfCustSortNewest)', ih.indexOf('function ptfCustSortNewest') > -1 && ih.indexOf('var list = ptfCustSortNewest(items).filter') > -1);
+T('B: مرتب‌سازی جدیدترین‌اول (ptfCustSortNewest)', ih.indexOf('function ptfCustSortNewest') > -1 && ih.indexOf('ptfCustSortNewest(items)') > -1);
 T('B: گارد برخورد کد محلی در saveCust (کد پسونددار، نه آپدیت هم‌کد)', ih.indexOf("items.some(function (x) { return x && x.cd === recC.cd; })") > -1 && ih.indexOf("recC.cd + '-' + Date.now().toString(36)") > -1);
 T('B: فرم مشتری فیلد نام انگلیسی (nCEn) دارد', ih.indexOf('id="nCEn"') > -1);
 T('B: saveCust مقدار coEn را ذخیره می‌کند', ih.indexOf("coEn:(document.getElementById('nCEn')||{}).value || ''") > -1);
@@ -65,9 +65,13 @@ T('B: پیام فارسی برخورد کد در ptfEntityCommandMessage', sdv.i
 (function () {
   try {
     var ctx = { window: {} };
+    /* v34.39.45: وابستگی‌های پین‌شدهٔ زمان/کدِ سورت هم بارگذاری می‌شوند */
+    vm.runInNewContext(fnSrc(ih, 'function ptfCustTs('), ctx);
+    vm.runInNewContext(fnSrc(ih, 'function ptfCustCdKey('), ctx);
     vm.runInNewContext(fnSrc(ih, 'function ptfCustSortNewest'), ctx);
     var sorted = vm.runInNewContext('ptfCustSortNewest([{cd:"CUST-8",createdAtISO:"2026-01-01"},{cd:"CUST-230",createdAtISO:"2026-08-31"},{cd:"CUST-99"}]);', ctx);
-    T('B/رفتاری: جدیدترین (۲۳۰) اول و قدیمی‌ترین (۸) آخر', sorted[0].cd === 'CUST-230' && sorted[2].cd === 'CUST-8');
+    /* قرارداد v34.39.45: زمان‌دارها به ترتیب مهر ثبت، بی‌مهرها در انتها (پین‌شده در تستر۶۸۶) */
+    T('B/رفتاری: جدیدترین (۲۳۰) اول، بی‌مهر (۹۹) آخر', sorted[0].cd === 'CUST-230' && sorted[1].cd === 'CUST-8' && sorted[2].cd === 'CUST-99');
   } catch (e) { T('B/رفتاری sort اجرا شد', false, String(e)); }
 })();
 

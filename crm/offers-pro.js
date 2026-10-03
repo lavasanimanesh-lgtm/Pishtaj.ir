@@ -264,6 +264,18 @@
     { id: 'classic', lb: '📊 کلاسیک', desc: 'A4 افقی — جدول عریض، مناسب اقلام زیاد یا ستون‌های اضافی' }
   ];
 
+  /* v34.39.44 (دستور کارفرما ۱۴۰۴/۰۷/۱۱): اطلاعات تماس فوتر در هر ۵ قالب یکسان شد —
+     تلفن جدید، ایمیل شرکت و شماره موبایل واتس‌اپ. این مقادیر فقط در فوتر اسناد
+     استفاده می‌شوند؛ بقیهٔ سند (مانند بخش «از فروشنده») همچنان از SELLER_INFO می‌خوانند. */
+  var OFFER_FOOTER = {
+    tel: '021-91099242',
+    whatsapp: '+98 992 586 8479',
+    email: 'info@pishtaj.ir',
+    /* v34.39.44 (پیگیری کارفرما): تلفن بخش «از فروشنده (Vendor)» در بالای همهٔ قالب‌ها —
+       شمارهٔ جدید با حفظ پیش‌شماره‌های قالب قبلی */
+    vendorTel: '+98 (21) 9109 9242'
+  };
+
   // انتخاب قالب: دیالوگ با پیش‌نمایش
   window.offerPickTemplate = function (no) {
     var o = typeof no === 'string' ? getData('ptf_crm_offers').filter(function (x) { return x.no === no; })[0] : no;
@@ -680,7 +692,9 @@
     var nCols = docCols(o).length + (o.extraCols || []).length + (isCO ? 2 : 0);
     var fs = nCols <= 7 ? 9 : nCols <= 9 ? 8.3 : 7.6; // pt
     fs = ptfDocFsAdjust(o, fs); /* v14.2 US-356: تعدیل بر اساس تراکم محتوا */
-    var rowsPerPage = tpl === 'classic' ? (isCO ? 8 : 5) : (isCO ? 12 : 9);
+    /* v34.39.44: در قالب سربرگ رسمی، ردیف فاصله‌انداز سرستون (۸.۵mm) در هر صفحه
+       تکرار می‌شود → گنجایش تخمینی هر صفحه یک ردیف کمتر است. */
+    var rowsPerPage = tpl === 'classic' ? (isCO ? 8 : 5) : tpl === 'letterhead' ? (isCO ? 11 : 8) : (isCO ? 12 : 9);
     var pageCount = Math.max(1, Math.ceil((o.items || []).length / rowsPerPage));
     var docPrefix = o.kind === 'TO' ? 'TO' : (_pAs === 'TC' ? 'TC' : 'CO'); /* v20.1 US-442 */
     var meta = '<div class="dno">' + docPrefix + ' No.: <span class="acc">' + escP(o.no) + '</span>' + (o.rev ? ' <small>(Rev.' + String(o.rev).padStart(2, '0') + ')</small>' : '') + '</div>' +
@@ -689,7 +703,7 @@
       (isCO ? '<br><b>Currency:</b> ' + cur.id : '') +
       '<br><span class="pgc">Page 1 of ' + pageCount + '</span>';
     var parties = '<div class="parties">' +
-      '<div class="party"><div class="pt">From (Vendor)</div><b>' + SELLER_INFO.company + '</b><br>National ID: ' + SELLER_INFO.nationalId + '<br>Contact: ' + escP(o.sellerContact || SELLER_INFO.contact) + '<br>Tel: ' + SELLER_INFO.tel + '</div>' +
+      '<div class="party"><div class="pt">From (Vendor)</div><b>' + SELLER_INFO.company + '</b><br>National ID: ' + SELLER_INFO.nationalId + '<br>Contact: ' + escP(o.sellerContact || SELLER_INFO.contact) + '<br>Tel: ' + OFFER_FOOTER.vendorTel + '</div>' + /* v34.39.44: تلفن جدید فروشنده، پیش‌شماره‌ها حفظ شد */
       '<div class="party"><div class="pt">To (Client)</div><b>' + escP(o.buyerCo || '—') + '</b><br>Attention: ' + escP(o.buyerContact || '—') + '<br>Request No: ' + escP((typeof ptfInqClientNo === 'function' ? ptfInqClientNo(o.inqNo) : o.inqNo) || '—') + '<br>Tel: ' + escP((o.buyerTel && typeof ptfPhoneNorm === 'function') ? (ptfPhoneNorm(o.buyerTel, 'print') || o.buyerTel) : (o.buyerTel || '—')) + '</div></div>'; /* v14.2 US-357: تلفن سند EN همیشه لاتین +98 */
     var wm = isPreview ? 'body:after{content:"PREVIEW";position:fixed;top:44%;left:0;right:0;text-align:center;font-size:46pt;color:rgba(220,40,40,.10);transform:rotate(-16deg);font-weight:900;letter-spacing:8px;z-index:99}' : '';
     var common =
@@ -731,11 +745,20 @@
         'th{background:linear-gradient(90deg,#e87200,#ecb003);color:#fff;border:.4pt solid #d98700;padding:2mm;font-size:' + (fs - 0.3) + 'pt;letter-spacing:.2px}' +
         'td{border:.4pt solid #cbb28a;padding:1.8mm 2mm;text-align:center;vertical-align:middle}' +
         'tr.total td{background:#fdf3e3;border-top:1.2pt solid #e87200}.total .big{font-weight:700;font-size:' + (fs + 1) + 'pt}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#666}' +
-        '.ftr{position:fixed;bottom:8.5mm;left:12mm;right:12mm;text-align:center;font-size:7.8pt;color:#4b5057;line-height:1.8}';
+        '.ftr{position:fixed;bottom:8.5mm;left:12mm;right:12mm;text-align:center;font-size:7.8pt;color:#4b5057;line-height:1.8}' +
+        /* v34.39.44: جبران ارتفاع ردیف فاصله‌انداز سربرگ — فاصلهٔ پایینِ بخش طرفین
+           در صفحهٔ اول همان ۴mm قبلی بماند (۴ - ۴.۵ + ردیف ۸.۵ = ۴) */
+        '.parties{margin:4mm 0 -4.5mm}';
+      /* v34.39.44 (اصلاح گزارش کارفرما): در صفحهٔ دوم به بعد، سرستون تکرارشوندهٔ جدول
+         دقیقاً از لبهٔ بالای صفحه شروع می‌شد و زیر نوار گرادیانِ ثابت (۶.۲mm + خطوط مورب
+         تا ۸mm) پنهان می‌شد. چون @page حاشیه ندارد و بالشتک بدنه فقط به صفحهٔ اول اعمال
+         می‌شود، یک ردیف نامرئی ۸.۵ میلی‌متری به thead اضافه می‌شود — این ردیف همراه سرستون
+         در هر صفحه تکرار می‌شود و سرستون را زیر نوار نمی‌گذارد. */
+      var lhTableHtml = docTableHtml(o).replace('<thead>', '<thead><tr><td colspan="99" style="border:0;padding:0;height:8.5mm;line-height:8.5mm;font-size:1px">&nbsp;</td></tr>');
       body = lhBarsHtml() +
-        '<div class="ftr">' + SELLER_INFO.address + '<br>Tel: ' + SELLER_INFO.tel + ' | ' + SELLER_INFO.email + ' | www.pishtaj.ir</div>' +
+        '<div class="ftr">' + SELLER_INFO.address + '<br>Tel: ' + OFFER_FOOTER.tel + ' | WhatsApp: ' + OFFER_FOOTER.whatsapp + ' | ' + OFFER_FOOTER.email + ' | www.pishtaj.ir</div>' +
         '<div class="hd"><img src="' + SELLER_INFO.logo + '"><div class="ttl"><div class="co">Pishro Tajhiz Fartak Co.</div><div class="t">' + title + '</div></div><div class="meta">' + meta + '</div></div>' +
-        parties + docTableHtml(o) + docTailHtml(o);
+        parties + lhTableHtml + docTailHtml(o);
     } else if (tpl === 'executive') {
       /* 🖤 اجرایی — طراحی تیم برندینگ: نوار جانبی زغالی + اکسنت نارنجی برند */
       css = '@page{size:A4 landscape;margin:0}' + common +
@@ -762,7 +785,7 @@
         '.ftr{position:fixed;bottom:8mm;left:20mm;right:12mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#9aa0a6;border-top:.4pt solid #e4e6ea;padding-top:2mm}' +
         wm;
       body = '<div class="sidebar"></div>' +
-        '<div class="ftr"><span>' + SELLER_INFO.company + ' — National ID: ' + SELLER_INFO.nationalId + '</span><span>' + SELLER_INFO.tel + ' | ' + SELLER_INFO.email + ' | www.pishtaj.ir</span></div>' +
+        '<div class="ftr"><span>' + SELLER_INFO.company + ' — National ID: ' + SELLER_INFO.nationalId + '</span><span>Tel: ' + OFFER_FOOTER.tel + ' | WhatsApp: ' + OFFER_FOOTER.whatsapp + ' | ' + OFFER_FOOTER.email + ' | www.pishtaj.ir</span></div>' +
         '<div class="hd"><div><img src="' + SELLER_INFO.logo + '"><div class="ttl"><div class="t">' + title.split(' ')[0] + ' <b>' + title.split(' ').slice(1).join(' ') + '</b></div><div class="co">PISHRO TAJHIZ FARTAK CO.</div></div></div><div class="meta">' + meta + '</div></div>' +
         parties + docTableHtml(o) + docTailHtml(o);
     } else if (tpl === 'mono') {
@@ -783,7 +806,7 @@
         'tr.total td{border-top:1.4pt solid #17191c;border-bottom:2.2pt double #17191c;background:#fff}.total .big{font-weight:800;font-size:' + (fs + 1.2) + 'pt}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#5a5e64}' +
         '.ftr{position:fixed;bottom:8mm;left:16mm;right:16mm;text-align:center;font-size:7.5pt;color:#8a8f96;border-top:.4pt solid #c9ccd1;padding-top:2mm;letter-spacing:.5px;font-family:"Segoe UI",Tahoma,sans-serif}' +
         wm;
-      body = '<div class="ftr">' + SELLER_INFO.company + ' · ' + SELLER_INFO.address + ' · ' + SELLER_INFO.tel + ' · www.pishtaj.ir</div>' +
+      body = '<div class="ftr">' + SELLER_INFO.company + ' · ' + SELLER_INFO.address + '<br>Tel: ' + OFFER_FOOTER.tel + ' · WhatsApp: ' + OFFER_FOOTER.whatsapp + ' · ' + OFFER_FOOTER.email + ' · www.pishtaj.ir</div>' +
         '<div class="hd"><img src="' + SELLER_INFO.logo + '"><div class="meta">' + meta + '</div><div class="ttl"><div class="co">Pishro Tajhiz Fartak Co.</div><div class="t">' + title + '</div></div></div>' +
         parties + docTableHtml(o) + docTailHtml(o);
     } else if (tpl === 'minimal') {
@@ -799,7 +822,7 @@
         'td{border-bottom:.4pt solid #d8dadd;padding:2mm;text-align:center;vertical-align:middle}' +
         'tr.total td{border-top:1.2pt solid #1a1c1f;border-bottom:none;background:#faf8f4}.total .big{font-weight:700;font-size:' + (fs + 1) + 'pt}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#777}' +
         '.ftr{position:fixed;bottom:8mm;left:14mm;right:14mm;text-align:center;font-size:7.5pt;color:#8a8f96;letter-spacing:.5px}';
-      body = '<div class="ftr">' + SELLER_INFO.company + ' — ' + SELLER_INFO.address + ' — ' + SELLER_INFO.tel + ' — www.pishtaj.ir</div>' +
+      body = '<div class="ftr">' + SELLER_INFO.company + ' — ' + SELLER_INFO.address + '<br>Tel: ' + OFFER_FOOTER.tel + ' — WhatsApp: ' + OFFER_FOOTER.whatsapp + ' — ' + OFFER_FOOTER.email + ' — www.pishtaj.ir</div>' +
         '<div class="hd"><img src="' + SELLER_INFO.logo + '"><div class="ttl"><div class="t">' + title + '</div><div class="co">PISHRO TAJHIZ FARTAK CO.</div></div><div class="meta">' + meta + '</div></div>' +
         parties + docTableHtml(o) + docTailHtml(o);
     } else { // classic — افقی (نسخه بهبود یافته فرمت قبلی)
@@ -816,7 +839,7 @@
         'td{border:.4pt solid #9aa0a6;padding:1.6mm 2mm;text-align:center;vertical-align:middle}' +
         'tr.total td{background:#fdf1e7;border-top:1.2pt solid #f79400}.total .big{font-weight:700;font-size:' + (fs + 1) + 'pt}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#555}' +
         '.ftr{position:fixed;bottom:8mm;left:12mm;right:12mm;text-align:center;font-size:7.5pt;color:#f79400;border-top:.4pt solid #f0d9b8;padding-top:1mm;background:#fff}';
-      body = '<div class="ftr">Address: ' + SELLER_INFO.address + ' | Tel: ' + SELLER_INFO.tel + ' | ' + SELLER_INFO.email + ' | www.pishtaj.ir</div>' +
+      body = '<div class="ftr">Address: ' + SELLER_INFO.address + '<br>Tel: ' + OFFER_FOOTER.tel + ' | WhatsApp: ' + OFFER_FOOTER.whatsapp + ' | ' + OFFER_FOOTER.email + ' | www.pishtaj.ir</div>' +
         '<div class="hd"><img src="' + SELLER_INFO.logo + '"><div class="ttl"><div class="co">Pishro Tajhiz Fartak Co.</div><div class="t">' + title + '</div></div><div class="meta">' + meta + '</div></div>' +
         parties + docTableHtml(o) + docTailHtml(o);
     }

@@ -512,6 +512,12 @@
   function liquidityHtml() {
     try {
       if (['admin','chairman','ceo','commercial'].indexOf(curRole()) < 0) return '';
+      /* v34.39.46 (FINHUB-PERF): پوستهٔ تنبل — ماندهٔ تک‌تک تأمین‌کنندگان فقط وقتی تب
+         «حساب تأمین‌کنندگان» فعال شود (قبلاً در هر بار باز شدن هاب برای همه حساب می‌شد) */
+      if (typeof window.ptfFinHubLazyGate === 'function' && window.ptfFinHubLazyGate('supacc')) {
+        return '<div id="slLiquidity" data-finlazy="1" style="display:none;background:#fff7ed;border:1px solid #fdba74;border-radius:14px;padding:12px 14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><b style="color:#9a3412">📊 تعهدات نقدینگی تأمین و چک‌های شرکت</b><br><small style="color:#92400e">برای افزایش سرعت، محاسبه فقط هنگام نمایش این تب انجام می‌شود.</small></div>' +
+          '<button class="bt bt-o" style="font-size:11px" onclick="slLiquidityRender()">↻ بارگذاری</button></div></div>';
+      }
       var sups = getData('ptf_crm_suppliers'), debt = 0, credit = 0, fx = {};
       sups.forEach(function (s) { balance(s.cd).forEach(function (b) { if (b.cur === 'IRR') { if (b.amount >= 0) debt += b.amount; else credit += Math.abs(b.amount); } else fx[b.cur] = (fx[b.cur] || 0) + b.amount; }); });
       var today = new Date().toISOString().slice(0,10), in7 = 0, in30 = 0, checks = 0;
@@ -1190,6 +1196,11 @@
     return body || '<tr><td colspan="3">موردی مطابق جست‌وجو نیست</td></tr>';
   };
   window.slFinanceHubHtml = function () {
+    /* v34.39.46 (FINHUB-PERF): پوستهٔ تنبل — جدول حساب تأمین‌کنندگان فقط وقتی تبش فعال شود */
+    if (typeof window.ptfFinHubLazyGate === 'function' && window.ptfFinHubLazyGate('supacc')) {
+      return '<div id="slFinanceHubBox" data-finlazy="1" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🏭 حساب تأمین‌کنندگان</h4><small style="color:#64748b">برای افزایش سرعت، مانده‌ها فقط هنگام نمایش این تب محاسبه می‌شوند.</small></div>' +
+        '<button class="bt bt-o" style="font-size:11px" onclick="slFinanceHubRender()">↻ بارگذاری</button></div></div>';
+    }
     var q = String(window._slFinanceSearch || ''), all = window.slAccountRows('');
     var openN = all.filter(function (x) { return x.open; }).length;
     var gapBanner = '';
@@ -1215,6 +1226,15 @@
     window.slFinanceRowsRender();
   };
   window.slChequeDiag=function(){var no=((document.getElementById('slChkDiag')||{}).value||'').trim(),c=getData('ptf_crm_cheques').filter(function(x){return String(x.sayad||x.no||'')===no;})[0],o=document.getElementById('slChkDiagOut');if(!o)return;if(!c){o.textContent='چک یافت نشد';return;}var d=data(),p=(d.payments||[]).filter(function(x){return x.cd===c.supplierPaymentCd;})[0];o.innerHTML='<div style="margin-top:8px;font-size:12px">وضعیت چک: <b>'+escP(c.st||'open')+'</b> | مالکیت: <b>'+escP(c.ownership||'نامشخص')+'</b> | پرداخت مرتبط: <b>'+escP(p?p.status:'ندارد')+'</b></div>';};
+  /* v34.39.46 (FINHUB-PERF): رندرهای کامل — نقطهٔ ورود رندر تنبل هاب مالی */
+  window.slLiquidityRender = function () {
+    var el = document.getElementById('slLiquidity');
+    if (el) el.outerHTML = liquidityHtml();
+  };
+  window.slFinanceHubRender = function () {
+    var el = document.getElementById('slFinanceHubBox');
+    if (el) el.outerHTML = window.slFinanceHubHtml();
+  };
   var _slPetty275=window.buildPetty; if(typeof _slPetty275==='function'){window.buildPetty=function(){return _slPetty275()+ (typeof window.slFinanceHubHtml==='function'?window.slFinanceHubHtml():'');};}
   /* v34.6.1: خرید واقعی نقدی باید در گردش تأمین‌کننده بماند، حتی با مانده صفر.
      برای هر purchaseCd دقیقاً یک سند خرید و یک پرداخت کاملاً تخصیص‌یافته ساخته می‌شود. */

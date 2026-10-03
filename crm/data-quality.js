@@ -357,6 +357,11 @@
   }
   window.ptfDataQualityHtml = function () {
     if (typeof curRole === 'function' && ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) < 0) return '';
+    /* v34.39.46 (FINHUB-PERF): پوستهٔ تنبل — اسکن کیفیت داده فقط وقتی تبش فعال شود */
+    if (typeof window.ptfFinHubLazyGate === 'function' && window.ptfFinHubLazyGate('quality')) {
+      return '<div id="qualityBox" data-finlazy="1" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">برای افزایش سرعت، اسکن فقط هنگام نمایش این تب انجام می‌شود.</small></div>' +
+        '<button class="bt bt-o" onclick="ptfDataQualityRender()">↻ بارگذاری و بازخوانی</button></div></div>';
+    }
     var rows = window.ptfDataQualityData();
     var total = rows.reduce(function (s, x) { return s + x.count; }, 0);
     var dismissedCount = 0;

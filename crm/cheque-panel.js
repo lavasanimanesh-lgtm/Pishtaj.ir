@@ -159,6 +159,11 @@
   }
 
   window.ptfChequePanelHtml = function () {
+    /* v34.39.46 (FINHUB-PERF): پوستهٔ تنبل — جدول چک‌ها فقط وقتی تبش فعال شود */
+    if (typeof window.ptfFinHubLazyGate === 'function' && window.ptfFinHubLazyGate('cheque')) {
+      return '<div id="chequeBox" data-finlazy="1" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🧾 چک‌ها</h4><small style="color:#64748b">برای افزایش سرعت، جدول فقط هنگام نمایش این تب ساخته می‌شود.</small></div>' +
+        '<button class="bt bt-o" onclick="ptfChequePanelRender()">↻ بارگذاری</button></div></div>';
+    }
     var sub = window.ptfChequePanelSub === 'received' ? 'received' : 'issued';
     var tbtn = function (id, lb, cl) {
       var on = sub === id;
