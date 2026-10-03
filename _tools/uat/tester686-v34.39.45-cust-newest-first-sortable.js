@@ -25,7 +25,7 @@ global.localStorage = {
 global.window = global;
 global.document = { getElementById: function () { return { textContent: '', title: '' }; } };
 /* لایهٔ دادهٔ مینیمال — هم‌شکل صفحهٔ واقعی (getData/setData روی همان انبار)؛
-   از v34.39.48 وضعیت سورت فقط از مسیر لایهٔ داده خوانده/نوشته می‌شود (قرارداد A10) */
+   از v34.39.49 وضعیت سورت فقط از مسیر لایهٔ داده خوانده/نوشته می‌شود (قرارداد A10) */
 global.getData = function (k) {
   try { var raw = Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; if (!raw) return []; return JSON.parse(raw); } catch (e) { return []; }
 };

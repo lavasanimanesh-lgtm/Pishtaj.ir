@@ -39,11 +39,15 @@ global.window = global;
   var mT = op.match(/var BASE_COLS_TO = \[[\s\S]*?\];/);
   var mC = op.match(/window\.offBaseCols = function \(isCO\) \{[\s\S]*?\n  \};/);
   var mV = ol.match(/window\.offValidateItems = function \(\) \{[\s\S]*?\n    return null;\n  \};/);
-  T('توابع استخراج شدند', !!mB && !!mT && !!mC && !!mV);
-  if (!(mB && mT && mC && mV)) return;
+  /* v34.39.49: خط تیرهٔ خودکار برند/مدل (BUG-OFFER-BRAND-MODEL-DASH) در اعتبارسنجی
+     صدا زده می‌شود؛ برای رفتار واقعی همان‌جا هم استخراج می‌شود. */
+  var mA = ol.match(/window\.offAutoDashBrandModel = function \(st\) \{[\s\S]*?\n  \};/);
+  T('توابع استخراج شدند', !!mB && !!mT && !!mC && !!mV && !!mA);
+  if (!(mB && mT && mC && mV && mA)) return;
   eval(mB[0].replace('var BASE_COLS_CO', 'global.BASE_COLS_CO'));
   eval(mT[0].replace('var BASE_COLS_TO', 'global.BASE_COLS_TO'));
   eval(mC[0].replace('window.offBaseCols', 'global.offBaseCols'));
+  eval(mA[0].replace('window.offAutoDashBrandModel', 'global.offAutoDashBrandModel'));
   eval(mV[0].replace('window.offValidateItems', 'global.offValidateItems'));
 
   /* عین گزارش: ستون brand با ✕ حذف شده، مقدارش خالی — قبلا «با خط تیره پر کنید» می‌داد */
@@ -60,10 +64,19 @@ global.window = global;
   ];
   T('ستون model سراسر-خالی (بدون حذف) → ذخیره آزاد ✅', offValidateItems() === null);
 
-  /* ستون نیمه‌خالی → همچنان الزامی با پیام راهنما */
+  /* ستون نیمه‌خالی برند/مدل (v34.39.49): سیستم خودش «-» می‌گذارد — دیگر لازم نیست
+     کاربر تک‌تک ردیف‌ها را دستی خط تیره کند. ستون‌های دیگر همان قاعدهٔ نیمه‌خالی را دارند. */
   _offState.items[0].model = 'ABC';
+  T('ستون مدل نیمه‌خالی → ذخیره آزاد + سلول خالی خودکار «-» ✅', offValidateItems() === null && _offState.items[1].model === '-');
+  _offState.items[1].brand = '';
+  _offState.items[0].brand = 'Rosemount';
+  T('ستون برند نیمه‌خالی → ذخیره آزاد + سلول خالی خودکار «-» ✅', offValidateItems() === null && _offState.items[1].brand === '-');
+  _offState.items = [
+    { name: 'Valve', desc: 'd1', model: '-', qty: 1, unit: 'NO', brand: '-', price: 100 },
+    { name: 'Gauge', desc: '', model: '-', qty: 2, unit: 'NO', brand: '-', price: 50 }
+  ];
   var e1 = offValidateItems();
-  T('ستون نیمه‌خالی → خطا با راهنمای جدید', e1 !== null && e1.indexOf('مدل') > -1 && e1.indexOf('اگر کل ستون') > -1);
+  T('ستون نیمه‌خالی غیرکلیدی (مشخصات) → همچنان خطا با راهنما', e1 !== null && e1.indexOf('مشخصات') > -1 && e1.indexOf('اگر کل ستون') > -1);
 
   /* ستون‌های کلیدی هرگز آزاد نمی‌شوند */
   _offState.items = [{ name: '', desc: 'd', model: '', qty: 1, unit: 'NO', brand: '', price: 10 }, { name: '', desc: 'd', model: '', qty: 1, unit: 'NO', brand: '', price: 10 }];

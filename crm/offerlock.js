@@ -313,6 +313,51 @@
     };
   }
 
+  /* ---------- v34.39.49 BUG-OFFER-BRAND-MODEL-DASH: خط تیرهٔ خودکار برند/مدل ----------
+     «برند» و «مدل» تنها ستون‌هایی هستند که داده‌شان از کاتالوگ کالا / اقلام درخواست /
+     تشخیص خودکار می‌آید و خالی‌بودنشان تقصیر کاربر فرم نیست؛ ولی تا امروز اگر فقط بعضی
+     ردیف‌ها مقدار داشتند (ستون نیمه‌پُر) اعتبارسنجی ذخیره را می‌بست و کاربر باید تک‌تک
+     ردیف‌ها را دستی «-» می‌زد. اکنون سیستم خودش سلول‌های خالی همین دو ستون را «-» می‌کند
+     (همان مقداری که قبلا کاربر دستی وارد می‌کرد) و ذخیره بسته نمی‌شود.
+     قواعد ایمنی:
+       • فقط دو ستون brand/model و فقط ستون‌های حاضر در فرم (ستون ✕خورده دست‌نخورده می‌ماند).
+       • ستون «سراسر-خالی» دست نمی‌خورد — قاعدهٔ BUG-019: نه مانع ذخیره است و نه در چاپ
+         می‌آید، پس خط تیره‌ای هم نباید بی‌دلیل وارد داده شود.
+       • مقدارهای واقعی برند/مدل هرگز بازنویسی نمی‌شوند. */
+  window.offAutoDashBrandModel = function (st) {
+    st = st || window._offState || (typeof _offState !== 'undefined' ? _offState : null);
+    if (!st || !Array.isArray(st.items) || !st.items.length) return 0;
+    var isCO = st.kind === 'CO' || st.kind === 'TC'; // v122: فرم TC = مالی با قیمت
+    var colsFn = (typeof window.offBaseCols === 'function') ? window.offBaseCols : (typeof offBaseCols === 'function' ? offBaseCols : null);
+    if (!colsFn) return 0;
+    var visible = colsFn(isCO).map(function (c) { return c.k; });
+    var filled = [];
+    ['brand', 'model'].forEach(function (k) {
+      if (visible.indexOf(k) < 0) return; /* ستون با ✕ حذف شده — نه در فرم، نه در چاپ */
+      var hasData = st.items.some(function (x) {
+        return x && String(x[k] == null ? '' : x[k]).trim() !== '';
+      });
+      if (!hasData) return; /* ستون سراسر-خالی — قاعدهٔ BUG-019 */
+      st.items.forEach(function (x, i) {
+        if (!x) return;
+        if (String(x[k] == null ? '' : x[k]).trim() !== '') return;
+        x[k] = '-';
+        filled.push({ i: i, k: k });
+      });
+    });
+    if (filled.length) {
+      /* sync سلول‌های فرم تا کاربر همان «-» را ببیند (رندر فعال: offerlock/offers-pro) */
+      try {
+        filled.forEach(function (f) {
+          var el = document.getElementById('off_' + f.k + '_' + f.i);
+          if (el) el.value = '-';
+        });
+      } catch (eDom) {}
+      try { if (typeof ptfTriggerAutoDraftSave === 'function') ptfTriggerAutoDraftSave(); } catch (eDraft) {}
+    }
+    return filled.length;
+  };
+
   /* ---------- US-202: اعتبارسنجی «هیچ ستونی خالی نماند» ---------- */
   window.offValidateItems = function () {
     var st = window._offState || (typeof _offState !== 'undefined' ? _offState : null);
@@ -323,6 +368,9 @@
     if (!colsFn) return null; /* اگر موتور ستون‌ها لود نشده، اعتبارسنجی سخت‌گیرانه را رد نکن */
     var cols = colsFn(isCO); /* v17.0 BUG-019 */
     var ec = st.extraCols || [];
+    /* v34.39.49 BUG-OFFER-BRAND-MODEL-DASH: پیش از اعتبارسنجی، سلول‌های خالیِ ستون نیمه‌پُر
+       برند/مدل خودکار «-» می‌شوند تا کاربر مجبور نباشد برای هر ردیف دستی خط تیره بزند. */
+    if (typeof window.offAutoDashBrandModel === 'function') window.offAutoDashBrandModel(st);
     /* v17.0 (BUG-019 AC2 — دستور کارفرما): ستون سراسر-خالی مانع ذخیره نیست — خودکار از چاپ هم حذف می‌شود.
        فقط ستون‌های کلیدی (شرح/تعداد و قیمت CO/TC) همیشه الزامی‌اند؛ ستون نیمه‌پُر همچنان کامل‌شدنی است. */
     var MUST = { name: 1, qty: 1 };
