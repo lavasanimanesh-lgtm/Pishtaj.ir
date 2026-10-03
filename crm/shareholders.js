@@ -199,6 +199,45 @@
     });
   };
 
+  /* v34.39.47 (SH-ADV-COLUMN — گزارش کارفرما): «اگر به سهامدار مبلغ علی‌الحسابی داده شود،
+     در بخش سال مالی از حساب سهامدار کسر می‌شود ولی ستونی برای نمایش این موضوع وجود ندارد».
+     دو نوع برداشت از ماندهٔ سهامدار کسر می‌شود و فقط یکی (علی‌الحسابِ سود) ستونِ گزارش سال
+     را داشت؛ علی‌الحسابِ حقوق فقط در یک کارتِ تجمیعی دیده می‌شد. این تابع تفکیکِ همان دو
+     نوع را برای یک سالِ مالی مشخص می‌دهد و هم در کارت سهامدار (بخش سهامداران) و هم — از
+     مسیر ستونِ جدیدِ fiscal.js — در کاربرگ سال مالی به کار می‌رود.
+     نوع legacy «salary_payment» عمداً اینجا نیست (دیگر ساخته نمی‌شود؛ گردش قدیم در
+     ptfShareLedger با برچسب «پرداخت حقوق legacy» دیده می‌شود). */
+  function shareTxFiscalYear(x) {
+    var s = String((x && (x.t || x.month)) || '')
+      .replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+      .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    var m = s.match(/(13|14)\d{2}/);
+    return m ? m[0] : '';
+  }
+  function shareAdvanceSplitByYear(year) {
+    var map = {}, y = String(year || '');
+    try {
+      txAll().forEach(function (x) {
+        if (!x || !shareTxActive(x) || !x.shCd) return;
+        if (shareTxFiscalYear(x) !== y) return;
+        var isSalary = x.type === 'draw' && (x.paymentFor === 'salary' || !!x.salaryMonth);
+        if (!isSalary && x.type !== 'draw' && x.type !== 'advance' && x.type !== 'debit') return;
+        var rec = map[x.shCd] || (map[x.shCd] = { profit: 0, salary: 0 });
+        if (isSalary) rec.salary += (+x.amt || 0); else rec.profit += (+x.amt || 0);
+      });
+    } catch (eAdvSplit) {}
+    Object.keys(map).forEach(function (cd) {
+      map[cd].profit = Math.round(map[cd].profit);
+      map[cd].salary = Math.round(map[cd].salary);
+    });
+    return map;
+  }
+  function shareAdvanceSplit(cd, year) {
+    return shareAdvanceSplitByYear(year)[cd] || { profit: 0, salary: 0 };
+  }
+  window.ptfShareAdvanceSplit = shareAdvanceSplit;
+  window.ptfShareAdvanceSplitByYear = shareAdvanceSplitByYear;
+
   window.ptfShareholderBalance = function (cd) {
     var s = shAll().filter(function (x) { return x.cd === cd; })[0];
     var ledger = txAll().filter(function (x) { return x && x.shCd === cd && shareTxActive(x); }).reduce(function (a, x) {
@@ -340,15 +379,24 @@
     var list = shAll();
     var totalPct = activeShares().reduce(function (s, x) { return s + (+x.pct || 0); }, 0);
     var month = window._shareMonth || faMonthNow();
+    /* v34.39.47 (SH-ADV-COLUMN): سالِ مالیِ ماهِ انتخابی پنل — مبنای نمایش علی‌الحساب‌های
+       ثبت‌شده در کارت هر سهامدار (همان سالی که در بخش سال مالی ستون می‌خورد). */
+    var shareYear = String(normMonth(month)).split('/')[0] || '';
+    var advSplit = (typeof window.ptfShareAdvanceSplitByYear === 'function') ? window.ptfShareAdvanceSplitByYear(shareYear) : {};
     var rows = list.map(function (s) {
       var b = ptfShareholderBalance(s.cd);
       var cls = b.net >= 0 ? '#059669' : '#dc2626';
       var st = b.net >= 0 ? 'بستانکار از شرکت' : 'بدهکار به شرکت';
+      var sa = advSplit[s.cd] || { profit: 0, salary: 0 };
       return '<div class="shareholder-card">' +
         '<div class="shareholder-card-head"><div class="shareholder-copy"><b>' + escP(s.name) + '</b> <span class="bd" style="background:#eef2ff;color:#3730a3">' + (+s.pct || 0) + '٪</span> ' + (s.duty ? '<span class="bd b-st3">موظف</span>' : '') + (s.active === false ? ' <span class="bd" style="background:#fee2e2;color:#b91c1c">غیرفعال</span>' : '') +
         '<br><small style="color:#64748b">حقوق موظف: ' + money(s.salary || 0) + ' | مطالبات تنخواه: ' + money(b.petty) +
         (b.callRemain ? ' | بدهی فراخوان: ' + money(b.callRemain) : '') +
         (b.callCredit ? ' | طلب از صندوق: ' + money(b.callCredit) : '') +
+        /* v34.39.47 (SH-ADV-COLUMN): علی‌الحساب‌های ثبت‌شدهٔ همان سالِ مالی در کارت سهامدار —
+           کارفرما حق داشت بداند این کسرها کجا ثبت شده‌اند پیش از آن‌که در سال مالی ببیندشان. */
+        (sa.profit ? ' | علی‌الحساب سودِ ' + escP(shareYear) + ': ' + money(sa.profit) : '') +
+        (sa.salary ? ' | علی‌الحساب حقوقِ ' + escP(shareYear) + ': ' + money(sa.salary) : '') +
         '</small><br><b style="color:' + cls + '">مانده: ' + money(Math.abs(b.net)) + ' — ' + st + '</b></div>' +
         '<div class="shareholder-actions" role="group" aria-label="عملیات سهامدار ' + escP(s.name) + '">' +
         shareAction('edit', '✏️', 'ویرایش', 'ویرایش مشخصات سهامدار', 'ptfShareEdit(\'' + s.cd + '\')', false) +
@@ -476,7 +524,11 @@
     if (!canShare()) return;
     var s = shAll().filter(function (x) { return x && x.cd === cd; })[0]; if (!s) return;
     var draftCd = genCode('SHT');
-    ptfDialog({ title: 'برداشت / علی‌الحساب — ' + s.name, body: 'علی‌الحسابِ عادی از سهم سود کسر می‌شود؛ اگر این مبلغ علی‌الحسابِ <b>حقوق</b> است گزینهٔ «علی‌الحساب حقوق» را انتخاب کنید تا از «حقوق تعهدیِ پرداخت‌نشده» کسر شود.', fields: [
+    /* v34.39.47 (SH-ADV-COLUMN): پیش از ثبت، جمعِ علی‌الحساب‌های همان سالِ مالیِ این
+       سهامدار نشان داده شود تا کاربر بداند هر نوع کجا می‌رود (سهم سود / حقوق تعهدی). */
+    var drawYear = String(normMonth(window._shareMonth || faMonthNow())).split('/')[0] || '';
+    var drawn = shareAdvanceSplit(s.cd, drawYear);
+    ptfDialog({ title: 'برداشت / علی‌الحساب — ' + s.name, body: 'علی‌الحسابِ عادی از سهم سود کسر می‌شود؛ اگر این مبلغ علی‌الحسابِ <b>حقوق</b> است گزینهٔ «علی‌الحساب حقوق» را انتخاب کنید تا از «حقوق تعهدیِ پرداخت‌نشده» کسر شود.' + (drawYear ? '<br><small>ثبت‌شدهٔ سال ' + drawYear + ' تاکنون — علی‌الحساب سود: <b>' + money(drawn.profit) + '</b> | علی‌الحساب حقوق: <b>' + money(drawn.salary) + '</b> (هر دو در ستون‌های کاربرگ سال مالی دیده می‌شوند)</small>' : ''), fields: [
       { id: 'amt', label: 'مبلغ برداشت', type: 'number', required: true, dir: 'ltr' },
       { id: 'salaryAdv', label: 'نوع برداشت', type: 'select', value: 'no', options: [{ v: 'no', lb: 'علی‌الحساب عادی (کسر از سهم سود)' }, { v: 'yes', lb: 'علی‌الحساب حقوق (کسر از حقوق تعهدی)' }] },
       { id: 'desc', label: 'شرح/شماره سند', required: true },

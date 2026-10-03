@@ -18,9 +18,9 @@ var brg = read('crm/bridge.js');
 var off = read('crm/offers.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.46', ver.crm_version === 'v34.39.46', ver.crm_version);
-T('bridge.js cache-bust 34.39.46', /bridge\.js\?v=34\.39\.46/.test(idx));
-T('offers.js cache-bust 34.39.46', /offers\.js\?v=34\.39\.46/.test(idx));
+T('VERSION.json = v34.39.47', ver.crm_version === 'v34.39.47', ver.crm_version);
+T('bridge.js cache-bust 34.39.47', /bridge\.js\?v=34\.39\.47/.test(idx));
+T('offers.js cache-bust 34.39.47', /offers\.js\?v=34\.39\.47/.test(idx));
 
 /* ① فرم سایت */
 T('کشوی روش همکاری (payTerms)', sup.indexOf('name="payTerms" id="sPayTerms"') > -1);
