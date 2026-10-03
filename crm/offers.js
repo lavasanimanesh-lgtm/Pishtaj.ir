@@ -3376,6 +3376,12 @@ function offerSave() {
   }
   var productSyncNotes = [];
   var _toCatalogRequested = !!(document.getElementById('ofRefToCatalog') || {}).checked;
+  /* v34.39.49 BUG-OFFER-BRAND-MODEL-DASH: «-» یک جای‌نگهدارِ نمایشی/سندی است (خالی نباشد)،
+     نه برند یا مدل واقعی؛ پس هرگز نباید به‌عنوان مشخصهٔ کالا در بانک کالا نوشته شود. */
+  var _offRealAttr = function (v) {
+    var s = String(v == null ? '' : v).trim();
+    return (s === '' || s === '-' || s === '—' || s === '–') ? '' : s;
+  };
   // US-214: همگام‌سازی مستقیم مشخصات با دایرکتوری کالا؛ پیام/audit آن فقط post-ACK صادر می‌شود.
   if (o.kind === 'CO') {
     var prods = getData('ptf_crm_products');
@@ -3392,8 +3398,9 @@ function offerSave() {
           p.st = it.desc;
           prodsChanged = true; catalogRecordChanged = true;
         }
-        if (it.model && p.model !== it.model) { p.model = it.model; prodsChanged = true; catalogRecordChanged = true; }
-        if (it.brand && p.br !== it.brand) { p.br = it.brand; prodsChanged = true; catalogRecordChanged = true; }
+        var _mdReal = _offRealAttr(it.model), _brReal = _offRealAttr(it.brand); /* v34.39.49: «-» به بانک کالا نمی‌رود */
+        if (_mdReal && p.model !== _mdReal) { p.model = _mdReal; prodsChanged = true; catalogRecordChanged = true; }
+        if (_brReal && p.br !== _brReal) { p.br = _brReal; prodsChanged = true; catalogRecordChanged = true; }
         if (catalogRecordChanged) p.ts = new Date().toISOString();
       }
     });
@@ -3438,7 +3445,7 @@ function offerSave() {
         if (!dup.length) {
           var _cd2 = (typeof prodAutoCode === 'function') ? prodAutoCode() : 'P-' + (1000 + _prods2.length + 1);
           if (_cd2 && !/^TMP-/.test(String(_cd2))) {
-            _prods2.push({ cd: _cd2, nm: nm, en: '', ca: 'سایر', st: it.desc || '', br: it.brand || '', md: it.model || '',
+            _prods2.push({ cd: _cd2, nm: nm, en: '', ca: 'سایر', st: it.desc || '', br: _offRealAttr(it.brand), md: _offRealAttr(it.model), /* v34.39.49: «-» وارد بانک کالا نمی‌شود */
               un: it.unit || 'NO', pr: (it.refPriceEdited && +it.refPrice > 0) ? +it.refPrice : 0,
               refPriceAt: (it.refPriceEdited && +it.refPrice > 0) ? (typeof faDate === 'function' ? faDate() : '') : '',
               refPriceSrc: (it.refPriceEdited && +it.refPrice > 0) ? ('پیشنهاد ' + o.no) : '',

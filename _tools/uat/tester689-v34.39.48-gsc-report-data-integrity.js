@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester689 — v34.39.48 (GSC-REPORT-DATA-INTEGRITY)
+/* tester689 — v34.39.49 (GSC-REPORT-DATA-INTEGRITY)
    جلوگیری از دو خطای تفسیری در گزارش سئو:
    ۱) جمع ردیف‌های Query به‌جای KPI تجمیعی کل GSC استفاده می‌شد؛ این دو بُعد به‌علت
       حذف Queryهای ناشناس الزاماً برابر نیستند.
@@ -12,7 +12,7 @@ var php = fs.readFileSync('api/gsc.php', 'utf8');
 var llm = fs.readFileSync('api/llm.php', 'utf8');
 var gsc = fs.readFileSync('crm/gsc.js', 'utf8');
 
-console.log('── GSC report denominator + index tracker semantics (v34.39.48) ──');
+console.log('── GSC report denominator + index tracker semantics (v34.39.49) ──');
 
 /* KPIهای تجمیعی از بُعد date و جمعِ query rows به‌صورت مستقل محاسبه شوند. */
 assert.ok(php.indexOf("$d = gsc_query_range($cfg, ['date'], $start, $end, 400)") > -1,
@@ -88,4 +88,4 @@ var allClicks = 443, visibleQueryClicks = 132, brandClicks = 131;
 assert.strictEqual(Math.round((brandClicks / visibleQueryClicks) * 1000) / 10, 99.2);
 assert.strictEqual(Math.round((visibleQueryClicks / allClicks) * 1000) / 10, 29.8);
 
-console.log('PASS tester689 v34.39.48 GSC report data integrity');
+console.log('PASS tester689 v34.39.49 GSC report data integrity');

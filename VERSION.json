@@ -1,11 +1,11 @@
 {
   "note": "منبع رسمی نسخه‌ها: site_public_version برای وب‌سایت عمومی و crm_version برای CRM. فایل‌های هر دامنه باید با فیلد همان دامنه هم‌خوان باشند.",
   "site_public_version": "v34.39.14",
-  "crm_version": "v34.39.48",
+  "crm_version": "v34.39.49",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-10-03",
-  "updated_by": "v34.39.48 — GSC-REPORT-DATA-INTEGRITY: اصلاح مخرج KPI سرچ کنسول، جداسازی queryهای قابل‌مشاهده از جمع کل، شفاف‌سازی ردیاب URL Inspection و کالیبراسیون امتیاز AI.",
-  "updated_at": "2026-10-03T16:10:00Z",
-  "version": "34.39.48",
-  "release": "v34.39.48"
+  "updated_by": "v34.39.49 — BUG-OFFER-BRAND-MODEL-DASH: خط تیرهٔ خودکار برند/مدل در فرم پیشنهاد — پایان تایپ دستی «-» برای هر ردیف (حفظ قاعدهٔ BUG-019: ستون سراسر-خالی دست‌نخورده).",
+  "updated_at": "2026-10-03T18:40:00Z",
+  "version": "34.39.49",
+  "release": "v34.39.49"
 }

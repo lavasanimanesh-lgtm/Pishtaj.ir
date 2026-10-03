@@ -1,4 +1,4 @@
-/* tester688 — v34.39.48 (SH-ADV-COLUMN):
+/* tester688 — v34.39.49 (SH-ADV-COLUMN):
    گزارش کارفرما: «در بخش سهامداران اگر به سهامدار مبلغ علی‌الحسابی داده شود، در بخش سال مالی
    از حساب سهامدار کسر می‌شود ولی ستونی برای نمایش این موضوع وجود ندارد — بررسی کن».
 
@@ -148,5 +148,5 @@ check(/<td style="color:#7c3aed;font-weight:700">۷۰٬۰۰۰٬۰۰۰ ریال<\
 check(html.indexOf('جمع علی‌الحساب/پرداخت حقوقِ سال 1405') > -1, 'یادداشتِ توضیحی ستون در خروجی هست');
 
 console.log('\n' + passes + ' PASS / ' + fails + ' FAIL');
-if (fails) { console.log('FAIL tester688 v34.39.48 shareholder advance column'); process.exit(1); }
-console.log('PASS tester688 v34.39.48 — ستون علی‌الحساب حقوق در کاربرگ سال مالی + تفکیک در کارت سهامدار');
+if (fails) { console.log('FAIL tester688 v34.39.49 shareholder advance column'); process.exit(1); }
+console.log('PASS tester688 v34.39.49 — ستون علی‌الحساب حقوق در کاربرگ سال مالی + تفکیک در کارت سهامدار');
