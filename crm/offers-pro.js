@@ -276,6 +276,38 @@
     vendorTel: '+98 (21) 9109 9242'
   };
 
+  // One shared contact line; wrapping is allowed rather than clipping long addresses.
+  function offerContactFooter() {
+    return '<div class="ftr" dir="ltr">' + escP(SELLER_INFO.address) +
+      ' | <span>Tel: ' + OFFER_FOOTER.tel + '</span>' +
+      ' | <span>WhatsApp: ' + OFFER_FOOTER.whatsapp + '</span>' +
+      ' | <span>' + OFFER_FOOTER.email + '</span> | <span>www.pishtaj.ir</span></div>';
+  }
+
+  function offerSafePageCss(tpl) {
+    var pads = { letterhead: '3mm 14mm 0', executive: '2mm 12mm 0 20mm',
+      mono: '4mm 16mm 0', minimal: '6mm 14mm 0', classic: '0 12mm' };
+    // A repeating table footer reserves space on every sheet, including pages
+    // containing only terms. Unlike body padding it participates in fragmentation.
+    // Zero page margins keep the fixed letterhead artwork on the physical edges.
+    return '.ftr{display:block;direction:ltr;text-align:center;font-family:Arial,sans-serif;' +
+      'font-size:7.5pt;line-height:1.5;letter-spacing:0;color:#4b5057}.ftr span{white-space:nowrap}' +
+      '.offer-page{border:0;border-collapse:collapse;table-layout:fixed}' +
+      '.offer-page>thead{display:table-header-group}.offer-page>tfoot{display:table-footer-group}' +
+      '.offer-page>tbody,.offer-page>tbody>tr,.offer-page>tbody>tr>td{break-inside:auto;page-break-inside:auto}' +
+      '.offer-page>thead>tr>td,.offer-page>tfoot>tr>td,.offer-page>tbody>tr>td{' +
+      'border:0!important;padding:0!important;background:transparent!important;text-align:initial;vertical-align:top}' +
+      '.offer-page>thead>tr>td{height:10mm;font-size:0;line-height:0}' +
+      '.offer-page>tfoot>tr>td{height:26mm;font-size:0;line-height:0}' +
+      '@media print{' +
+      '@page{size:A4 landscape;margin:0!important}' +
+      'body{margin:0;padding:0 ' + (tpl === 'executive' ? '12mm 0 20mm' : tpl === 'mono' ? '16mm' : tpl === 'classic' ? '12mm' : '14mm') + '}' +
+      '.offer-page-content{padding-top:' + (pads[tpl] || pads.classic).split(' ')[0] + '}' +
+      '.ftr{bottom:10mm;min-height:0;padding-top:1mm}' +
+      '.sig{position:static!important;break-inside:avoid}' +
+      '}';
+  }
+
   // انتخاب قالب: دیالوگ با پیش‌نمایش
   window.offerPickTemplate = function (no) {
     var o = typeof no === 'string' ? getData('ptf_crm_offers').filter(function (x) { return x.no === no; })[0] : no;
@@ -463,7 +495,7 @@
   // نوار راهنمای چاپ — فقط روی صفحه، در چاپ مخفی (v84.1)
   function printHint() {
     return '<div class="prnhint" style="position:sticky;top:0;background:#0c4a6e;color:#fff;font-family:Tahoma;font-size:12px;padding:8px 14px;text-align:center;direction:rtl;z-index:999">' +
-      '⚙️ برای خروجی دقیق در پنجره چاپ: <b>Margins = None</b> و <b>Headers and footers = خاموش</b> باشد (شماره صفحه مرورگر حذف می‌شود)</div>' +
+      '⚙️ برای خروجی دقیق در پنجره چاپ: <b>Margins = Default</b> و <b>Headers and footers = خاموش</b> باشد (شماره صفحه مرورگر حذف می‌شود)</div>' +
       '<style>@media print{.prnhint{display:none}}</style>';
   }
   
@@ -502,9 +534,14 @@
     if (mode === 'margin') window._ptfLayoutState.margin = val;
     if (mode === 'sig') window._ptfLayoutState.sigMode = val;
 
-    var css = '@page { margin: ' + window._ptfLayoutState.margin + ' !important; } ';
+    // Offer page margins protect edge artwork and the contact area. Other documents
+    // retain their existing layout controls.
+    var safeOffer = doc.body && doc.body.hasAttribute('data-offer-safe-page');
+    var css = safeOffer
+      ? 'body { padding-left: max(20mm, ' + window._ptfLayoutState.margin + ') !important; padding-right: max(12mm, ' + window._ptfLayoutState.margin + ') !important; } '
+      : '@page { margin: ' + window._ptfLayoutState.margin + ' !important; } ';
     if (window._ptfLayoutState.fsDiff !== 0) {
-      css += 'table, .terms { font-size: calc(100% + ' + window._ptfLayoutState.fsDiff + 'px) !important; } ';
+      css += 'table:not(.offer-page), .terms { font-size: calc(100% + ' + window._ptfLayoutState.fsDiff + 'px) !important; } ';
     }
     if (window._ptfLayoutState.pad === 'compact') {
       css += 'td, th { padding: 2px 4px !important; } .terms li { margin-bottom: 0 !important; } .sig .line { margin-top: 20px !important; } ';
@@ -516,7 +553,7 @@
     } else if (window._ptfLayoutState.sigMode === 'stack') {
       css += '.tail { display: block !important; } .terms { width: 100% !important; } .sig { width: 100% !important; margin-top: 10px !important; justify-content: flex-end !important; } ';
     } else if (window._ptfLayoutState.sigMode === 'page1') {
-      css += '.sig { position: absolute !important; bottom: 25mm !important; right: 15mm !important; page-break-before: avoid !important; } ';
+      css += safeOffer ? '.sig { position: static !important; break-inside: avoid !important; } ' : '.sig { position: absolute !important; bottom: 25mm !important; right: 15mm !important; page-break-before: avoid !important; } ';
     } else if (window._ptfLayoutState.sigMode === 'break') {
       css += '.tail { page-break-before: always !important; display: flex !important; justify-content: space-between !important; } ';
     }
@@ -666,7 +703,7 @@
       '<span><b>🔤 فونت جدول:</b> <button class="bt bt-o" style="padding:2px 6px" onclick="ptfAdjustPreviewLayout(\'fs\',-1)">➖ کوچکتر</button> <button class="bt bt-o" style="padding:2px 6px" onclick="ptfAdjustPreviewLayout(\'fs\',1)">➕ بزرگتر</button></span>' +
       '<span><b>↕️ تراکم سطرها:</b> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'pad\',\'compact\')">کم‌حجم (فشرده)</button> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'pad\',\'normal\')">استاندارد</button></span>' +
       '<span><b>↔️ حاشیه صفحه:</b> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'margin\',\'6mm\')">باریک (6mm)</button> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'margin\',\'10mm\')">استاندارد</button> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'margin\',\'14mm\')">جادار</button></span>' +
-      '<span><b>💳 چیدمان مهر و امضا:</b> <select onchange="ptfAdjustPreviewLayout(\'sig\',this.value)" style="font-size:11px;padding:2px 6px;border-radius:6px"><option value="side">↔️ افقی کنار شرایط (Side-by-Side — بیشترین صرفه‌جویی فضا)</option><option value="stack">↕️ عمودی زیر شرایط (کلاسیک)</option><option value="page1">⚓ چسبیده به انتهای صفحه اول</option><option value="break">📄 انتقال به صفحه جدید</option></select></span>' +
+      '<span><b>💳 چیدمان مهر و امضا:</b> <select onchange="ptfAdjustPreviewLayout(\'sig\',this.value)" style="font-size:11px;padding:2px 6px;border-radius:6px"><option value="side">↔️ افقی کنار شرایط (Side-by-Side — بیشترین صرفه‌جویی فضا)</option><option value="stack">↕️ عمودی زیر شرایط (کلاسیک)</option>' + (String(html).indexOf('data-offer-safe-page') < 0 ? '<option value="page1">⚓ چسبیده به انتهای صفحه اول</option>' : '') + '<option value="break">📄 انتقال به صفحه جدید</option></select></span>' +
       '</div>' +
       /* v34.0.3-alpha: حذف sandbox از iframe پیش‌نمایش چاپ — ترکیب allow-same-origin + allow-scripts
          هشدار امنیتی کروم «can escape its sandboxing» می‌دهد (و عملاً ایزولاسیونی ندارد).
@@ -692,8 +729,7 @@
     var nCols = docCols(o).length + (o.extraCols || []).length + (isCO ? 2 : 0);
     var fs = nCols <= 7 ? 9 : nCols <= 9 ? 8.3 : 7.6; // pt
     fs = ptfDocFsAdjust(o, fs); /* v14.2 US-356: تعدیل بر اساس تراکم محتوا */
-    /* v34.39.44: در قالب سربرگ رسمی، ردیف فاصله‌انداز سرستون (۸.۵mm) در هر صفحه
-       تکرار می‌شود → گنجایش تخمینی هر صفحه یک ردیف کمتر است. */
+    // Legacy page-count estimate; actual fragmentation depends on content height.
     var rowsPerPage = tpl === 'classic' ? (isCO ? 8 : 5) : tpl === 'letterhead' ? (isCO ? 11 : 8) : (isCO ? 12 : 9);
     var pageCount = Math.max(1, Math.ceil((o.items || []).length / rowsPerPage));
     var docPrefix = o.kind === 'TO' ? 'TO' : (_pAs === 'TC' ? 'TC' : 'CO'); /* v20.1 US-442 */
@@ -729,8 +765,7 @@
     var css = '', body = '';
 
     if (tpl === 'letterhead') {
-      /* v84.1: مثل سربرگ رسمی — margin صفحه صفر تا نوارها دقیقاً سرتاسر لبه‌ها باشند؛
-         فاصله محتوا با padding بدنه (شروع زیر نوار، بدون همپوشانی لوگو) */
+      // Edge artwork is kept at the physical sheet edges by offerSafePageCss.
       css = '@page{size:A4 landscape;margin:0}' + common + lhBars() +
         'body{font-family:"Segoe UI",Tahoma,Arial,sans-serif;color:#26282c;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:13mm 14mm 26mm}' +
         '.dno{font-size:10pt;font-weight:700;margin-bottom:1mm}' +
@@ -746,17 +781,10 @@
         'td{border:.4pt solid #cbb28a;padding:1.8mm 2mm;text-align:center;vertical-align:middle}' +
         'tr.total td{background:#fdf3e3;border-top:1.2pt solid #e87200}.total .big{font-weight:700;font-size:' + (fs + 1) + 'pt}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#666}' +
         '.ftr{position:fixed;bottom:8.5mm;left:12mm;right:12mm;text-align:center;font-size:7.8pt;color:#4b5057;line-height:1.8}' +
-        /* v34.39.44: جبران ارتفاع ردیف فاصله‌انداز سربرگ — فاصلهٔ پایینِ بخش طرفین
-           در صفحهٔ اول همان ۴mm قبلی بماند (۴ - ۴.۵ + ردیف ۸.۵ = ۴) */
-        '.parties{margin:4mm 0 -4.5mm}';
-      /* v34.39.44 (اصلاح گزارش کارفرما): در صفحهٔ دوم به بعد، سرستون تکرارشوندهٔ جدول
-         دقیقاً از لبهٔ بالای صفحه شروع می‌شد و زیر نوار گرادیانِ ثابت (۶.۲mm + خطوط مورب
-         تا ۸mm) پنهان می‌شد. چون @page حاشیه ندارد و بالشتک بدنه فقط به صفحهٔ اول اعمال
-         می‌شود، یک ردیف نامرئی ۸.۵ میلی‌متری به thead اضافه می‌شود — این ردیف همراه سرستون
-         در هر صفحه تکرار می‌شود و سرستون را زیر نوار نمی‌گذارد. */
-      var lhTableHtml = docTableHtml(o).replace('<thead>', '<thead><tr><td colspan="99" style="border:0;padding:0;height:8.5mm;line-height:8.5mm;font-size:1px">&nbsp;</td></tr>');
+        '.parties{margin:4mm 0}';
+      var lhTableHtml = docTableHtml(o);
       body = lhBarsHtml() +
-        '<div class="ftr">' + SELLER_INFO.address + '<br>Tel: ' + OFFER_FOOTER.tel + ' | WhatsApp: ' + OFFER_FOOTER.whatsapp + ' | ' + OFFER_FOOTER.email + ' | www.pishtaj.ir</div>' +
+        offerContactFooter() +
         '<div class="hd"><img src="' + SELLER_INFO.logo + '"><div class="ttl"><div class="co">Pishro Tajhiz Fartak Co.</div><div class="t">' + title + '</div></div><div class="meta">' + meta + '</div></div>' +
         parties + lhTableHtml + docTailHtml(o);
     } else if (tpl === 'executive') {
@@ -779,13 +807,13 @@
         'th{background:#2b2e33;color:#fff;padding:2.2mm 2mm;font-size:' + (fs - 0.3) + 'pt;letter-spacing:.4px;border:0}' +
         'th:first-child{border-radius:0 1.5mm 1.5mm 0}th:last-child{border-radius:1.5mm 0 0 1.5mm}' +
         'td{border-bottom:.4pt solid #e4e6ea;padding:2mm;text-align:center;vertical-align:middle}' +
-        'tbody tr:nth-child(even) td{background:#fafbfc}' +
-        'tr.total td{background:#2b2e33;color:#fff;border:0}.total .big{font-weight:800;font-size:' + (fs + 1.2) + 'pt;color:#ffb033}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#cbd0d6}' +
+        'tbody tr:not(.total):nth-child(even) td{background:#fafbfc}' +
+        'tr.total td{background:#2b2e33;color:#fff;border:0}.total .big{font-weight:800;font-size:' + (fs + 1.2) + 'pt;color:#ffb033}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#fff;font-weight:500}' +
         '.terms b{color:#ef4b1a}' +
         '.ftr{position:fixed;bottom:8mm;left:20mm;right:12mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#9aa0a6;border-top:.4pt solid #e4e6ea;padding-top:2mm}' +
         wm;
       body = '<div class="sidebar"></div>' +
-        '<div class="ftr"><span>' + SELLER_INFO.company + ' — National ID: ' + SELLER_INFO.nationalId + '</span><span>Tel: ' + OFFER_FOOTER.tel + ' | WhatsApp: ' + OFFER_FOOTER.whatsapp + ' | ' + OFFER_FOOTER.email + ' | www.pishtaj.ir</span></div>' +
+        offerContactFooter() +
         '<div class="hd"><div><img src="' + SELLER_INFO.logo + '"><div class="ttl"><div class="t">' + title.split(' ')[0] + ' <b>' + title.split(' ').slice(1).join(' ') + '</b></div><div class="co">PISHRO TAJHIZ FARTAK CO.</div></div></div><div class="meta">' + meta + '</div></div>' +
         parties + docTableHtml(o) + docTailHtml(o);
     } else if (tpl === 'mono') {
@@ -806,7 +834,7 @@
         'tr.total td{border-top:1.4pt solid #17191c;border-bottom:2.2pt double #17191c;background:#fff}.total .big{font-weight:800;font-size:' + (fs + 1.2) + 'pt}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#5a5e64}' +
         '.ftr{position:fixed;bottom:8mm;left:16mm;right:16mm;text-align:center;font-size:7.5pt;color:#8a8f96;border-top:.4pt solid #c9ccd1;padding-top:2mm;letter-spacing:.5px;font-family:"Segoe UI",Tahoma,sans-serif}' +
         wm;
-      body = '<div class="ftr">' + SELLER_INFO.company + ' · ' + SELLER_INFO.address + '<br>Tel: ' + OFFER_FOOTER.tel + ' · WhatsApp: ' + OFFER_FOOTER.whatsapp + ' · ' + OFFER_FOOTER.email + ' · www.pishtaj.ir</div>' +
+      body = offerContactFooter() +
         '<div class="hd"><img src="' + SELLER_INFO.logo + '"><div class="meta">' + meta + '</div><div class="ttl"><div class="co">Pishro Tajhiz Fartak Co.</div><div class="t">' + title + '</div></div></div>' +
         parties + docTableHtml(o) + docTailHtml(o);
     } else if (tpl === 'minimal') {
@@ -822,7 +850,7 @@
         'td{border-bottom:.4pt solid #d8dadd;padding:2mm;text-align:center;vertical-align:middle}' +
         'tr.total td{border-top:1.2pt solid #1a1c1f;border-bottom:none;background:#faf8f4}.total .big{font-weight:700;font-size:' + (fs + 1) + 'pt}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#777}' +
         '.ftr{position:fixed;bottom:8mm;left:14mm;right:14mm;text-align:center;font-size:7.5pt;color:#8a8f96;letter-spacing:.5px}';
-      body = '<div class="ftr">' + SELLER_INFO.company + ' — ' + SELLER_INFO.address + '<br>Tel: ' + OFFER_FOOTER.tel + ' — WhatsApp: ' + OFFER_FOOTER.whatsapp + ' — ' + OFFER_FOOTER.email + ' — www.pishtaj.ir</div>' +
+      body = offerContactFooter() +
         '<div class="hd"><img src="' + SELLER_INFO.logo + '"><div class="ttl"><div class="t">' + title + '</div><div class="co">PISHRO TAJHIZ FARTAK CO.</div></div><div class="meta">' + meta + '</div></div>' +
         parties + docTableHtml(o) + docTailHtml(o);
     } else { // classic — افقی (نسخه بهبود یافته فرمت قبلی)
@@ -839,13 +867,19 @@
         'td{border:.4pt solid #9aa0a6;padding:1.6mm 2mm;text-align:center;vertical-align:middle}' +
         'tr.total td{background:#fdf1e7;border-top:1.2pt solid #f79400}.total .big{font-weight:700;font-size:' + (fs + 1) + 'pt}.total .words{font-style:italic;font-size:' + (fs - 0.6) + 'pt;color:#555}' +
         '.ftr{position:fixed;bottom:8mm;left:12mm;right:12mm;text-align:center;font-size:7.5pt;color:#f79400;border-top:.4pt solid #f0d9b8;padding-top:1mm;background:#fff}';
-      body = '<div class="ftr">Address: ' + SELLER_INFO.address + '<br>Tel: ' + OFFER_FOOTER.tel + ' | WhatsApp: ' + OFFER_FOOTER.whatsapp + ' | ' + OFFER_FOOTER.email + ' | www.pishtaj.ir</div>' +
+      body = offerContactFooter() +
         '<div class="hd"><img src="' + SELLER_INFO.logo + '"><div class="ttl"><div class="co">Pishro Tajhiz Fartak Co.</div><div class="t">' + title + '</div></div><div class="meta">' + meta + '</div></div>' +
         parties + docTableHtml(o) + docTailHtml(o);
     }
 
     var pdfFileName = typeof ptfOfferPdfFileName === 'function' ? ptfOfferPdfFileName(o) : o.no;
-    var fullHtml = '<!doctype html><html><head><meta charset="utf-8"><title>' + escP(pdfFileName) + '</title><style>' + css + '</style></head><body>' + printHint() + body + '</body></html>';
+    // Leave fixed decorations/contact details outside the flowing page table.
+    var contentStart = body.indexOf('<div class="hd">');
+    body = body.slice(0, contentStart) + '<table class="offer-page"><thead><tr><td></td></tr></thead>' +
+      '<tbody><tr><td><div class="offer-page-content">' + body.slice(contentStart) +
+      '</div></td></tr></tbody><tfoot><tr><td></td></tr></tfoot></table>';
+    css += offerSafePageCss(tpl);
+    var fullHtml = '<!doctype html><html><head><meta charset="utf-8"><title>' + escP(pdfFileName) + '</title><style>' + css + '</style></head><body data-offer-safe-page>' + printHint() + body + '</body></html>';
     if (dest === 'share') {
       window.ptfShareHtmlToMessenger(fullHtml, pdfFileName);
       return;
