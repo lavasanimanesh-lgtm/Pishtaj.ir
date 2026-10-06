@@ -16,10 +16,10 @@ var idx = read('crm/index.html');
 var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.49', ver.crm_version === 'v34.39.49', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.39.49', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.49'") > -1);
-T('sw RELEASE = v34.39.49', sw.indexOf("RELEASE = 'v34.39.49'") > -1);
-T('letters.js cache-bust 34.39.49', /letters\.js\?v=34\.39\.49/.test(idx));
+T('VERSION.json = v34.39.50', ver.crm_version === 'v34.39.50', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.39.50', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.50'") > -1);
+T('sw RELEASE = v34.39.50', sw.indexOf("RELEASE = 'v34.39.50'") > -1);
+T('letters.js cache-bust 34.39.50', /letters\.js\?v=34\.39\.50/.test(idx));
 
 /* هندلرهای سربرگ (ptfLhp*) */
 T('هندلر فونت سربرگ', lt.indexOf('window.ptfLhpFont = function') > -1);

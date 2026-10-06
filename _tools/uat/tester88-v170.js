@@ -39,7 +39,7 @@ global.window = global;
   var mT = op.match(/var BASE_COLS_TO = \[[\s\S]*?\];/);
   var mC = op.match(/window\.offBaseCols = function \(isCO\) \{[\s\S]*?\n  \};/);
   var mV = ol.match(/window\.offValidateItems = function \(\) \{[\s\S]*?\n    return null;\n  \};/);
-  /* v34.39.49: خط تیرهٔ خودکار برند/مدل (BUG-OFFER-BRAND-MODEL-DASH) در اعتبارسنجی
+  /* v34.39.50: خط تیرهٔ خودکار برند/مدل (BUG-OFFER-BRAND-MODEL-DASH) در اعتبارسنجی
      صدا زده می‌شود؛ برای رفتار واقعی همان‌جا هم استخراج می‌شود. */
   var mA = ol.match(/window\.offAutoDashBrandModel = function \(st\) \{[\s\S]*?\n  \};/);
   T('توابع استخراج شدند', !!mB && !!mT && !!mC && !!mV && !!mA);
@@ -64,7 +64,7 @@ global.window = global;
   ];
   T('ستون model سراسر-خالی (بدون حذف) → ذخیره آزاد ✅', offValidateItems() === null);
 
-  /* ستون نیمه‌خالی برند/مدل (v34.39.49): سیستم خودش «-» می‌گذارد — دیگر لازم نیست
+  /* ستون نیمه‌خالی برند/مدل (v34.39.50): سیستم خودش «-» می‌گذارد — دیگر لازم نیست
      کاربر تک‌تک ردیف‌ها را دستی خط تیره کند. ستون‌های دیگر همان قاعدهٔ نیمه‌خالی را دارند. */
   _offState.items[0].model = 'ABC';
   T('ستون مدل نیمه‌خالی → ذخیره آزاد + سلول خالی خودکار «-» ✅', offValidateItems() === null && _offState.items[1].model === '-');
