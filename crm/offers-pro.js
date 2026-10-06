@@ -176,22 +176,83 @@
     if (i > -1) _offState.hiddenCols.splice(i, 1); else _offState.hiddenCols.push(k);
     offRenderItems2();
   };
+  /* ===========================================================================
+     v34.39.52 — BUG-OFF-XCOL-PARITY-001 (گزارش کارفرما ۱۴۰۵/۰۷/۱۴):
+     «ستون تازه‌ساخته را نمی‌توانیم مثل ستون‌های پیش‌فرض جابه‌جا کنیم — فروزن است.»
+
+     ریشه: offColDrop ترتیب درهمِ پایه+تکمیلی را می‌ساخت ولی موقع ذخیره آن را به
+     دو فهرست جدا (colOrder فقط پایه / extraCols فقط تکمیلی) تفکیک می‌کرد و هر سه
+     رندرکننده (فرم + چاپ) همیشه اول ستون‌های پایه و بعد تکمیلی را چاپ می‌کردند؛
+     در نتیجه جابه‌جایی ستون تکمیلی بی‌اثر می‌ماند.
+
+     راه‌حل: یک ترتیب واحد و درهم در _offState.colOrder ذخیره می‌شود. کلید ستون
+     تکمیلی = 'x:' + نام ستون. مصرف‌کننده‌های قدیمی که فقط کلید پایه می‌خوانند
+     (offBaseCols/docCols) کلیدهای x: را چون در فهرست پایه پیدا نمی‌کنند نادیده
+     می‌گیرند → رکوردهای قدیمی و کد قدیمی بدون تغییر کار می‌کنند.
+     =========================================================================== */
+  /* کلیدهای کامل ستون‌ها به ترتیب کاربر: پایه (همه، حتی ✕خورده تا جای خود را
+     حفظ کنند) + تکمیلی. خروجی فقط کلید است (رندر، فیلتر hidden را خودش می‌دهد). */
+  window.offColOrderAll = function (st, isCO) {
+    var s = st || window._offState;
+    var co = (typeof isCO === 'boolean') ? isCO : !!(s && (s.kind === 'CO' || s.kind === 'TC'));
+    var base = (co ? BASE_COLS_CO : BASE_COLS_TO).map(function (c) { return c.k; });
+    var extras = ((s && s.extraCols) || []).map(function (c) { return 'x:' + c; });
+    var ord = (s && s.colOrder) || null;
+    var out = [];
+    if (ord && ord.length) {
+      ord.forEach(function (k) {
+        k = String(k == null ? '' : k);
+        if (!k) return;
+        if (base.indexOf(k) < 0 && extras.indexOf(k) < 0) return; /* کلید ناشناخته/ستون حذف‌شده */
+        if (out.indexOf(k) < 0) out.push(k);
+      });
+    }
+    base.forEach(function (k) { if (out.indexOf(k) < 0) out.push(k); });     /* ستون پایهٔ تازه‌افزوده ته صف */
+    extras.forEach(function (k) { if (out.indexOf(k) < 0) out.push(k); });   /* ستون تکمیلیِ بدون ترتیب ذخیره‌شده */
+    return out;
+  };
+  /* فهرست یکپارچهٔ ستون‌های قابل نمایش (پایه + تکمیلی) دقیقاً به ترتیب کاربر.
+     خروجی: [{k, lb, fa, extra, name}] — ستون پایه ✕خورده حذف می‌شود. */
+  window.offAllCols = function (o, isCO) {
+    var s = o || window._offState;
+    if (!s) return [];
+    var co = (typeof isCO === 'boolean') ? isCO : (s.kind === 'CO' || s.kind === 'TC');
+    var base = co ? BASE_COLS_CO : BASE_COLS_TO;
+    var hidden = s.hiddenCols || [];
+    var extras = s.extraCols || [];
+    var out = [];
+    window.offColOrderAll(s, co).forEach(function (k) {
+      if (String(k).indexOf('x:') === 0) {
+        var nm = String(k).slice(2);
+        if (extras.indexOf(nm) < 0) return;
+        out.push({ k: 'x:' + nm, name: nm, lb: nm, fa: nm, extra: true });
+        return;
+      }
+      var b = base.filter(function (x) { return x.k === k; })[0];
+      if (!b || hidden.indexOf(b.k) > -1) return;
+      out.push({ k: b.k, name: b.k, lb: b.lb, fa: b.fa, extra: false });
+    });
+    return out;
+  };
   var _dragCol = null;
   window.offColDragStart = function (ev, key) { _dragCol = key; ev.dataTransfer.effectAllowed = 'move'; };
   window.offColDragOver = function (ev) { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; };
   window.offColDrop = function (ev, targetKey) {
     ev.preventDefault();
     if (!_dragCol || _dragCol === targetKey) return;
-    var isCO = _offState.kind === 'CO' || _offState.kind === 'TC'; // v122: فرم TC = مالی با قیمت
-    var cols = offBaseCols(isCO).map(function (c) { return c.k; });
-    // extraCols هم قابل درگ‌اند: کلیدشان با پیشوند x: است
-    var all = cols.concat((_offState.extraCols || []).map(function (c) { return 'x:' + c; }));
+    var st = window._offState;
+    if (!st) return;
+    var isCO = st.kind === 'CO' || st.kind === 'TC'; // v122: فرم TC = مالی با قیمت
+    /* v34.39.52: کلید ستون تکمیلی با پیشوند x: است؛ فهرست کامل (پایه+تکمیلی)
+       بدون فیلتر hidden ساخته می‌شود تا ستون ✕خورده هم جای خود را نگه دارد. */
+    var all = window.offColOrderAll(st, isCO);
     var from = all.indexOf(_dragCol), to = all.indexOf(targetKey);
-    if (from < 0 || to < 0) return;
+    if (from < 0 || to < 0) { _dragCol = null; return; }
     all.splice(to, 0, all.splice(from, 1)[0]);
-    // بازتفکیک
-    _offState.colOrder = all.filter(function (k) { return k.indexOf('x:') !== 0; });
-    _offState.extraCols = all.filter(function (k) { return k.indexOf('x:') === 0; }).map(function (k) { return k.slice(2); });
+    /* ترتیب درهم در colOrder ذخیره می‌شود (کلید تکمیلی = x:نام) و extraCols هم
+       با همان ترتیب نسبی تازه می‌شود تا مصرف‌کننده‌های قدیمی سازگار بمانند. */
+    st.colOrder = all.slice();
+    st.extraCols = all.filter(function (k) { return k.indexOf('x:') === 0; }).map(function (k) { return k.slice(2); });
     _dragCol = null;
     offRenderItems2();
   };
@@ -202,17 +263,23 @@
     if (!el || !window._offState) return;
     var isCO = _offState.kind === 'CO' || _offState.kind === 'TC'; // v122: فرم TC = مالی با قیمت
     var cur = offerCurrency(_offState);
+    /* v34.39.52 BUG-OFF-XCOL-PARITY-001: یک فهرست واحد به ترتیب کاربر — ستون
+       تکمیلی دقیقاً سر همان جایگاهی می‌نشیند که کاربر آن را درگ کرده است. */
+    var allCols = (typeof window.offAllCols === 'function') ? window.offAllCols(_offState, isCO) : null;
     var cols = offBaseCols(isCO);
     var ec = _offState.extraCols || [];
+    if (!allCols) allCols = cols.map(function (c) { return { k: c.k, name: c.k, lb: c.lb, fa: c.fa, extra: false }; })
+      .concat(ec.map(function (c) { return { k: 'x:' + c, name: c, lb: c, fa: c, extra: true }; }));
     var dragAttr = function (key) {
       return ' draggable="true" ondragstart="offColDragStart(event,\'' + key + '\')" ondragover="offColDragOver(event)" ondrop="offColDrop(event,\'' + key + '\')" style="cursor:grab" title="برای جابجایی بکشید"';
     };
     var head = '<tr><th>#</th>' +
-      cols.map(function (c) {
+      allCols.map(function (c) {
+        if (c.extra) {
+          var ci = ec.indexOf(c.name);
+          return '<th' + dragAttr('x:' + c.name) + '>⠿ ' + escP(c.name) + ' <a href="javascript:void(0)" onclick="offDelColumn(' + ci + ')" style="color:#dc2626;font-size:10px">✕</a></th>';
+        }
         return '<th' + dragAttr(c.k) + '>⠿ ' + c.lb + ' <a href="javascript:void(0)" onclick="offToggleBaseCol(\'' + c.k + '\')" style="color:#dc2626;font-size:10px" title="حذف ستون">✕</a></th>';
-      }).join('') +
-      ec.map(function (c, ci) {
-        return '<th' + dragAttr('x:' + c) + '>⠿ ' + escP(c) + ' <a href="javascript:void(0)" onclick="offDelColumn(' + ci + ')" style="color:#dc2626;font-size:10px">✕</a></th>';
       }).join('') +
       (isCO ? '<th>Unit Price (' + cur.sym + ')</th><th>Total</th>' : '') + '<th></th></tr>';
     var rows = '';
@@ -220,17 +287,17 @@
       var inp = function (f, w, type, step) {
         return '<input type="' + (type || 'text') + '"' + (step ? ' step="' + step + '"' : '') + ' value="' + escP(it[f]) + '" oninput="offUpdItem(' + i + ',\'' + f + '\',this.value)" style="width:' + w + ';padding:5px;border:1px solid var(--brd);border-radius:6px;direction:ltr;font-size:12px">';
       };
-      var tds = cols.map(function (c) {
+      var tds = allCols.map(function (c) {
+        if (c.extra) {
+          var v = (it.extra || {})[c.name] || '';
+          return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c.name) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
+        }
         if (c.k === 'qty') return '<td>' + inp('qty', '54px', 'number') + '</td>';
         if (c.k === 'unit') return '<td>' + inp('unit', '50px') + '</td>';
         if (c.k === 'model' || c.k === 'brand') return '<td>' + inp(c.k, '76px') + '</td>';
         return '<td>' + inp(c.k, '100%') + '</td>';
       }).join('');
-      var ecCells = ec.map(function (c) {
-        var v = (it.extra || {})[c] || '';
-        return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
-      }).join('');
-      rows += '<tr><td>' + (i + 1) + '</td>' + tds + ecCells +
+      rows += '<tr><td>' + (i + 1) + '</td>' + tds +
         (isCO
           ? '<td>' + inp('price', '92px', 'number', cur.id === 'IRR' ? '1' : '0.01') + '</td><td id="offRT' + i + '" style="white-space:nowrap;font-size:12px">' + offerFmtMoney((+it.qty || 0) * (+it.price || 0), cur) + '</td>' /* v17.0 US-409 */
           : '') +
@@ -239,7 +306,7 @@
     var totalRow = '';
     if (isCO) {
       var total = _offState.items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
-      totalRow = '<tr style="font-weight:bold;background:#fff8f5"><td colspan="' + (2 + cols.length + ec.length) + '" style="text-align:left">GRAND TOTAL (' + cur.id + ')</td><td id="offGT" style="white-space:nowrap">' + offerFmtMoney(total, cur) + '</td><td></td></tr>';
+      totalRow = '<tr style="font-weight:bold;background:#fff8f5"><td colspan="' + (2 + allCols.length) + '" style="text-align:left">GRAND TOTAL (' + cur.id + ')</td><td id="offGT" style="white-space:nowrap">' + offerFmtMoney(total, cur) + '</td><td></td></tr>';
     }
     var hidden = _offState.hiddenCols || [];
     var restoreBar = hidden.length
@@ -313,17 +380,19 @@
     var o = typeof no === 'string' ? getData('ptf_crm_offers').filter(function (x) { return x.no === no; })[0] : no;
     if (!o) return;
     // v85.1: سند ذخیره‌نشده (پیش‌نمایش داخل فرم) → برای offerTplGo نگه دار
-    if (typeof no !== 'string') window._offPreviewObj = o;
+    /* v34.39.52 BUG-OFF-PRINT-STALE-DOC: وقتی دیالوگ از داخل فرم باز شده، علامت
+       یک‌بارمصرف می‌گذاریم تا offerTplGo همان وضعیت زندهٔ فرم را چاپ کند. */
+    if (typeof no !== 'string') { window._offPreviewObj = o; window._offPreviewFromForm = true; }
     var saved = localStorage.getItem('ptf_offer_tpl') || 'letterhead';
     var cards = PTF_OFFER_TEMPLATES.map(function (t) {
       return '<label style="display:block;border:2px solid ' + (saved === t.id ? 'var(--pri)' : 'var(--brd)') + ';border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer" onclick="this.parentElement.querySelectorAll(\'label\').forEach(l=>l.style.borderColor=\'var(--brd)\');this.style.borderColor=\'var(--pri)\'">' +
         '<input type="radio" name="offTpl" value="' + t.id + '"' + (saved === t.id ? ' checked' : '') + ' style="margin-left:6px">' +
         '<b style="font-size:13px">' + t.lb + '</b><div style="font-size:11.5px;color:#64748b;margin-top:3px;margin-right:22px">' + t.desc + '</div></label>';
     }).join('');
-    var html = '<div class="md-b" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px">' +
+    var html = '<div class="md-b" style="display:grid;z-index:2800" onclick="if(event.target===this){window._offPreviewFromForm=false;this.remove()}"><div class="md" style="max-width:460px">' +
       '<h3>🖨 انتخاب قالب سند ' + escP(o.no) + '</h3>' + cards +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
-      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
+      '<button class="bt bt-o" onclick="window._offPreviewFromForm=false;this.closest(\'.md-b\').remove()">انصراف</button>' +
       '<button class="bt bt-o" onclick="offerTplGo(\'' + ptfOnClickArg(o.no) + '\', true)">👁 پیش‌نمایش</button>' +
       '<button class="bt bt-o" style="color:#059669;border-color:#86efac" onclick="offerTplGo(\'' + ptfOnClickArg(o.no) + '\', \'share\')">📤 پیام‌رسان</button>' +
       '<button class="bt" onclick="offerTplGo(\'' + ptfOnClickArg(o.no) + '\', false)">🖨 دریافت PDF</button></div></div></div>';
@@ -333,7 +402,29 @@
     var sel = document.querySelector('input[name="offTpl"]:checked');
     var tpl = sel ? sel.value : 'letterhead';
     localStorage.setItem('ptf_offer_tpl', tpl);
-    var o = getData('ptf_crm_offers').filter(function (x) { return x.no === no; })[0] || window._offPreviewObj;
+    /* v34.39.52 BUG-OFF-PRINT-STALE-DOC (گزارش کارفرما): «ستون جدید را می‌سازیم،
+       مقدار می‌دهیم، چاپ می‌گیریم — مقادیرش در خروجی نیست.»
+       ریشه: این تابع همیشه اول رکورد ذخیره‌شده را برمی‌داشت؛ دیالوگ قالب که از
+       داخل فرم باز می‌شود وضعیت زندهٔ فرم را در _offPreviewObj نگه می‌داشت ولی
+       چون همان شماره در پشنهٔ ذخیره‌شده هم پیدا می‌شد، سند قدیمی چاپ می‌شد و هر
+       تغییر ذخیره‌نشده (از جمله ستون تکمیلی تازه‌ساخته و مقادیرش) از قلم می‌افتاد.
+       حالا اگر دیالوگ از داخل فرم باز شده باشد، همان سند زنده چاپ می‌شود
+       (WYSIWYG — هم‌رفتار با «چاپ / PDF رسمی» که همیشه از فرم می‌خواند).
+       علامت یک‌بارمصرف است تا چاپ از فهرست پیشنهادها همان رکورد ذخیره‌شده را بدهد. */
+    var fromForm = !!window._offPreviewFromForm;
+    window._offPreviewFromForm = false;
+    var live = window._offPreviewObj;
+    var liveMatches = !!(fromForm && live && String(live.no || '') === String(no || ''));
+    var o = null;
+    if (liveMatches) {
+      o = live;                       /* چاپ از داخل فرم → همان وضعیت زنده */
+    } else {
+      var list = getData('ptf_crm_offers');
+      for (var li = 0; li < list.length; li++) {
+        if (String(list[li].no || '') === String(no || '')) { o = list[li]; break; }
+      }
+      if (!o) o = live;               /* سند ذخیره‌نشده (پیش‌نمایش داخل فرم) */
+    }
     if (!o) return;
     var share = isPreview === 'share';
     offerPrintTpl(o, tpl, share ? false : !!isPreview, share ? 'share' : '');
@@ -351,6 +442,37 @@
     }
     var hidden = o.hiddenCols || [];
     return base.filter(function (c) { return hidden.indexOf(c.k) < 0; });
+  }
+
+  /* v34.39.52 BUG-OFF-XCOL-PARITY-001: ترتیب بصری ستون‌ها در سند چاپی.
+     ستون تکمیلی دیگر همیشه آخر نمی‌آید؛ دقیقاً سر جایگاهی می‌نشیند که کاربر در
+     فرم درگ کرده (کلیدش در colOrder با پیشوند x: ذخیره می‌شود).
+     ورودی: ستون‌های پایهٔ قابل چاپ (docCols) + نام ستون‌های تکمیلی قابل چاپ.
+     خروجی: [{k, extra, c, nm}] به همان ترتیبی که در thead/tbody/colgroup می‌آید. */
+  function docColSeq(cols, ec, o, isCO) {
+    var seq = [], usedB = {}, usedE = {};
+    var pushB = function (k) {
+      if (!k || usedB[k]) return;
+      var c = (cols || []).filter(function (x) { return x.k === k; })[0];
+      if (!c) return;
+      usedB[k] = 1;
+      seq.push({ k: c.k, extra: false, c: c });
+    };
+    var pushE = function (nm) {
+      if (!nm || usedE[nm] || (ec || []).indexOf(nm) < 0) return;
+      usedE[nm] = 1;
+      seq.push({ k: 'x:' + nm, extra: true, nm: nm });
+    };
+    var ord = (o && o.colOrder) || null;
+    if (ord && ord.length) {
+      ord.forEach(function (k) {
+        k = String(k == null ? '' : k);
+        if (k.indexOf('x:') === 0) pushE(k.slice(2)); else pushB(k);
+      });
+    }
+    (cols || []).forEach(function (c) { pushB(c.k); });   /* رکورد قدیمی بدون ترتیب ذخیره‌شده */
+    (ec || []).forEach(function (nm) { pushE(nm); });
+    return seq;
   }
 
   /* v14.2 (US-356): عرض ستون آداپتیو از روی محتوای واقعی + colgroup — Description پهن، ستون کم‌محتوا باریک */
@@ -375,6 +497,14 @@
       items.forEach(function (it) { var l = L((it.extra || {})[c]); if (l > mx) mx = l; });
       stats.push({ k: 'x:' + c, w: Math.sqrt(Math.min(Math.max(mx, 4), 70)) });
     });
+    /* v34.39.52: آمار عرض را به ترتیب بصری ستون‌ها بازچینید تا درصد هر <col>
+       دقیقاً به ستون هم‌جایگاهش برسد (ستون تکمیلی می‌تواند وسط جدول باشد). */
+    if (typeof docColSeq === 'function') {
+      var byKey = {};
+      stats.forEach(function (s) { byKey[s.k] = s; });
+      var ordered = docColSeq(cols, ec, o, isCO).map(function (s) { return byKey[s.k]; }).filter(Boolean);
+      if (ordered.length === stats.length) stats = ordered;
+    }
     var fixedNo = 4, fixedPrice = isCO ? 11 : 0, fixedTotal = isCO ? 12 : 0;
     var avail = 100 - fixedNo - fixedPrice - fixedTotal;
     var sum = stats.reduce(function (a, b) { return a + b.w; }, 0) || 1;
@@ -416,28 +546,35 @@
     ec = ec.filter(function (c) {
       return (o.items || []).some(function (it) { return String(((it.extra || {})[c]) == null ? '' : (it.extra || {})[c]).trim() !== ''; });
     });
+    /* v34.39.52 BUG-OFF-XCOL-PARITY-001: یک ترتیب واحد برای ستون‌های پایه و
+       تکمیلی — همان ترتیبی که کاربر در فرم ساخته است. */
+    var seq = (typeof docColSeq === 'function') ? docColSeq(cols, ec, o, isCO) : null;
+    if (!seq) {
+      seq = cols.map(function (c) { return { k: c.k, extra: false, c: c }; })
+        .concat(ec.map(function (nm) { return { k: 'x:' + nm, extra: true, nm: nm }; }));
+    }
     // US-183: Sr. no → No. (شماره ردیف انگلیسی)
     var thead = '<tr><th style="width:4%">No.</th>' +
-      cols.map(function (c) { return '<th>' + c.lb + '</th>'; }).join('') +
-      ec.map(function (c) { return '<th>' + escP(c) + '</th>'; }).join('') +
+      seq.map(function (s) { return '<th>' + (s.extra ? escP(s.nm) : s.c.lb) + '</th>'; }).join('') +
       (isCO ? '<th style="width:12%">Unit Price (' + cur.sym + ')</th><th style="width:13%">Total (' + cur.sym + ')</th>' : '') + '</tr>';
     var tbody = '';
     o.items.forEach(function (it, i) {
-      var tds = cols.map(function (c) {
+      var tds = seq.map(function (s) {
+        if (s.extra) return '<td>' + escP((it.extra || {})[s.nm] || '—') + '</td>';
+        var c = s.c;
         var v = it[c.k];
         if (c.k === 'unit') v = (typeof ptfOfferUnitEn === 'function') ? ptfOfferUnitEn(v) : (v || 'NO');
         if (c.k === 'name') return '<td class="lft"><b>' + escP(v || it.desc || '') + '</b></td>';
         if (c.k === 'desc') return '<td class="lft dsc">' + escP(v || '').replace(/;\s*/g, '<br>') + '</td>';
         return '<td>' + escP(v || (c.k === 'qty' ? '0' : '—')) + '</td>';
       }).join('');
-      var ecTd = ec.map(function (c) { return '<td>' + escP((it.extra || {})[c] || '—') + '</td>'; }).join('');
-      tbody += '<tr><td>' + (i + 1) + '</td>' + tds + ecTd +
+      tbody += '<tr><td>' + (i + 1) + '</td>' + tds +
         (isCO ? '<td class="num">' + offerFmtMoney(+it.price, cur) + '</td><td class="num">' + offerFmtMoney((+it.qty || 0) * (+it.price || 0), cur) + '</td>' : '') + '</tr>';
     });
     if (isCO) {
       var total = o.items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
       var words = cur.id === 'IRR' ? numToWords(Math.round(total)) + ' ' + cur.words : numToWords(Math.floor(total)) + ' ' + cur.words;
-      tbody += '<tr class="total"><td colspan="' + (1 + cols.length + ec.length) + '" class="lft"><b>Grand Total</b> <span class="words">' + words + '</span></td>' +
+      tbody += '<tr class="total"><td colspan="' + (1 + seq.length) + '" class="lft"><b>Grand Total</b> <span class="words">' + words + '</span></td>' +
         '<td colspan="2" class="num big">' + offerFmtMoney(total, cur) + ' ' + cur.id + '</td></tr>';
     }
     return '<table' + (opts && opts.cls ? ' class="' + opts.cls + '"' : '') + ' style="table-layout:fixed">' + docColgroup(o, cols, ec, isCO) + '<thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>'; /* v14.2 US-356 */

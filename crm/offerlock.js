@@ -176,6 +176,12 @@
     var cur = offerCurrency(_offState);
     var cols = offBaseCols(isCO);
     var ec = _offState.extraCols || [];
+    /* v34.39.52 BUG-OFF-XCOL-PARITY-001: فهرست واحد ستون‌ها به ترتیب کاربر —
+       ستون تکمیلی دیگر همیشه آخر نمی‌ایستد؛ هر جا درگ شود همان‌جا می‌ماند
+       (فرم و چاپ یک ترتیب دارند). */
+    var allCols = (typeof window.offAllCols === 'function') ? window.offAllCols(_offState, isCO) : null;
+    if (!allCols) allCols = cols.map(function (c) { return { k: c.k, name: c.k, lb: c.lb, fa: c.fa, extra: false }; })
+      .concat(ec.map(function (c) { return { k: 'x:' + c, name: c, lb: c, fa: c, extra: true }; }));
     var ws = colW();
     // US-202: عرض پیش‌فرض — شرح بلند، تعداد/واحد کوچک
     var DEF_W = { name: 240, desc: 300, model: 90, qty: 52, unit: 52, brand: 100 };
@@ -188,11 +194,12 @@
     };
     var rz = function (key) { return '<span onpointerdown="offColResizeStart(event,\'' + key + '\')" onmousedown="if(event.pointerId===undefined)offColResizeStart(event,\'' + key + '\')" ondragstart="event.preventDefault();return false;" style="position:absolute;left:-3px;top:0;bottom:0;width:7px;cursor:col-resize;touch-action:none;user-select:none"></span>'; };
     var head = '<tr><th style="width:52px" data-noix>➕</th><th style="width:30px">#</th><th style="width:120px;position:relative">کد کالا 🔒' + rz('pcode') + '</th>' + /* v14.2 US-366: عملیات ابتدای ردیف */
-      cols.map(function (c) {
+      allCols.map(function (c) {
+        if (c.extra) {
+          var ci = ec.indexOf(c.name);
+          return '<th' + dragAttr('x:' + c.name) + ' style="position:relative;min-width:' + (ws['x:' + c.name] || 90) + 'px">⠿ ' + escP(c.name) + ' <a href="javascript:void(0)" onclick="offDelColumn(' + ci + ')" style="color:#dc2626;font-size:10px">✕</a>' + rz('x:' + c.name) + '</th>';
+        }
         return '<th' + dragAttr(c.k) + thW(c.k) + '>⠿ ' + (c.fa || c.lb) + ' <a href="javascript:void(0)" onclick="offToggleBaseCol(\'' + c.k + '\')" style="color:#dc2626;font-size:10px" title="حذف ستون">✕</a>' + rz(c.k) + '</th>';
-      }).join('') +
-      ec.map(function (c, ci) {
-        return '<th' + dragAttr('x:' + c) + ' style="position:relative;min-width:' + (ws['x:' + c] || 90) + 'px">⠿ ' + escP(c) + ' <a href="javascript:void(0)" onclick="offDelColumn(' + ci + ')" style="color:#dc2626;font-size:10px">✕</a>' + rz('x:' + c) + '</th>';
       }).join('') +
       (isCO ? ((typeof roleDef === 'function' && (roleDef() || {}).buyPrice)
         ? '<th style="min-width:112px;background:#fcfaff;color:#5b21b6" title="نرخ مرجع خرید از بانک کالا">نرخ مرجع خرید</th><th style="min-width:78px;background:#fffef0;color:#92400e" title="درصد حاشیه سود">(٪) سود</th>'
@@ -220,16 +227,19 @@
         : '<td style="position:relative"><input type="text" placeholder="کلیک = مرور کالاها | تایپ = جستجو" onkeydown="offProdSrchKey(' + i + ',event,this)" oninput="offProdSrchInput(' + i + ',this)" onfocus="offProdSrchInput(' + i + ',this)" onblur="var d=document.getElementById(\'opdd' + i + '\');setTimeout(function(){if(d)d.style.display=\'none\'},250)" style="width:100%;padding:6px;border:1.5px dashed #7c3aed;border-radius:6px;font-size:11.5px" autocomplete="off">' +
           '<div id="opdd' + i + '" style="display:none;position:absolute;top:100%;right:0;left:-160px;background:#fff;border:1px solid var(--brd);border-radius:10px;box-shadow:0 10px 26px rgba(15,23,42,.18);z-index:50;max-height:220px;overflow:auto"></div>' +
           '<a href="javascript:void(0)" onclick="offProdQuickAdd(' + i + ')" style="font-size:10px;color:#059669;white-space:nowrap">+ ثبت سریع</a></td>';
-      var tds = cols.map(function (c) {
+      /* v34.39.52 BUG-OFF-XCOL-PARITY-001: سلول‌ها در همان ترتیب سرستون‌ها
+         (پایه + تکمیلی درهم) — ستون تکمیلی هر جا باشد، ورودی‌اش همان‌جاست. */
+      var tds = allCols.map(function (c) {
+        if (c.extra) {
+          var v = (it.extra || {})[c.name] || '';
+          return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c.name) + '\',this.value)" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
+        }
         if (c.k === 'qty') return '<td>' + inp('qty', 'number') + '</td>';
         if (c.k === 'unit') return '<td>' + inp('unit', 'text', null, false) + '</td>'; // US-201: واحد آزاد شد (اسپرینت ۱۰۲)
         if (c.k === 'name') return '<td>' + inp('name', 'text', null, false) + '</td>'; // US-201: شرح آزاد شد (اسپرینت ۱۰۲)
         return '<td>' + inp(c.k) + '</td>';
       }).join('');
-      var ecCells = ec.map(function (c) {
-        var v = (it.extra || {})[c] || '';
-        return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c) + '\',this.value)" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
-      }).join('');
+      var ecCells = ''; /* v34.39.52: ستون‌های تکمیلی داخل tds ادغام شدند */
       /* v14.6 (US-347 — نقشه راه مصوب): قیمت خرید مرجع (p.pr با تاریخ US-335) + درصد سود + هشدار سود منفی
          فقط برای نقش‌های دارای buyPrice — سایر نقش‌ها هیچ قیمتی خریدی نمی‌بینند */
       /* v31.7.12 US-OFF-REF: نرخ مرجع ویرایش‌شده توسط کاربر بر نرخ کاتالوگ مقدم است */
@@ -275,7 +285,7 @@
     var totalRow = '';
     if (isCO) {
       var total = _offState.items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
-      totalRow = '<tr style="font-weight:bold;background:#fff8f5"><td colspan="' + (4 + cols.length + ec.length + (canMargin ? 2 : 0)) + '" style="text-align:left">GRAND TOTAL (' + cur.id + ')</td><td id="offGT" style="white-space:nowrap">' + ((typeof window.offPrintAmount === 'function') ? window.offPrintAmount(total, cur) : offerFmtMoney(total, cur)) + '</td></tr>'; /* v14.2 US-366 + v34.7.47 */
+      totalRow = '<tr style="font-weight:bold;background:#fff8f5"><td colspan="' + (4 + allCols.length + (canMargin ? 2 : 0)) + '" style="text-align:left">GRAND TOTAL (' + cur.id + ')</td><td id="offGT" style="white-space:nowrap">' + ((typeof window.offPrintAmount === 'function') ? window.offPrintAmount(total, cur) : offerFmtMoney(total, cur)) + '</td></tr>'; /* v14.2 US-366 + v34.7.47 */
     }
     var hidden = _offState.hiddenCols || [];
     var restoreBar = hidden.length
