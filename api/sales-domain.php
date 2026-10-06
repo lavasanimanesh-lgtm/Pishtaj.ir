@@ -71,7 +71,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.50';
+const SD_SERVICE_VERSION = '34.39.52';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1906,6 +1906,15 @@ try {
         if(count($noIndexes)===1){$existingForRecovery=$offers[$noIndexes[0]];$crashRecovery=(string)($existingForRecovery['serverOperationId']??'')===$idem&&(string)($existingForRecovery['serverRequestHash']??'')===$requestHash;}
         if($createIntent&&$incomingId===''&&count($noIndexes)>0&&!$crashRecovery)sd_out(['ok'=>false,'error'=>'offer_number_owned_by_another_record'],409);
         if(count($noIndexes)===1&&$idIndex<0&&$incomingId!==''&&$noIndexes[0]!==$idIndex&&!$crashRecovery)sd_out(['ok'=>false,'error'=>'offer_number_owned_by_another_record'],409);
+        /* v34.39.51 BUG-OFF-TOCO-CLONE-IDENTITY (گزارش کارفرما: «دکمهٔ ساخت پیشنهاد مالی،
+           پیشنهاد فنی را کامل حذف می‌کند»): createIntent یعنی «سند تازه». اگر همان _id به
+           رکوردی با شمارهٔ دیگر تعلق دارد، کلاینت رکورد مبدأ را کامل کلون کرده (مسیر →CO)
+           و ادامهٔ فرمان = بازنویسی و نابودی یک سند مستقل. پیش از این بی‌صدا انجام می‌شد:
+           $target از روی $idIndex انتخاب و رکورد پیشنهاد فنی با CO جایگزین می‌شد.
+           رد قطعی هیچ داده‌ای را از بین نمی‌برد — کلاینت snapshot پیش از ذخیره را rollback
+           می‌کند و متن فرم به‌عنوان پیش‌نویس محفوظ می‌ماند. این گارد باندل‌های کش‌شدهٔ
+           قدیمی را هم خنثی می‌کند. */
+        if($createIntent&&$idIndex>=0&&!$crashRecovery&&(string)($offers[$idIndex]['no']??'')!==$no)sd_out(['ok'=>false,'error'=>'create_intent_identity_mismatch','existingNo'=>(string)($offers[$idIndex]['no']??''),'incomingNo'=>$no],409);
         $target=$crashRecovery?$noIndexes[0]:($idIndex>=0?$idIndex:(count($noIndexes)===1?$noIndexes[0]:-1));if($target>=0&&($offers[$target]['st']??'')==='won'&&!$crashRecovery&&json_encode($offers[$target])!==json_encode($incoming))sd_out(['ok'=>false,'error'=>'won_offer_locked'],409);
         if(empty($incoming['_id']))$incoming['_id']=$target>=0?($offers[$target]['_id']??sd_uuid('OFR')):sd_uuid('OFR');$incoming['updatedAtISO']=$incoming['updatedAtISO']??sd_now();$incoming['serverRegisteredAt']=sd_now();$incoming['serverRegisteredBy']=$user;$incoming['serverOperationId']=$idem;$incoming['serverRequestHash']=$requestHash;
         if($target>=0)$offers[$target]=$incoming;else array_unshift($offers,$incoming);

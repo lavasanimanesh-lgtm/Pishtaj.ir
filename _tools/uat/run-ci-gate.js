@@ -76,6 +76,8 @@ var SUITE = [
   { g: 'سایت/رهگیری', f: '_tools/uat/tester410-v34.7.5-random-public-tracking.js' },
   { g: 'پیشنهاد/یکپارچگی', f: '_tools/uat/tester411-v34.7.6-winner-repair-parity.js' },
   { g: 'پیشنهاد/موبایل/ACK', f: '_tools/uat/tester442-v34.7.39-offer-ack-workflow.js' },
+  { g: 'پیشنهاد/یکپارچگی TO→CO', f: '_tools/uat/tester691-v34.39.51-toCo-keeps-technical-offer.js' },
+  { g: 'پیشنهاد/ستون تکمیلی (جابه‌جایی + چاپ)', f: '_tools/uat/tester692-v34.39.52-offer-custom-column-parity.js' },
   { g: 'پیشنهاد/قطعیت نتیجه ثبت', f: '_tools/uat/tester445-v34.7.42-offer-commit-certainty.js' },
   { g: 'فرمان‌های مالی/قطعیت عمومی', f: '_tools/uat/tester446-v34.7.43-command-commit-certainty.js' },
   { g: 'پیشنهاد/دکمه ذخیره مودال', f: '_tools/uat/tester447-v34.7.44-offer-save-button-return.js' },

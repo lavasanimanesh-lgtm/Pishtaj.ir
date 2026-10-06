@@ -1,7 +1,7 @@
 {
  "note": "بدهی معماری پذیرفته‌شده با امضای پایدار محتوا؛ افزایش multiset هر قاعده ⇒ شکست گیت.",
  "signatureFormat": "source-sha256-12-v2",
- "version": "v34.38.9",
+ "version": "v34.39.52",
  "rules": {
   "A1": [
    "delRfq @ bridge.js+workflow.js",
@@ -42,7 +42,6 @@
    "fx.js (empty-equality) [d46b2aac669f] var o = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];",
    "guards.js (empty-equality) [cb607076ca44] var o = offers.filter(function (x) { return x.no === id; })[0];",
    "offer-rial-convert.js (empty-equality) [17e8fb496169] if (offersAll().some(function (x) { return x.no === newNo; })) { alert(WHY_FA.serial); return…",
-   "offers-pro.js (empty-equality) [14fa108e09f4] var o = getData('ptf_crm_offers').filter(function (x) { return x.no === no; })[0] || window._…",
    "offers-pro.js (empty-equality) [4fc318d2c1fa] var o = typeof no === 'string' ? getData('ptf_crm_offers').filter(function (x) { return x.no …",
    "offers-pro.js (empty-equality) [e17cd4b5bf20] var o = getData('ptf_crm_offers').filter(function (x) { return x.no === no; })[0];",
    "offers.js (empty-equality) [06aff5ca4a2a] var offer = (getData('ptf_crm_offers') || []).filter(function (x) { return x.no === no; })[0];",

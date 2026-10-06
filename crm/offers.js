@@ -1194,10 +1194,34 @@ function offerToCo(no) { // AC12 + US-142 AC5: فقط یک بار | v14.3 US-367
      بجوید و با «رکورد اصلی پیشنهاد پیدا نشد» ثبت را متوقف کند. */
   _offState.editMode = 'new';
   delete _offState._baseNo; delete _offState._origNo; delete _offState.baseNo;
+  /* v34.39.51 BUG-OFF-TOCO-CLONE-IDENTITY (گزارش کارفرما: «دکمهٔ ساخت پیشنهاد مالی،
+     پیشنهاد فنی را کامل حذف می‌کند»): سند CO حاصل یک رکورد «جدید» است، نه ویرایش TO.
+     پیش از این `_id` سروریِ پیشنهاد فنی روی کلون می‌ماند؛ فرمان register_offer هدف را
+     اول با `_id` پیدا می‌کرد و رکورد TO را در جای خود با CO بازنویسی می‌کرد — پیشنهاد
+     فنی بی‌صدا و برای همیشه از ptf_crm_offers ناپدید می‌شد (بدون ثبت در سطل بازیافت).
+     علاوه بر `_id`، هر فیلدی که به هویت/چرخهٔ عمر/مالی سند مبدأ تعلق دارد پاک می‌شود تا
+     سند تازه تاریخچهٔ جعلی نگیرد و به پرونده/فاکتور سند دیگری وصل نشود.
+     الگو: همان کاری که مسیر تبدیل ریالی/ارزی از ابتدا می‌کرد (offer-rial-convert.js). */
+  delete _offState._id;
+  delete _offState.revisionHistory; delete _offState.editHistory;
+  delete _offState.wonAtISO; delete _offState.wonBy; delete _offState.wonRevisionSnapshot;
+  delete _offState.priorStatus; delete _offState.invRef; delete _offState.rialOf;
+  delete _offState.fxOf; delete _offState.fxConvert; delete _offState.isAmendment;
+  delete _offState.amendmentOf; delete _offState.amendmentOfOfferId;
+  delete _offState.amendmentMarkedAt; delete _offState.amendmentMarkedBy;
+  delete _offState.serverOperationId; delete _offState.serverRequestHash;
+  delete _offState.serverRegisteredAt; delete _offState.serverRegisteredBy;
+  delete _offState._serverState; delete _offState._serverOpId; delete _offState._serverError;
   _offState.no = offerSerial('CO');
   _offState.kind = 'CO';
   _offState.st = 'draft';
   _offState.rev = 0;
+  /* شناسهٔ خط اقلام با شمارهٔ سند جدید بازتولید می‌شود؛ وگرنه دو سند lineId یکسان داشتند
+     و تطبیق خرید/پوشش فاکتور اشتباه می‌خورد (قرارداد offer-rial-convert.js:396). */
+  _offState.items = (_offState.items || []).map(function (it) {
+    var c = JSON.parse(JSON.stringify(it || {})); delete c.lineId; return c;
+  });
+  try { offEnsureOfferLineIds(_offState.items, _offState.no); } catch (eLn) {}
   _offState.srcToNo = no; // برای قفل کردن دکمه تبدیل پس از ذخیره
   if (_isAlt) { _offState.altOf = o.coNo; _offState.altLabel = 'گزینه جایگزین'; } /* v31.7.21 US-OFF-ALT */
   delete _offState.coNo;
@@ -1390,6 +1414,14 @@ function offerForm() {
     (mySigReady() || ptfCanDelegateSig() ? '' : '<small>ابتدا در مکاتبات → «امضای من» پروفایل امضا را ثبت کنید.</small>') + '</label>' +
     (ptfCanDelegateSig() ? '<label class="offer-signature-select"><span>امضاکننده</span><select id="ofSignAs">' + ptfSignAsOptions(o.signAs) + '</select></label>' : '') +
     '</section>';
+  /* v34.39.51 BUG-OFF-TOCO-CLONE-IDENTITY (خواستهٔ کارفرما): «شمارهٔ پیشنهاد فنی» باید در
+     فرم پیشنهاد مالی دیده شود. تا امروز srcToNo فقط یک فیلد داده‌ای بود و هیچ‌جای فرم
+     نمایش داده نمی‌شد. وجود رکورد مبدأ هم بررسی می‌شود تا زنجیرهٔ آسیب‌دیدهٔ قدیمی
+     (پیش از این اصلاح) قابل تشخیص باشد. */
+  var ptfSrcToExists = false;
+  if (o && o.kind !== 'TO' && o.srcToNo) {
+    try { ptfSrcToExists = getData('ptf_crm_offers').some(function (x) { return x && x.no === o.srcToNo; }); } catch (eSt) { ptfSrcToExists = true; }
+  }
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md offer-form-modal" style="max-width:min(96vw,1700px);max-height:92vh;overflow:auto">' +
     '<h3>' + (o.kind === 'TO' ? '🔧 پیشنهاد فنی' : o.kind === 'TC' ? '🤝 پیشنهاد فنی-مالی' : '💰 پیشنهاد مالی') +
     ' — <span style="direction:ltr;display:inline-block">' + escP(o.no) + '</span>' +
@@ -1428,6 +1460,19 @@ function offerForm() {
     '<input type="checkbox" id="ofRefToCatalog"> نرخ مرجع اصلاح‌شده در بانک کالا هم ثبت شود</label></div>' +
     '<div class="fld"><label>تاریخ سند (شمسی) — ذخیره سیستمی به میلادی</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('ofDateJ', (o.dateEn || new Date().toISOString().slice(0, 10))) : '<input type="text" id="ofDateJ" style="direction:ltr;color:#0e7490" value="' + escP((typeof ptfISOToJ==='function' ? ptfISOToJ(o.dateEn || new Date().toISOString().slice(0, 10)) : (o.dateEn || ''))) + '">') + '</div>' +
     '</div>' +
+    /* v34.39.51 (BUG-OFF-TOCO-CLONE-IDENTITY — خواستهٔ کارفرما): مقادیر و «شمارهٔ» پیشنهاد
+       فنی مبدأ در فرم پیشنهاد مالی دیده شود. ردیف فقط‌خوانی است؛ خود پیشنهاد فنی دست‌نخورده
+       می‌ماند و فقط مقادیرش به این فرم منتقل شده است. */
+    ((o.kind !== 'TO' && o.srcToNo)
+      ? '<div class="fr"><div class="fld"><label>🔧 پیشنهاد فنی مبدأ (فقط‌خوانی)</label>' +
+        '<div style="padding:8px 10px;border-radius:10px;font-size:12.5px;font-weight:800;direction:ltr;display:inline-block;' +
+        (ptfSrcToExists ? 'background:#f5f3ff;border:1px solid #ddd6fe;color:#5b21b6' : 'background:#fef2f2;border:1px solid #fecaca;color:#b91c1c') + '">' + escP(o.srcToNo) + '</div>' +
+        '<small style="color:#64748b;font-size:11px;display:block;margin-top:4px">' +
+        (ptfSrcToExists
+          ? 'کارفرما، اقلام و شرایط این پیشنهاد از همین پیشنهاد فنی منتقل شده است؛ سند فنی سر جایش باقی می‌ماند.'
+          : '⚠️ رکورد این پیشنهاد فنی در فهرست پیشنهادها پیدا نشد — زنجیرهٔ فنی→مالی را از «کیفیت داده» بررسی کنید.') +
+        '</small></div></div>'
+      : '') +
     /* v20.1: TC در CO ادغام شد — تفاوت فقط قالب/عنوان چاپ.
        v34.7.57: قالب چاپ + اعتبار پیشنهاد (US-157) در یک ردیف متوازن (قبلاً ستون خالی داشت). */
     (o.kind !== 'TO'
@@ -1691,6 +1736,11 @@ window.offerPickInq = function(inqNo) {
         if (to.subject && !_offState.subject) _offState.subject = to.subject;
         try {
           if (to.extraCols && to.extraCols.length) _offState.extraCols = JSON.parse(JSON.stringify(to.extraCols));
+          /* v34.39.52 BUG-OFF-XCOL-PARITY-001: چیدمان ستون‌ها (ترتیب درهمِ پایه +
+             تکمیلی و ستون‌های ✕خورده) هم با سند کپی می‌شود تا ستون تکمیلی در CO
+             دقیقاً همان‌جا بایستد که در TO ایستاده بود. */
+          if (to.colOrder && to.colOrder.length) _offState.colOrder = JSON.parse(JSON.stringify(to.colOrder));
+          if (to.hiddenCols && to.hiddenCols.length) _offState.hiddenCols = JSON.parse(JSON.stringify(to.hiddenCols));
           if (to.terms && to.terms.length && !(_offState.terms || []).length) _offState.terms = JSON.parse(JSON.stringify(to.terms));
           _offState.items = JSON.parse(JSON.stringify(to.items || []));
         } catch (eCp) {}
@@ -3312,6 +3362,17 @@ function offerSave() {
   o.useSig = !!(document.getElementById('ofUseSig') || {}).checked;
   var _sa = document.getElementById('ofSignAs'); if (_sa && _sa.value) o.signAs = _sa.value; /* v13.1 US-321 */
   var offers = getData('ptf_crm_offers');
+  /* v34.39.51 BUG-OFF-TOCO-CLONE-IDENTITY — آخرین سنگر سمت کلاینت: پیش‌نویس‌های
+     ذخیره‌شده در Dev-KV از نسخه‌های قبل همچنان `_id` سند مبدأ را حمل می‌کنند (کلون کامل
+     رکورد در مسیر →CO). اگر سند «جدید» شناسهٔ رکورد دیگری را دارد، سرور آن رکورد را
+     بازنویسی می‌کند؛ پس شناسه پاک می‌شود تا سند جدید شناسهٔ تازه از سرور بگیرد. */
+  if ((o.editMode || 'new') === 'new' && o._id) {
+    var _idOwner = offers.filter(function (x) { return x && x._id === o._id; })[0];
+    if (!_idOwner || _idOwner.no !== o.no) {
+      try { audit('پیشنهادها', 'حذف _id موروثی از سند جدید ' + (o.no || '') + ' — جلوگیری از بازنویسی رکورد ' + ((_idOwner && _idOwner.no) || 'نامعلوم') + ' (BUG-OFF-TOCO-CLONE-IDENTITY)', o.no || ''); } catch (eIdS) {}
+      delete o._id;
+    }
+  }
   var saveIdentity = ptfOfferResolveSaveIdentity(o, offers);
   if (!saveIdentity.ok) {
     alert('⛔ رکورد اصلی پیشنهاد برای ویرایش پیدا نشد (' + (saveIdentity.originalNo || o.no || '—') + ').\n\nبرای جلوگیری از ایجاد پیشنهاد جدید/شماره جدید از مسیر ویرایش، ذخیره متوقف شد. لطفاً فهرست پیشنهادها را به‌روزرسانی و دوباره ویرایش را باز کنید.');
