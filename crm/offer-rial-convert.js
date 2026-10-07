@@ -49,7 +49,13 @@
     if (typeof ptfMoney === 'function') return ptfMoney(v, cur || 'IRR');
     return cur && cur !== 'IRR' ? (+v || 0).toLocaleString('en-US') + ' ' + cur : (+v || 0).toLocaleString('fa-IR') + ' ریال';
   }
-  function curFa(cur) { return cur === 'EUR' ? 'یورو' : cur === 'USD' ? 'دلار' : 'ریال'; }
+  function curFa(cur) {
+    return cur === 'EUR' ? 'یورو' : cur === 'USD' ? 'دلار' : cur === 'CNY' ? 'یوان' : cur === 'AED' ? 'درهم' : cur === 'GBP' ? 'پوند' : 'ریال';
+  }
+  function liveRateFor(cur) {
+    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
+    return cur === 'USD' ? (+L.usd_free || 0) : cur === 'EUR' ? (+L.eur_free || 0) : cur === 'CNY' ? (+L.cny_free || 0) : 0;
+  }
 
   /* مبلغ فروش تنها مبلغ ارزیِ ردیف نیست؛ نرخ مرجع/خرید نیز در پیشنهاد ارزی
      با همان واحد ارز نگه‌داری شده است. تبدیل فقط price باعث می‌شد حاشیهٔ
@@ -110,9 +116,11 @@
 
   var CUR_TOKENS = {
     EUR: { re: '(?:Euros|Euro|EURO|EUR|€|یورو)', faTok: 'یورو', code: 'IRR', word: 'Iranian Rial', wordPl: 'Iranian Rials' },
-    USD: { re: '(?:US Dollars|US Dollar|USD|\\$|دلار آمریکا|دلار)', faTok: 'دلار', code: 'IRR', word: 'Iranian Rial', wordPl: 'Iranian Rials' }
+    USD: { re: '(?:US Dollars|US Dollar|USD|\\$|دلار آمریکا|دلار)', faTok: 'دلار', code: 'IRR', word: 'Iranian Rial', wordPl: 'Iranian Rials' },
+    CNY: { re: '(?:Chinese Yuans?|CNY|¥|یوان چین|یوان)', faTok: 'یوان', code: 'IRR', word: 'Iranian Rial', wordPl: 'Iranian Rials' },
+    AED: { re: '(?:UAE Dirhams?|AED|درهم امارات|درهم)', faTok: 'درهم', code: 'IRR', word: 'Iranian Rial', wordPl: 'Iranian Rials' },
+    GBP: { re: '(?:British Pounds?|GBP|£|پوند انگلیس|پوند)', faTok: 'پوند', code: 'IRR', word: 'Iranian Rial', wordPl: 'Iranian Rials' }
   };
-
   window.ptfRialConvertTermText = function (txt, cur, rate) {
     if (!txt || !rate) return String(txt || '');
     var tok = CUR_TOKENS[cur];
@@ -129,8 +137,14 @@
     /* ۳) باقیمانده الفاظ ارز بدون عدد */
     if (cur === 'EUR') {
       s = s.replace(/\bEuros\b/g, tok.wordPl).replace(/\bEuro\b/g, tok.word).replace(/\bEUR\b/g, tok.code).replace(/€/g, tok.code).replace(/یورو/g, 'ریال');
-    } else {
+    } else if (cur === 'USD') {
       s = s.replace(/\bUS Dollars\b/g, tok.wordPl).replace(/\bUS Dollar\b/g, tok.word).replace(/\bUSD\b/g, tok.code).replace(/\$/g, tok.code).replace(/دلار آمریکا/g, 'ریال').replace(/دلار/g, 'ریال');
+    } else if (cur === 'CNY') {
+      s = s.replace(/\bChinese Yuans?\b/gi, function (m) { return /s$/i.test(m) ? tok.wordPl : tok.word; }).replace(/\bCNY\b/g, tok.code).replace(/¥/g, tok.code).replace(/یوان چین/g, 'ریال').replace(/یوان/g, 'ریال');
+    } else if (cur === 'AED') {
+      s = s.replace(/\bUAE Dirhams?\b/gi, function (m) { return /s$/i.test(m) ? tok.wordPl : tok.word; }).replace(/\bAED\b/g, tok.code).replace(/درهم امارات/g, 'ریال').replace(/درهم/g, 'ریال');
+    } else if (cur === 'GBP') {
+      s = s.replace(/\bBritish Pounds?\b/gi, function (m) { return /s$/i.test(m) ? tok.wordPl : tok.word; }).replace(/\bGBP\b/g, tok.code).replace(/[£]/g, tok.code).replace(/پوند انگلیس/g, 'ریال').replace(/پوند/g, 'ریال');
     }
     return s;
   };
@@ -210,6 +224,8 @@
     if (advTerm) conv.terms.unshift(advTerm);
     comp.terms = conv.terms;
     comp.fxConvert.termsRewritten = conv.terms.length;
+    comp.fxConvert.termsRate = rate;
+    comp.fxConvert.termsCur = src.currency;
     comp.updatedAtISO = new Date().toISOString();
     setData(OFFERS_KEY, offers);
     try { audit('پیشنهادها', 'بازسازی شرایط و ضوابط ریالی ' + comp.no + ' از ' + src.no + ' (نرخ ' + rate + ')', comp.no); } catch (e) {}
@@ -234,11 +250,12 @@
     if (!(rate > 0)) rate = +src.fxRateRef || 0;
     _termDlg = {
       comp: comp, src: src, rate: rate,
+      termsBasisRate: (comp.fxConvert && +comp.fxConvert.termsRate) || rate,
+      termsBasisCur: (comp.fxConvert && comp.fxConvert.termsCur) || src.currency,
       /* پیش‌فرض: شرایط فعلی نسخه ریالی؛ اگر خالی بود → تبدیل خودکار از مبدأ */
       terms: ((comp.terms && comp.terms.length) ? comp.terms.slice() : buildConvertedTerms(src, rate).terms)
     };
-    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
-    var liveRate = src.currency === 'USD' ? (+L.usd_free || 0) : src.currency === 'EUR' ? (+L.eur_free || 0) : 0;
+    var liveRate = liveRateFor(src.currency);
     var totalFx = fxTotal(src);
     var _b = fxBasisOf(src);
     var fxNote = _b.advancePct > 0
@@ -256,7 +273,7 @@
           '<button class="bt bt-o" style="font-size:12px" onclick="sfRcTermsRebuild()" title="بازسازی خودکار بندها از پیشنهاد ارزی با نرخ فعلی">↻ بازسازی خودکار</button>' +
           '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="sfRcTermsViewSrc()" title="دیدن پیشنهاد ارزی قبلی">👁 دیدن پیشنهاد ارزی قبلی</button>' +
         '</div>' +
-        '<small style="color:#64748b">نرخ آزاد لحظه‌ای: ' + (liveRate ? liveRate.toLocaleString('fa-IR') + ' ریال' : 'در دسترس نیست') + '</small></div>' +
+        '<small style="color:#64748b">نرخ آزاد لحظه‌ای: ' + (liveRate ? liveRate.toLocaleString('fa-IR') + ' ریال' : 'در دسترس نیست') + ' — در صورت تغییر نرخ، برای همگام‌سازی بندها «بازسازی خودکار» را بزنید.</small></div>' +
       '<div style="font-size:12px;background:#f8fafc;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 12px;margin-bottom:8px">' +
         'مبلغ پیشنهاد ارزی: <b dir="ltr">' + money(totalFx, src.currency) + '</b> — معادل ریالی (با نرخ فعلی): <b id="sfRcTermsTotal">' + money(Math.round(totalFx * rate), 'IRR') + '</b>' + fxNote + '</div>' +
       '<div id="sfRcTermsList"></div>' +
@@ -299,7 +316,7 @@
     if (!_termDlg) return;
     _termDlg.rate = (typeof ptfNum === 'function') ? ptfNum(((document.getElementById('sfRcTermsRate') || {}).value || '')) : 0;
     var totalEl = document.getElementById('sfRcTermsTotal');
-    if (totalEl) totalEl.textContent = money(Math.round(fxTotal(_termDlg.src) * _termDlg.rate), 'IRR');
+    if (totalEl) totalEl.textContent = _termDlg.rate > 0 ? money(Math.round(fxTotal(_termDlg.src) * _termDlg.rate), 'IRR') : '—';
   };
   window.sfRcTermsRebuild = function () {
     if (!_termDlg) return;
@@ -307,6 +324,8 @@
     if (!(rate > 0)) { alert(WHY_FA.rate); return; }
     _termDlg.rate = rate;
     _termDlg.terms = buildConvertedTerms(_termDlg.src, rate).terms;
+    _termDlg.termsBasisRate = rate;
+    _termDlg.termsBasisCur = _termDlg.src.currency;
     sfRcTermsRenderList();
     toast('↻ بندهای شرایط از پیشنهاد ارزی با نرخ جدید بازسازی شد', 'ok');
   };
@@ -318,6 +337,9 @@
     if (!_termDlg) return;
     var rate = (typeof ptfNum === 'function') ? ptfNum(((document.getElementById('sfRcTermsRate') || {}).value || '')) : 0;
     if (!(rate > 0)) { alert(WHY_FA.rate); return; }
+    var terms = (_termDlg.terms || []).filter(function (t) { return String(t || '').trim() !== ''; });
+    var termsAreStale = +(_termDlg.termsBasisRate || 0) !== +rate || _termDlg.termsBasisCur !== _termDlg.src.currency;
+    if (termsAreStale && terms.length && typeof confirm === 'function' && !confirm('نرخ با مبنای بندهای شرایط تغییر کرده است. برای تبدیل دوبارهٔ بندها «بازسازی خودکار» را بزنید؛ اگر ادامه دهید، متن فعلی بندها بدون تبدیلِ مجدد حفظ می‌شود. ذخیره با همین متن ادامه یابد؟')) return;
     var offers = offersAll();
     var comp = offers.filter(function (o) { return o && o.no === compNo; })[0];
     if (!comp) { alert('⛔ نسخه ریالی یافت نشد.'); return; }
@@ -331,9 +353,11 @@
     var totalIrr = items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
     comp.items = items;
     try { if (typeof offEnsureOfferLineIds === 'function') offEnsureOfferLineIds(comp.items, comp.no); } catch (eL) {} /* lineId بازتولید — تطبیق خرید سالم بماند */
-    comp.terms = (_termDlg.terms || []).filter(function (t) { return String(t || '').trim() !== ''; });
+    comp.terms = terms;
     comp.fxConvert = comp.fxConvert || {};
     comp.fxConvert.rate = rate;
+    comp.fxConvert.termsRate = +_termDlg.termsBasisRate || rate;
+    comp.fxConvert.termsCur = _termDlg.termsBasisCur || src.currency;
     comp.fxConvert.totalIrr = totalIrr;
     comp.fxConvert.termsRewritten = comp.terms.length;
     /* مبنای تجاری پیشنهاد (نرخ/مبلغ ارزی و شرط پیش‌پرداخت) دست‌نخورده بماند؛
@@ -357,7 +381,7 @@
 
   var WHY_FA = {
     notfound: '⛔ پیشنهاد یافت نشد.',
-    notfx: '⛔ فقط «پیشنهاد ارزی» (EUR/USD) قابل تبدیل به ریالی است — این پیشنهاد ریالی یا غیرمالی است.',
+    notfx: '⛔ فقط پیشنهاد مالی ارزی (USD/EUR/CNY/AED/GBP) قابل تبدیل به ریالی است — این پیشنهاد ریالی یا غیرمالی است.',
     noitems: '⛔ این پیشنهاد ردیف کالایی ندارد.',
     nototal: '⛔ مبلغ این پیشنهاد صفر است — قابل تبدیل نیست.',
     exists: 'ℹ️ نسخه ریالی این پیشنهاد قبلاً ساخته شده است (هر پیشنهاد ارزی یک نسخه ریالی می‌گیرد).',
@@ -408,7 +432,7 @@
         /* وضعیت: ارسال‌شده — نسخه ریالی هرگز برنده/بازنده نمی‌شود (هوک offerSetSt) */
         st: 'sent',
         rialOf: o.no,
-        fxConvert: { from: o.no, cur: o.currency, rate: rate, totalFx: totalFx, totalIrr: totalIrr, dateISO: dateISO, termsRewritten: termsConv.changed || 0, at: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString()), by: curName(),
+        fxConvert: { from: o.no, cur: o.currency, rate: rate, totalFx: totalFx, totalIrr: totalIrr, dateISO: dateISO, termsRewritten: termsConv.changed || 0, termsRate: rate, termsCur: o.currency, at: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString()), by: curName(),
           /* مبنای تجاری ارزی و شرط پیش‌پرداخت؛ وصول فقط در Receipt ریالی نگهداری می‌شود. */
           originalRate: _fxBasis.originalRate, originalFxTotal: _fxBasis.originalFxTotal, srcCurrency: _fxBasis.currency,
           advancePct: _fxBasis.advancePct, advanceDocAmt: _fxBasis.advanceDocAmt },
@@ -500,8 +524,7 @@
     var chk = window.ptfOfferRialConvertCheck(no);
     if (!chk.ok) { alert(window.ptfOfferRialWhyFa(chk.why)); return; }
     var o = chk.offer;
-    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
-    var liveRate = o.currency === 'USD' ? (+L.usd_free || 0) : o.currency === 'EUR' ? (+L.eur_free || 0) : 0;
+    var liveRate = liveRateFor(o.currency);
     var defRate = (+o.fxRateRef > 0) ? +o.fxRateRef : liveRate;
     var defDate = o.dateEn || new Date().toISOString().slice(0, 10);
     var totalFx = fxTotal(o);
@@ -516,7 +539,7 @@
       '</div>' +
       '<div style="font-size:12.5px;background:#f8fafc;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 12px;margin-bottom:10px">' +
         'مبلغ پیشنهاد ارزی: <b dir="ltr">' + money(totalFx, o.currency) + '</b>' +
-        (o.fxBasis || o.fxRateRef ? '<div style="color:#64748b;font-size:11px;margin-top:2px">مرجع ثبت‌شده سند: ' + (o.fxBasis === 'free' ? 'نرخ آزاد' : o.fxBasis === 'agreed' ? 'توافقی' : o.fxBasis === 'sana' ? 'سنا (تاریخی)' : '-') + (o.fxRateRef ? ' — ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</div>' : '') +
+        (o.fxBasis || o.fxRateRef ? '<div style="color:#64748b;font-size:11px;margin-top:2px">مرجع ثبت‌شده سند: ' + (o.fxBasis === 'free' ? 'نرخ آزاد' : o.fxBasis === 'agreed' ? 'توافقی' : o.fxBasis === 'converted' ? 'تبدیل‌شده' : o.fxBasis === 'sana' ? 'سنا (تاریخی)' : '-') + (o.fxRateRef ? ' — ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</div>' : '') +
       '</div>' +
       '<div class="fld"><label>نرخ تسعیر (ریال به‌ازای هر ' + escP(o.currency) + ') *</label>' +
         '<input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="sfRcRate" value="' + (defRate ? defRate.toLocaleString('en-US') : '') + '" style="direction:ltr" oninput="sfRcPreview()">' +
@@ -591,7 +614,7 @@
           rialPostAction('preview', '👁', 'نمایش ریالی', 'نمایش نسخه ریالی پیشنهاد', 'offerQuickPreview(\'' + ptfOnClickArg(comp.no) + '\')', 'نسخه همراه') +
           rialPostAction('print', '🖨', 'چاپ ریالی', 'چاپ یا PDF نسخه ریالی', 'offerPrint(\'' + ptfOnClickArg(comp.no) + '\')', 'PDF / چاپ') +
           rialPostAction('source', '👁', 'نسخه ارزی', 'دیدن پیشنهاد ارزی قبلیِ برنده', 'offerQuickPreview(\'' + ptfOnClickArg(wo.no) + '\')', 'مبنای پیشنهاد') +
-          rialPostAction('terms', '🔧', 'شرایط و نرخ', 'پیش‌نمایش و ویرایش شرایط و ضوابط ریالی، اصلاح نرخ تسعیر و دیدن پیشنهاد ارزی', 'ptfOfferRialTermsOpen(\'' + ptfOnClickArg(comp.no) + '\')', 'ویرایش شرایط');
+          rialPostAction('terms', '🔧', 'ویرایش نرخ و شرایط', 'پیش‌نمایش و ویرایش شرایط و ضوابط ریالی، اصلاح نرخ تسعیر و دیدن پیشنهاد ارزی', 'ptfOfferRialTermsOpen(\'' + ptfOnClickArg(comp.no) + '\')', 'نسخه ریالی');
       }
       if (!isFxOffer(wo)) return '';
       var chk = window.ptfOfferRialConvertCheck(wo.no);
@@ -636,7 +659,7 @@
     workflow:    { label: 'پاسخ یا اصلاح پیشنهاد',      icon: '✏️', tone: 'pink',   primary: false },
     rialPreview: { label: 'نمایش نسخه ریالی',           icon: '👁', tone: 'sky',    primary: false },
     rialPrint:   { label: 'چاپ یا PDF نسخه ریالی',      icon: '🖨', tone: 'indigo', primary: false },
-    rialTerms:   { label: 'شرایط و نرخ تسعیر ریالی',    icon: '🔧', tone: 'orange', primary: false },
+    rialTerms:   { label: 'ویرایش نرخ و شرایط ریالی',  icon: '🔧', tone: 'orange', primary: false },
     unknown:     { label: 'عملیات تکمیلی پیشنهاد',      icon: '⚙️', tone: 'slate',  primary: false }
   };
 

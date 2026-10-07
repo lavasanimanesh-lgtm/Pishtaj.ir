@@ -231,8 +231,8 @@
          (پایه + تکمیلی درهم) — ستون تکمیلی هر جا باشد، ورودی‌اش همان‌جاست. */
       var tds = allCols.map(function (c) {
         if (c.extra) {
-          var v = (it.extra || {})[c.name] || '';
-          return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c.name) + '\',this.value)" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
+          var v = typeof window.ptfOfferExtraValue === 'function' ? window.ptfOfferExtraValue(it, c.name) : ((it.extra || {})[c.name] || '');
+          return '<td><input type="text" data-off-extra-row="' + i + '" data-off-extra-name="' + escP(c.name) + '" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c.name) + '\',this.value)" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
         }
         if (c.k === 'qty') return '<td>' + inp('qty', 'number') + '</td>';
         if (c.k === 'unit') return '<td>' + inp('unit', 'text', null, false) + '</td>'; // US-201: واحد آزاد شد (اسپرینت ۱۰۲)
@@ -372,6 +372,8 @@
   window.offValidateItems = function () {
     var st = window._offState || (typeof _offState !== 'undefined' ? _offState : null);
     if (!st) return 'فرم پیشنهاد در حافظه نیست — یک‌بار فرم را ببندید و دوباره باز کنید';
+    /* اعتبارسنجی و ذخیره باید دقیقاً همان مقادیری را ببینند که کاربر در فیلدها می‌بیند. */
+    if (typeof window.ptfOfferSyncExtraInputs === 'function') window.ptfOfferSyncExtraInputs(st);
     if (!st.items || !st.items.length) return 'حداقل یک ردیف کالا لازم است';
     var isCO = st.kind === 'CO' || st.kind === 'TC'; // v122: فرم TC = مالی با قیمت
     var colsFn = (typeof window.offBaseCols === 'function') ? window.offBaseCols : (typeof offBaseCols === 'function' ? offBaseCols : null);
@@ -388,7 +390,10 @@
       return !st.items.some(function (x) { return String(x[k] == null ? '' : x[k]).trim() !== ''; });
     }
     function ecAllEmpty(c) {
-      return !st.items.some(function (x) { return String(((x.extra || {})[c]) == null ? '' : (x.extra || {})[c]).trim() !== ''; });
+      return !st.items.some(function (x) {
+        var value = typeof window.ptfOfferExtraValue === 'function' ? window.ptfOfferExtraValue(x, c) : ((x.extra || {})[c]);
+        return String(value == null ? '' : value).trim() !== '';
+      });
     }
     for (var i = 0; i < st.items.length; i++) {
       var it = st.items[i];
@@ -407,7 +412,8 @@
         if (v === '') return 'ردیف ' + (i + 1) + ': ستون «' + (cols[c].fa || cols[c].lb) + '» خالی است — مقدار بدهید یا خط تیره (-) بگذارید' + (MUST[k] ? '' : '\n(اگر کل ستون را نمی‌خواهید: همه ردیف‌هایش را خالی بگذارید یا با ✕ حذفش کنید — خودکار از چاپ حذف می‌شود)');
       }
       for (var e2 = 0; e2 < ec.length; e2++) {
-        var ev = String(((it.extra || {})[ec[e2]]) == null ? '' : (it.extra || {})[ec[e2]]).trim();
+        var extraValue = typeof window.ptfOfferExtraValue === 'function' ? window.ptfOfferExtraValue(it, ec[e2]) : ((it.extra || {})[ec[e2]]);
+        var ev = String(extraValue == null ? '' : extraValue).trim();
         if (ev === '' && ecAllEmpty(ec[e2])) continue; /* v17.0: ستون سفارشی سراسر-خالی = آزاد */
         if (ev === '') return 'ردیف ' + (i + 1) + ': ستون «' + ec[e2] + '» خالی است — مقدار بدهید یا خط تیره (-) بگذارید';
       }

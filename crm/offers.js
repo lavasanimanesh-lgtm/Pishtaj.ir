@@ -801,13 +801,13 @@ function renderOffers() {
         var _comp = window.ptfRialCompanionOf(o.no);
         if (_comp) {
           var _rt = (_comp.fxConvert && +_comp.fxConvert.rate) || 0;
-          rialInline = '<div style="margin-top:6px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#047857;display:flex;flex-wrap:wrap;align-items:center;gap:6px" title="نسخه ریالی همین پیشنهاد — ساخته‌شده با نرخ ' + (_rt ? _rt.toLocaleString('fa-IR') : '') + ' ریال">' +
+          rialInline = '<div style="margin-top:6px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#047857;display:flex;flex-wrap:wrap;align-items:center;gap:6px" title="نسخه ریالی همین پیشنهاد — ساخته‌شده با نرخ ' + (_rt ? _rt.toLocaleString('fa-IR') : '') + ' ریال/' + escP(o.currency) + '">' +
             '<span>💱 نسخه ریالی (همان شماره)</span>' +
-            (_rt ? '<span style="font-size:10px;opacity:.85">نرخ ' + _rt.toLocaleString('fa-IR') + ' ریال</span>' : '') +
+            (_rt ? '<span style="font-size:10px;opacity:.85">نرخ ' + _rt.toLocaleString('fa-IR') + ' ریال/' + escP(o.currency) + '</span>' : '') +
             '<span style="margin-left:auto;display:inline-flex;gap:4px">' +
               '<button class="bt bt-o" style="width:24px;height:24px;padding:0;font-size:11px;color:#0e7490" onclick="offerQuickPreview(\'' + ptfOnClickArg(_comp.no) + '\')" title="نمایش نسخه ریالی">👁</button>' +
               '<button class="bt bt-o" style="width:24px;height:24px;padding:0;font-size:11px;color:#0e7490" onclick="offerPrint(\'' + ptfOnClickArg(_comp.no) + '\')" title="چاپ/PDF نسخه ریالی">🖨</button>' +
-              '<button class="bt bt-o" style="width:24px;height:24px;padding:0;font-size:11px;color:#b45309" onclick="ptfOfferRialTermsOpen(\'' + ptfOnClickArg(_comp.no) + '\')" title="شرایط و ضوابط + نرخ تسعیر نسخه ریالی">🔧</button>' +
+              '<button class="bt bt-o" style="height:24px;padding:2px 7px;font-size:10px;color:#b45309;white-space:nowrap" onclick="ptfOfferRialTermsOpen(\'' + ptfOnClickArg(_comp.no) + '\')" title="ویرایش نرخ تسعیر و شرایط نسخه ریالی" aria-label="ویرایش نرخ تسعیر و شرایط نسخه ریالی">🔧 ویرایش نرخ/شرایط</button>' +
             '</span></div>';
         }
       }
@@ -829,7 +829,7 @@ function renderOffers() {
       '<td style="direction:ltr;font-size:12px">' + escP(o.inqNo || '—') + '</td>' +
       '<td>' + escP(o.dateFa || '') + '</td>' +
       '<td>' + o.items.length + '</td>' +
-      '<td>' + ((o.kind === 'CO' || o.kind === 'TC') && total ? (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : (o.currency && o.currency !== 'IRR' ? total.toLocaleString('en-US') + ' ' + o.currency : total.toLocaleString('fa-IR') + ' ریال')) : '—') + (((o.currency && o.currency !== 'IRR') && (o.fxBasis || o.fxRateRef)) ? '<div style="font-size:10px;color:#64748b">مرجع: ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') + (o.fxRateRef ? ' | ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</div>' : '') + marginBadge + '</td>' + /* v17.4 US-416: ارز سند */
+      '<td>' + ((o.kind === 'CO' || o.kind === 'TC') && total ? (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : (o.currency && o.currency !== 'IRR' ? total.toLocaleString('en-US') + ' ' + o.currency : total.toLocaleString('fa-IR') + ' ریال')) : '—') + (((o.currency && o.currency !== 'IRR') && (o.fxBasis || o.fxRateRef)) ? '<div style="font-size:10px;color:#64748b">مرجع: ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : o.fxBasis === 'converted' ? 'تبدیل‌شده' : 'توافقی') + (o.fxRateRef ? ' | ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</div>' : '') + marginBadge + '</td>' + /* v17.4 US-416: ارز سند */
       '<td>' + stCell + invBadge + '</td>' +
       '<td>' + (isWon ? '<span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:11px" title="پیشنهاد برنده قفل است؛ ادامه از پرونده فروش">🔒 برنده</span> ' : '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerEdit(\''+o.no+'\')" title="ویرایش پیش‌فاکتور">✏️</button> ') +
       (isWon ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfGoSalesFileForOffer(\''+o.no+'\')" title="مشاهده پرونده فروش">📁</button> ' : '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="offerReviseClone(\''+o.no+'\')" title="ایجاد نگارش جدید (Revise)">📑</button> ') +
@@ -841,8 +841,8 @@ function renderOffers() {
       (o.kind === 'CO' ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:13px;background:#059669;color:#fff" onclick="offOpenProfitOptimizer(\''+o.no+'\')" title="ماتریس بهینه‌سازی سود">📊</button> ' : '') +
       toCoBtn +
       ((o.kind === 'CO' || o.kind === 'TC') ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0f766e" title="بررسی سلامت و پیش‌نمایش اقلام" onclick="ptfOfferIntegrityDialog(\''+o.no+'\')">🔎</button>' : '') +
-       (o.rialOf ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOfferRialTermsOpen(\''+o.no+'\')" title="پیش‌نمایش/ویرایش شرایط و ضوابط نسخه ریالی">🔧</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.rialOf+'\')" title="دیدن پیشنهاد ارزی قبلی">👁 ارزی</button> ' : '') +
-       ((o.fxOf ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#92400e;border-color:#fde68a" onclick="ptfOfferFxTermsOpen(\''+o.no+'\')" title="شرایط نسخه ارزی">🔧</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.fxOf+'\')" title="دیدن پیشنهاد ریالی قبلی">👁 ریالی</button> ' : '') +
+       (o.rialOf ? ' <button class="bt bt-o" style="height:28px;padding:3px 8px;font-size:11px;color:#b45309;border-color:#fcd34d;white-space:nowrap" onclick="ptfOfferRialTermsOpen(\''+o.no+'\')" title="ویرایش نرخ تسعیر و شرایط نسخه ریالی" aria-label="ویرایش نرخ تسعیر و شرایط نسخه ریالی">🔧 ویرایش نرخ/شرایط</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.rialOf+'\')" title="دیدن پیشنهاد ارزی قبلی">👁 ارزی</button> ' : '') +
+       ((o.fxOf ? ' <button class="bt bt-o" style="height:28px;padding:3px 8px;font-size:11px;color:#92400e;border-color:#fde68a;white-space:nowrap" onclick="ptfOfferFxTermsOpen(\''+o.no+'\')" title="ویرایش ارز مقصد، نرخ تسعیر و شرایط نسخه ارزی" aria-label="ویرایش ارز مقصد، نرخ تسعیر و شرایط نسخه ارزی">🔧 ویرایش</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.fxOf+'\')" title="دیدن پیشنهاد ریالی قبلی">👁 ریالی</button> ' : '') +
        ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf && !isWon && (o.currency && o.currency !== 'IRR') && !(typeof window.ptfRialCompanionOf === 'function' && window.ptfRialCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#0e7490;color:#fff" onclick="ptfOfferRialConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ریالی">💱</button> ' : '') +
        ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf && !isWon && (!o.currency || o.currency === 'IRR') && !(typeof window.ptfFxCompanionOf === 'function' && window.ptfFxCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#b45309;color:#fff" onclick="ptfOfferFxConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ارزی">💱</button> ' : '')) +
       ((!isWon && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf) ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#9a3412;border-color:#fdba74" onclick="ptfMarkOfferAmendment(\''+o.no+'\')" title="علامت‌گذاری به‌عنوان متمم مستقل یک پرونده موجود">➕</button>' : '') +
@@ -1372,6 +1372,9 @@ document.addEventListener('click', function (e) {
   box.style.display = 'none';
 });
 function offerForm() {
+  /* context چاپِ یک‌بارمصرف فقط برای همان فرم فعال است؛ با بازشدن فرم جدید پاک شود. */
+  window._offPreviewFromForm = false;
+  window._offPreviewObj = null;
   /* v14.2 (US-364): فقط یک فرم پیشنهادِ قابل‌مشاهده — فرم‌های باز قبلی بسته می‌شوند
      (مینیمایزشده‌های modalx با display:none دست نمی‌خورند) */
   try {
@@ -1765,6 +1768,50 @@ function offerPickContact(idx) {
 
 // ---- فاز ۲ AC7: ستون‌های داینامیک با عرض هوشمند ----
 var MAX_EXTRA_COLS = 99; // US-183: بدون محدودیت (فونت پلکانی کوچک می‌شود)
+/* v34.39.53 BUG-OFF-XCOL-INPUT-SNAPSHOT:
+   فرمِ فعال از روی inputهای واقعی sync می‌شود؛ ذخیره/چاپ دیگر به اجرای به‌موقع
+   inline oninput وابسته نیست. این مرز صریح، مقدار تایپ‌شده را پیش از validation،
+   snapshot ذخیره و ساخت سند، از DOM به همان ردیف و extra[name] منتقل می‌کند. */
+window.ptfOfferExtraValue = function (item, col) {
+  var extra = item && item.extra;
+  if (!extra || typeof extra !== 'object' || !Object.prototype.hasOwnProperty.call(extra, String(col))) return '';
+  return extra[String(col)];
+};
+window.ptfOfferSetExtraValue = function (item, col, value) {
+  if (!item) return;
+  col = String(col == null ? '' : col);
+  if (!col) return;
+  if (!item.extra || typeof item.extra !== 'object' || Array.isArray(item.extra)) item.extra = {};
+  /* defineProperty also makes special labels such as "__proto__" ordinary data keys. */
+  try {
+    Object.defineProperty(item.extra, col, { value: value, writable: true, enumerable: true, configurable: true });
+  } catch (eSetExtra) {
+    item.extra[col] = value;
+  }
+};
+window.ptfOfferSyncExtraInputs = function (state, root) {
+  var st = state || window._offState || _offState;
+  if (!st || !Array.isArray(st.items)) return false;
+  var grid = root || (typeof window.offEl === 'function' ? window.offEl('offItemsWrap') : document.getElementById('offItemsWrap'));
+  if (!grid || typeof grid.querySelectorAll !== 'function') return false;
+  var controls = grid.querySelectorAll('[data-off-extra-row][data-off-extra-name]');
+  var changed = false;
+  Array.prototype.forEach.call(controls || [], function (input) {
+    var rawRow = input.getAttribute ? input.getAttribute('data-off-extra-row') : (input.dataset || {}).offExtraRow;
+    var name = input.getAttribute ? input.getAttribute('data-off-extra-name') : (input.dataset || {}).offExtraName;
+    var row = Number(rawRow);
+    if (!name || !isFinite(row) || Math.floor(row) !== row || row < 0 || row >= st.items.length) return;
+    var value = String(input.value == null ? '' : input.value);
+    var prev = window.ptfOfferExtraValue(st.items[row], name);
+    if (String(prev == null ? '' : prev) === value) return;
+    window.ptfOfferSetExtraValue(st.items[row], name, value);
+    changed = true;
+  });
+  if (changed && typeof ptfTriggerAutoDraftSave === 'function') {
+    try { ptfTriggerAutoDraftSave(); } catch (eDraftExtra) {}
+  }
+  return changed;
+};
 window.offShowAdvCols = function() {
   var html = '<div class="md-b" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px">' +
     '<h3>⛭ ستون‌های تکمیلی</h3>' +
@@ -1781,18 +1828,31 @@ function offAddColumn() {
     alert('حداکثر ' + MAX_EXTRA_COLS + ' ستون اضافه مجاز است تا خروجی از عرض A4 لنداسکیپ خارج نشود.\nپیشنهاد: ستون‌های کم‌اهمیت را حذف یا در Description ادغام کنید.');
     return;
   }
-  var name = prompt('نام ستون جدید (انگلیسی — روی سند چاپ می‌شود):', '');
-  if (!name || !name.trim()) return;
-  _offState.extraCols.push(name.trim());
-  _offState.items.forEach(function (it) { it.extra = it.extra || {}; });
+  var prompted = prompt('نام ستون جدید (انگلیسی — روی سند چاپ می‌شود):', '');
+  var name = String(prompted == null ? '' : prompted).trim();
+  if (!name) return;
+  if (_offState.extraCols.some(function (c) { return String(c).trim().toLowerCase() === name.toLowerCase(); })) {
+    alert('ستونی با این نام از قبل وجود دارد. نام ستون باید یکتا باشد.');
+    return;
+  }
+  _offState.extraCols.push(name);
+  (_offState.items || []).forEach(function (it) {
+    it.extra = it.extra && typeof it.extra === 'object' && !Array.isArray(it.extra) ? it.extra : {};
+    if (typeof window.ptfOfferSetExtraValue === 'function') window.ptfOfferSetExtraValue(it, name, '');
+    else it.extra[name] = '';
+  });
   offRenderItems();
+  /* نام ستون هم یک تغییر پیش‌نویس است؛ حتی پیش از تایپ اولین سلول ماندگار شود. */
+  if (typeof ptfTriggerAutoDraftSave === 'function') ptfTriggerAutoDraftSave();
 }
 function offDelColumn(ci) {
   if (!confirm('ستون «' + _offState.extraCols[ci] + '» حذف شود؟')) return;
   var name = _offState.extraCols[ci];
   _offState.extraCols.splice(ci, 1);
-  _offState.items.forEach(function (it) { if (it.extra) delete it.extra[name]; });
+  (_offState.items || []).forEach(function (it) { if (it.extra) delete it.extra[name]; });
+  if (Array.isArray(_offState.colOrder)) _offState.colOrder = _offState.colOrder.filter(function (k) { return k !== 'x:' + name; });
   offRenderItems();
+  if (typeof ptfTriggerAutoDraftSave === 'function') ptfTriggerAutoDraftSave();
 }
 // عرض هوشمند: با افزایش ستون‌ها فونت سند پلکانی کوچک می‌شود (در offerPrintObj اعمال می‌شود)
 function offSmartFont() {
@@ -1886,6 +1946,14 @@ function offItemHasCommercialValue(it) {
 function offDedupeOfferItems(items) {
   items = Array.isArray(items) ? items : [];
   var out = [], seen = {}, removed = 0;
+  function extraSignature(it) {
+    var extra = it && it.extra && typeof it.extra === 'object' && !Array.isArray(it.extra) ? it.extra : {};
+    var pairs = Object.keys(extra).sort().map(function (k) {
+      var v = extra[k];
+      return [k, String(v == null ? '' : v)];
+    }).filter(function (p) { return p[1].trim() !== ''; });
+    return JSON.stringify(pairs);
+  }
   items.forEach(function (it) {
     if (!it) return;
     var key = offItemKey(it);
@@ -1893,10 +1961,11 @@ function offDedupeOfferItems(items) {
     if (!key || empty) { out.push(it); return; }
     /* v34.7.56 (BUG-OFFER-DUP-SKIP-267): ردیف‌های هم‌محتوا ولی با هویت خط متمایز
        (id ذخیره‌شده یا مبدأ+نوبت تکرار) مشروع‌اند و نباید هنگام ذخیره حذف شوند.
-       فقط تکرارهای واقعاً بی‌هویتِ هم‌محتوا (دستی/legacy) مثل قبل جمع می‌شوند. */
+       v34.39.53: سلول‌های تکمیلیِ متفاوت هم هویت تجاری ردیف‌اند؛ دو قلم که فقط
+       در Origin/Warranty فرق دارند نباید با dedupe حذف شوند و دادهٔ ستون گم شود. */
     var ident = it.id ? 'id:' + it.id
       : ((it.sourceInq && it.sourceItemKey) ? 'src:' + it.sourceInq + '|' + it.sourceItemKey + '|' + (+it.dupOrdinal || 0) : 'manual');
-    key = key + '||' + ident;
+    key = key + '||' + ident + '||extra:' + extraSignature(it);
     var prevIdx = seen[key];
     if (prevIdx == null) { seen[key] = out.length; out.push(it); return; }
     var prev = out[prevIdx];
@@ -2429,7 +2498,18 @@ window.ptfOfferUnitEn = function (u) {
 };
 
 
-function offUpdExtra(i, col, v) { _offState.items[i].extra = _offState.items[i].extra || {}; _offState.items[i].extra[col] = v; ptfTriggerAutoDraftSave(); }
+function offUpdExtra(i, col, v) {
+  var st = window._offState || _offState;
+  i = Number(i);
+  if (!st || !Array.isArray(st.items) || !isFinite(i) || Math.floor(i) !== i || i < 0 || i >= st.items.length) return;
+  if (typeof window.ptfOfferSetExtraValue === 'function') window.ptfOfferSetExtraValue(st.items[i], col, String(v == null ? '' : v));
+  else {
+    st.items[i].extra = st.items[i].extra || {};
+    st.items[i].extra[String(col)] = String(v == null ? '' : v);
+  }
+  if (typeof ptfTriggerAutoDraftSave === 'function') ptfTriggerAutoDraftSave();
+}
+window.offUpdExtra = offUpdExtra;
 function offDelItem(i) { _offState.items.splice(i, 1); offRenderItems(); ptfTriggerAutoDraftSave(); }
 function ptfOfferBestBuyRef(it) {
   var best = +((it || {}).bestBuyPrice || 0);
@@ -2636,7 +2716,8 @@ function offRenderItems() {
       return '<input type="' + inputType + '" value="' + escP(shown) + '"' + moneyAttr + ' oninput="offUpdItem(' + i + ',\'' + f + '\',this.value)" style="width:' + w + ';padding:5px;border:1px solid var(--brd);border-radius:6px;direction:' + ((type==='number' || f==='price')?'ltr':'') + ';font-size:12px">';
     };
     var ecCells = ec.map(function(c){
-      return '<td><input type="text" value="' + escP((it.extra||{})[c]||'') + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
+      var extraVal = typeof window.ptfOfferExtraValue === 'function' ? window.ptfOfferExtraValue(it, c) : ((it.extra || {})[c] || '');
+      return '<td><input type="text" data-off-extra-row="' + i + '" data-off-extra-name="' + escP(c) + '" value="' + escP(extraVal) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
     }).join('');
     
     var bestBuyHtml = '';
@@ -3095,7 +3176,9 @@ function offRenderTerms() {
 /* v34.7.58 OFFICIAL-OFFER-OUTPUT-001 (بازپیاده‌سازی PR #57 روی main):
    ساخت سند از وضعیت فعلی فرم، جدا از مسیر پیش‌نمایش — بدون ذخیره و بدون mutation اضافه. */
 function offMaterializeCurrentDocument() {
-  var o = _offState;
+  var o = window._offState || _offState;
+  /* از ورودی‌های واقعی فرم بخوان، نه فقط از آخرین callback ثبت‌شده در state. */
+  if (typeof window.ptfOfferSyncExtraInputs === 'function') window.ptfOfferSyncExtraInputs(o);
   o.buyerCd = (document.getElementById('ofBuyer')||{}).value || o.buyerCd;
   o.inqNo = (document.getElementById('ofInq')||{}).value || '';
   o.dateEn = (typeof ptfJToISO==='function' ? ptfJToISO(((document.getElementById('ofDateJ')||{}).value || '')) : '') || o.dateEn || new Date().toISOString().slice(0, 10); /* v22 audited: انتخاب شمسی، ذخیره ISO */
@@ -3273,6 +3356,9 @@ window.ptfOfferAfterServerCommit = function (o, meta) {
 
 function offerSave() {
   try {
+  /* قبل از snapshot فرمان، مقادیر visible را صریحاً از DOM به state برگردان؛ این کار
+     حتی در raceهای input/IME یا rendererهای قدیمی از خالی‌شدن extra[name] جلوگیری می‌کند. */
+  if (typeof window.ptfOfferSyncExtraInputs === 'function') window.ptfOfferSyncExtraInputs(window._offState || _offState);
   /* sales-domain-v2 باید این تابع legacy را داخل command فعال کند. اگر asset یا
      wrapper بارگذاری نشده باشد، local-only save به‌جای fallback ناامن متوقف می‌شود. */
   if (!window.PTF_OFFER_COMMAND_SAVE_ACTIVE) {
@@ -3604,7 +3690,10 @@ function offerPrintObj(o) {
   var tbody = '';
   o.items.forEach(function(it, i) {
     var nm = escP(it.name || it.desc || '');
-    var ecTd = ec.map(function(c){ return '<td>' + escP((it.extra||{})[c] || '—') + '</td>'; }).join('');
+    var ecTd = ec.map(function(c){
+      var extraVal = typeof window.ptfOfferExtraValue === 'function' ? window.ptfOfferExtraValue(it, c) : ((it.extra || {})[c]);
+      return '<td>' + escP(extraVal == null || String(extraVal) === '' ? '—' : extraVal) + '</td>';
+    }).join('');
     if (isCO) {
       var full = nm + (it.desc && it.name ? '<div class="idesc">' + escP(it.desc) + '</div>' : '');
       tbody += '<tr><td>' + (i+1) + '</td><td class="lft"><b>' + full + '</b></td><td>' + escP((typeof ptfOfferUnitEn==='function'?ptfOfferUnitEn(it.unit): (it.unit||'NO'))) + '</td><td>' + (it.qty||0) + '</td><td>' + escP(it.brand||'—') + '</td><td>' + escP(it.model||'—') + '</td>' + ecTd +

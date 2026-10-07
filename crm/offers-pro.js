@@ -1,6 +1,6 @@
 /* =====================================================================
    PTF CRM — offers-pro.js — Sprint 84
-   US-182: پیشنهاد مالی ارزی (IRR / EUR / USD)
+   US-182: پیشنهاد مالی ارزی (IRR / EUR / USD / CNY / AED / GBP)
    US-183: درگ سرستون‌ها + حذف/اضافه بدون محدودیت + Sr. no → شماره ردیف
    US-185: چند قالب PDF حرفه‌ای (شبیه سربرگ) با پیش‌نمایش و انتخاب کاربر
    ===================================================================== */
@@ -11,9 +11,16 @@
   var CURRENCIES = [
     { id: 'IRR', lb: 'ریال ایران (IRR)', sym: 'IRR', words: 'Iranian Rials' },
     { id: 'EUR', lb: 'یورو (EUR)', sym: '€', words: 'Euros' },
-    { id: 'USD', lb: 'دلار آمریکا (USD)', sym: '$', words: 'US Dollars' }
+    { id: 'USD', lb: 'دلار آمریکا (USD)', sym: '$', words: 'US Dollars' },
+    { id: 'CNY', lb: 'یوان چین (CNY)', sym: '¥', words: 'Chinese Yuan' },
+    { id: 'AED', lb: 'درهم امارات (AED)', sym: 'AED', words: 'UAE Dirhams' },
+    { id: 'GBP', lb: 'پوند انگلیس (GBP)', sym: '£', words: 'British Pounds' }
   ];
   window.PTF_CURRENCIES = CURRENCIES;
+  function liveOfferFxRate(cur) {
+    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
+    return cur === 'USD' ? (+L.usd_free || 0) : cur === 'EUR' ? (+L.eur_free || 0) : cur === 'CNY' ? (+L.cny_free || 0) : 0;
+  }
   window.offerCurrency = function (o) {
     return CURRENCIES.filter(function (c) { return c.id === (o.currency || 'IRR'); })[0] || CURRENCIES[0];
   };
@@ -36,8 +43,7 @@
      تاریخی در offers.js/rbac.js حفظ شده) — این تغییر فقط مسیر ثبت جدید را می‌بندد. */
   function fxRefRowHtml() {
     var cur = (_offState && _offState.currency) || 'IRR';
-    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
-    var freeRate = cur === 'USD' ? (+L.usd_free || 0) : cur === 'EUR' ? (+L.eur_free || 0) : 0;
+    var freeRate = liveOfferFxRate(cur);
     var basis = (_offState && _offState.fxBasis) || 'free';
     if (basis === 'sana') basis = 'free'; /* رکورد قدیمی با مبنای منسوخ — به آزاد سوییچ شود */
     var rate = (_offState && +_offState.fxRateRef) || freeRate || '';
@@ -79,11 +85,14 @@
   /* hook نام‌دار برای wrapper فرم و تست رفتاری؛ تابع idempotent است و فقط یک بار ارز را می‌افزاید. */
   window.ptfOfferInjectCurrencyField = injectCurrencyField;
   window.offerCurChanged = function (v) {
-    _offState.currency = v;
-    if (v === 'IRR') {
-      _offState.fxBasis = '';
-      _offState.fxRateRef = 0;
+    if (!_offState) return;
+    var oldCur = _offState.currency || 'IRR';
+    if (oldCur !== v) {
+      var newLiveRate = v === 'IRR' ? 0 : liveOfferFxRate(v);
+      _offState.fxBasis = v === 'IRR' ? '' : (newLiveRate > 0 ? 'free' : 'agreed');
+      _offState.fxRateRef = newLiveRate;
     }
+    _offState.currency = v;
     var old = document.getElementById('ofFxWrap');
     if (old) old.remove();
     var anchor = document.getElementById('ofCurrency');
@@ -96,8 +105,7 @@
     if (!_offState) return;
     _offState.fxBasis = v;
     var cur = _offState.currency || 'IRR';
-    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
-    var freeRate = cur === 'USD' ? (+L.usd_free || 0) : cur === 'EUR' ? (+L.eur_free || 0) : 0;
+    var freeRate = liveOfferFxRate(cur);
     var rateEl = document.getElementById('ofFxRate');
     if (rateEl && v !== 'agreed') rateEl.value = (freeRate || '').toLocaleString ? (freeRate || '').toLocaleString('en-US') : '';
   };
@@ -175,6 +183,7 @@
     var i = _offState.hiddenCols.indexOf(k);
     if (i > -1) _offState.hiddenCols.splice(i, 1); else _offState.hiddenCols.push(k);
     offRenderItems2();
+    if (typeof ptfTriggerAutoDraftSave === 'function') ptfTriggerAutoDraftSave();
   };
   /* ===========================================================================
      v34.39.52 — BUG-OFF-XCOL-PARITY-001 (گزارش کارفرما ۱۴۰۵/۰۷/۱۴):
@@ -234,6 +243,11 @@
     });
     return out;
   };
+  function extraCellValue(item, name) {
+    if (typeof window.ptfOfferExtraValue === 'function') return window.ptfOfferExtraValue(item, name);
+    var extra = item && item.extra;
+    return extra && Object.prototype.hasOwnProperty.call(extra, String(name)) ? extra[String(name)] : '';
+  }
   var _dragCol = null;
   window.offColDragStart = function (ev, key) { _dragCol = key; ev.dataTransfer.effectAllowed = 'move'; };
   window.offColDragOver = function (ev) { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; };
@@ -255,6 +269,7 @@
     st.extraCols = all.filter(function (k) { return k.indexOf('x:') === 0; }).map(function (k) { return k.slice(2); });
     _dragCol = null;
     offRenderItems2();
+    if (typeof ptfTriggerAutoDraftSave === 'function') ptfTriggerAutoDraftSave();
   };
 
   /* بازنویسی رندر اقلام فرم با: درگ سرستون + ارز + مدیریت ستون‌ها */
@@ -289,8 +304,8 @@
       };
       var tds = allCols.map(function (c) {
         if (c.extra) {
-          var v = (it.extra || {})[c.name] || '';
-          return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c.name) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
+          var v = typeof window.ptfOfferExtraValue === 'function' ? window.ptfOfferExtraValue(it, c.name) : ((it.extra || {})[c.name] || '');
+          return '<td><input type="text" data-off-extra-row="' + i + '" data-off-extra-name="' + escP(c.name) + '" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c.name) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
         }
         if (c.k === 'qty') return '<td>' + inp('qty', '54px', 'number') + '</td>';
         if (c.k === 'unit') return '<td>' + inp('unit', '50px') + '</td>';
@@ -380,9 +395,17 @@
     var o = typeof no === 'string' ? getData('ptf_crm_offers').filter(function (x) { return x.no === no; })[0] : no;
     if (!o) return;
     // v85.1: سند ذخیره‌نشده (پیش‌نمایش داخل فرم) → برای offerTplGo نگه دار
-    /* v34.39.52 BUG-OFF-PRINT-STALE-DOC: وقتی دیالوگ از داخل فرم باز شده، علامت
-       یک‌بارمصرف می‌گذاریم تا offerTplGo همان وضعیت زندهٔ فرم را چاپ کند. */
-    if (typeof no !== 'string') { window._offPreviewObj = o; window._offPreviewFromForm = true; }
+    /* v34.39.53: قبل از ثبت context چاپ، سلول‌های تکمیلی را از فیلدهای واقعی فرم
+       sync کن. مسیر قبلی فقط رکورد زنده را انتخاب می‌کرد؛ اگر callback ورودی در
+       renderer/مرورگر جا می‌ماند، رکورد زنده هم برای custom cells خالی بود. */
+    if (typeof no !== 'string') {
+      if (typeof window.ptfOfferSyncExtraInputs === 'function') window.ptfOfferSyncExtraInputs(o);
+      window._offPreviewObj = o;
+      window._offPreviewFromForm = true;
+    } else {
+      /* context یک‌بارمصرف نباید از پیش‌نمایش قبلی به چاپ از فهرست نشت کند. */
+      window._offPreviewFromForm = false;
+    }
     var saved = localStorage.getItem('ptf_offer_tpl') || 'letterhead';
     var cards = PTF_OFFER_TEMPLATES.map(function (t) {
       return '<label style="display:block;border:2px solid ' + (saved === t.id ? 'var(--pri)' : 'var(--brd)') + ';border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer" onclick="this.parentElement.querySelectorAll(\'label\').forEach(l=>l.style.borderColor=\'var(--brd)\');this.style.borderColor=\'var(--pri)\'">' +
@@ -426,6 +449,7 @@
       if (!o) o = live;               /* سند ذخیره‌نشده (پیش‌نمایش داخل فرم) */
     }
     if (!o) return;
+    if (liveMatches && typeof window.ptfOfferSyncExtraInputs === 'function') window.ptfOfferSyncExtraInputs(o);
     var share = isPreview === 'share';
     offerPrintTpl(o, tpl, share ? false : !!isPreview, share ? 'share' : '');
   };
@@ -494,7 +518,7 @@
     });
     ec.forEach(function (c) {
       var mx = Math.max(4, L(c));
-      items.forEach(function (it) { var l = L((it.extra || {})[c]); if (l > mx) mx = l; });
+      items.forEach(function (it) { var l = L(extraCellValue(it, c)); if (l > mx) mx = l; });
       stats.push({ k: 'x:' + c, w: Math.sqrt(Math.min(Math.max(mx, 4), 70)) });
     });
     /* v34.39.52: آمار عرض را به ترتیب بصری ستون‌ها بازچینید تا درصد هر <col>
@@ -544,7 +568,7 @@
     }
     cols = cols.filter(function (c) { return ALWAYS.indexOf(c.k) > -1 || colHasData(c.k); });
     ec = ec.filter(function (c) {
-      return (o.items || []).some(function (it) { return String(((it.extra || {})[c]) == null ? '' : (it.extra || {})[c]).trim() !== ''; });
+      return (o.items || []).some(function (it) { return String(extraCellValue(it, c) == null ? '' : extraCellValue(it, c)).trim() !== ''; });
     });
     /* v34.39.52 BUG-OFF-XCOL-PARITY-001: یک ترتیب واحد برای ستون‌های پایه و
        تکمیلی — همان ترتیبی که کاربر در فرم ساخته است. */
@@ -560,7 +584,10 @@
     var tbody = '';
     o.items.forEach(function (it, i) {
       var tds = seq.map(function (s) {
-        if (s.extra) return '<td>' + escP((it.extra || {})[s.nm] || '—') + '</td>';
+        if (s.extra) {
+          var extraVal = extraCellValue(it, s.nm);
+          return '<td>' + escP(extraVal == null || String(extraVal) === '' ? '—' : extraVal) + '</td>';
+        }
         var c = s.c;
         var v = it[c.k];
         if (c.k === 'unit') v = (typeof ptfOfferUnitEn === 'function') ? ptfOfferUnitEn(v) : (v || 'NO');
@@ -859,6 +886,9 @@
   };
 
   window.offerPrintTpl = function (o, tpl, isPreview, dest) {
+    if (o && window._offState && o === window._offState && typeof window.ptfOfferSyncExtraInputs === 'function') {
+      window.ptfOfferSyncExtraInputs(o);
+    }
     var isCO = o.kind === 'CO' || o.kind === 'TC';
     var cur = offerCurrency(o);
     var _pAs = (o.kind !== 'TO') ? (o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) : ''; /* v20.1 US-442: قالب چاپ ملاک عنوان */

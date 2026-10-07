@@ -964,7 +964,7 @@
     }
     if (!o) { alert('پیشنهاد برنده یافت نشد'); return; }
     var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
-    var liveRate = currency === 'USD' ? (+L.usd_free || 0) : currency === 'EUR' ? (+L.eur_free || 0) : 0;
+    var liveRate = currency === 'USD' ? (+L.usd_free || 0) : currency === 'EUR' ? (+L.eur_free || 0) : currency === 'CNY' ? (+L.cny_free || 0) : 0;
     var defRate = (+o.fxRateRef > 0) ? +o.fxRateRef : liveRate;
     var dateInp = (typeof ptfDateInput === 'function')
       ? ptfDateInput('sfIrDateJ', o.dateEn || new Date().toISOString().slice(0, 10))
