@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تست دسترسی به سایت — پیشرو تجهیز فرتاک</title>
+<!--
+  ARENA · ابزار تشخیص «سایت برای من باز نمی‌شود» — ۲۰۲۶-۱۰-۰۷
+  این فایل عمداً «آفلاین و خودبسنده» است: نه به pishtaj.ir وابسته است، نه به هیچ CDN
+  یا کتابخانهٔ بیرونی. کاربر آن را روی همان کامپیوتری که سایت برایش باز نمی‌شود
+  دابل‌کلیک می‌کند و خروجی را برای پشتیبانی می‌فرستد.
+  مستند مرتبط: ARENA-SITE-ACCESS-TRIAGE-2026-10-07.md
+-->
+<style>
+  :root{--pri:#ef4b1a;--org:#f79400;--bg:#f1f5f9;--crd:#fff;--tx:#1e293b;--brd:#cbd5e1;--ok:#059669;--bad:#dc2626;--warn:#b45309;--idle:#64748b}
+  *{box-sizing:border-box;font-family:'Segoe UI',Tahoma,'Iranian Sans',sans-serif}
+  body{max-width:900px;margin:0 auto;padding:18px;background:var(--bg);color:var(--tx);line-height:1.9;font-size:14px}
+  h1{font-size:20px;margin:0 0 6px}
+  h2{font-size:15.5px;margin:22px 0 8px}
+  .hint,.card{background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px 16px;margin-top:12px}
+  .hint{background:#fffbeb;border-color:#fcd34d;color:#7c2d12;font-size:13px}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:13px}
+  th,td{border:1px solid #e2e8f0;padding:7px 9px;text-align:right;vertical-align:top}
+  th{background:#f8fafc;font-size:12.5px}
+  .st{font-weight:bold;white-space:nowrap}
+  .s-ok{color:var(--ok)} .s-bad{color:var(--bad)} .s-warn{color:var(--warn)} .s-idle{color:var(--idle)}
+  button{font-family:inherit;font-weight:bold;border:0;border-radius:12px;padding:12px 20px;font-size:14.5px;cursor:pointer}
+  #run{background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;box-shadow:0 6px 18px rgba(239,75,26,.25)}
+  #run[disabled]{background:#94a3b8;cursor:not-allowed;box-shadow:none}
+  .ghost{background:#fff;color:#0f766e;border:1.5px solid #0f766e;margin-inline-start:8px}
+  textarea{width:100%;min-height:210px;direction:ltr;text-align:left;font-family:Consolas,Menlo,monospace;font-size:11.5px;border:1px solid var(--brd);border-radius:12px;padding:10px;background:#fff}
+  ol,ul{padding-inline-start:20px;margin:6px 0}
+  code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 6px;direction:ltr;display:inline-block;font-size:12px}
+  .kbd{background:#0f172a;color:#fff;border-radius:6px;padding:1px 7px;font-size:12px}
+  .legend{font-size:12.5px;color:#475569}
+  .badge{display:inline-block;font-size:11.5px;font-weight:bold;border-radius:999px;padding:1px 9px;background:#e2e8f0;color:#334155}
+  @media(max-width:600px){table,th,td{font-size:12px}}
+</style>
+</head>
+<body>
+
+<h1>🔎 تست دسترسی به سایت پیشرو تجهیز فرتاک</h1>
+<div class="hint">
+  <b>روی کدام کامپیوتر اجرا شود؟</b> همان کامپیوتری که سایت برایش باز نمی‌شود.<br>
+  <b>چطور اجرا شود؟</b> این فایل را روی دسکتاپ ذخیره کنید و روی آن <b>دوبار کلیک</b> کنید (با کروم/اج/فایرفاکس باز
+  می‌شود) → دکمهٔ «شروع تست» را بزنید → تا پایان (~۴۰ ثانیه) صبر کنید → «کپی گزارش» را بزنید و متن را برای
+  پشتیبانی بفرستید (تلگرام/واتس‌اپ/ایمیل).<br>
+  <b>آیا چیزی روی سیستم نصب یا تغییر می‌کند؟</b> نه. این صفحه فقط چند درخواست ساده به اینترنت می‌زند و
+  هیچ فایلی روی کامپیوتر شما ذخیره یا پاک نمی‌کند.
+</div>
+
+<div class="card">
+  <button id="run" onclick="ptfRunAll()">🚀 شروع تست</button>
+  <button class="ghost" onclick="ptfCopy()">📋 کپی گزارش</button>
+  <button class="ghost" onclick="ptfOpenCrm()">↗️ تلاش دوباره برای باز کردن CRM (با دورزدن کش)</button>
+  <p class="legend" id="runNote" style="margin:10px 0 0">آمادهٔ اجرا.</p>
+</div>
+
+<h2>۱) نتیجهٔ آزمون‌های شبکه</h2>
+<table>
+  <thead><tr><th style="width:34%">آزمون</th><th style="width:16%">وضعیت</th><th style="width:12%">زمان</th><th>تفسیر</th></tr></thead>
+  <tbody id="tbody">
+    <tr><td colspan="4" class="s-idle">هنوز اجرا نشده — دکمهٔ «شروع تست» را بزنید.</td></tr>
+  </tbody>
+</table>
+<p class="legend">
+  <b>راهنمای تفسیر:</b>
+  <span class="badge">قطع سریع (&lt;۱.۵ ثانیه)</span> = DNS یا TLS یا رد اتصال ⇒ بیشتر شبیه «فیلتر/تحریم/فایل میزبان دست‌کاری‌شده/آنتي‌ویروس».
+  <span class="badge">بی‌پاسخ (تایم‌اوت)</span> = بسته‌ها دور ریخته می‌شوند ⇒ بیشتر شبیه «قطعی مسیر شبکه، فایروال سازمان، IP بلاک‌شده روی سرور، یا مشکل QUIC».
+  <span class="badge">موفق</span> = این لایه سالم است و مشکل در لایهٔ بالاتر (مرورگر/کش/افزونه) است.
+</p>
+
+<h2>۲) مشخصات دستگاه و مرورگر</h2>
+<table><tbody id="envBody"><tr><td colspan="2" class="s-idle">در حال خواندن…</td></tr></tbody></table>
+
+<h2>۳) گزارش قابل ارسال (کپی کنید)</h2>
+<textarea id="rep" readonly placeholder="پس از اجرای تست، گزارش اینجا ساخته می‌شود…"></textarea>
+
+<h2>۴) گام‌های سریع رفع مشکل (به ترتیب)</h2>
+<div class="card">
+  <ol>
+    <li><b>آزمون قطعی شبکه:</b> موبایل خود را روی «داده موبایل» بگذارید و <code>Hotspot</code> روشن کنید؛
+      کامپیوتر را به هات‌فون وصل کنید و سایت را باز کنید.
+      <br>▸ اگر با اینترنت موبایل <b>باز شد</b> ⇒ مشکل از شبکه/اینترنت اداره یا IP شماست (رفرش DNS، هات‌اسپات دائمی، پیگیری با ISP/هاست).
+      <br>▸ اگر <b>باز نشد</b> ⇒ مشکل از خود کامپیوتر است (مرحلهٔ ۲ و ۳).</li>
+    <li><b>پاک‌سازی امن مرورگر (بدون حذف داده):</b> در کروم <span class="kbd">Ctrl+Shift+Delete</span> → فقط گزینه‌های
+      «فایل‌های کش‌شده» و «Cookie و سایر داده‌های سایت» را برای بازهٔ «همهٔ زمان‌ها» پاک کنید؛ سپس
+      <span class="kbd">Ctrl+Shift+R</span>.
+      <br>مهم‌تر: در کروم آدرس <code>chrome://serviceworker-internals</code> را باز کنید و اگر برای
+      <code>pishtaj.ir</code> سرویس‌ورکر ثبت شده، آن را <b>Unregister</b> کنید (این کار دادهٔ CRM را پاک نمی‌کند).</li>
+    <li><b>آزمون بدون افزونه («حالت ناشناس» کافی نیست):</b> کروم/اج را با <code>--disable-extensions</code> یا یک
+      پروفایل مرورگر تازه (Chrome profile جدید) باز کنید. اگر سایت باز شد ⇒ مشکل از یک افزونه (مثلاً
+      تبلیغ‌بلاکر/VPN/آنتی‌ویروس) است.</li>
+    <li><b>آنتی‌ویروس و فایروال:</b> اسکن HTTPS/SSL و «فیلتر وب» را موقتاً خاموش کنید (ESET/Kaspersky/AVG/Nod32 و
+      فایروال ویندوز). سپس سایت را دوباره باز کنید.</li>
+    <li><b>DNS و کش ویندوز:</b> در <code>cmd</code> (Run as Administrator) این‌ها را بزنید:
+      <code>ipconfig /flushdns</code> و <code>ipconfig /release</code> و <code>ipconfig /renew</code>
+     ؛ سپس DNS کارت شبکه را روی <code>1.1.1.1</code> و <code>8.8.8.8</code> بگذارید یا در مودم
+      «DNS خودکار» را خاموش و همان‌ها را وارد کنید.</li>
+    <li><b>فایل hosts:</b> مسیر <code>C:\Windows\System32\drivers\etc\hosts</code> را با Notepad (Run as admin) باز کنید؛
+      اگر خطی دربارهٔ <code>pishtaj.ir</code> وجود دارد، حذف کنید.</li>
+    <li><b>ساعت سیستم:</b> تاریخ/ساعت ویندوز باید درست باشد؛ ساعت غلط ⇒ خطای گواهی SSL و باز نشدن سایت.</li>
+  </ol>
+</div>
+
+<script>
+/* ---------------- پیکربندی آزمون‌ها ---------------- */
+var TIMEOUT_MS = 11000;
+var TARGETS = [
+  { id:'ctl_ir',   label:'سایت ایرانی (کنترل)',      type:'img',   url:'https://www.digikala.com/favicon.ico',                                  ctl:true },
+  { id:'ctl_ext',  label:'سایت خارجی (کنترل)',      type:'img',   url:'https://www.cloudflare.com/favicon.ico',                                ctl:true },
+  { id:'main_html',label:'صفحهٔ اصلی pishtaj.ir',   type:'fetch', url:'https://pishtaj.ir/',                                                    ctl:false },
+  { id:'crm_html', label:'صفحهٔ ورود CRM',          type:'fetch', url:'https://pishtaj.ir/crm/',                                                ctl:false },
+  { id:'crm_js',   label:'یک فایل برنامهٔ CRM',     type:'fetch', url:'https://pishtaj.ir/crm/shell.js',                                        ctl:false },
+  { id:'api',      label:'سرویس API سایت',          type:'fetch', url:'https://pishtaj.ir/api/crm.php?action=health',                           ctl:false },
+  { id:'favicon',  label:'تصویر سایت (favicon)',    type:'img',   url:'https://pishtaj.ir/favicon.ico',                                         ctl:false },
+  { id:'logo',     label:'لوگو روی دامنهٔ سایت',    type:'img',   url:'https://pishtaj.ir/assets/images/ptf-logo.png',                          ctl:false },
+  { id:'http80',   label:'همان دامنه روی HTTP ساده',type:'img',   url:'http://pishtaj.ir/favicon.ico',                                          ctl:false },
+  { id:'same_srv', label:'همان سرور، دامنهٔ دیگر',   type:'img',   url:'https://n138.talahost.com/favicon.ico',                                  ctl:false },
+  { id:'www_host', label:'آدرس www سایت',           type:'img',   url:'https://www.pishtaj.ir/favicon.ico',                                     ctl:false },
+  { id:'doh_cf',   label:'DNS بیرونی (Cloudflare)', type:'doh',   url:'https://cloudflare-dns.com/dns-query?name=pishtaj.ir&type=A',             ctl:true },
+  { id:'doh_gg',   label:'DNS بیرونی (Google)',     type:'doh',   url:'https://dns.google/resolve?name=pishtaj.ir&type=A',                      ctl:true }
+];
+var results = {};
+var env = {};
+
+/* ---------------- ابزارهای کمکی ---------------- */
+function nowMs(){ return (window.performance && performance.now) ? performance.now() : Date.now(); }
+function bust(url){ return url + (url.indexOf('?') > -1 ? '&' : '?') + 'ptfprobe=' + Date.now() + Math.floor(Math.random()*1000); }
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+
+function probeImg(url, done){
+  var t0 = nowMs(), img = new Image(), finished = false;
+  var timer = setTimeout(function(){ finish('timeout', TIMEOUT_MS, 'بی‌پاسخ ماند'); }, TIMEOUT_MS);
+  function finish(state, ms, note){
+    if (finished) return; finished = true;
+    clearTimeout(timer);
+    img.onload = img.onerror = null;
+    done({ state: state, ms: Math.round(ms), note: note || '' });
+  }
+  img.onload  = function(){ finish('ok', nowMs() - t0, 'بارگذاری شد'); };
+  img.onerror = function(){ finish('error', nowMs() - t0, 'بارگذاری نشد'); };
+  img.src = bust(url);
+  img.style.display = 'none';
+  document.body.appendChild(img);
+}
+
+function probeFetch(url, done){
+  var t0 = nowMs(), finished = false, ctrl = null;
+  if (window.AbortController) { ctrl = new AbortController(); }
+  var timer = setTimeout(function(){
+    if (finished) return;
+    finished = true;
+    if (ctrl) { try { ctrl.abort(); } catch(e){} }
+    done({ state:'timeout', ms: TIMEOUT_MS, note:'بی‌پاسخ ماند (بسته‌ها دور ریخته می‌شوند)' });
+  }, TIMEOUT_MS);
+  try {
+    fetch(bust(url), { mode:'no-cors', cache:'no-store', redirect:'follow', signal: ctrl ? ctrl.signal : undefined })
+      .then(function(){
+        if (finished) return; finished = true; clearTimeout(timer);
+        done({ state:'ok', ms: Math.round(nowMs()-t0), note:'پاسخ گرفت (opaque — محتوا قابل خواندن نیست، مهم نیست)' });
+      })
+      .catch(function(e){
+        if (finished) return; finished = true; clearTimeout(timer);
+        done({ state:'error', ms: Math.round(nowMs()-t0), note: (e && e.name) === 'AbortError' ? 'لغو/تایم‌اوت' : 'خطای شبکه' });
+      });
+  } catch (e) {
+    clearTimeout(timer);
+    done({ state:'error', ms: Math.round(nowMs()-t0), note:'fetch در این مرورگر پشتیبانی نمی‌شود' });
+  }
+}
+
+function probeDoh(url, done){
+  var t0 = nowMs(), finished = false, ctrl = window.AbortController ? new AbortController() : null;
+  var timer = setTimeout(function(){
+    if (finished) return; finished = true;
+    if (ctrl) { try { ctrl.abort(); } catch(e){} }
+    done({ state:'timeout', ms: TIMEOUT_MS, note:'بی‌پاسخ' });
+  }, 6000);
+  try {
+    fetch(url, { cache:'no-store', headers:{ 'accept':'application/dns-json' }, signal: ctrl ? ctrl.signal : undefined })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (finished) return; finished = true; clearTimeout(timer);
+        var ips = [];
+        (j && j.Answer ? j.Answer : []).forEach(function(a){ if (a && (a.type === 1 || a.type === 28)) ips.push(a.data); });
+        done({ state: ips.length ? 'ok' : 'warn', ms: Math.round(nowMs()-t0),
+               note: ips.length ? ('IP: ' + ips.join(', ')) : 'پاسخی برای این دامنه برنگشت' });
+      })
+      .catch(function(){
+        if (finished) return; finished = true; clearTimeout(timer);
+        done({ state:'error', ms: Math.round(nowMs()-t0), note:'در دسترس نبود (در ایران معمول است)' });
+      });
+  } catch(e){ clearTimeout(timer); done({ state:'error', ms: 0, note:'fetch پشتیبانی نمی‌شود' }); }
+}
+
+/* ---------------- تفسیر خودکار ---------------- */
+function verdict(res, isCtl){
+  if (!res) return 'اجرا نشد';
+  if (res.state === 'ok')   return 'سالم است';
+  if (res.state === 'warn') return 'پاسخ ناقص';
+  if (res.state === 'timeout') return 'بی‌پاسخ ماند ⇒ قطعی مسیر شبکه/فایروال/IP بلاک‌شده یا مشکل QUIC';
+  if (res.ms < 1500) return 'قطع سریع ⇒ DNS یا TLS/Certificate یا رد اتصال (فیلتر، hosts، آنتی‌ویروس)';
+  return 'خطای شبکه ⇒ اتصال برقرار نشد';
+}
+function cls(res){
+  if (!res) return 's-idle';
+  if (res.state === 'ok') return 's-ok';
+  if (res.state === 'warn') return 's-warn';
+  return 's-bad';
+}
+
+/* ---------------- محیط دستگاه ---------------- */
+function collectEnv(){
+  var n = navigator;
+  function lsTest(){ try { localStorage.setItem('__ptf_t','1'); localStorage.removeItem('__ptf_t'); return 'دارد'; } catch(e){ return 'ندارد/مسدود'; } }
+  var conn = n.connection || n.mozConnection || n.webkitConnection;
+  env = {
+    'زمان اجرا'            : new Date().toString(),
+    'مرورگر (User-Agent)'  : n.userAgent,
+    'سیستم‌عامل/پلتفرم'    : n.platform || '—',
+    'برندهای مرورگر'       : (n.userAgentData && n.userAgentData.brands) ? n.userAgentData.brands.map(function(b){return b.brand+' '+b.version;}).join(' | ') : '—',
+    'آدرس صفحهٔ تست'       : location.href,
+    'وضعیت آنلاین'         : n.onLine ? 'آنلاین' : 'آفلاین (!!)',
+    'نوع/کیفیت شبکه'       : conn ? [conn.effectiveType || '', conn.downlink ? (conn.downlink + 'Mbps') : '', conn.rtt ? ('RTT ' + conn.rtt + 'ms') : ''].filter(Boolean).join(' · ') || '—' : 'نامعلوم',
+    'زبان'                 : n.language + ' | ' + (n.languages || []).join(','),
+    'منطقهٔ زمانی'         : (Intl && Intl.DateTimeFormat) ? (Intl.DateTimeFormat().resolvedOptions().timeZone || '—') : '—',
+    'صفحه‌نمایش'           : screen.width + '×' + screen.height + ' (پنجره ' + window.innerWidth + '×' + window.innerHeight + ', DPR ' + (window.devicePixelRatio||1) + ')',
+    'تعداد هستهٔ CPU'       : n.hardwareConcurrency || 'نامعلوم',
+    'حافظهٔ دستگاه'        : n.deviceMemory ? (n.deviceMemory + ' GB') : 'نامعلوم',
+    'localStorage'         : lsTest(),
+    'IndexedDB'            : ('indexedDB' in window) ? 'دارد' : 'ندارد',
+    'Service Worker'       : ('serviceWorker' in navigator) ? 'دارد' : 'ندارد',
+    'crypto.subtle'        : (window.crypto && crypto.subtle) ? 'دارد' : 'ندارد (روی HTTP یا مرورگر قدیمی)',
+    'fetch/AbortController': (window.fetch ? 'fetch دارد' : 'fetch ندارد') + ' | ' + (window.AbortController ? 'AbortController دارد' : 'AbortController ندارد'),
+    'کوکی فعال'            : n.cookieEnabled ? 'بله' : 'خیر (!!)',
+    'شمارندهٔ صفحه‌آفلاین'  : 'ptfprobe=' + Date.now()
+  };
+}
+
+/* ---------------- اجرای کل تست ---------------- */
+function ptfRunAll(){
+  var btn = document.getElementById('run');
+  btn.disabled = true;
+  results = {};
+  collectEnv();
+  document.getElementById('tbody').innerHTML = '';
+  document.getElementById('runNote').textContent = 'در حال اجرا… لطفاً صفحه را نبندید.';
+  var i = 0;
+
+  function step(){
+    if (i >= TARGETS.length) return finishAll();
+    var t = TARGETS[i++];
+    renderRow(t, null, 'در حال بررسی…');
+    var done = function(res){
+      results[t.id] = res;
+      renderRow(t, res);
+      setTimeout(step, 120);
+    };
+    try {
+      if (t.type === 'img') probeImg(t.url, done);
+      else if (t.type === 'doh') probeDoh(t.url, done);
+      else probeFetch(t.url, done);
+    } catch (e) {
+      done({ state:'error', ms:0, note:'خطای اجرای آزمون: ' + e.message });
+    }
+  }
+  step();
+}
+
+function renderRow(t, res, pendingText){
+  var tb = document.getElementById('tbody');
+  var tr = document.getElementById('row_' + t.id);
+  if (!tr) {
+    tr = document.createElement('tr');
+    tr.id = 'row_' + t.id;
+    tb.appendChild(tr);
+  }
+  if (pendingText) {
+    tr.innerHTML = '<td>' + escapeHtml(t.label) + '</td><td class="st s-idle">…</td><td>—</td><td>' + escapeHtml(pendingText) + '</td>';
+    return;
+  }
+  var v = verdict(res, t.ctl);
+  tr.innerHTML = '<td>' + escapeHtml(t.label) + (t.ctl ? ' <span class="badge">کنترل</span>' : '') + '</td>' +
+    '<td class="st ' + cls(res) + '">' + (res.state === 'ok' ? '✅ موفق' : res.state === 'warn' ? '⚠️ ناقص' : res.state === 'timeout' ? '⛔ بی‌پاسخ' : '❌ ناموفق') + '</td>' +
+    '<td>' + (res.state === 'timeout' ? '&gt;' + Math.round(TIMEOUT_MS/1000) + 's' : res.ms + ' ms') + '</td>' +
+    '<td>' + escapeHtml((res.note ? res.note + ' — ' : '') + v) + '</td>';
+}
+
+function finishAll(){
+  document.getElementById('run').disabled = false;
+  document.getElementById('runNote').textContent = 'تست تمام شد. حالا «کپی گزارش» را بزنید و متن را برای پشتیبانی بفرستید.';
+  var eb = document.getElementById('envBody');
+  eb.innerHTML = '';
+  Object.keys(env).forEach(function(k){
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td style="width:34%;background:#f8fafc"><b>' + escapeHtml(k) + '</b></td><td style="direction:ltr;text-align:left;word-break:break-all">' + escapeHtml(env[k]) + '</td>';
+    eb.appendChild(tr);
+  });
+  buildReport();
+}
+
+function buildReport(){
+  var L = [];
+  L.push('=== PTF SITE ACCESS REPORT ' + new Date().toISOString() + ' ===');
+  var okTargets = 0, badTargets = 0;
+  TARGETS.forEach(function(t){
+    var r = results[t.id] || { state:'skipped', ms:0, note:'اجرا نشد' };
+    if (!t.ctl) { if (r.state === 'ok') okTargets++; else badTargets++; }
+    L.push('[' + (r.state === 'ok' ? 'OK   ' : r.state === 'timeout' ? 'HANG ' : r.state === 'skipped' ? 'SKIP ' : 'FAIL ') + '] ' +
+           (t.ctl ? 'CTRL ' : 'PTF  ') + t.id + ' | ' + t.label + ' | ' + (r.state === 'timeout' ? '>10s' : r.ms + 'ms') + ' | ' + (r.note || '') + ' | ' + t.url);
+  });
+  L.push('--- SUMMARY ---');
+  L.push('target_ok=' + okTargets + '  target_failed=' + badTargets + '  (اگر همه ناموفق‌اند: مشکل شبکه/IP/هاست؛ اگر همه موفق‌اند: مشکل مرورگر/کش/افزونه)');
+  L.push('--- ENVIRONMENT ---');
+  Object.keys(env).forEach(function(k){ L.push(k + ': ' + env[k]); });
+  L.push('--- END ---');
+  var txt = L.join('\n');
+  document.getElementById('rep').value = txt;
+  window.__ptfReport = txt;
+}
+
+function ptfCopy(){
+  var txt = window.__ptfReport;
+  var ta = document.getElementById('rep');
+  if (!txt) { if (!ta.value) { buildReport(); txt = ta.value; } else { txt = ta.value; } }
+  ta.value = txt;
+  ta.removeAttribute('readonly');
+  ta.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch(e){ ok = false; }
+  ta.setAttribute('readonly','readonly');
+  if (window.navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function(){
+      document.getElementById('runNote').textContent = '✅ گزارش در حافظه کپی شد — متن را برای پشتیبانی بفرستید.';
+    }).catch(function(){
+      document.getElementById('runNote').textContent = ok ? '✅ کپی شد.' : '⚠️ کپی خودکار نشد؛ متن داخل کادر را دستی انتخاب و کپی کنید.';
+    });
+  } else {
+    document.getElementById('runNote').textContent = ok ? '✅ کپی شد.' : '⚠️ کپی خودکار نشد؛ متن داخل کادر را دستی انتخاب و کپی کنید.';
+  }
+}
+
+function ptfOpenCrm(){
+  var u = 'https://pishtaj.ir/crm/?fresh=' + Date.now();
+  window.open(u, '_blank');
+}
+</script>
+</body>
+</html>
