@@ -1,5 +1,5 @@
 /* =====================================================================
-   tester692 — v34.39.52 — BUG-OFF-XCOL-PARITY-001 + BUG-OFF-PRINT-STALE-DOC
+   tester692 — v34.39.54 — BUG-OFF-XCOL-PARITY-001 + BUG-OFF-PRINT-STALE-DOC
    گزارش کارفرما (۱۴۰۵/۰۷/۱۴) در پنجرهٔ مودال پیشنهادها:
      ۱) «ستون جدید می‌سازیم و مقدار می‌دهیم؛ موقع چاپ، مقادیر ستون جدید نمی‌آید.»
      ۲) «ستون‌های تازه‌ساخته را نمی‌توانیم جابه‌جا کنیم — نسبت به ستون‌های
@@ -21,14 +21,14 @@ var FA = { name: 'شرح کالا', desc: 'مشخصات', model: 'مدل', qty: 
 var LB = { name: 'Item Name', desc: 'Description', model: 'Model', qty: 'Qty', unit: 'Unit', brand: 'Brand' };
 
 SECTION('۰. نسخه و مستندات');
-T('نسخهٔ index.html = v34.39.52', /window\.PTF_CRM_RELEASE = 'v34\.39\.52'/.test(idx));
-T('کش sw.js = v34.39.52', /var RELEASE = 'v34\.39\.52';/.test(sw));
-T('cache-bust offers.js/offers-pro.js/offerlock.js = 34.39.52',
+T('نسخهٔ index.html = v34.39.54', /window\.PTF_CRM_RELEASE = 'v34\.39\.54'/.test(idx));
+T('کش sw.js = v34.39.54', /var RELEASE = 'v34\.39\.54';/.test(sw));
+T('cache-bust offers.js/offers-pro.js/offerlock.js = 34.39.54',
   ['offers.js', 'offers-pro.js', 'offerlock.js'].every(function (f) {
     var m = idx.match(new RegExp(f.replace('.', '\\.') + '\\?v=([0-9.]+)'));
-    return m && m[1] === '34.39.52';
+    return m && m[1] === '34.39.54';
   }));
-T('RELEASE-NOTES-v34.39.52.md موجود است', fs.existsSync(path.resolve(__dirname, '../../RELEASE-NOTES-v34.39.52.md')));
+T('RELEASE-NOTES-v34.39.54.md موجود است', fs.existsSync(path.resolve(__dirname, '../../RELEASE-NOTES-v34.39.54.md')));
 
 SECTION('۱. کد: یک موتور ترتیب برای ستون‌های پیش‌فرض و تکمیلی');
 T('offColOrderAll — ترتیب کامل (پایه + تکمیلی) با کلید x:', op.indexOf('window.offColOrderAll = function (st, isCO)') > -1);
@@ -39,7 +39,15 @@ T('offColDrop دیگر ترتیب را به دو فهرست جدا تفکیک ن
   op.indexOf("_offState.colOrder = all.filter(function (k) { return k.indexOf('x:') !== 0; });") === -1);
 T('رندر فرم (offerlock — رندرکنندهٔ فعال) از فهرست واحد استفاده می‌کند', ol.indexOf('window.offAllCols(_offState, isCO)') > -1);
 T('رندر فرم (offers-pro) از فهرست واحد استفاده می‌کند', op.indexOf('window.offAllCols(_offState, isCO)') > -1);
-T('چاپ: سلول ستون تکمیلی داخل همان حلقهٔ ترتیب', op.indexOf("if (s.extra) return '<td>' + escP((it.extra || {})[s.nm] || '—') + '</td>';") > -1);
+T('inputهای هر دو renderer شناسهٔ ردیف/ستون برای sync DOM دارند',
+  /data-off-extra-row=.*data-off-extra-name/.test(ol) && /data-off-extra-row=.*data-off-extra-name/.test(op));
+T('ذخیره پیش از ساخت snapshot، inputهای ستون تکمیلی را sync می‌کند',
+  of.indexOf('window.ptfOfferSyncExtraInputs(window._offState || _offState)') > -1);
+T('اعتبارسنجی پیش از بررسی ستون‌ها، ورودی‌های visible را sync می‌کند',
+  ol.indexOf('window.ptfOfferSyncExtraInputs(st)') > -1);
+T('چاپ: سلول ستون تکمیلی داخل همان حلقهٔ ترتیب و از helper مشترک می‌خواند',
+  op.indexOf('if (s.extra) {') > -1 && op.indexOf('var extraVal = extraCellValue(it, s.nm);') > -1 &&
+  op.indexOf('function extraCellValue(item, name)') > -1);
 T('عرض ستون‌ها (colgroup) هم به ترتیب بصری بازچیده می‌شود', op.indexOf('if (ordered.length === stats.length) stats = ordered;') > -1);
 T('چاپ از داخل فرم: سند زندهٔ فرم مقدم بر رکورد ذخیره‌شده',
   /var fromForm = !!window\._offPreviewFromForm;/.test(op) && op.indexOf('window._offPreviewFromForm = false;') > -1);
@@ -53,9 +61,14 @@ global.roleDef = function () { return { buyPrice: false }; };
 global.ptfTriggerAutoDraftSave = function () {};
 global.ptfToast = function () {};
 global.ptfUnifiedCode = function (k) { return 'PTF-' + k + '-1405-001'; };
-var _gridHtml = '';
+var _gridHtml = '', _extraInputs = [];
+var _offerGrid = {
+  set innerHTML(v) { _gridHtml = v; },
+  get innerHTML() { return _gridHtml; },
+  querySelectorAll: function (sel) { return /data-off-extra-row/.test(String(sel)) ? _extraInputs : []; }
+};
 global.document.getElementById = function (id) {
-  if (id === 'offItemsWrap') return { set innerHTML(v) { _gridHtml = v; }, get innerHTML() { return _gridHtml; } };
+  if (id === 'offItemsWrap') return _offerGrid;
   if (id === 'panels') return { insertAdjacentHTML: function () {} };
   return null;
 };
@@ -68,12 +81,17 @@ eval(of.match(/var SELLER_INFO = \{[\s\S]*?\n\};/)[0].replace('var SELLER_INFO',
 loadFns('offers.js', ['offerSerial', 'ptfSetOffState', 'offNormLine', 'offItemKey', 'offEnsureOfferLineIds',
   'offDedupeOfferItems', 'defaultValidity', 'myEnName', 'offerPostAwardLocked', 'ptfOfferResolveSaveIdentity',
   'offUpdExtra', 'offAddColumn', 'offDelColumn', 'offerSave', 'numToWords']);
+/* helperهای واقعی DOM→state از فایل offers.js را جدا از بقیهٔ CRM اجرا می‌کنیم. */
+var extraHelpersStart = of.indexOf('window.ptfOfferExtraValue = function (item, col)');
+var extraHelpersEnd = of.indexOf('window.offShowAdvCols = function()', extraHelpersStart);
+eval(of.slice(extraHelpersStart, extraHelpersEnd));
 eval(of.match(/window\.offRowIsEmpty = function \(it\) \{[\s\S]*?\n\};/)[0]);
 eval(op);   /* کل فایل واقعی offers-pro.js */
 eval(ol);   /* کل فایل واقعی offerlock.js (رندرکنندهٔ نهایی فرم) */
 global.ptfPreviewPrintableDoc = function (title, html) { global._printHtml = html; };
 
 function mkState(extra, colOrder) {
+  _extraInputs = [];
   var items = [{ name: 'Valve', desc: 'DN80', model: 'CV-80', qty: 2, unit: 'NO', brand: 'Samson', price: 100, extra: {} }];
   if (extra && extra.length) extra.forEach(function (c) { items[0].extra[c] = 'V-' + c; });
   global._offState = {
@@ -112,6 +130,10 @@ function expectAfter(list, from, to) {
   var out = list.slice();
   out.splice(out.indexOf(to), 0, out.splice(out.indexOf(from), 1)[0]);
   return out;
+}
+function extraInput(row, name, value) {
+  var attrs = { 'data-off-extra-row': String(row), 'data-off-extra-name': String(name) };
+  return { value: String(value), getAttribute: function (key) { return Object.prototype.hasOwnProperty.call(attrs, key) ? attrs[key] : null; } };
 }
 
 SECTION('۲. تأیید خواستهٔ کارفرما: همهٔ ۶ ستون پیش‌فرض جابه‌جا می‌شوند (۳۰ ترکیب)');
@@ -230,9 +252,10 @@ global.window.PTF_OFFER_COMMAND_SAVE_ACTIVE = true;
 offerSave();
 var savedBefore = getData('ptf_crm_offers').filter(function (x) { return x.no === 'PTF-CO-1405-001'; })[0];
 T('پیش‌زمینه: رکورد ذخیره‌شده هنوز ستون تکمیلی ندارد', !!savedBefore && (savedBefore.extraCols || []).length === 0);
-/* کاربر ستون تازه می‌سازد، مقدار می‌دهد و بدون ذخیره چاپ می‌گیرد */
+/* کاربر ستون تازه می‌سازد، مقدار را در input واقعی می‌نویسد و بدون ذخیره چاپ می‌گیرد.
+   عمداً offUpdExtra صدا زده نمی‌شود تا مرز DOM→state هم آزموده شود. */
 offAddColumn();
-offUpdExtra(0, 'Origin', 'Germany');
+_extraInputs = [extraInput(0, 'Origin', 'Germany')];
 offColDragStart({ dataTransfer: {}, preventDefault: function () {} }, 'x:Origin');
 offColDrop({ preventDefault: function () {} }, 'desc');
 offerPrintObj(_offState);            /* همان مسیر دکمهٔ چاپ/پیش‌نمایش داخل فرم */
@@ -240,6 +263,7 @@ offerTplGo('PTF-CO-1405-001', true);
 var livePrint = global._printHtml || '';
 T('چاپ از داخل فرم: سرستون ستون تازه در خروجی هست', livePrint.indexOf('<th>Origin</th>') > -1);
 T('چاپ از داخل فرم: مقدار ستون تازه در خروجی هست', livePrint.indexOf('<td>Germany</td>') > -1);
+T('پیش‌نمایش قبل از چاپ مقدار input را به state برمی‌گرداند', _offState.items[0].extra.Origin === 'Germany');
 T('چاپ از داخل فرم: ستون تازه سر جایگاه درگ‌شده است', (function () {
   var theads = livePrint.match(/<thead[\s\S]*?<\/thead>/g) || [];
   var thead = theads.filter(function (t) { return t.indexOf('<th') > -1; }).pop() || '';
@@ -254,6 +278,8 @@ var listPrint = global._printHtml || '';
 T('چاپ از فهرست: رکورد ذخیره‌شده چاپ می‌شود (نه وضعیت ذخیره‌نشدهٔ فرم)', listPrint.indexOf('<th>Origin</th>') < 0);
 
 SECTION('۶. ماندگاری: ترتیب و مقادیر پس از ذخیره و بازکردن دوباره');
+/* رگرسیون اصلی: state را عمداً stale می‌کنیم؛ ذخیره باید مقدار حاضر در input را بگیرد. */
+_offState.items[0].extra.Origin = '';
 global.window.PTF_OFFER_COMMAND_SAVE_ACTIVE = true;
 var saveRet = offerSave();
 var saved = getData('ptf_crm_offers').filter(function (x) { return x.no === 'PTF-CO-1405-001'; })[0];
@@ -270,6 +296,19 @@ T('پس از بازکردن دوباره: ترتیب چاپ همان است',
   printOrder().join(',') === 'Item Name,Origin,Description,Model,Qty,Unit,Brand', printOrder().join(','));
 
 SECTION('۷. سازگاری با عقب و قاعده‌های موجود');
+T('dedupe ردیف‌های مشابه با مقدار سفارشی متفاوت را حذف نمی‌کند', (function () {
+  var base = { name: 'Valve', desc: 'DN80', model: 'CV-80', qty: 1, unit: 'NO', brand: 'Samson', price: 100 };
+  var result = offDedupeOfferItems([
+    Object.assign({}, base, { extra: { Origin: 'Germany' } }),
+    Object.assign({}, base, { extra: { Origin: 'Italy' } })
+  ]);
+  return result.items.length === 2 && result.items[0].extra.Origin === 'Germany' && result.items[1].extra.Origin === 'Italy';
+})());
+T('helper مقدار ستون خاص __proto__ را بدون تغییر prototype حفظ می‌کند', (function () {
+  var item = { extra: {} };
+  window.ptfOfferSetExtraValue(item, '__proto__', 'safe-value');
+  return Object.prototype.hasOwnProperty.call(item.extra, '__proto__') && window.ptfOfferExtraValue(item, '__proto__') === 'safe-value';
+})());
 T('رکورد قدیمی (colOrder فقط پایه): ستون تکمیلی ته جدول می‌ماند', (function () {
   mkState(['Origin'], ['name', 'desc', 'model', 'qty', 'unit', 'brand']);
   return formOrder().join(',') === 'شرح کالا,مشخصات,مدل,تعداد,واحد,برند,Origin' &&

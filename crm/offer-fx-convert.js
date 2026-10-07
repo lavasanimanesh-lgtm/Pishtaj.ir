@@ -138,6 +138,15 @@
     AED: { code: 'AED', fa: 'درهم', en: 'Dirham', enPl: 'Dirhams', sym: 'AED' },
     GBP: { code: 'GBP', fa: 'پوند', en: 'Pound', enPl: 'Pounds', sym: '£' }
   };
+  function liveRateFor(cur) {
+    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
+    return cur === 'USD' ? (+L.usd_free || 0) : cur === 'EUR' ? (+L.eur_free || 0) : cur === 'CNY' ? (+L.cny_free || 0) : 0;
+  }
+  function curOptionsHtml(selected) {
+    return Object.keys(TARGET_INFO).map(function (cur) {
+      return '<option value="' + cur + '"' + (cur === selected ? ' selected' : '') + '>' + TARGET_INFO[cur].fa + ' (' + cur + ')</option>';
+    }).join('');
+  }
 
   window.ptfFxConvertTermText = function (txt, targetCur, rate) {
     if (!txt || !rate) return String(txt || '');
@@ -236,6 +245,8 @@
     if (advTerm) conv.terms.unshift(advTerm);
     comp.terms = conv.terms;
     comp.fxConvert.termsRewritten = conv.terms.length;
+    comp.fxConvert.termsRate = rate;
+    comp.fxConvert.termsCur = targetCur;
     comp.updatedAtISO = new Date().toISOString();
     setData(OFFERS_KEY, offers);
     try { audit('پیشنهادها', 'بازسازی شرایط ارزی ' + comp.no + ' از ' + src.no + ' (نرخ ' + rate + ' — ' + targetCur + ')', comp.no); } catch (e) {}
@@ -256,29 +267,30 @@
     if (!(rate > 0)) rate = 100000; // fallback
     _termDlgFx = {
       comp: comp, src: src, rate: rate, targetCur: targetCur,
+      termsBasisRate: (comp.fxConvert && +comp.fxConvert.termsRate) || rate,
+      termsBasisCur: (comp.fxConvert && comp.fxConvert.termsCur) || targetCur,
       terms: ((comp.terms && comp.terms.length) ? comp.terms.slice() : buildConvertedTermsFx(src, targetCur, rate).terms)
     };
-    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
-    var liveRate = targetCur === 'USD' ? (+L.usd_free || 0) : targetCur === 'EUR' ? (+L.eur_free || 0) : 0;
+    var liveRate = liveRateFor(targetCur);
     var totalIrr = irrTotal(src);
     var _b = fxBasisOfIrr(src);
     var fxNote = _b.advancePct > 0
       ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:5px 9px;font-size:11px;color:#166534;margin-top:4px">💰 شرط تجاری پیشنهاد مبدأ: پیش‌پرداخت <b>' + _b.advancePct + '٪</b>' + (_b.advanceDocAmt ? ' — ' + (+_b.advanceDocAmt).toLocaleString('fa-IR') + ' ریال' : '') + '.</div>'
       : '';
     var html = '<div class="md-b" id="sfFxTermsDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:800px">' +
-      '<h3>🔧 شرایط و ضوابط نسخه ارزی — <span dir="ltr">' + escP(comp.no) + ' (' + escP(targetCur) + ')</span></h3>' +
+      '<h3>🔧 شرایط و ضوابط نسخه ارزی — <span id="sfFxTermsTitle" dir="ltr">' + escP(comp.no) + ' (' + escP(targetCur) + ')</span></h3>' +
       '<div style="background:#fff7ed;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:12px;color:#92400e;margin-bottom:10px">' +
         'این نسخه ارزی از پیشنهاد ریالی <b dir="ltr">' + escP(src.no) + '</b> با نرخ <b>' + rate.toLocaleString('fa-IR') + ' ریال/' + escP(targetCur) + '</b> ساخته شده است. ' +
         'عبارت‌ها/مبالغ ریالی خودکار به ' + escP(targetCur) + ' تبدیل شدند — در صورت نیاز بندها را ویرایش کنید.' +
       '</div>' +
-      '<div class="fr"><div class="fld"><label>ارز مقصد</label><select id="sfFxTermsCur" onchange="sfFxTermsCurChanged()" style="padding:7px;border:1px solid var(--brd);border-radius:8px"><option value="USD"' + (targetCur === 'USD' ? ' selected' : '') + '>دلار (USD)</option><option value="EUR"' + (targetCur === 'EUR' ? ' selected' : '') + '>یورو (EUR)</option><option value="CNY"' + (targetCur === 'CNY' ? ' selected' : '') + '>یوان (CNY)</option><option value="AED"' + (targetCur === 'AED' ? ' selected' : '') + '>درهم (AED)</option><option value="GBP"' + (targetCur === 'GBP' ? ' selected' : '') + '>پوند (GBP)</option></select></div>' +
-      '<div class="fld"><label>نرخ تسعیر (ریال به‌ازای هر ' + escP(targetCur) + ')</label>' +
+      '<div class="fr"><div class="fld"><label>ارز مقصد</label><select id="sfFxTermsCur" onchange="sfFxTermsCurChanged()" style="padding:7px;border:1px solid var(--brd);border-radius:8px">' + curOptionsHtml(targetCur) + '</select></div>' +
+      '<div class="fld"><label id="sfFxTermsRateLabel">نرخ تسعیر (ریال به‌ازای هر ' + escP(targetCur) + ')</label>' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
           '<input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="sfFxTermsRate" value="' + rate.toLocaleString('en-US') + '" style="direction:ltr;flex:1;min-width:160px" oninput="sfFxTermsRateChanged()">' +
           '<button class="bt bt-o" style="font-size:12px" onclick="sfFxTermsRebuild()" title="بازسازی خودکار بندها">↻ بازسازی خودکار</button>' +
           '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="sfFxTermsViewSrc()">👁 دیدن پیشنهاد ریالی قبلی</button>' +
         '</div>' +
-        '<small style="color:#64748b">نرخ آزاد لحظه‌ای: ' + (liveRate ? liveRate.toLocaleString('fa-IR') + ' ریال' : 'در دسترس نیست') + '</small></div></div>' +
+        '<small id="sfFxTermsLiveNote" style="color:#64748b">نرخ آزاد این ارز: ' + (liveRate ? liveRate.toLocaleString('fa-IR') + ' ریال' : 'برای این ارز نرخ زنده نیست؛ نرخ را دستی وارد کنید') + ' — با تغییر نرخ/ارز، اقلام به‌روز می‌شوند؛ برای همگام‌سازی بندها «بازسازی خودکار» را بزنید.</small></div></div>' +
       '<div style="font-size:12px;background:#f8fafc;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 12px;margin-bottom:8px">' +
         'مبلغ پیشنهاد ریالی: <b dir="ltr">' + money(totalIrr, 'IRR') + '</b> — معادل ارزی (با نرخ فعلی): <b id="sfFxTermsTotal">' + money(totalIrr / rate, targetCur) + '</b>' + fxNote + '</div>' +
       '<div id="sfFxTermsList"></div>' +
@@ -321,6 +333,15 @@
     if (!_termDlgFx) return;
     var curEl = document.getElementById('sfFxTermsCur');
     _termDlgFx.targetCur = curEl ? curEl.value : _termDlgFx.targetCur;
+    var liveRate = liveRateFor(_termDlgFx.targetCur);
+    var rateEl = document.getElementById('sfFxTermsRate');
+    if (rateEl) rateEl.value = liveRate ? liveRate.toLocaleString('en-US') : '';
+    var rateLabel = document.getElementById('sfFxTermsRateLabel');
+    if (rateLabel) rateLabel.textContent = 'نرخ تسعیر (ریال به‌ازای هر ' + _termDlgFx.targetCur + ')';
+    var title = document.getElementById('sfFxTermsTitle');
+    if (title) title.textContent = _termDlgFx.comp.no + ' (' + _termDlgFx.targetCur + ')';
+    var liveNote = document.getElementById('sfFxTermsLiveNote');
+    if (liveNote) liveNote.textContent = 'نرخ آزاد این ارز: ' + (liveRate ? liveRate.toLocaleString('fa-IR') + ' ریال' : 'برای این ارز نرخ زنده نیست؛ نرخ را دستی وارد کنید') + ' — با تغییر نرخ/ارز، اقلام به‌روز می‌شوند؛ برای همگام‌سازی بندها «بازسازی خودکار» را بزنید.';
     sfFxTermsRateChanged();
   };
   window.sfFxTermsRateChanged = function () {
@@ -331,7 +352,7 @@
     var totalEl = document.getElementById('sfFxTermsTotal');
     if (totalEl) {
       var srcTotal = irrTotal(_termDlgFx.src);
-      totalEl.textContent = money(srcTotal / (_termDlgFx.rate || 1), _termDlgFx.targetCur);
+      totalEl.textContent = _termDlgFx.rate > 0 ? money(srcTotal / _termDlgFx.rate, _termDlgFx.targetCur) : '—';
     }
   };
   window.sfFxTermsRebuild = function () {
@@ -340,9 +361,12 @@
     var curEl = document.getElementById('sfFxTermsCur');
     var targetCur = curEl ? curEl.value : _termDlgFx.targetCur;
     if (!(rate > 0)) { alert(WHY_FA.rate); return; }
+    if (!TARGET_INFO[targetCur]) { alert(WHY_FA.cur); return; }
     _termDlgFx.rate = rate;
     _termDlgFx.targetCur = targetCur;
     _termDlgFx.terms = buildConvertedTermsFx(_termDlgFx.src, targetCur, rate).terms;
+    _termDlgFx.termsBasisRate = rate;
+    _termDlgFx.termsBasisCur = targetCur;
     sfFxTermsRenderList();
     toast('↻ بندهای شرایط از پیشنهاد ریالی با نرخ جدید بازسازی شد', 'ok');
   };
@@ -356,6 +380,10 @@
     var curEl = document.getElementById('sfFxTermsCur');
     var targetCur = curEl ? curEl.value : _termDlgFx.targetCur;
     if (!(rate > 0)) { alert(WHY_FA.rate); return; }
+    if (!TARGET_INFO[targetCur]) { alert(WHY_FA.cur); return; }
+    var terms = (_termDlgFx.terms || []).filter(function (t) { return String(t || '').trim() !== ''; });
+    var termsAreStale = +(_termDlgFx.termsBasisRate || 0) !== +rate || _termDlgFx.termsBasisCur !== targetCur;
+    if (termsAreStale && terms.length && typeof confirm === 'function' && !confirm('نرخ یا ارز مقصد با مبنای بندهای شرایط تغییر کرده است. برای تبدیل دوبارهٔ بندها «بازسازی بندها» را بزنید؛ اگر ادامه دهید، متن فعلی بندها بدون تبدیلِ مجدد حفظ می‌شود. ذخیره با همین متن ادامه یابد؟')) return;
     var offers = offersAll();
     var comp = offers.filter(function (o) { return o && o.no === compNo; })[0];
     if (!comp) { alert('⛔ نسخه ارزی یافت نشد.'); return; }
@@ -369,11 +397,16 @@
     var totalFx = items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
     try { if (typeof offEnsureOfferLineIds === 'function') offEnsureOfferLineIds(items, comp.no); } catch (eL) {}
     comp.items = items;
-    comp.terms = (_termDlgFx.terms || []).filter(function (t) { return String(t || '').trim() !== ''; });
+    comp.terms = terms;
     comp.currency = targetCur;
+    comp.fxBasis = 'converted';
+    comp.fxRateRef = rate;
     comp.fxConvert = comp.fxConvert || {};
     comp.fxConvert.rate = rate;
     comp.fxConvert.toCur = targetCur;
+    comp.fxConvert.cur = targetCur;
+    comp.fxConvert.termsRate = +_termDlgFx.termsBasisRate || rate;
+    comp.fxConvert.termsCur = _termDlgFx.termsBasisCur || targetCur;
     comp.fxConvert.totalIrr = totalIrr;
     comp.fxConvert.totalFx = totalFx;
     comp.fxConvert.termsRewritten = comp.terms.length;
@@ -449,6 +482,7 @@
           totalIrr: totalIrr, totalFx: totalFx,
           dateISO: dateISO,
           termsRewritten: termsConv.changed || 0,
+          termsRate: rate, termsCur: targetCur,
           at: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString()),
           by: curName(),
           originalIrrTotal: _fxBasis.originalIrrTotal,
@@ -538,10 +572,10 @@
     var chk = window.ptfOfferFxConvertCheck(no);
     if (!chk.ok) { alert(window.ptfOfferFxWhyFa(chk.why)); return; }
     var o = chk.offer;
-    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
-    var liveUsd = +L.usd_free || 0;
-    var liveEur = +L.eur_free || 0;
-    var defRate = liveUsd || liveEur || 100000;
+    var liveUsd = liveRateFor('USD');
+    var liveEur = liveRateFor('EUR');
+    var liveCny = liveRateFor('CNY');
+    var defRate = liveUsd || 100000;
     var defDate = o.dateEn || new Date().toISOString().slice(0, 10);
     var totalIrr = irrTotal(o);
     var dateInp = (typeof ptfDateInput === 'function')
@@ -558,10 +592,10 @@
       '<div style="font-size:12.5px;background:#f8fafc;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 12px;margin-bottom:10px">' +
         'مبلغ پیشنهاد ریالی: <b dir="ltr">' + money(totalIrr, 'IRR') + '</b>' +
       '</div>' +
-      '<div class="fr"><div class="fld"><label>ارز مقصد *</label><select id="sfFxCur" onchange="sfFxPreview()" style="padding:7px;border:1px solid var(--brd);border-radius:8px"><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option><option value="AED">درهم (AED)</option><option value="GBP">پوند (GBP)</option></select></div>' +
+      '<div class="fr"><div class="fld"><label>ارز مقصد *</label><select id="sfFxCur" onchange="sfFxCurrencyChanged()" style="padding:7px;border:1px solid var(--brd);border-radius:8px">' + curOptionsHtml('USD') + '</select></div>' +
       '<div class="fld"><label>نرخ تسعیر (ریال به‌ازای هر واحد ارز) *</label>' +
         '<input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="sfFxRate" value="' + defRate.toLocaleString('en-US') + '" style="direction:ltr" oninput="sfFxPreview()">' +
-        '<small style="color:#64748b">آزاد لحظه‌ای: USD ' + (liveUsd ? liveUsd.toLocaleString('fa-IR') : '—') + ' | EUR ' + (liveEur ? liveEur.toLocaleString('fa-IR') : '—') + '</small></div></div>' +
+        '<small style="color:#64748b">نرخ آزاد لحظه‌ای — USD ' + (liveUsd ? liveUsd.toLocaleString('fa-IR') : '—') + ' | EUR ' + (liveEur ? liveEur.toLocaleString('fa-IR') : '—') + ' | CNY ' + (liveCny ? liveCny.toLocaleString('fa-IR') : '—') + '؛ برای AED/GBP نرخ را دستی وارد کنید.</small></div></div>' +
       '<div class="fld"><label>تاریخ پیشنهاد ارزی (شمسی) — پیش‌فرض: تاریخ پیشنهاد اولیه</label>' + dateInp + '</div>' +
       '<div id="sfFxPreview" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 12px;font-size:12.5px;color:#1e40af;margin-bottom:10px"></div>' +
       '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:11.5px;color:#92400e;margin-bottom:10px">' +
@@ -575,6 +609,15 @@
     window.sfFxPreview();
   };
 
+  window.sfFxCurrencyChanged = function () {
+    var curEl = document.getElementById('sfFxCur');
+    var rateEl = document.getElementById('sfFxRate');
+    if (rateEl) {
+      var liveRate = liveRateFor(curEl ? curEl.value : 'USD');
+      rateEl.value = liveRate ? liveRate.toLocaleString('en-US') : '';
+    }
+    window.sfFxPreview();
+  };
   window.sfFxPreview = function () {
     var el = document.getElementById('sfFxPreview');
     if (!el || !document.getElementById('sfFxDlg')) return;
@@ -638,7 +681,7 @@
         var btns = comps.map(function (c) {
           return fxPostAction('preview-' + c.no, '👁', 'نمایش ' + c.currency, 'نمایش نسخه ارزی ' + c.currency, 'offerQuickPreview(\'' + ptfOnClickArg(c.no) + '\')', c.currency) +
             fxPostAction('print-' + c.no, '🖨', 'چاپ ' + c.currency, 'چاپ/PDF نسخه ارزی', 'offerPrint(\'' + ptfOnClickArg(c.no) + '\')', 'PDF') +
-            fxPostAction('terms-' + c.no, '🔧', 'شرایط ' + c.currency, 'ویرایش شرایط ارزی', 'ptfOfferFxTermsOpen(\'' + ptfOnClickArg(c.no) + '\')', 'ویرایش');
+            fxPostAction('terms-' + c.no, '🔧', 'ویرایش ' + c.currency, 'ویرایش ارز مقصد، نرخ تسعیر و شرایط نسخه ارزی', 'ptfOfferFxTermsOpen(\'' + ptfOnClickArg(c.no) + '\')', 'ارز/نرخ/شرایط');
         }).join('');
         return badges + btns + fxPostAction('convert', '💱', 'ارزی دیگر', 'ساخت نسخه ارزی دیگر از پیشنهاد ریالی برنده', 'ptfOfferFxConvertOpenByNo(\'' + ptfOnClickArg(wo.no) + '\',\'' + ptfOnClickArg(r.cd || '') + '\')', 'نسخه همراه');
       }
@@ -666,10 +709,10 @@
           var _rt = (_comp.fxConvert && +_comp.fxConvert.rate) || 0;
           var _cur = _comp.currency || '';
           return '<span style="display:inline-flex;gap:2px;align-items:center;background:#fff;border:1px solid #fde68a;border-radius:999px;padding:2px 6px"><b dir="ltr">' + escP(_comp.no) + ' (' + escP(_cur) + ')</b>' +
-            (_rt ? '<small style="opacity:.8">' + _rt.toLocaleString('fa-IR') + '</small>' : '') +
+            (_rt ? '<small style="opacity:.8">' + _rt.toLocaleString('fa-IR') + ' ریال/' + escP(_cur) + '</small>' : '') +
             '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px" onclick="offerQuickPreview(\'' + ptfOnClickArg(_comp.no) + '\')" title="نمایش نسخه ارزی ' + escP(_cur) + '">👁</button>' +
             '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px" onclick="offerPrint(\'' + ptfOnClickArg(_comp.no) + '\')" title="چاپ/PDF نسخه ارزی">🖨</button>' +
-            '<button class="bt bt-o" style="width:20px;height:20px;padding:0;font-size:10px;color:#b45309" onclick="ptfOfferFxTermsOpen(\'' + ptfOnClickArg(_comp.no) + '\')" title="شرایط ارزی">🔧</button>' +
+            '<button class="bt bt-o" style="height:22px;padding:2px 6px;font-size:10px;color:#b45309;white-space:nowrap" onclick="ptfOfferFxTermsOpen(\'' + ptfOnClickArg(_comp.no) + '\')" title="ویرایش ارز مقصد، نرخ تسعیر و شرایط نسخه ارزی" aria-label="ویرایش ارز مقصد، نرخ تسعیر و شرایط نسخه ارزی">🔧 ویرایش</button>' +
             '</span>';
         }).join(' ') +
         '</span></div>';
@@ -689,7 +732,7 @@
     fxMenu:    { label: 'عملیات نسخه ارزی', icon: '💱', tone: 'amber', primary: true },
     fxPreview: { label: 'نمایش نسخه ارزی', icon: '👁', tone: 'sky', primary: false },
     fxPrint:   { label: 'چاپ نسخه ارزی', icon: '🖨', tone: 'indigo', primary: false },
-    fxTerms:   { label: 'شرایط و نرخ ارزی', icon: '🔧', tone: 'orange', primary: false }
+    fxTerms:   { label: 'ویرایش نرخ/ارز/شرایط ارزی', icon: '🔧', tone: 'orange', primary: false }
   };
   var TONES = {
     amber: { color: '#92400e', background: '#fffbeb', border: '#fde68a' },

@@ -78,6 +78,7 @@ var SUITE = [
   { g: 'پیشنهاد/موبایل/ACK', f: '_tools/uat/tester442-v34.7.39-offer-ack-workflow.js' },
   { g: 'پیشنهاد/یکپارچگی TO→CO', f: '_tools/uat/tester691-v34.39.51-toCo-keeps-technical-offer.js' },
   { g: 'پیشنهاد/ستون تکمیلی (جابه‌جایی + چاپ)', f: '_tools/uat/tester692-v34.39.52-offer-custom-column-parity.js' },
+  { g: 'پیشنهاد/نسخه همراه ارز — ویرایش نرخ، ارز و شرایط در هر دو جهت', f: '_tools/uat/tester693-v34.39.54-offer-companion-fx-edit.js' },
   { g: 'پیشنهاد/قطعیت نتیجه ثبت', f: '_tools/uat/tester445-v34.7.42-offer-commit-certainty.js' },
   { g: 'فرمان‌های مالی/قطعیت عمومی', f: '_tools/uat/tester446-v34.7.43-command-commit-certainty.js' },
   { g: 'پیشنهاد/دکمه ذخیره مودال', f: '_tools/uat/tester447-v34.7.44-offer-save-button-return.js' },
@@ -372,7 +373,7 @@ var SYNTAX = [
   'crm/customer-finance.js', 'crm/customer-summary.js', 'crm/finance-helpers.js', 'crm/insights.js', 'crm/cheque-module.js', 'crm/data-quality.js',
   'crm/unofficial-invoice.js', 'crm/commission.js', 'crm/working-capital.js', 'crm/fx.js',
   'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js', 'crm/careers.js',
-  'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js',
+  'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js', 'crm/offer-rial-convert.js', 'crm/offer-fx-convert.js',
   'crm/contracts.js', 'crm/docsx.js', 'crm/bridge.js', 'crm/offerlock.js', 'crm/custmerge.js',
   'crm/projects.js', 'crm/reports.js', 'crm/sync.js', 'crm/storage.js', 'crm/procurement-link.js', 'crm/mobile-table-labels.js', 'crm/my-customers-filter.js'
 ];
