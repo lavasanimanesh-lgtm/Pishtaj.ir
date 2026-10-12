@@ -799,7 +799,10 @@ function ptfTransferOwnershipFromUser(username, newOwner) {
           transferred.offers++;
         }
       });
-      if (transferred.offers > 0) setData('ptf_crm_offers', offers);
+      if (transferred.offers > 0) {
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'user-delete-transfer' });
+        else setData('ptf_crm_offers', offers);
+      }
     }
     /* مشتریان */
     var customers = getData('ptf_crm_customers');
@@ -813,7 +816,10 @@ function ptfTransferOwnershipFromUser(username, newOwner) {
           transferred.customers++;
         }
       });
-      if (transferred.customers > 0) setData('ptf_crm_customers', customers);
+      if (transferred.customers > 0) {
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', customers, { reason: 'user-delete-transfer' });
+        else setData('ptf_crm_customers', customers);
+      }
     }
     /* لیدها */
     var leads = getData('ptf_crm_leads');
@@ -827,7 +833,10 @@ function ptfTransferOwnershipFromUser(username, newOwner) {
           transferred.leads++;
         }
       });
-      if (transferred.leads > 0) setData('ptf_crm_leads', leads);
+      if (transferred.leads > 0) {
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'user-delete-transfer' });
+        else setData('ptf_crm_leads', leads);
+      }
     }
     /* RFQها */
     var rfqs = getData('ptf_crm_rfqs');
@@ -841,7 +850,10 @@ function ptfTransferOwnershipFromUser(username, newOwner) {
           transferred.rfqs++;
         }
       });
-      if (transferred.rfqs > 0) setData('ptf_crm_rfqs', rfqs);
+      if (transferred.rfqs > 0) {
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'user-delete-transfer' });
+        else setData('ptf_crm_rfqs', rfqs);
+      }
     }
   } catch (eTransfer) {
     console.error('ptfTransferOwnershipFromUser:', eTransfer);
