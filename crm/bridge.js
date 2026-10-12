@@ -2120,6 +2120,9 @@
     return out;
   }
 
+  /* فرمت‌های پیوست درخواست — همان فهرستی که متن راهنمای مودال اعلام می‌کند
+     (Word، PDF، Excel، عکس و zip) و هم‌خوان با سرور (api/crm.php save_attachment). */
+  var RFQ_ATTACH_EXTS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'webp', 'zip', 'rar'];
   function initRfqModal() {
     _rfqFiles = { inq: [], ds: [], img: [], dwg: [], oth: [] };
     ['inq', 'ds', 'img', 'dwg', 'oth'].forEach(function (k) {
@@ -2129,7 +2132,7 @@
           var total = Object.keys(_rfqFiles).reduce(function (a, x) { return a + _rfqFiles[x].length; }, 0);
           var el = document.getElementById('rFileSum');
           if (el) el.textContent = '📎 ' + total + ' فایل پیوست شد';
-        });
+        }, null, { allowedExts: RFQ_ATTACH_EXTS });
       }
     });
     rfqTab('inq');
