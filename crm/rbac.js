@@ -28,6 +28,40 @@ var ROLES = {
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
 var SENIOR_ROLES = ['admin', 'chairman', 'ceo', 'commercial'];
 
+/* ═══ v34.39.51 (ROLE-CAP-EXT): زیرساخت توسعهٔ نقش‌ها در آینده
+   بدون تغییر ماتریس ROLES. هر نقش جدید با اضافه‌کردن یک entry در ptfRoleCaps
+   تعریف می‌شود — نیازی به تغییر در perms.js، petty.js، offers.js و... نیست.
+   مثال نقش آینده:
+     ptfRoleCaps['salesSenior'] = {
+       lb: 'کارشناس ارشد فروش',
+       baseRole: 'sales',              // ارث‌بری از sales
+       extraPanels: ['fin'],           // پنل‌های اضافه
+       canApprove: true,               // قابلیت‌های ویژه
+       maxDealValue: 1000000000,       // سقف معامله
+       seeAllOffers: false             // فقط مال خود را ببیند
+     };
+   استفاده: ptfRoleCapsCheck(username, 'canApprove')
+   ═══ */
+var ptfRoleCaps = {};
+window.ptfRegisterRoleCap = function (roleId, caps) { ptfRoleCaps[roleId] = Object.assign({}, ptfRoleCaps[roleId] || {}, caps || {}); };
+window.ptfRoleCapsCheck = function (username, cap) {
+  try {
+    var u = (getData('ptf_crm_users') || []).filter(function (x) { return x.username === username; })[0];
+    if (!u) return false;
+    var roleId = u.roleId || u.role || 'sales';
+    /* اول caps مستقیم نقش */
+    var direct = (ptfRoleCaps[roleId] || {})[cap];
+    if (direct !== undefined) return direct;
+    /* بعد ارث‌بری از baseRole */
+    var base = (ptfRoleCaps[roleId] || {}).baseRole;
+    if (base && ptfRoleCaps[base]) {
+      var inherited = ptfRoleCaps[base][cap];
+      if (inherited !== undefined) return inherited;
+    }
+    return false;
+  } catch (e) { return false; }
+};
+
 /* ═══ v34.8.43 (R5/T4-1b — SESSION-OUT-OF-LS): نشست بدون توکن در localStorage ═══
    توکن از v34.8.28 علاوه بر هدر، به‌صورت کوکی HttpOnly (ptf_token) هم صادر می‌شود و
    سرور در نبود هدر X-CRM-Token از همان کوکی می‌پذیرد (auth_get_header_token). از این
@@ -737,13 +771,103 @@ function saveUser2() {
   });
 }
 
+/* ═══ v34.39.51 (USER-DELETE-TRANSFER): هنگام حذف کاربر، مالکیت رکوردهای او منتقل شود
+   گزارش کارفرما: «فاکتورهای فروش بدون پرونده نمایش داده می‌شدند».
+   ریشه: حذف کاربر بدون انتقال مالکیت → owner فاکتورها به کاربر حذف‌شده اشاره می‌کند
+   و سیستم نمی‌تواند آن‌ها را به پروندهٔ فروش متصل کند.
+   رفتار جدید:
+   ① فاکتورها (offers) → منتقل به admin
+   ② مشتریان (customers) → منتقل به admin
+   ③ لیدها (leads) → منتقل به admin
+   ④ RFQها → منتقل به admin (اگر owner دارند)
+   ⑤ تنخواه‌ها → مالکیت دست‌نخورده (چون by = ثبت‌کننده، نه مالک)
+   همه تغییرات در audit log ثبت می‌شوند و قابل پیگیری هستند.
+   ═══ */
+function ptfTransferOwnershipFromUser(username, newOwner) {
+  newOwner = newOwner || 'admin';
+  var transferred = { offers: 0, customers: 0, leads: 0, rfqs: 0 };
+  try {
+    /* فاکتورها / پیشنهادها */
+    var offers = getData('ptf_crm_offers');
+    if (Array.isArray(offers)) {
+      offers.forEach(function (o) {
+        if (o && (o.owner === username || o.crBy === username)) {
+          o.previousOwner = o.owner || o.crBy;
+          o.owner = newOwner;
+          o.transferReason = 'حذف کاربر ' + username;
+          o.transferDate = new Date().toISOString();
+          transferred.offers++;
+        }
+      });
+      if (transferred.offers > 0) setData('ptf_crm_offers', offers);
+    }
+    /* مشتریان */
+    var customers = getData('ptf_crm_customers');
+    if (Array.isArray(customers)) {
+      customers.forEach(function (c) {
+        if (c && (c.owner === username || c.crBy === username)) {
+          c.previousOwner = c.owner || c.crBy;
+          c.owner = newOwner;
+          c.transferReason = 'حذف کاربر ' + username;
+          c.transferDate = new Date().toISOString();
+          transferred.customers++;
+        }
+      });
+      if (transferred.customers > 0) setData('ptf_crm_customers', customers);
+    }
+    /* لیدها */
+    var leads = getData('ptf_crm_leads');
+    if (Array.isArray(leads)) {
+      leads.forEach(function (l) {
+        if (l && (l.owner === username || l.crBy === username)) {
+          l.previousOwner = l.owner || l.crBy;
+          l.owner = newOwner;
+          l.transferReason = 'حذف کاربر ' + username;
+          l.transferDate = new Date().toISOString();
+          transferred.leads++;
+        }
+      });
+      if (transferred.leads > 0) setData('ptf_crm_leads', leads);
+    }
+    /* RFQها */
+    var rfqs = getData('ptf_crm_rfqs');
+    if (Array.isArray(rfqs)) {
+      rfqs.forEach(function (r) {
+        if (r && (r.owner === username || r.crBy === username)) {
+          r.previousOwner = r.owner || r.crBy;
+          r.owner = newOwner;
+          r.transferReason = 'حذف کاربر ' + username;
+          r.transferDate = new Date().toISOString();
+          transferred.rfqs++;
+        }
+      });
+      if (transferred.rfqs > 0) setData('ptf_crm_rfqs', rfqs);
+    }
+  } catch (eTransfer) {
+    console.error('ptfTransferOwnershipFromUser:', eTransfer);
+  }
+  return transferred;
+}
+window.ptfTransferOwnershipFromUser = ptfTransferOwnershipFromUser;
+
 function delUser2(u) {
   if (!roleDef().users) { alert('دسترسی ندارید'); return; }
-  if (!confirm('کاربر ' + u + ' حذف شود؟')) return;
+  if (!confirm('کاربر ' + u + ' حذف شود؟\n\n️ تمام فاکتورها، مشتریان، لیدها و RFQهای متعلق به این کاربر به مدیر (admin) منتقل می‌شوند.')) return;
+  /* v34.39.51: انتقال مالکیت پیش از حذف */
+  var transferred = ptfTransferOwnershipFromUser(u, 'admin');
+  var summary = '';
+  if (transferred.offers) summary += transferred.offers + ' فاکتور، ';
+  if (transferred.customers) summary += transferred.customers + ' مشتری، ';
+  if (transferred.leads) summary += transferred.leads + ' لید، ';
+  if (transferred.rfqs) summary += transferred.rfqs + ' RFQ';
+  if (summary) {
+    summary = summary.replace(/، $/, '');
+    if (typeof ptfToast === 'function') ptfToast('✅ ' + summary + ' به مدیر منتقل شد', 'info');
+  }
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', getData('ptf_crm_users').filter(function (x) { return x.username !== u; }), { reason: 'w4' }); else setData('ptf_crm_users', getData('ptf_crm_users').filter(function (x) { return x.username !== u; }));
   usersSyncToServer(); // US-151: حذف در همه دستگاه‌ها اثر کند
+  audit('کاربران', 'حذف کاربر و انتقال مالکیت‌ها: ' + summary, u);
   renderUsers();
-  audit('کاربران', 'حذف کاربر', u);
 }
 
 function ptfRbacAuthHeaders(json) {
