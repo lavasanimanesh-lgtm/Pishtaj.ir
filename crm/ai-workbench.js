@@ -304,7 +304,7 @@ function bizDup(kind,rec){
     /* fallback: اگر ptfDupBlock نبود، از confirm ساده استفاده کن */
     if(typeof ptfCheckDup==='function'){
       var d=ptfCheckDup(kind,rec,null);
-      if(d&&d.length&&!confirm('⚠️ رکورد مشابه پیدا شد:\n\n'+d.map(function(x){return x.f+' («'+x.v+'»)').join('\n')+'\n\nبا وجود احتمال تکراری بودن، ثبت جدید انجام شود؟'))return true;
+      if(d&&d.length&&!confirm('⚠️ رکورد مشابه پیدا شد:\n\n'+d.map(function(x){return x.f+' («'+x.v+'»)'} )('\n')+'\n\nبا وجود احتمال تکراری بودن، ثبت جدید انجام شود؟'))return true;
     }
   }catch(e){}
   return false;
