@@ -294,7 +294,21 @@ window.aiWB_bizRender=function(card,src){
   document.getElementById('aiBizOut').innerHTML=html;
 };
 function bizPeople(){var p=bizVal('person'); if(!p)return []; return [{nm:p,role:bizVal('role'),tels:bizVal('phone')?[{n:bizVal('phone'),lb:'کارت ویزیت'}]:[],mobs:bizVal('mobile')?[{n:bizVal('mobile'),lb:'کارت ویزیت'}]:[],mails:bizVal('email')?[{n:bizVal('email')}]:[],primary:true,src:'ai-bizcard'}];}
-function bizDup(kind,rec){try{if(typeof ptfCheckDup==='function'){var d=ptfCheckDup(kind,rec,null); if(d&&d.length&&!confirm('⚠️ رکورد مشابه پیدا شد. با وجود احتمال تکراری بودن، ثبت جدید انجام شود؟'))return true;}}catch(e){} return false;}
+function bizDup(kind,rec){
+  /* v34.39.50 (CUST-DEDUP-FIX): استفاده از ptfDupBlock به‌جای confirm ساده
+     ptfDupBlock پیام کامل‌تری نشان می‌دهد و true برمی‌گرداند اگر تکراری باشد */
+  try{
+    if(typeof ptfDupBlock==='function'){
+      return ptfDupBlock(kind, rec, null);
+    }
+    /* fallback: اگر ptfDupBlock نبود، از confirm ساده استفاده کن */
+    if(typeof ptfCheckDup==='function'){
+      var d=ptfCheckDup(kind,rec,null);
+      if(d&&d.length&&!confirm('⚠️ رکورد مشابه پیدا شد:\n\n'+d.map(function(x){return x.f+' («'+x.v+'»)').join('\n')+'\n\nبا وجود احتمال تکراری بودن، ثبت جدید انجام شود؟'))return true;
+    }
+  }catch(e){}
+  return false;
+}
 window.aiWB_bizSave=function(){
   var dest=(document.getElementById('biz_dest')||{}).value||'supplier'; var co=bizVal('company')||bizVal('companyEn')||bizVal('person'); if(!co){alert('نام شرکت/شخص الزامی است');return;}
   var people=bizPeople(), tel=bizVal('phone'), mob=bizVal('mobile'), email=bizVal('email'); var res=document.getElementById('biz_save_res');
@@ -585,10 +599,60 @@ window.aiWB_tripleGo=function(){
 
   try{
     /* v12.5 (US-306): ۰) ثبت خودکار مشتری شناسایی‌شده از سربرگ (با تایید چک‌باکس کاربر) */
+    /* v34.39.50 (CUST-DEDUP-FIX): چک دقیق با dedupNorm برای نام + شناسه ملی + کد ملی + شماره تماس */
     if(doNewCust && det.co){
       var custs0=getData('ptf_crm_customers');
-      var exists0=custs0.some(function(c){ return c.co === det.co; });
-      if(!exists0){
+      var detNorm = (typeof dedupNorm === 'function') ? dedupNorm(det.co) : det.co;
+      var exists0 = custs0.some(function(c){
+        if (detNorm && (typeof dedupNorm === 'function') && dedupNorm(c.co || '') === detNorm) return true;
+        if (c.co === det.co) return true;
+        return false;
+      });
+      /* v34.39.50: اگر تکراری پیدا شد، هشدار بده و کاربر را مجبور به تأیید کن */
+      if(exists0){
+        var dupFound = custs0.filter(function(c){
+          return (detNorm && (typeof dedupNorm === 'function') && dedupNorm(c.co || '') === detNorm) || c.co === det.co;
+        })[0];
+        var dupMsg = '⚠️ مشتری مشابه قبلاً ثبت شده است:\n\n' +
+          'نام: ' + (dupFound.co || '') + '\n' +
+          'کد: ' + (dupFound.cd || '') + '\n' +
+          (dupFound.ph ? 'تلفن: ' + dupFound.ph + '\n' : '') +
+          (dupFound.crAt ? 'تاریخ ثبت: ' + dupFound.crAt + '\n' : '') +
+          '\nآیا می‌خواهید رکورد جدید ثبت شود؟ (انصراف = استفاده از رکورد موجود)';
+        if(typeof ptfDlgAlert === 'function'){
+          /* dialog با دکمه‌های دوگانه */
+          var confirmed = confirm(dupMsg);
+          if(!confirmed){
+            /* استفاده از رکورد موجود */
+            custCd = dupFound.cd;
+            out.cust = dupFound.cd;
+            out.dupCust = dupFound.cd;
+            resEl.innerHTML='<span style="color:#0e7490">↩️ از رکورد موجود استفاده شد: ' + esc(dupFound.co) + ' (' + dupFound.cd + ')</span>';
+            if(typeof audit==='function') audit('مشتریان','استفاده از مشتری موجود به‌جای ثبت تکراری (از سربرگ استعلام): '+det.co, dupFound.cd);
+          } else {
+            /* ثبت رکورد جدید با وجود تکرار */
+            var newC={ cd:genCode('CUST'), co:det.co, coEn:(det.coEn||''), kind:'حقوقی', ind:'نفت و گاز', venSt:'unreg', people:[], phones:[], coTels:[], ds:'ثبت خودکار توسط دستیار از سربرگ استعلام (با تأیید کاربر علی‌رغم تکرار)', ts:new Date().toISOString() };
+            if(typeof dedupStamp==='function') dedupStamp(newC);
+            custs0.unshift(newC);
+            if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs0, { reason: 'ai-letterhead-dup' });
+            else setData('ptf_crm_customers', custs0);
+            custCd=newC.cd; out.cust=newC.cd;
+            if(typeof audit==='function') audit('مشتریان','ثبت خودکار مشتری تکراری از سربرگ استعلام (با تأیید کاربر): '+det.co, newC.cd);
+          }
+        } else {
+          if(!confirm(dupMsg)){
+            custCd = dupFound.cd; out.cust = dupFound.cd; out.dupCust = dupFound.cd;
+            resEl.innerHTML='<span style="color:#0e7490">↩️ از رکورد موجود استفاده شد: ' + esc(dupFound.co) + '</span>';
+          } else {
+            var newC2={ cd:genCode('CUST'), co:det.co, coEn:(det.coEn||''), kind:'حقوقی', ind:'نفت و گاز', venSt:'unreg', people:[], phones:[], coTels:[], ds:'ثبت خودکار توسط دستیار (با تأیید کاربر)', ts:new Date().toISOString() };
+            if(typeof dedupStamp==='function') dedupStamp(newC2);
+            custs0.unshift(newC2);
+            if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs0, { reason: 'ai-letterhead-dup' });
+            else setData('ptf_crm_customers', custs0);
+            custCd=newC2.cd; out.cust=newC2.cd;
+          }
+        }
+      } else {
         /* v14.4 (US-362 AC1/AC2): نام انگلیسی شرکت هم‌زمان ثبت — سند EN دیگر ترانویسی خام نمی‌گیرد */
         var newC={ cd:genCode('CUST'), co:det.co, coEn:(det.coEn||''), kind:'حقوقی', ind:'نفت و گاز', venSt:'unreg', people:[], phones:[], coTels:[], ds:'ثبت خودکار توسط دستیار از سربرگ استعلام', ts:new Date().toISOString() };
         if(typeof dedupStamp==='function') dedupStamp(newC);
