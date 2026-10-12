@@ -30,7 +30,14 @@
     var s = curSession();
     var ov = permOverride(s.user, panelId);
     if (ov === 'allow') return true;
-    if (ov === 'deny') return false;
+    if (ov === 'deny') {
+      /* v34.39.51: حسابدار نمی‌تواند از petty محروم شود — دوره‌های تنخواه را باید ببیند */
+      if (panelId === 'petty' && curRole() === 'accountant') {
+        if (typeof ptfToast === 'function') ptfToast('⚠️ حسابدار نمی‌تواند از پنل تنخواه محروم شود (دوره‌ها برای ثبت حسابداری لازم‌اند)', 'warn');
+        return true;
+      }
+      return false;
+    }
     // پیش‌فرض نقش (منطق موجود)
     var r = roleDef();
     if (panelId === 'orders' || panelId === 'fin') return !!r.finance;

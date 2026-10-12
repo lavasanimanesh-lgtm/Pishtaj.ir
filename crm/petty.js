@@ -117,11 +117,49 @@
       '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div><b style="font-size:16px;color:#065f46">موجودی ثبت‌شده حساب تنخواه: ' + money(bal) + '</b><br><small style="color:#64748b">شارژ: ' + money(charge) + ' | پرداخت مستقیم: ' + money(direct) + ' | تسویه اشخاص: ' + money(settle) + ' | مطالبات باز: ' + money(pending) + '</small></div>' + roleCtl + '</div></div>';
   }
 
+  /* ═══ v34.39.51 (PERIOD-VISIBILITY): رفع محدودیت ۸ دوره + فیلتر بر اساس نقش
+     گزارش کارفرما: «حسابدار دورهٔ ارجاع‌شده را نمی‌دید». ریشه:
+     ۱) slice(0,8) فقط ۸ دورهٔ اول (جدیدترین) را نشان می‌داد
+     ۲) هیچ فیلتری بر اساس نقش وجود نداشت
+     ۳) فیلد assignedTo وجود نداشت — مشخص نبود دوره به کدام حسابدار ارجاع شده
+     رفتار جدید (کاملاً backward-compatible با دوره‌های قدیمی بدون assignedTo):
+     - مدیران/تنخواه‌گردان: همهٔ دوره‌ها
+     - حسابدار: فقط دوره‌های referred/registered (با ارجاع به او یا بدون assignedTo)
+     - سایر نقش‌ها: فقط دوره‌های ثبت‌شده توسط خودشان
+     - صفحه‌بندی ۵۰ تایی برای جلوگیری از فریز UI در مقیاس بالا
+     ═══ */
   function renderPeriods() {
     var el = document.getElementById('ptPeriods'); if (!el) return;
-    var periods = prAll().slice(0, 8);
-    if (!periods.length && !isTreasurer() && !isAccountant()) { el.innerHTML = ''; return; }
-    var rows = periods.map(function (p) {
+    var allPeriods = prAll();
+    var role = curRole();
+    var me = curSession();
+    var filtered;
+    if (role === 'accountant') {
+      /* حسابدار فقط دوره‌های ارجاع‌شده/ثبت‌شده را ببیند.
+         backward-compat: دوره‌های قدیمی بدون assignedTo به همهٔ حسابدارها نمایش داده می‌شوند. */
+      filtered = allPeriods.filter(function (p) {
+        if (p.st !== 'referred' && p.st !== 'registered') return false;
+        if (p.assignedTo && p.assignedTo !== me.user) return false;
+        return true;
+      });
+    } else if (isMgr() || isTreasurer()) {
+      filtered = allPeriods.slice();
+    } else {
+      /* سایر نقش‌ها: فقط دوره‌هایی که خودشان ثبت‌کرده‌اند */
+      filtered = allPeriods.filter(function (p) { return p.by === me.name; });
+    }
+    /* مرتب‌سازی: جدیدترین اول (بر اساس createdAt یا cd) */
+    filtered.sort(function (a, b) {
+      var aTime = a.createdAtISO || a.iso || a.cd || '';
+      var bTime = b.createdAtISO || b.iso || b.cd || '';
+      return bTime.localeCompare(aTime);
+    });
+    /* صفحه‌بندی ۵۰ تایی */
+    var PER_PERIOD_PAGE = 50;
+    var periodPage = window._ptfPeriodPage || 0;
+    var shownPeriods = filtered.slice(0, (periodPage + 1) * PER_PERIOD_PAGE);
+    if (!shownPeriods.length && !isTreasurer() && !isAccountant()) { el.innerHTML = ''; return; }
+    var rows = shownPeriods.map(function (p) {
       var files = (typeof window.ptfPettyRecordFiles === 'function' ? window.ptfPettyRecordFiles(p) : (p.files || [])).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')">📎' + escP(f.name || 'فایل') + '</a>' : (f.url ? '<a href="javascript:void(0)" onclick="ptfPettyOpenLegacyUrl(\'' + ptfOnClickArg(f.url) + '\')">📎' + escP(f.name || 'سند قدیمی') + '</a>' : ''); }).join(' ');
       /* UR-11: دوره‌های جدید بازه [from,to] دارند؛ قدیمی‌ها فقط month (سازگاری) */
       var rng = (p.from && p.to) ? ('از ' + p.from + ' تا ' + p.to) : ('ماه ' + (p.month || '-'));
@@ -133,8 +171,15 @@
       var st = p.st === 'registered' ? '<span class="bd b-st4">ثبت‌شده</span>' : '<span class="bd" style="background:#dbeafe;color:#1d4ed8">ارجاع‌شده</span>';
       return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:6px;font-size:12.5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>دوره ' + escP(rng) + '</b> — ' + st + '<br><small style="color:#64748b">گردش: ' + money(p.totalOut || 0) + ' | شارژ: ' + money(p.charges || 0) + ' | مانده: ' + money(p.balance || 0) + ' | ' + escP(p.t || '') + '</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span>' + acts + '</span></div>';
     }).join('');
-    el.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:14px;padding:10px 12px"><b style="font-size:13px">📚 دوره‌های گزارش تنخواه</b><div style="margin-top:8px">' + (rows || '<small style="color:#94a3b8">دوره‌ای ارجاع نشده</small>') + '</div></div>';
+    el.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:14px;padding:10px 12px"><b style="font-size:13px"> دوره‌های گزارش تنخواه</b>' +
+      (role === 'accountant' ? '<small style="color:#64748b;margin-right:8px;font-size:11px">فقط دوره‌های ارجاع‌شده به شما</small>' : '') +
+      '<div style="margin-top:8px">' + (rows || '<small style="color:#94a3b8">دوره‌ای ارجاع نشده</small>') + '</div>' +
+      (filtered.length > shownPeriods.length
+        ? '<div style="text-align:center;margin-top:8px"><button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fde68a" onclick="ptfPettyMorePeriods()"> نمایش ' + Math.min(PER_PERIOD_PAGE, filtered.length - shownPeriods.length) + ' دورهٔ دیگر (' + shownPeriods.length + ' از ' + filtered.length + ')</button></div>'
+        : '') +
+      '</div>';
   }
+  window.ptfPettyMorePeriods = function () { window._ptfPeriodPage = (window._ptfPeriodPage || 0) + 1; renderPeriods(); };
 
   window.renderPetty = function () {
     renderAccountBox(); renderPeriods();
@@ -1550,12 +1595,17 @@
   window.pettyClosePeriod = function () {
     if (!isTreasurer()) { alert('⛔ فقط تنخواه‌گردان'); return; }
     var sg = window.ptfPettySuggestedRange();
+    /* v34.39.51: فهرست حسابداران برای انتخاب گیرندهٔ دوره.
+       backward-compat: اگر هیچ حسابداری نبود یا کاربر «همه» را انتخاب کرد،
+       assignedTo خالی می‌ماند و دوره به همهٔ حسابدارها نمایش داده می‌شود. */
+    var acctList = (typeof accountants === 'function' ? accountants() : (getData('ptf_crm_users') || []).filter(function (u) { return (u.roleId || u.role) === 'accountant'; }));
     ptfDialog({
       title: '📤 ارجاع گزارش دوره تنخواه به حسابدار',
       body: 'گزارش گردش دوره شامل پرداخت‌های مستقیم، تسویه مطالبات اشخاص، مانده حساب و همه ضمایم هزینه‌هاست. پس از ثبت، در کارتابل حسابدار قابل پیگیری می‌شود.<br><b style="color:#b45309">⚠️ پیوست «صورتحساب بانک / گردش حساب» قبل از ارجاع الزامی است.</b><br><small style="color:#475569">بازهٔ پیشنهادی از «روز پس از آخرین ارجاع» تا امروز است — می‌توانید «تا تاریخ» را تغییر دهید.</small>',
       fields: [
         { id: 'from', label: 'از تاریخ (روز پس از آخرین ارجاع)', value: sg.from || '', required: true, dir: 'ltr', datePicker: true },
         { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr', datePicker: true },
+        { id: 'assignedTo', label: 'ارجاع به حسابدار (اختیاری — خالی = همهٔ حسابدارها)', type: 'select', value: acctList.length === 1 ? (acctList[0].username || '') : '', options: [{ v: '', lb: '— همهٔ حسابدارها (پیش‌فرض) —' }].concat(acctList.map(function (u) { return { v: u.username, lb: u.name || u.username }; })) },
         { id: 'bankFile', label: '📎 فایل PDF گردش حساب بانک (الزامی — قبل از ارجاع)', type: 'upload', uploadFolder: 'petty-period/' },
         { id: 'note', label: 'یادداشت برای حسابدار', type: 'textarea', rows: 2 },
         { id: 'sms', label: 'پیامک اطلاع‌رسانی؟', type: 'select', options: [{ v: 'no', lb: 'خیر' }, { v: 'yes', lb: 'بله، اگر شماره حسابدار موجود است' }] }
@@ -1578,11 +1628,18 @@
           pettyAttachBank(lastClosed.cd);
           return;
         }
-        var rec = { cd: genCode('PPR'), from: from, to: to, month: d.month, st: 'referred', by: userName(), t: faDateTime(), iso: isoNow(), note: v.note || '', pettyIds: d.petty.map(function (x) { return x.cd; }), txIds: d.tx.map(function (x) { return x.cd; }), totalOut: d.totalOut, charges: d.charges, balance: d.balance, files: bankFiles };
+        var rec = { cd: genCode('PPR'), from: from, to: to, month: d.month, st: 'referred', by: userName(), t: faDateTime(), iso: isoNow(), createdAtISO: isoNow(), note: v.note || '', pettyIds: d.petty.map(function (x) { return x.cd; }), txIds: d.tx.map(function (x) { return x.cd; }), totalOut: d.totalOut, charges: d.charges, balance: d.balance, files: bankFiles, assignedTo: v.assignedTo || '' /* v34.39.51: حسابدار انتخابی — خالی = همه */ };
         ps.unshift(rec); prSave(ps);
-        audit('تنخواه', 'ارجاع گزارش دوره از ' + from + ' تا ' + to + ' به حسابدار — گردش ' + money(d.totalOut), rec.cd);
-        if (typeof notify === 'function') notify({ toRoles: ['accountant'], title: '📤 گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') برای ثبت حسابداری ارجاع شد', body: 'گردش دوره: ' + money(d.totalOut) + ' | مانده حساب: ' + money(d.balance), kind: 'petty_period', channels: ['cart'], link: { panel: 'petty' }, actionable: true });
-        if (v.sms === 'yes' && typeof smsSendSingle === 'function') accountants().forEach(function (u) { if (u.mobile) smsSendSingle(u.mobile, 'حسابدار محترم، گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') در CRM برای ثبت حسابداری ارجاع شد. https://pishtaj.ir/crm/'); });
+        audit('تنخواه', 'ارجاع گزارش دوره از ' + from + ' تا ' + to + ' به حسابدار' + (rec.assignedTo ? ' «' + rec.assignedTo + '»' : ' (همه)') + ' — گردش ' + money(d.totalOut), rec.cd);
+        /* v34.39.51: اطلاع‌رسانی فقط به حسابدار انتخابی (یا همه اگر assignedTo خالی بود) */
+        var notifyTarget = rec.assignedTo ? { toUsers: [rec.assignedTo] } : { toRoles: ['accountant'] };
+        if (typeof notify === 'function') notify(Object.assign(notifyTarget, { title: '📤 گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') برای ثبت حسابداری ارجاع شد' + (rec.assignedTo ? ' (ارجاع به: ' + rec.assignedTo + ')' : ''), body: 'گردش دوره: ' + money(d.totalOut) + ' | مانده حساب: ' + money(d.balance), kind: 'petty_period', channels: ['cart'], link: { panel: 'petty' }, actionable: true }));
+        if (v.sms === 'yes' && typeof smsSendSingle === 'function') {
+          var smsTargets = rec.assignedTo
+            ? (getData('ptf_crm_users') || []).filter(function (u) { return u.username === rec.assignedTo; })
+            : accountants();
+          smsTargets.forEach(function (u) { if (u.mobile) smsSendSingle(u.mobile, 'حسابدار محترم، گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') در CRM برای ثبت حسابداری ارجاع شد. https://pishtaj.ir/crm/'); });
+        }
         renderPetty();
         /* UR-13: فایل گردش حساب بانک از قبل در همین پنجره ضمیمه شده — دیگر دیالوگ پیوست جدا لازم نیست */
       }
