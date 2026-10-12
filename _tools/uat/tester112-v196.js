@@ -83,6 +83,8 @@ SECTION('رفتاری — US-439: مرجع دستی و حاشیه');
   /* اعمال حاشیه روی مرجع دستی */
   global.offRenderItems = function () { global._rendered = true; };
   global.ptfToast = function () {};
+  /* v34.39.55: گرد کردن ارزی به توابع کمکی وابسته است (offRoundPrice) — همراه تابع بارگذاری شود */
+  eval(of.match(/window\.offPriceDecimals = function[\s\S]*?\n\};\nwindow\.offRoundPrice = function[\s\S]*?\n\};/)[0]);
   eval(of.match(/window\.offApplyProfitMarginToRow = function\(i, basePrice, pct\) \{[\s\S]*?\n\};/)[0]);
   offApplyProfitMarginToRow(0, _offState.items[0].refBuyPrice, 20);
   T('قیمت فروش = مرجع دستی × ۱.۲ (۱۵,۰۰۰,۰۰۰)', _offState.items[0].price === 15000000 && _offState.items[0].profitMarginPct === 20);

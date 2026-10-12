@@ -15,6 +15,7 @@
     var s = String(v == null ? '' : v)
       .replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
       .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+      .replace(/\u066B/g, '.') /* «٫» اعشار فارسی/عربی */
       .replace(/[^\d.-]/g, '');
     return +s || 0;
   };
@@ -146,8 +147,20 @@
       return moneyTxt;
     } catch (e) { return false; }
   }
+  /* فیلد مبلغ با اعشار ثابت (data-decimals="2" برای ارز سند): بعد از خروج، 0.5 -> 0.50 */
+  function blurFixedDecimals(el) {
+    var raw = String(el.value || '');
+    if (!/\d/.test(ptfEnDigits(raw))) return;
+    var d = parseInt(el.getAttribute('data-decimals'), 10) || 0;
+    var f = Math.pow(10, d);
+    var n = ptfNum(raw);
+    n = Math.round(Math.round(n * f * 1e6) / 1e6) / f;
+    el.value = n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+    updateHint(el);
+  }
   document.addEventListener('focusout', function (e) {
     var el = e.target;
+    if (el && el.getAttribute && el.getAttribute('data-decimals') != null) { blurFixedDecimals(el); return; }
     if (!moneyLike(el)) return;
     try {
       var raw = String(el.value || '');
@@ -171,7 +184,8 @@
     
     // یکسان‌سازی ارقام فارسی و عربی به انگلیسی قبل از محاسبه تعداد ارقام
     var normRaw = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
-                     .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+                     .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+                     .replace(/\u066B/g, '.');
     
     var digitsBefore = normRaw.slice(0, caret).replace(/[^\d]/g, '').length;
     var n = ptfNum(normRaw);
@@ -211,7 +225,8 @@
     if (isNumericField && el.value) {
       var raw = el.value;
       var converted = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
-                         .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+                         .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+                         .replace(/\u066B/g, '.');
       if (converted !== raw) {
         /* v34.39.22 (UI-STABILITY R2): نگه‌داشتن جای مکان‌نما — تبدیل فا←EN طول رشته
            ۱:۱ است؛ بدون setSelectionRange مرورگر مکان‌نما را به انتها می‌برد و وسط

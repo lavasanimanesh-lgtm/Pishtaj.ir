@@ -168,6 +168,10 @@
     document.addEventListener('pointercancel', up);
   };
 
+  /* ریال: کیبورد عددی، بدون اعشار. ارزی: کیبورد اعشاری (دارای «.») و دو رقم اعشار بعد از خروج از فیلد */
+  function moneyDecAttrs(cur) {
+    return (cur && cur.id === 'IRR') ? ' inputmode="numeric"' : ' inputmode="decimal" data-decimals="2"';
+  }
   var _render1 = window.offRenderItems2 || window.offRenderItems;
   window.offRenderItems2 = window.offRenderItems = function () {
     var el = (typeof offEl === 'function') ? offEl('offItemsWrap') : document.getElementById('offItemsWrap'); /* v14.2 US-364 */
@@ -214,7 +218,7 @@
     _offState.items.forEach(function (it, i) {
       var inp = function (f, type, step, ro) {
         var unitWord = (cur && cur.id === 'EUR') ? 'یورو' : (cur && cur.id === 'USD') ? 'دلار' : 'ریال';
-        var moneyAttr = f === 'price' ? ' data-money="1" data-words="1" data-unit="' + unitWord + '" inputmode="numeric" autocomplete="off"' : '';
+        var moneyAttr = f === 'price' ? ' data-money="1" data-words="1" data-unit="' + unitWord + '"' + moneyDecAttrs(cur) + ' autocomplete="off"' : '';
         var inputType = f === 'price' ? 'text' : (type || 'text');
         var shown = (f === 'price' && it[f]) ? ((typeof window.offMoneyText === 'function') ? window.offMoneyText(it[f], cur) : it[f]) : (it[f] == null ? '' : it[f]);
         return '<input type="' + inputType + '"' + (step ? ' step="' + step + '"' : '') + (ro ? ' readonly' : '') + moneyAttr +
@@ -273,7 +277,7 @@
       }
       var marginPct = (typeof it.marginPct === 'number') ? it.marginPct : (rowRefPrice > 0 && +it.price > 0 ? Math.round(((+it.price / rowRefPrice) - 1) * 1000) / 10 : '');
       var marginCells = canMargin
-        ? '<td style="background:#fcfaff"><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="offRef' + i + '" value="' + escP(rowRefPrice ? ((typeof window.offMoneyText === 'function') ? window.offMoneyText(rowRefPrice, cur) : rowRefPrice) : '') + '" oninput="offUpdRefPrice(' + i + ',this.value)" placeholder="نرخ مرجع" style="width:112px;direction:ltr;background:#f5f3ff;border:1px solid #ddd6fe;font-weight:bold;color:#5b21b6;padding:5px;border-radius:6px"></td>' +
+        ? '<td style="background:#fcfaff"><input type="text"' + moneyDecAttrs(cur) + ' data-money="1" data-nohint="1" autocomplete="off" id="offRef' + i + '" value="' + escP(rowRefPrice ? ((typeof window.offMoneyText === 'function') ? window.offMoneyText(rowRefPrice, cur) : rowRefPrice) : '') + '" oninput="offUpdRefPrice(' + i + ',this.value)" placeholder="نرخ مرجع" style="width:112px;direction:ltr;background:#f5f3ff;border:1px solid #ddd6fe;font-weight:bold;color:#5b21b6;padding:5px;border-radius:6px"></td>' +
           '<td style="background:#fffef0"><input type="number" id="offMg' + i + '" value="' + marginPct + '" oninput="offUpdMarginPct(' + i + ',this.value)" placeholder="30%" style="width:58px;direction:ltr;background:#fefce8;border:1px solid #fde047;font-weight:bold;color:#b45309;padding:5px;border-radius:6px"></td>'
         : '';
       /* v14.2 US-366: دکمه ➕ افزودن ردیف در ابتدای ردیف (سمت راست RTL) — دستور کارفرما */
