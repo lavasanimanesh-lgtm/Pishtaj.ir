@@ -49,9 +49,10 @@ T('tester433 cut markers سالم‌اند',
   off.indexOf('function offLoadInqItems') > off.indexOf('window.ptfResolveInqRequest = function'));
 
 /* ---------- جداکننده هزارگان + حروف لایو + ارقام فارسی ---------- */
-T('نرخ مرجع type=text + data-money (نه type=number)',
+T('نرخ مرجع type=text + data-money (نه type=number) — کیبورد از moneyDecAttrs',
   /id="offRef' \+ i \+ '"/.test(lock) && /data-money="1" data-nohint="1"/.test(lock) &&
-  /<input type="text" inputmode="numeric" data-money="1" data-nohint="1"/.test(lock));
+  /<input type="text"' \+ moneyDecAttrs\(cur\) \+ ' data-money="1" data-nohint="1"/.test(lock) &&
+  /inputmode="decimal" data-decimals="2"/.test(lock));
 T('قیمت واحد data-money + data-words برای حروف لایو',
   /data-money="1" data-words="1"/.test(lock) && /data-money="1" data-words="1"/.test(off));
 T('جمع ردیف/کل با offPrintAmount (کاما انگلیسی)',

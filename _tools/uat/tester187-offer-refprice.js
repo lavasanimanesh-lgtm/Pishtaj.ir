@@ -10,7 +10,7 @@ var of = fs.readFileSync(path.join(BASE, 'offers.js'), 'utf-8');
 var ol = fs.readFileSync(path.join(BASE, 'offerlock.js'), 'utf-8');
 
 SECTION('۱) رفع پرش فوکوس (BUG-OFF-FOCUS-001)');
-T('offUpdRefPrice دیگر رندر کامل نمی‌کند', !/offUpdRefPrice = function[\s\S]{0,600}offRenderItems\(\);/.test(of) && /offUpdRefPrice = function[\s\S]{0,700}offSyncRowInputs\(i, 'ref'\)/.test(of));
+T('offUpdRefPrice دیگر رندر کامل نمی‌کند', !/offUpdRefPrice = function[\s\S]{0,600}offRenderItems\(\);/.test(of) && /offUpdRefPrice = function[\s\S]{0,900}offSyncRowInputs\(i, 'ref'\)/.test(of));
 T('offUpdMarginPct دیگر رندر کامل نمی‌کند', !/offUpdMarginPct = function[\s\S]{0,800}offRenderItems\(\);\s*\}\s*\};/.test(of) && /offUpdMarginPct = function[\s\S]{0,900}offSyncRowInputs\(i, 'margin'\)/.test(of));
 T('helper offSyncRowInputs موجود و فیلد فعال (activeElement) را دست نمی‌زند', of.indexOf('function offSyncRowInputs') > -1 && /el !== document\.activeElement/.test(of));
 T('input های ref/margin در هر دو رندر id ردیفی دارند', /id="offRef' \+ i \+ '"/.test(of) && /id="offMg' \+ i \+ '"/.test(of) && /id="offRef' \+ i \+ '"/.test(ol) && /id="offMg' \+ i \+ '"/.test(ol));

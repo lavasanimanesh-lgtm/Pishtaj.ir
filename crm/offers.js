@@ -2117,8 +2117,26 @@ window.offParseMoney = function (v) {
   if (typeof ptfNum === 'function') return ptfNum(v);
   return +String(v == null ? '' : v)
     .replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+    .replace(/\u066B/g, '.')
     .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
     .replace(/[^\d.-]/g, '') || 0;
+};
+/* ارز-آگاه: ریال بدون اعشار؛ سایر ارزها با دو رقم اعشار (مثلاً 0.25 دلار).
+   قبلاً قیمت فروش با Math.round صحیح می‌شد و نرخ مرجع زیر ۱ ارزی صفر نشان داده می‌شد. */
+window.offPriceDecimals = function (cur) {
+  var id = (typeof cur === 'string') ? cur : ((cur && cur.id) || (window._offState && window._offState.currency) || 'IRR');
+  return id === 'IRR' ? 0 : 2;
+};
+window.offRoundPrice = function (v, cur) {
+  var f = Math.pow(10, window.offPriceDecimals(cur));
+  var n = +v || 0;
+  /* گرد کردن دومرحله‌ای، خطای ممیز شناور (مثلاً 1.005) را حذف می‌کند */
+  return Math.round(Math.round(n * f * 1e6) / 1e6) / f;
+};
+/* مقدار تایپ‌شده/واردشده: برای ارزی به دو رقم اعشار گرد شود؛ برای ریال دست‌نخورده بماند */
+window.offTypedAmount = function (n, cur) {
+  n = +n || 0;
+  return window.offPriceDecimals(cur) ? window.offRoundPrice(n, cur) : n;
 };
 window.offMoneyText = function (v, cur) {
   var n = window.offParseMoney(v);
@@ -2566,6 +2584,7 @@ function ptfOfferOverallMargin(o) {
 window.ptfOfferOverallMargin = ptfOfferOverallMargin;
 function offUpdItem(i, f, v) {
   _offState.items[i][f] = (f === 'qty' || f === 'price') ? ((typeof window.offParseMoney === 'function') ? window.offParseMoney(v) : ((typeof ptfNum === 'function') ? ptfNum(v) : +String(v).replace(/[^\d.-]/g, '') || 0)) : v; /* v19.6 US-438 + v34.7.47 ارقام فارسی */
+  if (f === 'price') _offState.items[i].price = window.offTypedAmount(_offState.items[i].price); /* ارزی: دو رقم اعشار */
   /* v17.0 (US-409 — گزارش کارفرما): TC هم مالی است؛ جمع ردیف + جمع کل هر دو لحظه‌ای — بدون رندر کامل (فوکوس نمی‌پرد) */
   if ((_offState.kind === 'CO' || _offState.kind === 'TC') && (f === 'qty' || f === 'price')) offRenderTotals(i);
   ptfTriggerAutoDraftSave();
@@ -2591,7 +2610,7 @@ window.offApplyGlobalMargin = function () {
     if (refP > 0) {
       it.refPrice = refP;
       it.marginPct = margin;
-      it.price = Math.round(refP * (1 + margin / 100));
+      it.price = window.offRoundPrice(refP * (1 + margin / 100));
       updatedCount++;
     } else if (!it.marginPct) {
       it.marginPct = margin;
@@ -2607,8 +2626,9 @@ window.offUpdRefPrice = function (i, val) {
   var it = o.items[i];
   it.refPrice = (typeof window.offParseMoney === 'function') ? window.offParseMoney(val) : ((typeof ptfNum === 'function') ? ptfNum(val) : +String(val==null?'':val).replace(/[^\d.-]/g,'') || 0);
   it.refPriceEdited = true; /* v31.7.12: با ذخیره، روی نرخ مرجع کالا در ماژول کالا هم می‌نشیند */
+  it.refPrice = window.offTypedAmount(it.refPrice); /* ارزی: دو رقم اعشار */
   if (it.refPrice > 0 && typeof it.marginPct === 'number') {
-    it.price = Math.round(it.refPrice * (1 + it.marginPct / 100));
+    it.price = window.offRoundPrice(it.refPrice * (1 + it.marginPct / 100));
   } else if (it.refPrice > 0 && +it.price > 0) {
     it.marginPct = Math.round(((+it.price / it.refPrice) - 1) * 1000) / 10;
   }
@@ -2630,7 +2650,7 @@ window.offUpdMarginPct = function (i, val) {
     if (refP > 0) it.refPrice = refP;
   }
   if (refP > 0) {
-    it.price = Math.round(refP * (1 + it.marginPct / 100));
+    it.price = window.offRoundPrice(refP * (1 + it.marginPct / 100));
   }
   offSyncRowInputs(i, 'margin'); /* v31.7.12 BUG-OFF-FOCUS-001: به‌جای رندر کامل — فوکوس نمی‌پرد */
 };
@@ -2654,7 +2674,7 @@ window.offApplyGlobalMargin = function () {
     if (refP > 0) {
       it.refPrice = refP;
       it.marginPct = margin;
-      it.price = Math.round(refP * (1 + margin / 100));
+      it.price = window.offRoundPrice(refP * (1 + margin / 100));
       updatedCount++;
     } else if (!it.marginPct) {
       it.marginPct = margin;
@@ -2670,8 +2690,9 @@ window.offUpdRefPrice = function (i, val) {
   var it = o.items[i];
   it.refPrice = (typeof window.offParseMoney === 'function') ? window.offParseMoney(val) : ((typeof ptfNum === 'function') ? ptfNum(val) : +String(val==null?'':val).replace(/[^\d.-]/g,'') || 0);
   it.refPriceEdited = true; /* v31.7.12: با ذخیره، روی نرخ مرجع کالا در ماژول کالا هم می‌نشیند */
+  it.refPrice = window.offTypedAmount(it.refPrice); /* ارزی: دو رقم اعشار */
   if (it.refPrice > 0 && typeof it.marginPct === 'number') {
-    it.price = Math.round(it.refPrice * (1 + it.marginPct / 100));
+    it.price = window.offRoundPrice(it.refPrice * (1 + it.marginPct / 100));
   } else if (it.refPrice > 0 && +it.price > 0) {
     it.marginPct = Math.round(((+it.price / it.refPrice) - 1) * 1000) / 10;
   }
@@ -2693,7 +2714,7 @@ window.offUpdMarginPct = function (i, val) {
     if (refP > 0) it.refPrice = refP;
   }
   if (refP > 0) {
-    it.price = Math.round(refP * (1 + it.marginPct / 100));
+    it.price = window.offRoundPrice(refP * (1 + it.marginPct / 100));
   }
   offSyncRowInputs(i, 'margin'); /* v31.7.12 BUG-OFF-FOCUS-001: به‌جای رندر کامل — فوکوس نمی‌پرد */
 };
@@ -2806,7 +2827,7 @@ window.offCustomProfitMargin = function(i, basePrice) {
 window.offApplyProfitMarginToRow = function(i, basePrice, pct) {
   var it = _offState.items[i];
   it.profitMarginPct = pct;
-  it.price = Math.round(basePrice * (1 + pct / 100));
+  it.price = window.offRoundPrice(basePrice * (1 + pct / 100));
   
   var cascadedCount = 0;
   if (i === 0 && _offState.items.length > 1) {
@@ -2825,7 +2846,7 @@ window.offApplyProfitMarginToRow = function(i, basePrice, pct) {
       if (!bP) bP = +row.refBuyPrice || 0; /* v19.6 US-439: مرجع دستی هم در اعمال گروهی */
       if (bP > 0) {
         row.profitMarginPct = pct;
-        row.price = Math.round(bP * (1 + pct / 100));
+        row.price = window.offRoundPrice(bP * (1 + pct / 100));
         cascadedCount++;
       }
     }
@@ -3085,7 +3106,7 @@ function offPriceXlsApply(allRows) {
     }
     /* هم‌راستایی درصد سود مثل offUpdRefPrice/offUpdItem */
     if (+it2.refPrice > 0 && +it2.price > 0) it2.marginPct = Math.round(((+it2.price / +it2.refPrice) - 1) * 1000) / 10;
-    else if (refV > 0 && !(+it2.price > 0) && typeof it2.marginPct === 'number') it2.price = Math.round(refV * (1 + it2.marginPct / 100));
+    else if (refV > 0 && !(+it2.price > 0) && typeof it2.marginPct === 'number') it2.price = window.offRoundPrice(refV * (1 + it2.marginPct / 100));
   }
   if (typeof offRenderItems === 'function') offRenderItems();
   if (typeof ptfTriggerAutoDraftSave === 'function') { try { ptfTriggerAutoDraftSave(); } catch (eDs) {} }
