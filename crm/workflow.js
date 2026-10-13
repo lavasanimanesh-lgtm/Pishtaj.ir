@@ -106,6 +106,13 @@
       r.stxt = WF[wf].lb; // سازگاری با نمایش‌های قدیمی
       r.wfLog = r.wfLog || [];
       r.wfLog.push({ t: faDateTime(), by: curSession().name, wf: wf, ev: evtText || '' });
+      /* v34.39.55 (RFQ-WF-SERVER-OWNED — RCA 2026-۱۰-۱۳): این ذخیره همان‌جا می‌ماند
+         (قرارداد tester442: حذف آخرین پیشنهاد باید RFQ را به WF10 برگرداند)، ولی
+         دیگر «منبع حقیقت» نیست. سرور در entity_upsert روی ptf_crm_rfqs مقدار wf را
+         از فهرست authoritative پیشنهادها بازخوانی می‌کند (sd_rfq_workflow_server_owned)،
+         پس موتور محلی (wfCompute که WF80/WF85 هم دارد و موتور سرور ندارد) دیگر
+         نمی‌تواند مقدار خودش را تحمیل کند یا وضعیت را به عقب ببرد — همان چیزی که
+         اعلان کاذب «تغییر وضعیت» به نام کاربر جاری می‌ساخت. */
       if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
       audit('گردش کار', 'وضعیت ' + r.cd + ' → ' + WF[wf].lb + (evtText ? ' (' + evtText + ')' : ''), r.cd);
       if (typeof renderRfq === 'function') renderRfq();

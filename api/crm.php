@@ -3052,10 +3052,26 @@ switch($action) {
             }
             /* v33.22.0: نوشتن یکپارچه (فایل همیشه + MySQL با توجه به mode).
                در mode=mysql شکست DB یعنی منبع حقیقت ذخیره نشده → کل پاسخ ناموفق + retry کلاینت. */
-            $rfqBefore = null;
-            if ($k === 'ptf_crm_rfqs' && !$restore && !$allow_wipe && ptf_rfq_notify_enabled()) {
-                $rfqBefore = json_decode((string)(sync_key_read($sdir, $k) ?? '[]'), true);
-            }
+/* v34.39.55 (RFQ-PHANTOM-NOTIFY): snapshot کامل کلاینت ممکن است کهنه باشد؛ پیش از
+نوشتن، فیلدهای مشتق گردش کار (wf/stxt/wfUpdatedAtISO/wfLog) ردیف‌هایی که سرور نسخهٔ
+تازه‌ترشان را دارد از نسخهٔ سرور بازگردانده می‌شود. بدون این، همان واگرداییِ کهنه
+به‌عنوان «تغییر وضعیت» به نام کاربرِ push به گروه اعلام می‌شد. قاعدهٔ مشترک با
+entity_upsert در rfq-notify-lib.php است. restore/allow_wipe صریحاً مستثنا هستند. */
+if ($k === 'ptf_crm_rfqs' && !$restore && !$allow_wipe) {
+$wfServerRows = json_decode((string)(sync_key_read($sdir, $k) ?? '[]'), true);
+$wfIncomingRows = json_decode($v, true);
+if (is_array($wfServerRows) && is_array($wfIncomingRows)) {
+$wfMergedRows = ptf_rfq_workflow_merge_snapshot($wfIncomingRows, $wfServerRows);
+if ($wfMergedRows !== null) {
+$wfMergedJson = json_encode($wfMergedRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+if (is_string($wfMergedJson)) $v = $wfMergedJson;
+}
+}
+}
+$rfqBefore = null;
+if ($k === 'ptf_crm_rfqs' && !$restore && !$allow_wipe && ptf_rfq_notify_enabled()) {
+$rfqBefore = json_decode((string)(sync_key_read($sdir, $k) ?? '[]'), true);
+}
             if (!sync_key_write($sdir, $k, $v, $pushNextRev)) { $dbWriteFailed = true; break; }
             /* Legacy fallback still exists. Notify only the accepted RFQ write,
                after conflict/tombstone/restore guards, not the incoming snapshot.

@@ -521,6 +521,10 @@
         var resp = state.response || {};
         var data = resp.data || {};
         entityApplyProjection(collection, data[collection], resp.rev);
+        /* v34.39.55 (RFQ-WF-SERVER-OWNED): نوشتنِ پیشنهاد، گردش کارِ درخواستِ مرتبط
+           را هم در همان commit به‌روز می‌کند؛ projection برگشتی همان لحظه روی کش
+           محلی اعمال می‌شود تا فهرست درخواست‌ها منتظر pull بعدی نماند. */
+        if (collection !== 'ptf_crm_rfqs' && data['ptf_crm_rfqs']) entityApplyProjection('ptf_crm_rfqs', data['ptf_crm_rfqs'], resp.rev);
         if (opts.cb) opts.cb({ state: 'acked', result: resp.result || {} });
       } else if (opts.cb) {
         opts.cb({ state: state ? state.state : 'rejected', error: state && state.error });
@@ -557,6 +561,8 @@
         var data = resp.data || {};
         if (data[collection]) entityApplyProjection(collection, data[collection], resp.rev);
         if (data['ptf_crm_deleted_archive']) entityApplyProjection('ptf_crm_deleted_archive', data['ptf_crm_deleted_archive'], resp.rev);
+        /* v34.39.55 (RFQ-WF-SERVER-OWNED): حذف پیشنهاد هم گردش کار را بازخوانی می‌کند */
+        if (collection !== 'ptf_crm_rfqs' && data['ptf_crm_rfqs']) entityApplyProjection('ptf_crm_rfqs', data['ptf_crm_rfqs'], resp.rev);
         if (opts.cb) opts.cb({ state: 'acked', result: resp.result || {} });
       } else if (opts.cb) {
         opts.cb({ state: state ? state.state : 'rejected', error: state && state.error });
