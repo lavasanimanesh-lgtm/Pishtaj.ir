@@ -808,13 +808,88 @@ function sd_workflow_label(string $wf): string {
     $labels=['WF10'=>'📥 دریافت اولیه','WF20'=>'🔧 پیشنهاد فنی صادر شد','WF30'=>'⏳ منتظر پاسخ کارفرما (فنی)','WF35'=>'✏️ در حال صدور پیشنهاد اصلاحی (فنی)','WF40'=>'💰 منتظر صدور پیشنهاد مالی','WF50'=>'💵 پیشنهاد مالی صادر شد','WF55'=>'✏️ در حال اصلاح پیشنهاد مالی','WF60'=>'⏳ منتظر پاسخ کارفرما (مالی)','WF70'=>'🏗 در حال تامین','WF90'=>'🗂 بایگانی — عدم تایید فنی','WF91'=>'🗂 بایگانی — بازنده مالی'];
     return $labels[$wf] ?? $wf;
 }
+/* v34.39.55 (RFQ-WF-ORDER — RCA 2026-۱۰-۱۳): «آخرین» CO/TO باید با یک ترتیبِ کلِ
+   پایدار انتخاب شود، نه با جایگاه آرایه. ترتیب ptf_crm_offers قرارداد ندارد
+   (register_offer سند تازه را unshift می‌کند و data_push snapshot کلاینت را
+   می‌نویسد)، پس «اولین عضو آرایه» با هر جابه‌جاییِ ترتیب عوض می‌شد و wf بدون هیچ
+   تغییر داده‌ای بین دو وضعیت نوسان می‌کرد (نمونهٔ بازتولیدشده: WF91 ↔ WF60) و
+   اعلان کاذب «تغییر وضعیت» به گروه می‌فرستاد.
+   ملاک: مهر ISO ثبت ← دنبالهٔ عددیِ شمارهٔ سند ← خودِ شماره. چون no یکتاست،
+   ترتیب کل است ⇒ نتیجه مستقل از ترتیب آرایه. */
+/* v34.39.55 (RFQ-WF-SERVER-OWNED — RCA 2026-۱۰-۱۳): `wf`/`stxt` یک read-model
+   مشتقِ سرور هستند. دو موتور موازی وجود داشت: sd_workflow_for_inquiry سمت سرور و
+   wfCompute سمت کلاینت (crm/workflow.js) که WF80/WF85 هم تولید می‌کرد. هر کدام
+   مقدار خود را روی همان ردیف می‌نوشتند ⇒ نوسان دائمی و اعلان کاذب «تغییر وضعیت»
+   به نام هر کاربری که تصادفاً همان لحظه درخواستی می‌زد. از اینجا به بعد فقط سرور
+   wf را می‌نویسد و همیشه آن را از فهرست authoritative پیشنهادها بازخوانی می‌کند. */
+function sd_rfq_workflow_server_owned(array $row, array $prev, string $user, ?array &$stats): array {
+    if (trim((string)($prev['wf'] ?? '')) === '') {
+        /* ردیفی که سرور هرگز گردش‌کاری نکرده: دست‌کم payload کهنه نباید وضعیت را
+           به عقب ببرد (همان الگوی sd_preserve_rfq_assignee). */
+        ptf_rfq_workflow_preserve_row($row, $prev);
+        return $row;
+    }
+    $inqNo = trim((string)($row['inqNo'] ?? ''));
+    if ($inqNo === '') $inqNo = trim((string)($row['cd'] ?? ''));
+    $wf = sd_workflow_for_inquiry($inqNo, sd_read('ptf_crm_offers'));
+    $changed = (string)($prev['wf'] ?? '') !== $wf;
+    $row['wf'] = $wf;
+    $row['stxt'] = sd_workflow_label($wf);
+    $log = is_array($prev['wfLog'] ?? null) ? $prev['wfLog'] : [];
+    if ($changed) {
+        $row['wfUpdatedAtISO'] = sd_now();
+        $log[] = ['t'=>sd_now(),'by'=>$user,'wf'=>$wf,'ev'=>'بازخوانی گردش کار سمت سرور'];
+    } else {
+        $row['wfUpdatedAtISO'] = (string)($prev['wfUpdatedAtISO'] ?? sd_now());
+    }
+    $row['wfLog'] = $log;
+    if (is_array($stats)) $stats['workflowServerOwned'] = true;
+    return $row;
+}
+/* تغییر وضعیت پیشنهاد از مسیر عمومی entity_* هم باید گردش کار درخواست را
+   بازخوانی کند — پیش از این فقط register_offer این کار را می‌کرد و بقیهٔ
+   به‌روزرسانی‌ها به نویسندهٔ کلاینتی (wfRefresh) وابسته بود. */
+function sd_rfq_workflow_sync_for_offers(array $offers, array $rfqs, array $inqNos, string $user, string $event): ?array {
+    $hit = false;
+    foreach ($inqNos as $inqNo) {
+        if (trim((string)$inqNo) === '') continue;
+        $res = sd_apply_offer_workflow($rfqs, $offers, (string)$inqNo, $user, $event);
+        if (!empty($res['found'])) $hit = true;
+    }
+    return $hit ? $rfqs : null;
+}
+function sd_offer_wf_rank(array $offer): array {
+    $stamp='';
+    foreach(['serverRegisteredAt','registeredAtISO','updatedAtISO','createdAtISO'] as $field){
+        $value=trim((string)($offer[$field]??''));
+        if($value!==''){$stamp=$value;break;}
+    }
+    $no=trim((string)($offer['no']??''));
+    $tail=0;
+    if(preg_match('/(\d+)\s*$/u',$no,$m))$tail=(int)$m[1];
+    return [$stamp,$tail,$no];
+}
+function sd_offer_wf_rank_higher(array $candidate, array $current): bool {
+    for($i=0;$i<3;$i++){
+        if($candidate[$i]===$current[$i])continue;
+        if($i===0){ /* مهر خالی همیشه قدیمی‌تر از مهرِ دار است */
+            if($candidate[$i]==='')return false;
+            if($current[$i]==='')return true;
+        }
+        return $candidate[$i]>$current[$i];
+    }
+    return false;
+}
 function sd_workflow_for_inquiry(string $inqNo, array $offers): string {
-    $lastCo=null;$lastTo=null;
+    $lastCo=null;$lastTo=null;$coRank=null;$toRank=null;
     foreach($offers as $offer){
         if(!is_array($offer)||(string)($offer['inqNo']??'')!==$inqNo)continue;
         $kind=strtoupper((string)($offer['kind']??''));
-        if($lastCo===null&&in_array($kind,['CO','TC'],true))$lastCo=$offer;
-        if($lastTo===null&&$kind==='TO')$lastTo=$offer;
+        $isCo=in_array($kind,['CO','TC'],true);
+        if(!$isCo&&$kind!=='TO')continue;
+        $rank=sd_offer_wf_rank($offer);
+        if($isCo){if($coRank===null||sd_offer_wf_rank_higher($rank,$coRank)){$lastCo=$offer;$coRank=$rank;}}
+        elseif($toRank===null||sd_offer_wf_rank_higher($rank,$toRank)){$lastTo=$offer;$toRank=$rank;}
     }
     if($lastCo!==null){$st=(string)($lastCo['st']??'draft');if($st==='won')return'WF70';if($st==='lost')return'WF91';if($st==='revise')return'WF55';if($st==='sent')return'WF60';return'WF50';}
     if($lastTo!==null){$st=(string)($lastTo['tst']??$lastTo['st']??'draft');if($st==='rejected'||$st==='lost')return'WF90';if($st==='approved'||$st==='won')return'WF40';if($st==='revise')return'WF35';if($st==='sent')return'WF30';return'WF20';}
@@ -3130,10 +3205,16 @@ try {
                 /* v34.39.12 (CONTACT-STALE-PARTIAL-WIPE): پس از گاردِ «کلید خالی»، اتحاد
                    people/coTels/phones تا شماره‌های فقط-سرور با payload کهنه پاک نشوند. */
                 $row = sd_contact_stale_merge($row, $prev, $sanitizeStats, $ccClear);
-                /* v34.39.19: مسئول ارجاع RFQ پس از ویرایش‌های بدون assignee حفظ شود */
-                if ($collection === 'ptf_crm_rfqs') {
-                    $row = sd_preserve_rfq_assignee($row, is_array($prev) ? $prev : [], $sanitizeStats);
-                }
+/* v34.39.19: مسئول ارجاع RFQ پس از ویرایش‌های بدون assignee حفظ شود */
+if ($collection === 'ptf_crm_rfqs') {
+$row = sd_preserve_rfq_assignee($row, is_array($prev) ? $prev : [], $sanitizeStats);
+                /* v34.39.55 (RFQ-WF-SERVER-OWNED): snapshot کهنهٔ یک دستگاه نه
+                   می‌تواند wf را به گذشته برگرداند و نه مقدار موتور محلی خودش را
+                   تحمیل کند — سرور همیشه از فهرست authoritative پیشنهادها بازخوانی
+                   می‌کند. همان واگرداییِ کهنه پیش از این به‌عنوان «تغییر وضعیت» به
+                   نام کاربر جاری به گروه اعلام می‌شد. */
+                $row = sd_rfq_workflow_server_owned($row, is_array($prev) ? $prev : [], $user, $sanitizeStats);
+}
                 /* v34.8.34 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
                    یعنی «تغییری نکرده»، نه «پاک». ریشهٔ حلقهٔ «کارتابل هر چند ثانیه تکرار
                    می‌شد»: upsert دیرهنگام/دوباره‌ارسالی، notifiedUsers (state ضدتکرار
@@ -3162,6 +3243,13 @@ try {
                 $rows[$found] = $row; $created = false; $stored = $row;
             }
             $changes = [$collection => $rows];
+            /* v34.39.55 (RFQ-WF-SERVER-OWNED): ویرایش پیشنهاد از این مسیر هم گردش
+               کارِ درخواستِ مرتبط را در همان commit بازخوانی می‌کند (هم‌راستا با
+               register_offer) — جایگزین نویسندهٔ کلاینتی wfRefresh. */
+            if ($collection === 'ptf_crm_offers') {
+                $wfSynced = sd_rfq_workflow_sync_for_offers($rows, sd_read('ptf_crm_rfqs'), [(string)($stored['inqNo'] ?? '')], $user, 'ویرایش پیشنهاد ' . (string)($stored['no'] ?? $id));
+                if ($wfSynced !== null) $changes['ptf_crm_rfqs'] = $wfSynced;
+            }
             $result = ['collection' => $collection, 'id' => $id, 'created' => $created, 'row' => $stored, 'mode' => 'entity-command', 'sanitize' => $sanitizeStats];
         } else {
             $id = sd_text($body['id'] ?? ($body['record'] ?? [])[$idField] ?? '', 60);
@@ -3173,12 +3261,19 @@ try {
                 $result = ['collection' => $collection, 'id' => $id, 'deleted' => false, 'alreadyDeleted' => true, 'mode' => 'entity-command'];
                 $changes = [];
             } else {
+                $removedInqNo = (string)($rows[$found]['inqNo'] ?? '');
                 array_splice($rows, $found, 1);
                 /* tombstone عمومی با kind=archive_purge و identities — همان مکانیزم
                    موجود client/server؛ دستگاه‌های stale رکورد را زنده نمی‌کنند. */
                 $archive = sd_read('ptf_crm_deleted_archive');
                 $archive[] = ['_id' => sd_uuid('DEL'), 'kind' => 'archive_purge', 'collection' => $collection, 'id' => $id, 'cd' => $id, 'aliases' => [$id], 'identities' => [$collection => [$id]], 'reason' => $reason, 'deletedBy' => $user, 'deletedAt' => sd_now()];
                 $changes = [$collection => $rows, 'ptf_crm_deleted_archive' => $archive];
+                /* v34.39.55 (RFQ-WF-SERVER-OWNED): حذف پیشنهاد هم گردش کار را
+                   بازخوانی می‌کند — جایگزین سروریِ wfRefresh سراسریِ کلاینت. */
+                if ($collection === 'ptf_crm_offers') {
+                    $wfSynced = sd_rfq_workflow_sync_for_offers($rows, sd_read('ptf_crm_rfqs'), [$removedInqNo], $user, 'حذف پیشنهاد ' . $id);
+                    if ($wfSynced !== null) $changes['ptf_crm_rfqs'] = $wfSynced;
+                }
                 $result = ['collection' => $collection, 'id' => $id, 'deleted' => true, 'mode' => 'entity-command'];
             }
         }

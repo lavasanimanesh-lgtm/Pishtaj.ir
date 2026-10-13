@@ -238,21 +238,34 @@
 
     if (typeof audit === 'function') audit('بایگانی حذفیات', 'حذف ' + kind + ' «' + label + '» — دلیل: ' + reason, id);
     
-    var md = document.querySelector('#panels .md-b:last-child');
-    if (md) md.remove();
-    if (typeof window._curDelCb === 'function') {
-      try { window._curDelCb(); } catch(e){}
-      /* v14.0 (US-260): وضعیت درخواست مرتبط یتیم نماند — رفرش گردش کار پس از حذف */
-      try {
-        if (typeof wfRefresh === 'function') {
-          var _inqs = {};
-          /* شماره درخواست مرتبط را از خود رکورد حذف‌شده و از همه اسناد باقیمانده استخراج کن */
-          if (kind === 'RFQ') _inqs[id] = 1;
-          getData('ptf_crm_offers').forEach(function (o) { if (o.inqNo) _inqs[o.inqNo] = 1; });
-          getData('ptf_crm_rfqs').forEach(function (r2) { _inqs[r2.cd] = 1; if (r2.inqNo) _inqs[r2.inqNo] = 1; });
-          Object.keys(_inqs).forEach(function (q) { try { wfRefresh(q, 'حذف سند (' + kind + ' ' + id + ')'); } catch (e2) {} });
-        }
-      } catch (eW) {}
-    }
+var md = document.querySelector('#panels .md-b:last-child');
+if (md) md.remove();
+if (typeof window._curDelCb === 'function') {
+/* v34.39.55 (RFQ-PHANTOM-NOTIFY): استعلامِ مرتبط باید «پیش از» حذف و فقط از خودِ
+   رکورد حذف‌شده استخراج شود. نسخهٔ قبلی برای «همهٔ» inqNoهای پایگاه‌داده
+   wfRefresh صدا می‌زد؛ هر wfRefresh که نتیجهٔ موتور محلی با wf ذخیره‌شده فرق
+   داشت کل ptf_crm_rfqs را بازنویسی و upsert می‌کرد ⇒ یک حذف بی‌ربط، ده‌ها
+   استعلامِ دست‌نخورده را به نام کاربرِ حذف‌کننده «تغییر وضعیت» می‌داد. */
+var _inqs = {};
+try {
+if (kind === 'RFQ') _inqs[id] = 1;
+getData('ptf_crm_offers').forEach(function (o) {
+if (o && o.inqNo && (String(o.no) === String(id) || String(o.cd) === String(id) || String(o._id) === String(id))) _inqs[o.inqNo] = 1;
+});
+getData('ptf_crm_rfqs').forEach(function (r2) {
+if (!r2) return;
+if (String(r2.cd) !== String(id) && String(r2._id) !== String(id)) return;
+if (r2.cd) _inqs[r2.cd] = 1;
+if (r2.inqNo) _inqs[r2.inqNo] = 1;
+});
+} catch (eQ) {}
+try { window._curDelCb(); } catch(e){}
+/* v14.0 (US-260): وضعیت درخواست مرتبط یتیم نماند — رفرش گردش کار پس از حذف */
+try {
+if (typeof wfRefresh === 'function') {
+Object.keys(_inqs).forEach(function (q) { try { wfRefresh(q, 'حذف سند (' + kind + ' ' + id + ')'); } catch (e2) {} });
+}
+} catch (eW) {}
+}
     if (typeof ptfToast === 'function') ptfToast('رکورد حذف و دلیل آن در بایگانی آماری ثبت شد ✅', 'ok');
   };

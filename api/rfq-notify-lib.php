@@ -284,3 +284,64 @@ function ptf_rfq_notify_counts(?string $dir = null): array {
     foreach (($state['jobs'] ?? []) as $job) { $s = (string)($job['status'] ?? ''); if (isset($counts[$s])) $counts[$s]++; }
     return $counts;
 }
+
+/* ═══ v34.39.55 (RFQ-PHANTOM-NOTIFY — RCA 2026-۱۰-۱۳) ═══
+   گزارش کارفرما: «اعلان‌های گروه واقعی نیست؛ پیشنهادی را ۱۰ روز پیش لواسانی صادر
+   کرده ولی پیام می‌گوید یوسفی صادر کرد / وضعیتی را دست نزدم، از بازنده به منتظر
+   پاسخ کارفرما تغییر کرد».
+   ریشه: `wf` یک read-model مشتق است، ولی payload کلاینت همیشه «کل رکورد» است و
+   می‌تواند کهنه باشد. هر upsert/push کهنه، wf را به گذشته برمی‌گرداند و همان
+   واگردایی به‌عنوان «تغییر وضعیت» به نام کاربرِ جاریِ همان درخواست اعلام می‌شود.
+   گارد زیر همان الگوی اثبات‌شدهٔ sd_preserve_rfq_assignee است: مهر زمانیِ جدیدتر
+   برنده است؛ payload بدون مهرِ تازه‌تر نمی‌تواند وضعیت را به عقب ببرد.
+   هر دو مسیر نوشتن (entity_upsert در sales-domain.php و data_push در crm.php)
+   از همین یک تابع استفاده می‌کنند تا قاعده دوشقه نشود. */
+function ptf_rfq_workflow_fields(): array {
+    return ['wf', 'stxt', 'wfUpdatedAtISO', 'wfLog'];
+}
+function ptf_rfq_workflow_stamp(array $row): string {
+    return trim((string)($row['wfUpdatedAtISO'] ?? ''));
+}
+function ptf_rfq_workflow_stale(array $incoming, array $server): bool {
+    $serverStamp = ptf_rfq_workflow_stamp($server);
+    /* سرور هیچ‌وقت wf را بدون مهر زمانی نمی‌نویسد (sd_apply_offer_workflow). پس
+       «سرور مهر دارد و payload ندارد/قدیمی‌تر است» یعنی payload کهنه است. */
+    if ($serverStamp === '') return false;
+    $incomingStamp = ptf_rfq_workflow_stamp($incoming);
+    return $incomingStamp === '' || strcmp($serverStamp, $incomingStamp) > 0;
+}
+/* یک ردیف را در جا اصلاح می‌کند؛ true یعنی فیلدهای گردش‌کار از نسخهٔ سرور حفظ شد. */
+function ptf_rfq_workflow_preserve_row(array &$row, array $server): bool {
+    if (!is_array($row) || !is_array($server)) return false;
+    if (trim((string)($server['wf'] ?? '')) === '') return false; /* ردیف غیر گردش‌کاری: دست نمی‌خوریم */
+    if (!ptf_rfq_workflow_stale($row, $server)) return false;
+    foreach (ptf_rfq_workflow_fields() as $field) {
+        if (array_key_exists($field, $server)) $row[$field] = $server[$field];
+        else unset($row[$field]);
+    }
+    return true;
+}
+function ptf_rfq_workflow_identity(array $row): string {
+    foreach (['_id', 'cd', 'inqNo'] as $field) {
+        $value = trim((string)($row[$field] ?? ''));
+        if ($value !== '') return $field . ':' . $value;
+    }
+    return '';
+}
+/* snapshot کامل (مسیر legacy data_push). null یعنی هیچ ردیفی اصلاح نشد. */
+function ptf_rfq_workflow_merge_snapshot(array $incoming, array $server): ?array {
+    $byId = [];
+    foreach ($server as $row) {
+        if (!is_array($row)) continue;
+        $id = ptf_rfq_workflow_identity($row);
+        if ($id !== '' && !isset($byId[$id])) $byId[$id] = $row;
+    }
+    $changed = false;
+    foreach ($incoming as $i => $row) {
+        if (!is_array($row)) continue;
+        $id = ptf_rfq_workflow_identity($row);
+        if ($id === '' || !isset($byId[$id])) continue;
+        if (ptf_rfq_workflow_preserve_row($incoming[$i], $byId[$id])) $changed = true;
+    }
+    return $changed ? $incoming : null;
+}
