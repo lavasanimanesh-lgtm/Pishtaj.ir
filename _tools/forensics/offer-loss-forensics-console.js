@@ -102,6 +102,7 @@
         var lset = {};
         localRows.forEach(function (o) { var n = offerNo(o); if (n) lset[n] = 1; });
         ld.localNosCount = keys(lset).length;
+        ld.localNosList = keys(lset);          /* فقط شماره‌ها — برای کراس‌چک با سرور */
         ld.localNewestDay = (function () { var b = ''; localRows.forEach(function (o) { var d = dayOf(o); if (d > b) b = d; }); return b; })();
       }
     } catch (e11) { ld.notes.push('getData در دسترس نبود: ' + e11); }
@@ -181,6 +182,21 @@
         verdict.flags.push('failed_local_writes_total:' + ld2.failedWrites.length + (fw.length ? ' (شامل پیشنهادها!)' : ''));
         if (fw.length) verdict.flags.push('CRITICAL_offers_write_failed_locally');
       }
+      /* کدام ردیف‌ها فقط روی همین دستگاه هستند (کاندید بازیابی) و کدام فقط سرور؟ */
+      try {
+        if (ld2.localNosList && ld2.localNosList.length) {
+          var localOnly = [], serverOnly = 0, lsetObj = {};
+          ld2.localNosList.forEach(function (n) { lsetObj[n] = 1; if (!curNos[n]) localOnly.push(n); });
+          curList.forEach(function (n) { if (!lsetObj[n]) serverOnly++; });
+          verdict.localOnlyCount = localOnly.length;
+          verdict.serverOnlyCount = serverOnly;
+          verdict.localOnlySample = localOnly.slice(0, 60);
+          if (localOnly.length) {
+            verdict.flags.push('local_only_rows:' + localOnly.length);
+            LOG('  🔎 ' + localOnly.length + ' پیشنهاد فقط روی همین دستگاه هست (روی سرور نیست) — نمونه: ' + localOnly.slice(0, 8).join('، '), '#b45309');
+          }
+        }
+      } catch (eLO) { report.errors.push('localOnly: ' + eLO); }
       report.steps.deviceVerdict = verdict;
       LOG('  حکم دستگاه فعلی: ' + (verdict.flags.length ? verdict.flags.join(' | ') : 'سالم (ناهم‌خوانی محلی/سروری دیده نشد)'), verdict.flags.length ? '#b45309' : '#0f766e');
     } catch (eV) { report.errors.push('device verdict: ' + eV); }
@@ -317,7 +333,9 @@
         'آخرین نویسندهٔ کلید (meta.by)': (report.steps.serverMeta || {}).offers ? ((report.steps.serverMeta.offers.by || '?') + ' @ ' + (report.steps.serverMeta.offers.t || '?')) : '—',
         'پیشنهاد محلی همین دستگاه': (report.steps.localDevice || {}).localOffersCount === undefined ? '—' : report.steps.localDevice.localOffersCount,
         'شکستِ نوشتنِ محلی': (report.steps.localDevice || {}).failedWrites ? report.steps.localDevice.failedWrites.length : '—',
-        'حکم دستگاه فعلی': (report.steps.deviceVerdict || {}).flags ? (report.steps.deviceVerdict.flags.join(' | ') || 'سالم') : '—'
+        'حکم دستگاه فعلی': (report.steps.deviceVerdict || {}).flags ? (report.steps.deviceVerdict.flags.join(' | ') || 'سالم') : '—',
+        'ردیف‌های فقط-این-دستگاه (کاندید بازیابی)': (report.steps.deviceVerdict || {}).localOnlyCount === undefined ? '—' : report.steps.deviceVerdict.localOnlyCount,
+        'ردیف‌هایی که این دستگاه ندارد': (report.steps.deviceVerdict || {}).serverOnlyCount === undefined ? '—' : report.steps.deviceVerdict.serverOnlyCount
       }]);
       if (report.steps.loss.windows.length) console.table(report.steps.loss.windows.map(function (w) { return { 'از': w.from, 'تا': w.to, 'تعداد': w.count, 'نمونه': w.sample.slice(0, 8).join('، ') }; }));
       if (keys(lostByDay).length) console.table(keys(lostByDay).sort().map(function (d) { return { 'روز صدور پیشنهاد': d, 'تعداد گمشده': lostByDay[d] }; }));
