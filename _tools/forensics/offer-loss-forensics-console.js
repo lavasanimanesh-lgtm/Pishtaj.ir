@@ -73,6 +73,45 @@
   };
 
   try {
+    /* ---------- ۰) تشخیص «همین دستگاه» ----------
+       مکانیزم اصلیِ حادثه این است: دستگاهی که «krevs تازه + دادهٔ کهنه» دارد.
+       یعنی نوشتنِ محلیِ کلید پیشنهادها یک‌بار شکست خورده (سقف localStorage /
+       آب‌رسانی‌نشدن آینه) ولی watermark همان کلید جلو رفته است. نتیجه: آن دستگاه
+       فهرست کهنه را با مهر تازه push می‌کند ⇒ سرور بازنویسی می‌شود.
+       این بلوک همان ترکیب را روی دستگاهِ فعلی می‌سنجد. */
+    LOG('۰/۵ تشخیص وضعیت همین دستگاه (دادهٔ محلی × watermark)…');
+    var ld = { notes: [] };
+    try { ld.storageHealth = (typeof window.ptfStorageHealthSync === 'function') ? window.ptfStorageHealthSync() : null; } catch (e0) {}
+    try { ld.failedWrites = (typeof window.ptfStorageFailedWrites === 'function') ? window.ptfStorageFailedWrites() : null; } catch (e1) {}
+    try { ld.topKeys = (typeof window.ptfStorageTopKeys === 'function') ? (window.ptfStorageTopKeys() || []).slice(0, 10) : null; } catch (e2) {}
+    try { ld.mirrorActive = (typeof window.ptfBMirrorActive === 'function') ? !!window.ptfBMirrorActive() : null; } catch (e3) {}
+    try { ld.offersIsHeavyKey = (typeof window.ptfBIsHeavyKey === 'function') ? !!window.ptfBIsHeavyKey('ptf_crm_offers') : null; } catch (e4) {}
+    try { ld.idbHydrated = window.ptfBIdbHydrated === undefined ? null : !!window.ptfBIdbHydrated; } catch (e5) {}
+    try { ld.syncBootstrapped = window._ptfSyncBootstrapped === undefined ? null : !!window._ptfSyncBootstrapped; } catch (e6) {}
+    var lk = {};
+    try { lk = JSON.parse(localStorage.getItem('ptf_sync_krevs') || '{}') || {}; } catch (e7) {}
+    ld.localKrevOffers = +lk['ptf_crm_offers'] || 0;
+    ld.localGlobalRev = parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10) || 0;
+    try { ld.dirtyKeys = keys(JSON.parse(localStorage.getItem('ptf_sync_dirty') || '{}')); } catch (e8) {}
+    try { ld.guardCounts = JSON.parse(localStorage.getItem('ptf_guard_counts') || '{}'); } catch (e9) {}
+    try {
+      var localRows = (typeof window.getData === 'function') ? window.getData('ptf_crm_offers') : null;
+      if (Array.isArray(localRows)) {
+        ld.localOffersCount = localRows.length;
+        ld.localOffersFullLength = (function () { try { return JSON.stringify(localRows).length; } catch (e10) { return null; } })();
+        var lset = {};
+        localRows.forEach(function (o) { var n = offerNo(o); if (n) lset[n] = 1; });
+        ld.localNosCount = keys(lset).length;
+        ld.localNewestDay = (function () { var b = ''; localRows.forEach(function (o) { var d = dayOf(o); if (d > b) b = d; }); return b; })();
+      }
+    } catch (e11) { ld.notes.push('getData در دسترس نبود: ' + e11); }
+    report.steps.localDevice = ld;
+    if (ld.failedWrites && ld.failedWrites.length) {
+      LOG('  ⚠️ ' + ld.failedWrites.length + ' شکستِ نوشتنِ محلی ثبت شده: ' + JSON.stringify(ld.failedWrites.slice(0, 5)), '#b45309');
+    }
+    if (ld.storageHealth) LOG('  سلامت حافظه: ' + (ld.storageHealth.percent !== undefined ? ld.storageHealth.percent + '٪' : JSON.stringify(ld.storageHealth)));
+    if (ld.localOffersCount !== undefined) LOG('  پیشنهاد محلی روی همین دستگاه: ' + ld.localOffersCount + ' | krev محلی: ' + ld.localKrevOffers + ' | rev سراسری محلی: ' + ld.localGlobalRev);
+
     /* ---------- ۱) تلمتری پوش سرور ---------- */
     LOG('۱/۵ خواندن telemetry پوش (sync_stats)…');
     var st = await api({ action: 'sync_stats' });
@@ -86,6 +125,21 @@
             ' | lastAt=' + (offRow.lastAt || '?') + ' | lastBy=' + (offRow.lastBy || '?'), '#b45309');
       } else { LOG('  ردیف ptf_crm_offers در telemetry نیست (یعنی از زمان v34.8.12 هرگز push شمرده نشده).', '#b45309'); }
     } else { report.errors.push('sync_stats: ' + ((st && st.error) || 'failed')); LOG('  ✖ sync_stats ناموفق: ' + ((st && st.error) || 'failed'), '#b91c1c'); }
+
+    /* ---------- ۱.۵) meta سرور: آخرین نویسندهٔ کلید (شاهد «چه کسی») ----------
+       data_manifest کل meta.json را برمی‌گرداند: per-key {rev,t,by}.
+       • by === 'sales-domain-v35' ⇒ آخرین نوشتن از مسیر فرمانِ سرور (register_offer/...)
+       • هر نام دیگر ⇒ نامِ همان کاربری که آخرین «push کل آرایه» (legacy) را انجام داده
+         = نامزدِ اصلی نویسندهٔ نسخهٔ کهنه. */
+    LOG('۱.۵/۵ خواندن meta سرور (آخرین نویسندهٔ هر کلید)…');
+    try {
+      var mf = await api({ action: 'data_manifest' });
+      if (mf && mf.ok && mf.meta && typeof mf.meta === 'object') {
+        var mm = mf.meta;
+        report.steps.serverMeta = { global: mm._global || null, offers: mm.ptf_crm_offers || null, rfqs: mm.ptf_crm_rfqs || null, archive: mm.ptf_crm_deleted_archive || null, all: mm };
+        if (mm.ptf_crm_offers) LOG('  آخرین نویسندهٔ کلید پیشنهادها روی سرور: by=' + (mm.ptf_crm_offers.by || '?') + ' @ ' + (mm.ptf_crm_offers.t || '?') + ' (rev ' + mm.ptf_crm_offers.rev + ')', '#b45309');
+      } else { report.errors.push('data_manifest: ' + ((mf && mf.error) || 'failed')); }
+    } catch (eMf) { report.errors.push('data_manifest exception: ' + eMf); }
 
     /* ---------- ۲) وضعیت فعلی سرور ---------- */
     LOG('۲/۵ خواندن فهرست فعلیِ پیشنهادهای روی سرور…');
@@ -104,6 +158,32 @@
       sample: curList.slice(0, 5).map(function (n) { return { no: n, day: dayOf(curNos[n]), kind: curNos[n].kind || '' }; })
     };
     LOG('  پیشنهاد روی سرور: ' + cur.total + ' ردیف | جدیدترین روزِ موجود: ' + report.steps.current.newestExistingByDate, '#0f766e');
+
+    /* ---------- ۲.۵) حکمِ ترکیبیِ «دستگاه فعلی در برابر سرور» ----------
+       اگر تعداد محلی از سرور کمتر باشد و در همان حال krev محلی >= rev سرور باشد،
+       این دستگاه دقیقاً همان «krevs تازه + دادهٔ کهنه» است که در حادثه نقش نویسنده
+       را دارد: هر نوشتنِ بعدی روی پیشنهادها، فهرست کهنه را جایگزین سرور می‌کند. */
+    try {
+      var ld2 = report.steps.localDevice || {};
+      var srvMeta = (report.steps.serverMeta || {}).offers || null;
+      var verdict = { localCount: ld2.localOffersCount === undefined ? null : ld2.localOffersCount, serverCount: cur.total, flags: [] };
+      if (srvMeta) { verdict.serverRev = srvMeta.rev; verdict.serverLastBy = srvMeta.by; verdict.serverLastAt = srvMeta.t; }
+      verdict.localKrev = ld2.localKrevOffers || 0;
+      if (verdict.localCount !== null && verdict.serverCount !== null && verdict.localCount < verdict.serverCount) {
+        verdict.flags.push('local_count_less_than_server:' + (verdict.serverCount - verdict.localCount) + '_rows_missing_locally');
+        if (srvMeta && verdict.localKrev >= (+srvMeta.rev || 0)) {
+          verdict.flags.push('CRITICAL_fresh_krev_with_stale_data');
+          LOG('  🚨 همین دستگاه دادهٔ کهنه دارد ولی watermark آن تازه است — اگر روی پیشنهادها بنویسد، سرور را با نسخهٔ کهنه بازنویسی می‌کند. تا اصلاح، روی این دستگاه «تنظیمات ← وضعیت دستگاه ← دریافت کامل مجدد» بزنید.', '#b91c1c');
+        }
+      }
+      if (ld2.failedWrites && ld2.failedWrites.length) {
+        var fw = ld2.failedWrites.filter(function (x) { return x && String(x.key || '').indexOf('ptf_crm_offers') === 0; });
+        verdict.flags.push('failed_local_writes_total:' + ld2.failedWrites.length + (fw.length ? ' (شامل پیشنهادها!)' : ''));
+        if (fw.length) verdict.flags.push('CRITICAL_offers_write_failed_locally');
+      }
+      report.steps.deviceVerdict = verdict;
+      LOG('  حکم دستگاه فعلی: ' + (verdict.flags.length ? verdict.flags.join(' | ') : 'سالم (ناهم‌خوانی محلی/سروری دیده نشد)'), verdict.flags.length ? '#b45309' : '#0f766e');
+    } catch (eV) { report.errors.push('device verdict: ' + eV); }
 
     /* ---------- ۳) آرشیو حذف (سنگقبرها) ---------- */
     LOG('۳/۵ خواندن آرشیو حذف (سطل بازیافت) و فیلترِ ردیفهای مربوط به پیشنهاد…');
@@ -233,7 +313,11 @@
         'conflicts کلید پیشنهاد': (report.steps.syncStats.offers || {}).conflicts === undefined ? '—' : report.steps.syncStats.offers.conflicts,
         'rejects کلید پیشنهاد': (report.steps.syncStats.offers || {}).rejects === undefined ? '—' : report.steps.syncStats.offers.rejects,
         'روزهای push کلید پیشنهاد (۷ روز)': JSON.stringify((report.steps.syncStats.offers || {}).d || {}),
-        'تعداد روزهای گمشده': keys(lostByDay).length
+        'تعداد روزهای گمشده': keys(lostByDay).length,
+        'آخرین نویسندهٔ کلید (meta.by)': (report.steps.serverMeta || {}).offers ? ((report.steps.serverMeta.offers.by || '?') + ' @ ' + (report.steps.serverMeta.offers.t || '?')) : '—',
+        'پیشنهاد محلی همین دستگاه': (report.steps.localDevice || {}).localOffersCount === undefined ? '—' : report.steps.localDevice.localOffersCount,
+        'شکستِ نوشتنِ محلی': (report.steps.localDevice || {}).failedWrites ? report.steps.localDevice.failedWrites.length : '—',
+        'حکم دستگاه فعلی': (report.steps.deviceVerdict || {}).flags ? (report.steps.deviceVerdict.flags.join(' | ') || 'سالم') : '—'
       }]);
       if (report.steps.loss.windows.length) console.table(report.steps.loss.windows.map(function (w) { return { 'از': w.from, 'تا': w.to, 'تعداد': w.count, 'نمونه': w.sample.slice(0, 8).join('، ') }; }));
       if (keys(lostByDay).length) console.table(keys(lostByDay).sort().map(function (d) { return { 'روز صدور پیشنهاد': d, 'تعداد گمشده': lostByDay[d] }; }));
