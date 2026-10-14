@@ -136,9 +136,67 @@
     });
     saveKrevs(m);
     if (gr > current) setRev(gr);
+    /* v34.39.56 (SHRINK-SELF-HEAL): پس از هر meta معتبر، شکافِ «کپی محلی کوتاه‌تر از
+       سرور» بررسی/ترمیم می‌شود (سرور شمار رکورد هر کلید را در meta.n می‌فرستد). */
+    try { if (typeof window.ptfSyncDetectMissingRows === 'function') window.ptfSyncDetectMissingRows(meta); } catch (eHealHook) {}
     return true;
   }
   window.ptfSyncApplyServerMeta = applyServerMeta;
+  /* ═══ v34.39.56 (SHRINK-SELF-HEAL — RCA «پیشنهادهای ۵–۶ روز اخیر پاک شد» 2026-10-14) ═══
+     وضعیتِ کشندهٔ این حادثه: «krevs تازه + دادهٔ کهنه». دستگاه یک بار نتوانسته بود کلید را
+     روی دیسکِ محلی بنویسد (سقف localStorage / آینهٔ آب‌رسانی‌نشده) ولی watermark همان کلید
+     جلو رفت؛ از آن لحظه سرور دیگر آن کلید را در delta نمی‌فرستد و کپی محلی برای همیشه
+     کوتاه می‌ماند — و اولین نوشتنِ بعدی روی همان کلید، سرور را با نسخهٔ ناقص جایگزین می‌کند.
+     این تابع همان شکاف را با «شمار رکورد اعلامی سرور» (meta[k].n) تشخیص می‌دهد و به‌جای
+     جایگزینی کور، ① کلید را dirty می‌کند ② watermark همان کلید را پایین می‌آورد تا pull بعدی
+     نسخهٔ سرور را بیاورد و ptfSmartMerge اجتماع را بسازد و همان اجتماع push شود.
+     ⇒ نه ردیف محلی می‌سوزد، نه ردیف سرور گم می‌شود. سقف ۳ ترمیم برای هر کلید در هر نشست
+     (fail-safe ضد حلقه) و fail-open در همهٔ مسیرها. */
+  var SHRINK_WATCH = ['ptf_crm_offers','ptf_crm_rfqs','ptf_crm_customers','ptf_crm_suppliers','ptf_crm_products','ptf_crm_deals','ptf_crm_projects','ptf_crm_invoices','ptf_crm_contracts'];
+  var _shrinkRepairCount = {}, _shrinkScanAt = 0;
+  window.ptfSyncDetectMissingRows = function (meta) {
+    var repaired = [];
+    try {
+      if (!meta || typeof meta !== 'object') return repaired;
+      if (!state.bootstrapped) return repaired;                 /* پیش از snapshot اولیه معنا ندارد */
+      var now = Date.now();
+      if (now - _shrinkScanAt < 120000) return repaired;         /* حداکثر یک اسکن هر ۲ دقیقه */
+      _shrinkScanAt = now;
+      var m = krevs(), changed = false;
+      SHRINK_WATCH.forEach(function (k) {
+        try {
+          var entry = meta[k];
+          if (!entry || entry.n == null) return;                 /* سرورِ قدیمی: بدون شمار ⇒ fail-open */
+          var serverN = +entry.n;
+          if (!(serverN > 0)) return;
+          if (SYNC_KEYS.indexOf(k) < 0) return;
+          if ((_shrinkRepairCount[k] || 0) >= 3) return;
+          var raw = rd(k);
+          if (typeof raw !== 'string' || raw === '') return;
+          var arr; try { arr = JSON.parse(raw); } catch (eJ) { return; }
+          if (!Array.isArray(arr)) return;
+          if (arr.length === 0 || arr.length >= serverN) return;  /* خالی = دستگاه تازه، نه شکاف */
+          state.dirty[k] = true;
+          delete m[k];
+          _shrinkRepairCount[k] = (_shrinkRepairCount[k] || 0) + 1;
+          changed = true;
+          repaired.push({ key: k, local: arr.length, server: serverN });
+          try {
+            audit('سیستم', '🩹 کپی محلی «' + k.replace('ptf_crm_', '') + '» کوتاه‌تر از سرور بود (' +
+              arr.length + ' در برابر ' + serverN + ')؛ هم‌گراییِ اجتماع از سرور آغاز شد', 'SHRINK-HEAL');
+          } catch (eAu) {}
+        } catch (eK) {}
+      });
+      if (changed) {
+        saveKrevs(m);
+        saveDirty();
+        try { setSyncBadge('warn'); } catch (eBadge) {}
+        try { schedulePush(); } catch (eSP) {}
+        try { if (typeof window.ptfSyncPullNow === 'function') window.ptfSyncPullNow(function () {}); } catch (ePull) {}
+      }
+    } catch (eAll) {}
+    return repaired;
+  };
   /* v34.8.7 (SHARED-KEY-CONVERGENCE): مسیر فاز B (مالک انتقال) برای کلیدهای
      conflicted بن‌بست داشت — مقدار سرور را merge محلی می‌کنیم، dirty می‌ماند و
      flush بعدی با base تازه ارسال می‌کند. منطق همان US-384 مسیر legacy است. */

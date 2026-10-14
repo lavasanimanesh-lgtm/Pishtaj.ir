@@ -816,7 +816,17 @@ function sync_mass_deletion_report($key, $incomingJson, $serverJson, $serverArch
     if ($srv !== [] && array_keys($srv) !== range(0, count($srv) - 1)) return null;
     if ($inc !== [] && array_keys($inc) !== range(0, count($inc) - 1)) return null;
     $srvCount = count($srv);
-    if ($srvCount < 4) return null;
+    /* ═══ v34.39.56 (OFFER-SHRINK-GATE — RCA 2026-10-14 «همهٔ پیشنهادهای ۵–۶ روز اخیر پاک شد») ═══
+       پیشنهادها با شناسهٔ کسب‌وکار «no» هویت می‌گیرند ولی رجیستری فرمان سرور برای همین کلید
+       شناسه را «cd» گرفته است (api/sales-domain.php) ⇒ روتر کلاینت هر نوشتنِ پیشنهاد را به
+       مسیر legacy (بازنویسی کل آرایه) تنزل می‌دهد و هیچ سنگ‌قبری ساخته نمی‌شود. پس تنها
+       نگهبانِ سمت سرور همین سپر بود، با سقفِ «۱ تا ۳ ردیف غایب همیشه مجاز» و «افت زیر ۲۵٪
+       در دفاتر بزرگ مجاز»؛ نتیجه: حذفِ بی‌سنگ‌قبرِ چند ردیف بی‌صدا پذیرفته می‌شد و بقیهٔ
+       دستگاه‌ها هم در pull بعدی همان آرایهٔ کوتاه را جایگزین می‌کردند.
+       حالا برای همین کلید: هر ردیف غایبِ بدون سنگ‌قبر = تعارض (تعارض ⇒ نسخهٔ سرور برگردانده
+       می‌شود، کلاینت merge و اجتماع را دوباره می‌فرستد؛ حذفِ قانونیِ دارای سنگ‌قبر دست‌نخورده). */
+    $strictShrink = ($key === 'ptf_crm_offers');
+    if ($srvCount < 4 && !$strictShrink) return null;
     $tomb = sync_tombstone_id_set($key, $serverArchiveJson, $incomingArchiveJson);
     if (isset($tomb['__alias_purge__'])) return null; /* پاک‌سازی گراف پروژه: حذف عمدی و گسترده */
     $incIds = [];
@@ -828,8 +838,62 @@ function sync_mass_deletion_report($key, $incomingJson, $serverJson, $serverArch
         $missing[] = $id;
     }
     $lost = count($missing);
+    if ($strictShrink) {
+        if ($lost <= 0) return null;
+        return ['lost' => $lost, 'serverCount' => $srvCount, 'incomingCount' => count($inc), 'sample' => array_slice($missing, 0, 10), 'strict' => true];
+    }
     if ($lost <= 3 || $lost < $srvCount * 0.25) return null;
     return ['lost' => $lost, 'serverCount' => $srvCount, 'incomingCount' => count($inc), 'sample' => array_slice($missing, 0, 10)];
+}
+/* ═══ v34.39.56 (SHRINK-AUDIT): پایشِ «افت مجاز» — افت‌هایی که سپر مسدودشان نمی‌کند ولی
+   باید دیده شوند (رکوردهای غایبِ بدون سنگ‌قبر). پیش از این هیچ لاگی نداشتند و حادثهٔ
+   «چند ردیف در چند روز» تا وقتی کسی بک‌آپ‌ها را دیف نمی‌کرد نامرئی می‌ماند. */
+function sync_shrink_watch_keys() {
+    return ['ptf_crm_offers','ptf_crm_rfqs','ptf_crm_customers','ptf_crm_suppliers','ptf_crm_products','ptf_crm_deals','ptf_crm_projects','ptf_crm_invoices','ptf_crm_contracts','ptf_crm_case_receipts','ptf_crm_payables'];
+}
+function sync_shrink_missing_ids($key, $incomingJson, $serverJson, $serverArchiveJson, $incomingArchiveJson) {
+    $inc = json_decode((string)$incomingJson, true);
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($inc) || !is_array($srv)) return [];
+    if ($srv !== [] && array_keys($srv) !== range(0, count($srv) - 1)) return [];
+    if ($inc !== [] && array_keys($inc) !== range(0, count($inc) - 1)) return [];
+    if (!$srv) return [];
+    $tomb = sync_tombstone_id_set($key, $serverArchiveJson, $incomingArchiveJson);
+    $incIds = [];
+    foreach ($inc as $r) { $id = sync_record_id_for_key($key, $r); if ($id !== '') $incIds[$id] = true; }
+    $missing = [];
+    foreach ($srv as $r) {
+        $id = sync_record_id_for_key($key, $r);
+        if ($id === '' || isset($incIds[$id]) || isset($tomb[$id])) continue;
+        $missing[] = $id;
+    }
+    return $missing;
+}
+function sync_log_key_shrink($sdir, $key, $missing, $srvCount, $incCount, $by, $decision) {
+    try {
+        $line = json_encode([
+            't' => date('c'), 'key' => $key, 'decision' => $decision,
+            'lost' => count($missing), 'serverCount' => (int)$srvCount, 'incomingCount' => (int)$incCount,
+            'by' => (string)$by, 'sample' => array_slice(array_values($missing), 0, 15),
+        ], JSON_UNESCAPED_UNICODE);
+        $f = $sdir . '/key_shrink.log';
+        if (is_file($f) && filesize($f) > 512 * 1024) @unlink($f);
+        @file_put_contents($f, $line . "\n", FILE_APPEND | LOCK_EX);
+    } catch (Throwable $e) {}
+}
+/* شمار رکورد هر کلید در meta.json — منبعِ «حقیقت سرور» برای ترمیم خودکار سمت کلاینت
+   (crm/sync.js → ptfSyncDetectMissingRows)؛ بدون این، دستگاهِ «krevs تازه + دادهٔ کهنه»
+   هرگز نمی‌فهمد کپی محلی‌اش کوتاه است. */
+function sync_meta_record_count($key, $json) {
+    $dec = json_decode((string)$json, true);
+    if (!is_array($dec)) return null;
+    if ($key === 'ptf_crm_supplier_finance' && (isset($dec['invoices']) || isset($dec['payments']) || isset($dec['schema']))) {
+        $n = 0;
+        foreach (['invoices','payments','adjustments'] as $b) if (is_array($dec[$b] ?? null)) $n += count($dec[$b]);
+        return $n;
+    }
+    if ($dec === [] || array_keys($dec) === range(0, count($dec) - 1)) return count($dec);
+    return null;
 }
 function sync_log_blocked_deletion($sdir, $key, $report, $by) {
     try {
@@ -2713,7 +2777,29 @@ switch($action) {
             ];
         }
         usort($rows, function($a,$b){ return ($b['pushes'] <=> $a['pushes']) ?: ($b['conflicts'] <=> $a['conflicts']); });
-        echo json_encode(['ok' => true, 'since' => 'v34.8.12', 'win7From' => $win7From, 'keys' => count($rows), 'stats' => $rows], JSON_UNESCAPED_UNICODE);
+        /* v34.39.56 (SHRINK-AUDIT): خلاصهٔ فایل key_shrink.log — هر «افت آرایه» (مسدود یا
+           مجاز) با نویسنده/زمان؛ پاسخ مستقیم به «چند ردیف، چه روزی، به دست چه کسی رفت». */
+        $shrinkFile = $data_dir . '/sync/key_shrink.log';
+        $shrink = ['file' => is_file($shrinkFile), 'fileMtime' => is_file($shrinkFile) ? date('c', filemtime($shrinkFile)) : null, 'lines' => 0, 'byKey' => [], 'last' => []];
+        if (is_file($shrinkFile)) {
+            $slines = @file($shrinkFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+            $shrink['lines'] = count($slines);
+            foreach ($slines as $sln) {
+                $sd = json_decode($sln, true);
+                if (!is_array($sd)) continue;
+                $sk = (string)($sd['key'] ?? '');
+                if ($sk === '') continue;
+                if (!isset($shrink['byKey'][$sk])) $shrink['byKey'][$sk] = ['events' => 0, 'lost' => 0, 'blocked' => 0, 'accepted' => 0, 'lastAt' => '', 'lastBy' => ''];
+                $shrink['byKey'][$sk]['events']++;
+                $shrink['byKey'][$sk]['lost'] += (int)($sd['lost'] ?? 0);
+                if ((string)($sd['decision'] ?? '') === 'blocked') $shrink['byKey'][$sk]['blocked']++; else $shrink['byKey'][$sk]['accepted']++;
+                $shrink['byKey'][$sk]['lastAt'] = (string)($sd['t'] ?? '');
+                $shrink['byKey'][$sk]['lastBy'] = (string)($sd['by'] ?? '');
+            }
+            $shrink['last'] = array_slice(array_map(function ($l) { $d = json_decode($l, true); return is_array($d) ? $d : null; }, array_slice($slines, -10)), 0);
+            $shrink['last'] = array_values(array_filter($shrink['last']));
+        }
+        echo json_encode(['ok' => true, 'since' => 'v34.8.12', 'win7From' => $win7From, 'keys' => count($rows), 'stats' => $rows, 'shrink' => $shrink], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'sync_engine_flags':
@@ -2931,6 +3017,9 @@ switch($action) {
                     }
                     if ($mdReport !== null) {
                         sync_log_blocked_deletion($sdir, $k, $mdReport, $j['by'] ?? '');
+                        if (in_array($k, sync_shrink_watch_keys(), true)) {
+                            sync_log_key_shrink($sdir, $k, is_array($mdReport['sample'] ?? null) ? $mdReport['sample'] : [], (int)($mdReport['serverCount'] ?? 0), (int)($mdReport['incomingCount'] ?? 0), (string)($j['by'] ?? ''), 'blocked');
+                        }
                         $massBlocked[$k] = $mdReport;
                         $rejected[] = $k;
                         $conflicts[] = $k;
@@ -2943,6 +3032,14 @@ switch($action) {
                         }
                         $krevs[$k] = (int)($meta[$k]['rev'] ?? 0);
                         continue;
+                    }
+                    /* v34.39.56 (SHRINK-AUDIT): افتِ مجازِ بدون سنگ‌قبر هم ثبت می‌شود —
+                       همان الگویی که در حادثهٔ ۲۰۲۶-۱۰-۱۴ در چند روز بی‌صدا اجرا شد. */
+                    if (in_array($k, sync_shrink_watch_keys(), true)) {
+                        $shrinkIds = sync_shrink_missing_ids($k, $v, $mdExisting, $serverArchiveJson, $incomingArchiveJson);
+                        if ($shrinkIds) {
+                            sync_log_key_shrink($sdir, $k, $shrinkIds, count((array)json_decode((string)$mdExisting, true)), count((array)json_decode((string)$v, true)), (string)($j['by'] ?? ''), 'accepted');
+                        }
                     }
                 }
             }
@@ -3081,7 +3178,7 @@ $rfqBefore = json_decode((string)(sync_key_read($sdir, $k) ?? '[]'), true);
                 if (is_array($rfqAfter)) ptf_rfq_notify_enqueue(ptf_rfq_notify_events($rfqBefore, $rfqAfter, 'crm',
                     (string)($auth_info['user'] ?? ''), 'sync:' . $pushNextRev . ':' . hash('sha256', $v)));
             }
-            $meta[$k] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
+            $meta[$k] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60), 'n' => sync_meta_record_count($k, $v)];
             $krevs[$k] = $pushNextRev;
             $saved_keys[] = $k;
             $saved++;

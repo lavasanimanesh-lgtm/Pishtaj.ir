@@ -209,14 +209,21 @@ T('۳.۷ tombstone هنوز در هر دو مسیر push و pull اعمال می
   var h1 = bootRouter();
   var base10 = mk(10);
   var r1 = h1.save('ptf_crm_customers', base10.slice(0, 3), { prevArr: base10 });
-  T('۵.۲ حذف انبوه (۷ رکورد) مسدود و به مسیر امن legacy تنزل می‌یابد',
-    r1 && r1.mode === 'legacy' && /delete-burst-blocked/.test(r1.reason) && h1.calls.dels.length === 0,
-    JSON.stringify(r1) + ' dels=' + h1.calls.dels.length);
+  /* ⚠️ v34.39.56 (SHRINK-GATE-CLIENT — RCA 2026-10-14 «پیشنهادهای ۵–۶ روز اخیر پاک شد»):
+     این بند پیش‌تر «تنزل به مسیر امن legacy» را پین می‌کرد. آن قرارداد در عمل ناامن بود:
+     legacy همان آرایهٔ کوتاه را با setData می‌فرستد و payload در data_push authoritative
+     است ⇒ همان ۷ رکورد واقعاً حذف می‌شدند (بی‌سنگ‌قبر) در حالی که پیام «مسدود شد» می‌داد.
+     قرارداد جدید: رکوردهای غایب از base برمی‌گردند، هیچ حذفی صادر نمی‌شود و مسیر legacy
+     هم اجرا نمی‌شود (assertion بازتعریف شد — نه حذف). */
+  T('۵.۲ حذف انبوه (۷ رکورد) مسدود، رکوردها حفظ و مسیر legacy اجرا نمی‌شود',
+    r1 && r1.mode === 'commands' && r1.deletes === 0 && h1.calls.dels.length === 0 && h1.calls.legacy.length === 0,
+    JSON.stringify(r1) + ' dels=' + h1.calls.dels.length + ' legacy=' + h1.calls.legacy.length);
 
   var h2 = bootRouter();
   var r2 = h2.save('ptf_crm_customers', [], { prevArr: base10 });
-  T('۵.۳ «فهرست تهی شد» هرگز به حذف سروری تبدیل نمی‌شود',
-    r2 && r2.mode === 'legacy' && h2.calls.dels.length === 0, JSON.stringify(r2));
+  T('۵.۳ «فهرست تهی شد» هرگز به حذف سروری/legacy تبدیل نمی‌شود (کل فهرست از base بازمی‌گردد)',
+    r2 && r2.mode === 'commands' && r2.deletes === 0 && h2.calls.dels.length === 0 && h2.calls.legacy.length === 0,
+    JSON.stringify(r2) + ' legacy=' + h2.calls.legacy.length);
 
   var h3 = bootRouter();
   var base3 = mk(3);

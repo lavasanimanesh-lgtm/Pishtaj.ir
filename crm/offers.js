@@ -1250,6 +1250,36 @@ function offerDel(no) {
   if (!confirm('پیشنهاد ' + no + ' حذف شود؟')) return;
   ptfOfferDelDo(no);
 }
+/* ═══ v34.39.56 (OFFER-TOMBSTONE-WRITER — RCA 2026-10-14) ═══
+   هر مسیری که پیشنهاد را از فهرست حذف می‌کند باید سنگ‌قبر بازیافت‌پذیر بنویسد:
+   ① سطل بازیافت باید حذف را نشان دهد ② سپر سروری فقط ردیف‌هایی را «حذف قانونی» می‌داند
+   که سنگ‌قبر متناظر (kind=OFFER یا archive_purge.identities) داشته باشند. پیش از این
+   فقط حذف دستیِ تک‌رکوردی سنگ‌قبر می‌نوشت؛ مسیرهای سیستمی (حذف آبشاری درخواست،
+   پاک‌سازی یتیم‌ها) بدون سنگ‌قبر حذف می‌کردند و از دید آرشیو/سپر نامرئی بودند. */
+window.ptfOfferWriteTombstones = function (rows, reason) {
+  var written = 0;
+  try {
+    var list = (Array.isArray(rows) ? rows : []).filter(function (o) { return o && o.no; });
+    if (!list.length) return 0;
+    var arc = getData('ptf_crm_deleted_archive');
+    if (!Array.isArray(arc)) arc = [];
+    var by = (typeof curSession === 'function' && curSession() && curSession().name) ? curSession().name : 'کاربر';
+    var t = (typeof faDateTime === 'function') ? faDateTime() : '';
+    var iso = new Date().toISOString();
+    list.forEach(function (o) {
+      arc.unshift({
+        id: String(o.no), kind: 'OFFER',
+        label: (o.kind || '') + ' — ' + (o.buyerCo || '?') + (reason ? ' (' + reason + ')' : ''),
+        reason: reason || 'حذف پیشنهاد', by: by, t: t, iso: iso
+      });
+      written++;
+    });
+    if (arc.length > 500) arc = arc.slice(0, 500);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arc, { reason: 'offer-tombstone' });
+    else setData('ptf_crm_deleted_archive', arc);
+  } catch (eTomb) {}
+  return written;
+};
 function ptfOfferDelDo(no) {
   var offers = getData('ptf_crm_offers');
   var target = offers.filter(function(o){ return o.no === no; })[0];

@@ -76,6 +76,7 @@ var SUITE = [
   { g: 'سایت/رهگیری', f: '_tools/uat/tester410-v34.7.5-random-public-tracking.js' },
   { g: 'پیشنهاد/یکپارچگی', f: '_tools/uat/tester411-v34.7.6-winner-repair-parity.js' },
   { g: 'پیشنهاد/موبایل/ACK', f: '_tools/uat/tester442-v34.7.39-offer-ack-workflow.js' },
+  { g: 'پیشنهاد/دروازهٔ افت (SHRINK-GATE)', f: '_tools/uat/tester694-v34.39.56-offer-shrink-gate.js' },
   { g: 'پیشنهاد/یکپارچگی TO→CO', f: '_tools/uat/tester691-v34.39.51-toCo-keeps-technical-offer.js' },
   { g: 'پیشنهاد/ستون تکمیلی (جابه‌جایی + چاپ)', f: '_tools/uat/tester692-v34.39.52-offer-custom-column-parity.js' },
   { g: 'پیشنهاد/نسخه همراه ارز — ویرایش نرخ، ارز و شرایط در هر دو جهت', f: '_tools/uat/tester693-v34.39.54-offer-companion-fx-edit.js' },

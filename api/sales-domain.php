@@ -71,7 +71,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.54';
+const SD_SERVICE_VERSION = '34.39.56';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1104,7 +1104,13 @@ function sd_meta_commit(array $changes): int {
     if (!is_array($meta)) $meta = [];
     $rev = (int)($meta['_global']['rev'] ?? 0) + 1;
     $now = sd_now();
-    foreach ($changes as $key => $_) $meta[$key] = ['rev'=>$rev,'t'=>$now,'by'=>'sales-domain-v35'];
+    /* v34.39.56: شمار رکورد پروجکشن هم ثبت می‌شود تا کلاینت «کپیِ کوتاه‌تر از سرور» را
+       تشخیص دهد و خودش را ترمیم کند (قرارداد crm.php: meta[key].n). */
+    foreach ($changes as $key => $value) {
+        $_n = null;
+        if (is_array($value) && ($value === [] || array_keys($value) === range(0, count($value) - 1))) $_n = count($value);
+        $meta[$key] = ['rev'=>$rev,'t'=>$now,'by'=>'sales-domain-v35','n'=>$_n];
+    }
     $meta['_global'] = ['rev'=>$rev,'t'=>$now];
     $tmp = $metaFile . '.tmp.' . bin2hex(random_bytes(4));
     file_put_contents($tmp, json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);

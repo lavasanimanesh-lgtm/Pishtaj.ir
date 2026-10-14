@@ -781,8 +781,13 @@ window.aiWB_tripleGo=function(){
 window.aiWB_rollback=function(qNo, sNo){
   try{
     if(qNo){
-      var offers=getData('ptf_crm_offers').filter(function(o){return o.no!==qNo});
-      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
+      /* v34.39.56 (OFFER-TOMBSTONE-WRITER): بازگردانیِ اجرای دستیار پیشنهاد را حذف می‌کند؛
+         بدون سنگ‌قبر، این حذف از دید سطل بازیافت و سپر سروری نامرئی می‌ماند. */
+      var _allOf=getData('ptf_crm_offers');
+      var _remOf=_allOf.filter(function(o){return o.no===qNo});
+      if (_remOf.length && typeof window.ptfOfferWriteTombstones === 'function') window.ptfOfferWriteTombstones(_remOf, 'بازگردانی اجرای دستیار');
+      var offers=_allOf.filter(function(o){return o.no!==qNo});
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'ai-wb-rollback' }); else setData('ptf_crm_offers', offers);
     }
     if(sNo){
       var sq=getData('ptf_crm_rfqsmart').filter(function(x){return x.cd!==sNo && x.no!==sNo}); /* v12.6: رکوردهای جدید no دارند */

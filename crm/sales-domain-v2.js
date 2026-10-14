@@ -838,8 +838,36 @@
               '» مسدود شد (سپر حذف انبوه). اگر واقعاً قصد حذف داشتید، یک‌به‌یک انجام دهید.', 'warn');
           }
         } catch (eT) {}
-        try { if (typeof audit === 'function') audit('یکپارچگی داده', 'سپر حذف انبوه: ' + dels.length + ' حذف در ' + collection + ' مسدود شد (دلیل ذخیره: ' + (opts.reason || '-') + ')', collection); } catch (eAu) {}
-        return legacyFallback('delete-burst-blocked:' + dels.length);
+        /* ═══ v34.39.56 (SHRINK-GATE-CLIENT — RCA 2026-10-14 «پیشنهادهای ۵–۶ روز اخیر پاک شد») ═══
+           تا پیش از این، سپر همین‌جا به مسیر legacy تنزل می‌کرد («تنزل داده شد») ولی legacy همان
+           آرایهٔ کوتاه‌شده را با setData می‌فرستد و payload در data_push authoritative است ⇒
+           رکوردها واقعاً حذف می‌شدند — بی‌سنگ‌قبر و برخلاف متنِ پیام «مسدود شد».
+           حالا رکوردهای غایب از base برگردانده می‌شوند، هیچ فرمان حذفی صادر نمی‌شود، مسیر
+           legacy هم اجرا نمی‌شود و حذفِ واقعیِ یک‌به‌یکِ کاربر (زیر سقف) دست‌نخورده می‌ماند. */
+        var heldBack = dels.length;
+        var keepList = [], keepSeen = {};
+        base.forEach(function (r) {
+          var kk = rowKeyOf(r); if (!kk) return;
+          keepList.push(Object.prototype.hasOwnProperty.call(nextByCd, kk) ? nextByCd[kk] : r);
+          keepSeen[kk] = 1;
+        });
+        nextArr.forEach(function (r) {
+          var kk = rowKeyOf(r); if (!kk || keepSeen[kk]) return;
+          keepList.push(r); keepSeen[kk] = 1;
+        });
+        nextArr = keepList;
+        dels = [];
+        try {
+          console.warn('[PTF] سپر حذف انبوه — ' + collection + ': ' + heldBack +
+            ' حذف مسدود و رکوردها حفظ شدند (سقف ' + cap + ').', dels.slice(0, 12));
+        } catch (eW) {}
+        try {
+          if (typeof ptfToast === 'function') {
+            ptfToast('🛡 حذف ' + heldBack + ' رکورد از «' + collection.replace('ptf_crm_', '') +
+              '» مسدود شد و رکوردها حفظ شدند (سپر حذف انبوه). اگر واقعاً قصد حذف داشتید، یک‌به‌یک انجام دهید.', 'warn');
+          }
+        } catch (eT) {}
+        try { if (typeof audit === 'function') audit('یکپارچگی داده', 'سپر حذف انبوه: ' + heldBack + ' حذف در ' + collection + ' مسدود و رکوردها از نسخهٔ محلی بازگردانده شدند (دلیل ذخیره: ' + (opts.reason || '-') + ')', collection); } catch (eAu) {}
       }
     }
     if (ups.length + dels.length > MAX_OPS) return legacyFallback('too-many-ops:' + (ups.length + dels.length));

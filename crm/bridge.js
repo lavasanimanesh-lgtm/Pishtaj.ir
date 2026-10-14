@@ -1145,7 +1145,14 @@
     function inAls(v) { return v && als.indexOf(v) > -1; }
     var offNos = {};
     getData('ptf_crm_offers').forEach(function (o) { if (inAls(o.inqNo)) offNos[o.no] = 1; });
-    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return !inAls(o.inqNo); }), { reason: 'w4' }); else setData('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return !inAls(o.inqNo); }));
+    /* v34.39.56 (OFFER-TOMBSTONE-WRITER): حذف آبشاری هم باید سنگ‌قبر بنویسد؛ وگرنه
+       حذف از دید سطل بازیافت و سپر سروری نامرئی می‌ماند (رکورد بدون ثبت حذف می‌رفت). */
+    var _cascOffers = getData('ptf_crm_offers');
+    var _cascRemoved = _cascOffers.filter(function (o) { return inAls(o.inqNo); });
+    if (_cascRemoved.length && typeof window.ptfOfferWriteTombstones === 'function') {
+      window.ptfOfferWriteTombstones(_cascRemoved, 'حذف آبشاری درخواست ' + cd);
+    }
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', _cascOffers.filter(function (o) { return !inAls(o.inqNo); }), { reason: 'rfq-cascade-offers' }); else setData('ptf_crm_offers', _cascOffers.filter(function (o) { return !inAls(o.inqNo); }));
     /* v34.8.26 (W3): حذف آبشاری فاکتور = فرمان tombstone بازیافت‌پذیر */
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }), { reason: 'cascade-purge' });
     else setData('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }));
@@ -1227,9 +1234,13 @@
     var quarantined = 0;
     var skippedLocked = 0;
     function purge(storeKey, pred) {
-      var a = getData(storeKey), b = a.filter(function (x) {
-        if(!pred(x)) return true;
-        // برای اسناد مالی، اگر سال قفل بود، پاک نکن
+      var removed = [];
+      var a = getData(storeKey);
+      var b = a.filter(function (x) {
+        if(!pred(x)) return true;                              /* یتیم نیست → می‌ماند */
+        /* v34.39.56 (OFFER-TOMBSTONE-WRITER — RCA 2026-10-14): ردیف‌های حذف‌شدهٔ پیشنهاد
+           باید سنگ‌قبر بگیرند و ذخیره از مسیر فرمان/روتر برود؛ setData خام، حذف را
+           بی‌سنگ‌قبر به سرور می‌فرستاد و از دید سطل بازیافت/سپر سروری نامرئی می‌ماند. */
         if(storeKey==='ptf_crm_invoices' || storeKey==='ptf_crm_payables'){
           var y = yearOfDate(x.invDate||x.t||x.date||x.iso||'');
           if(y && isLockedYear(y)){ skippedLocked++; return true; }
@@ -1237,9 +1248,18 @@
           quarantined++;
           return true;
         }
+        removed.push(x);
         return false;
       });
       n += a.length - b.length;
+      if (storeKey === 'ptf_crm_offers') {
+        if (removed.length && typeof window.ptfOfferWriteTombstones === 'function') {
+          window.ptfOfferWriteTombstones(removed, 'پاک‌سازی یتیم‌ها');
+        }
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection(storeKey, b, { reason: 'orphan-purge' });
+        else setData(storeKey, b);
+        return;
+      }
       setData(storeKey, b);
     }
     purge('ptf_crm_offers', function (o) { return o.inqNo && keys[o.inqNo]; });
