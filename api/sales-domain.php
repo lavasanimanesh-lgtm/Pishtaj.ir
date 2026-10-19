@@ -805,7 +805,7 @@ function sd_rfq_matches_inquiry(array $rfq, string $inqNo): bool {
     return $inqNo !== '' && ((string)($rfq['cd'] ?? '') === $inqNo || (string)($rfq['inqNo'] ?? '') === $inqNo);
 }
 function sd_workflow_label(string $wf): string {
-    $labels=['WF10'=>'📥 دریافت اولیه','WF20'=>'🔧 پیشنهاد فنی صادر شد','WF30'=>'⏳ منتظر پاسخ کارفرما (فنی)','WF35'=>'✏️ در حال صدور پیشنهاد اصلاحی (فنی)','WF40'=>'💰 منتظر صدور پیشنهاد مالی','WF50'=>'💵 پیشنهاد مالی صادر شد','WF55'=>'✏️ در حال اصلاح پیشنهاد مالی','WF60'=>'⏳ منتظر پاسخ کارفرما (مالی)','WF70'=>'🏗 در حال تامین','WF90'=>'🗂 بایگانی — عدم تایید فنی','WF91'=>'🗂 بایگانی — بازنده مالی'];
+    $labels=['WF10'=>'📥 دریافت اولیه','WF20'=>'🔧 پیشنهاد فنی صادر شد','WF30'=>'⏳ منتظر پاسخ کارفرما (فنی)','WF35'=>'✏️ در حال صدور پیشنهاد اصلاحی (فنی)','WF40'=>'💰 منتظر صدور پیشنهاد مالی','WF50'=>'💵 پیشنهاد مالی صادر شد','WF55'=>'✏️ در حال اصلاح پیشنهاد مالی','WF60'=>'⏳ منتظر پاسخ کارفرما (مالی)','WF70'=>'🏗 در حال تامین','WF80'=>'📦 تحویل شده','WF85'=>'✅ مختومه (تسویه)','WF90'=>'🗂 بایگانی — عدم تایید فنی','WF91'=>'🗂 بایگانی — بازنده مالی'];
     return $labels[$wf] ?? $wf;
 }
 /* v34.39.55 (RFQ-WF-ORDER — RCA 2026-۱۰-۱۳): «آخرین» CO/TO باید با یک ترتیبِ کلِ
@@ -854,7 +854,7 @@ function sd_rfq_workflow_sync_for_offers(array $offers, array $rfqs, array $inqN
     foreach ($inqNos as $inqNo) {
         if (trim((string)$inqNo) === '') continue;
         $res = sd_apply_offer_workflow($rfqs, $offers, (string)$inqNo, $user, $event);
-        if (!empty($res['found'])) $hit = true;
+        if (!empty($res['found']) && !empty($res['changed'])) $hit = true;
     }
     return $hit ? $rfqs : null;
 }
@@ -900,8 +900,12 @@ function sd_apply_offer_workflow(array &$rfqs,array $offers,string $inqNo,string
     foreach($rfqs as &$rfq){
         if(!is_array($rfq)||!sd_rfq_matches_inquiry($rfq,$inqNo))continue;
         $wf=sd_workflow_for_inquiry($inqNo,$offers);$changed=(string)($rfq['wf']??'')!==$wf;
-        $rfq['wf']=$wf;$rfq['stxt']=sd_workflow_label($wf);$rfq['wfUpdatedAtISO']=sd_now();
-        if($changed){if(!isset($rfq['wfLog'])||!is_array($rfq['wfLog']))$rfq['wfLog']=[];$rfq['wfLog'][]=['t'=>sd_now(),'by'=>$user,'wf'=>$wf,'ev'=>$event];}
+        $rfq['wf']=$wf;$rfq['stxt']=sd_workflow_label($wf);
+        if($changed){
+            $rfq['wfUpdatedAtISO']=sd_now();
+            if(!isset($rfq['wfLog'])||!is_array($rfq['wfLog']))$rfq['wfLog']=[];
+            $rfq['wfLog'][]=['t'=>sd_now(),'by'=>$user,'wf'=>$wf,'ev'=>$event];
+        }
         $id=(string)($rfq['_id']??$rfq['cd']??'');unset($rfq);return ['found'=>true,'rfqId'=>$id,'wf'=>$wf,'changed'=>$changed];
     }unset($rfq);
     return ['found'=>false,'wf'=>''];
