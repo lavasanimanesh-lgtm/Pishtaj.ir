@@ -3056,6 +3056,33 @@
       return canonicalOffer;
     }
     var out = ptfMergeAttachmentFields(ptfMergePlainObject(winner, loser), winner, loser);
+    /* v34.39.56 (OFFER-STATUS-WF — گزارش کارفرما): رتبهٔ عمومی وضعیت
+       (ptfStateRank: sent>revise>draft>lost) گذارهای «برگشتیِ» مشروع را خفه می‌کرد:
+       کسی وضعیت را sent→revise یا sent→lost می‌کرد ولی نسخهٔ کهنهٔ sent در merge
+       دستگاه دیگر می‌برد و تغییر در عمل برمی‌گشت — و wf درخواست هم دنبالش.
+       از این نسخه هر گذار وضعیت مهر ISO (stUpdatedAtISO) دارد و فیلدهای وضعیت
+       مستقل از برندهٔ کلی رکورد، LWW با همان مهر تصمیم گرفته می‌شوند. مهر خالی
+       (رکورد میراثی) = قدیمی‌ترین؛ برابری/هر دو خالی = رفتار قبلی. */
+    if (key === 'ptf_crm_offers') {
+      var stTsA = String((a && a.stUpdatedAtISO) || ''), stTsB = String((b && b.stUpdatedAtISO) || '');
+      if (stTsA !== stTsB) {
+        var stSide = stTsB > stTsA ? b : a;
+        ['st', 'tst', 'stAt', 'stBy', 'stByUser', 'stUpdatedAtISO', 'lostAt', 'wonAt', 'wonAtISO', 'wonBy', 'marginAtClose'].forEach(function (f) {
+          if (stSide && stSide[f] !== undefined) out[f] = stSide[f]; else delete out[f];
+        });
+      }
+    }
+    /* v34.39.56: همان قاعده برای «وضعیت دستی» درخواست (st/waiting — کانبان و
+       رهگیری سایت)؛ تا حالا مهر نداشت و در برابر wfUpdatedAtISO بازندهٔ همیشگی بود. */
+    if (key === 'ptf_crm_rfqs') {
+      var manTsA = String((a && a.stUpdatedAtISO) || ''), manTsB = String((b && b.stUpdatedAtISO) || '');
+      if (manTsA !== manTsB) {
+        var manSide = manTsB > manTsA ? b : a;
+        ['st', 'waiting', 'stUpdatedAtISO'].forEach(function (f) {
+          if (manSide && manSide[f] !== undefined) out[f] = manSide[f]; else delete out[f];
+        });
+      }
+    }
     /* v34.39.19 (RFQ-ASSIGNEE-MERGE): ارجاع روی assignee/atISO مهر می‌خورد.
        merge عمومی با completeness ممکن است نسخهٔ بدون-assignee (کامل‌تر در فیلدهای
        دیگر) را برنده کند و مسئول را پاک کند. نسخهٔ تازه‌تر assignee برنده است. */

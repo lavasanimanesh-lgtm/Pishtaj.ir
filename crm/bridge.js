@@ -2243,7 +2243,12 @@
       if (r.cd === cd) {
         target = r;
         r.st = stVal;
-        r.stxt = stText;
+        /* v34.39.56 (OFFER-STATUS-WF): stxt یعنی «برچسب گردش‌کار» و مال سرور/
+           wfRefresh است. وضعیت دستی فقط روی ردیف میراثیِ بدون wf روی stxt می‌نشیند؛
+           وگرنه بج جدول و برچسب پیام بات با هم قاطی می‌شدند (ریشهٔ پیام وارونه).
+           مهر stUpdatedAtISO مرجع merge وضعیت دستی است (sync.js). */
+        if (!r.wf) r.stxt = stText;
+        r.stUpdatedAtISO = new Date().toISOString();
         if (stVal === 'stTO') r.waiting = 'TO';
         else if (stVal === 'stCO') r.waiting = 'CO';
         else r.waiting = null;
@@ -2260,7 +2265,8 @@
     }
     // سینک وضعیت استعلام‌های سایت با سرور → رهگیری
     if (target && target.src === 'site') {
-      api('set_status', { type: 'rfq', code: cd, status: target.st, statusText: target.stxt, by: curSession().name }, null);
+      /* v34.39.56: متن رهگیری همان انتخاب دستی کاربر است — نه stxt که حالا برچسب گردش‌کار است */
+      api('set_status', { type: 'rfq', code: cd, status: target.st, statusText: stText, by: curSession().name }, null);
     }
     return true;
   };

@@ -2895,6 +2895,19 @@ switch($action) {
         $serverArchiveJson = sync_key_read($sdir, 'ptf_crm_deleted_archive');
         if ($serverArchiveJson === null) $serverArchiveJson = '[]';
         $incomingArchiveJson = isset($j['data']['ptf_crm_deleted_archive']) && is_string($j['data']['ptf_crm_deleted_archive']) ? $j['data']['ptf_crm_deleted_archive'] : '[]';
+        /* v34.39.56 (OFFER-STATUS-WF): مبنای «پیش از push» برای دو کار: ① پیام گروه فقط
+           یک‌بار و بعد از پایان حلقه صادر شود (نه وسط حلقه و نه از روی اسنپ‌شات
+           کلاینت) ② مشخص شود کدام پیشنهاد در همین push تغییری کرده تا خط «رویداد»
+           پیام بتواند همان پیشنهاد را نام ببرد. restore/allow_wipe مثل قبل مستثنا. */
+        $wfPushKeysTouched = (isset($j['data']['ptf_crm_rfqs']) || isset($j['data']['ptf_crm_offers'])) && !$restore && !$allow_wipe;
+        $rfqBeforePush = null; $offersBeforePush = [];
+        if ($wfPushKeysTouched && ptf_rfq_notify_enabled()) {
+            $rfqBeforePush = json_decode((string)(sync_key_read($sdir, 'ptf_crm_rfqs') ?? '[]'), true);
+            if (!is_array($rfqBeforePush)) $rfqBeforePush = null;
+            $tmpOff = json_decode((string)(sync_key_read($sdir, 'ptf_crm_offers') ?? '[]'), true);
+            if (is_array($tmpOff)) foreach ($tmpOff as $bo) if (is_array($bo) && (string)($bo['no'] ?? '') !== '')
+                $offersBeforePush[(string)$bo['no']] = strtolower(trim((string)($bo['st'] ?? ''))) . '|' . strtolower(trim((string)($bo['tst'] ?? '')));
+        }
         foreach ($j['data'] as $k => $v) {
             if (!in_array($k, $allowed_keys, true)) { $skipped_keys[] = $k; continue; }
             if (!in_array($k, $role_sync_keys, true)) { $forbidden_keys[] = $k; continue; }
@@ -3068,23 +3081,80 @@ if (is_string($wfMergedJson)) $v = $wfMergedJson;
 }
 }
 }
-$rfqBefore = null;
-if ($k === 'ptf_crm_rfqs' && !$restore && !$allow_wipe && ptf_rfq_notify_enabled()) {
-$rfqBefore = json_decode((string)(sync_key_read($sdir, $k) ?? '[]'), true);
-}
+/* v34.39.56 (OFFER-STATUS-WF): اعلانِ وسط این حلقه حذف شد — پیام از روی «اسنپ‌شات
+   کلاینت» صادر می‌شد، پیش از آن‌که کلید offers همان push نشسته باشد و بدون هیچ
+   بازخوانی سروریٔ گردش‌کار. حالا بعد از پایان حلقه، از وضعیت نهایی و از مبنای
+   پیش از push صادر می‌شود (پست‌پاس پایین). */
             if (!sync_key_write($sdir, $k, $v, $pushNextRev)) { $dbWriteFailed = true; break; }
-            /* Legacy fallback still exists. Notify only the accepted RFQ write,
-               after conflict/tombstone/restore guards, not the incoming snapshot.
-               This is a per-key commit; another legacy key can still fail later. */
-            if (is_array($rfqBefore)) {
-                $rfqAfter = json_decode($v, true);
-                if (is_array($rfqAfter)) ptf_rfq_notify_enqueue(ptf_rfq_notify_events($rfqBefore, $rfqAfter, 'crm',
-                    (string)($auth_info['user'] ?? ''), 'sync:' . $pushNextRev . ':' . hash('sha256', $v)));
-            }
             $meta[$k] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
             $krevs[$k] = $pushNextRev;
             $saved_keys[] = $k;
             $saved++;
+        }
+        /* v34.39.56 (OFFER-STATUS-WF) — پست‌پاس گردش‌کار روی اسنپ‌شات «نهایی» همین push:
+           تا امروز data_push فقط فیلدهای wf را از دستکاری اسنپ‌شات کهنه محافظت می‌کرد
+           (v34.39.55) ولی هرگز از وضعیت تازهٔ پیشنهادها بازخوانی نمی‌کرد؛ تغییر وضعیت
+           پیشنهاد از مسیر legacy (مسیر واقعی دراپ‌داون) روی سرور می‌نشست اما وضعیت
+           درخواست تا یک نوشتنِ نامرتبطِ بعدی همان قبلی می‌ماند — و آن نوشتنِ بعدی با
+           محاسبهٔ غلطِ کلاینت (WF10) به نام هر کسی که بود اعلام می‌شد. حالا:
+           ① wf هر درخواست با موتور واحد از پیشنهادهای نهایی بازخوانی می‌شود
+           ② پیام گروه یک‌بار، از مبنای پیش از push و به نام فرستندهٔ همین push
+              (کاربر توکن واکشی‌شده، به‌نام نمایشی) صادر می‌شود. */
+        if ($wfPushKeysTouched && empty($dbWriteFailed)) {
+            try {
+                $finalRfqs = json_decode((string)(sync_key_read($sdir, 'ptf_crm_rfqs') ?? '[]'), true);
+                if (is_array($finalRfqs)) {
+                    $wfUsers = json_decode((string)(sync_key_read($sdir, 'ptf_crm_users') ?? '[]'), true);
+                    $wfActor = ptf_rfq_notify_resolve_actor((string)($auth_info['user'] ?? ''), is_array($wfUsers) ? $wfUsers : []);
+                    if (in_array('ptf_crm_rfqs', $saved_keys, true)) {
+                        $finalOffers = json_decode((string)(sync_key_read($sdir, 'ptf_crm_offers') ?? '[]'), true);
+                        if (is_array($finalOffers)) {
+                            $wfNeedDelivery = false;
+                            foreach ($finalOffers as $wo) if (is_array($wo) && strtolower(trim((string)($wo['st'] ?? ''))) === 'won') { $wfNeedDelivery = true; break; }
+                            $wfProjects = $wfNeedDelivery ? (json_decode((string)(sync_key_read($sdir, 'ptf_crm_projects') ?? '[]'), true) ?: []) : [];
+                            $wfInvoices = $wfNeedDelivery ? (json_decode((string)(sync_key_read($sdir, 'ptf_crm_invoices') ?? '[]'), true) ?: []) : [];
+                            /* رویداد مولّد هر درخواست: اولین پیشنهادِ همین push که وضعیتش عوض شده */
+                            $wfOfferEvent = function (array $rfq) use ($finalOffers, $offersBeforePush) {
+                                $aliases = ptf_rfq_workflow_aliases($rfq);
+                                $stL = ['draft'=>'پیش‌نویس','registered'=>'ثبت‌شده','sent'=>'ارسال‌شده','approved'=>'تاییدشده','rejected'=>'رد شده','revise'=>'نیاز به اصلاح','won'=>'برنده','lost'=>'بازنده'];
+                                foreach ($finalOffers as $fo) {
+                                    if (!is_array($fo)) continue;
+                                    $inq = trim((string)($fo['inqNo'] ?? ''));
+                                    if ($inq === '' || !in_array($inq, $aliases, true)) continue;
+                                    $nowSt = strtolower(trim((string)($fo['st'] ?? ''))) . '|' . strtolower(trim((string)($fo['tst'] ?? '')));
+                                    $no = (string)($fo['no'] ?? '');
+                                    if ($no !== '' && ($offersBeforePush[$no] ?? null) !== $nowSt) {
+                                        $eff = strtolower(trim((string)(($fo['tst'] ?? '') !== '' ? $fo['tst'] : ($fo['st'] ?? ''))));
+                                        return 'تغییر وضعیت پیشنهاد ' . $no . ' ← ' . ($stL[$eff] ?? $eff);
+                                    }
+                                }
+                                return 'بازخوانی خودکار گردش‌کار از وضعیت پیشنهادها';
+                            };
+                            $wfNow = gmdate('Y-m-d\TH:i:s\Z');
+                            $wfAny = false;
+                            foreach ($finalRfqs as &$wfRowRef) {
+                                if (!is_array($wfRowRef)) continue;
+                                /* ردیف میراثیِ بدون wf یعنی WF10 — نرمال‌سازی خاموش، بدون لاگ/پیامِ جعلی */
+                                if (trim((string)($wfRowRef['wf'] ?? '')) === '') $wfRowRef['wf'] = 'WF10';
+                                if (ptf_rfq_workflow_apply_row($wfRowRef, $finalOffers, $wfProjects, $wfInvoices, $wfActor, $wfOfferEvent($wfRowRef), $wfNow)) $wfAny = true;
+                            }
+                            unset($wfRowRef);
+                            if ($wfAny) {
+                                $finalJson = json_encode($finalRfqs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                                if (is_string($finalJson) && sync_key_write($sdir, 'ptf_crm_rfqs', $finalJson, $pushNextRev)) {
+                                    $meta['ptf_crm_rfqs'] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
+                                    $krevs['ptf_crm_rfqs'] = $pushNextRev;
+                                }
+                            }
+                        }
+                    }
+                    if (is_array($rfqBeforePush) && ptf_rfq_notify_enabled()) {
+                        $wfFinalJson = json_encode($finalRfqs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                        ptf_rfq_notify_enqueue(ptf_rfq_notify_events($rfqBeforePush, $finalRfqs, 'crm',
+                            $wfActor, 'sync:' . $pushNextRev . ':' . hash('sha256', is_string($wfFinalJson) ? $wfFinalJson : '')));
+                    }
+                }
+            } catch (Throwable $eWfPost) {}
         }
         if (!empty($dbWriteFailed)) {
             /* idempotent: meta نفرستاده می‌شود؛ کلاینت همان صف را دوباره می‌فرستد و مقادیر همان بازنویسی می‌شوند */

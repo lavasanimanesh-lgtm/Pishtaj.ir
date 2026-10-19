@@ -1426,6 +1426,68 @@
   };
 
   /* ----- Atomic award override (loaded after every legacy wrapper). ----- */
+  /* v34.39.56 (OFFER-STATUS-WF): فرمان واحد تغییر وضعیت پیشنهاد — جایگزین مسیر
+     محلی+legacy که نه گردش‌کار درخواست را بازخوانی می‌کرد نه پیام گروه می‌ساخت.
+     سرور (set_offer_status) رکورد ذخیره‌شده را درجا جهش می‌دهد، مهر گذار می‌زند،
+     گردش‌کار درخواست را با موتور واحد بازخوانی می‌کند و پیام بات را در همان
+     commit و به نام همین کاربر می‌فرستد. برد از این مسیر نمی‌گذرد (win_offer). */
+  window.ptfOfferSetStatusCommand = function (no, st, selEl, extra) {
+    extra = extra || {};
+    var same = data('ptf_crm_offers').filter(function (o) { return o && o.no === no; });
+    if (same.length !== 1) {
+      alert('⛔ شماره پیشنهاد یکتا نیست (' + same.length + ' رکورد). ابتدا از کیفیت داده تعیین تکلیف شود؛ هیچ رکوردی حدس زده نمی‌شود.');
+      if (selEl && same[0]) selEl.value = same[0].st || 'draft';
+      return;
+    }
+    var o = same[0];
+    var prevSt = o.st || 'draft';
+    if (st === 'won') return window.ptfSalesWinOffer(no, selEl);
+    if (selEl) selEl.disabled = true;
+    var payload = {
+      offerNo: no, offerId: o._id || '', st: st,
+      stAt: typeof faDateTime === 'function' ? faDateTime() : '',
+      idempotencyKey: 'OFST|' + (o._id || no) + '|' + st + '|' + Date.now()
+    };
+    if (extra.tstNote !== undefined) payload.tstNote = extra.tstNote;
+    if (st === 'lost') { try { payload.marginAtClose = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(o) : null; } catch (eM) {} }
+    return command('set_offer_status', payload, {
+      onAck: function (d) {
+        var lb = ((o.kind === 'TO' ? window.PTF_ST_TO : window.PTF_ST_CO) || {})[st] || st;
+        toast('وضعیت ' + no + ' ← ' + lb + ' ثبت شد', 'ok');
+        try { audit('پیشنهادها', 'تغییر وضعیت ' + no + ' ← ' + lb, no); } catch (e) {}
+        if (typeof renderOffers === 'function') renderOffers();
+        if (typeof renderRfq === 'function') { try { renderRfq(); } catch (e2) {} }
+        /* عوارض «بازنده» که قبلاً روی جهش هم‌زمانِ محلی سوار بودند (آزادسازی
+           رزرو کالای مازاد + پیشنهاد پاک‌سازی فایل‌ها) حالا بعد از ACK سرور. */
+        if (st === 'lost') {
+          var fresh = findOffer(no) || o;
+          try { if (typeof window.ptfSurplusReleaseForOffer === 'function') window.ptfSurplusReleaseForOffer(fresh); } catch (e3) {}
+          try { if (typeof window.ptfPurgeLostFiles === 'function') window.ptfPurgeLostFiles(fresh); } catch (e4) {}
+        }
+        if (typeof extra.onAck === 'function') extra.onAck(d);
+      },
+      onReject: function (e) {
+        if (selEl) selEl.value = prevSt;
+        var map = {
+          won_offer_locked: 'وضعیت پیشنهاد برنده قفل است؛ ادامه از پرونده فروش انجام می‌شود',
+          use_win_offer: 'ثبت برد فقط از مسیر «برنده» (تشکیل پرونده فروش) انجام می‌شود',
+          companion_status_locked: 'نسخهٔ همراه ارزی وضعیت مستقل ندارد؛ پیشنهاد اصلی را تغییر دهید',
+          duplicate_offer_no: 'شماره پیشنهاد تکراری است — ابتدا از کیفیت داده تعیین تکلیف شود',
+          offer_not_found: 'پیشنهاد روی سرور یافت نشد — ابتدا همگام‌سازی کنید',
+          offer_identity_mismatch: 'نسخهٔ محلی پیشنهاد با سرور متفاوت است — ابتدا همگام‌سازی کنید',
+          invalid_offer_status: 'وضعیت درخواستی برای این نوع پیشنهاد مجاز نیست',
+          insufficient_role: 'نقش فعلی اجازه تغییر وضعیت پیشنهاد را ندارد'
+        };
+        alert('⛔ تغییر وضعیت ثبت نشد و وضعیت قبلی حفظ شد:\n' + (map[e.message] || e.message));
+        if (typeof extra.onReject === 'function') extra.onReject(e);
+      },
+      onUncertain: function (e) {
+        if (selEl) selEl.value = prevSt;
+        alert('⚠️ نتیجه تغییر وضعیت هنوز نامشخص است. دوباره نفرستید؛ داده را همگام کنید. شناسه پیگیری: ' + (e.operationId || payload.idempotencyKey));
+      },
+      onFinally: function () { if (selEl) selEl.disabled = false; }
+    });
+  };
   var legacySetStatus = window.offerSetSt;
   window.ptfSalesWinOffer = function (no, selEl) {
     if (!canWin()) { alert('⛔ نقش فعلی اجازه ثبت برد را ندارد.'); if(selEl)selEl.value=(findOffer(no)||{}).st||'sent'; return; }
@@ -1488,6 +1550,8 @@
         try { audit('فروش', 'ثبت اتمیک برد و پرونده ' + no, (d.result||{}).caseId || no); } catch(e) {}
         if (typeof renderOffers === 'function') renderOffers();
         if (typeof renderDeals === 'function') renderDeals();
+        /* v34.39.56: win_offer حالا گردش‌کار درخواست را هم در همان commit جلو می‌برد */
+        if (typeof renderRfq === 'function') { try { renderRfq(); } catch(eR) {} }
       },onReject:function (e) {
         if (selEl) selEl.value = o.st || 'sent';
         var map={duplicate_offer_no:'شماره پیشنهاد تکراری است',duplicate_sales_cases:'پرونده فروش تکراری شناسایی شد',amendment_customer_or_currency_mismatch:'مشتری یا ارز متمم با پرونده مقصد یکسان نیست'};

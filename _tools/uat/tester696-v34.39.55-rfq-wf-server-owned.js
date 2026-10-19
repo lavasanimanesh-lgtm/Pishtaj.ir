@@ -62,11 +62,12 @@ T('entity_upsert روی ptf_crm_rfqs مقدار wf را از سرور بازخو
   var i = api.indexOf("if ($collection === 'ptf_crm_rfqs') {", api.indexOf("$action === 'entity_upsert'"));
   assert.ok(i > -1, 'rfqs branch not found');
   var block = api.slice(i, api.indexOf('}', api.indexOf('sd_rfq_workflow_server_owned', i)) + 1);
-  assert.ok(block.indexOf('sd_rfq_workflow_server_owned($row, is_array($prev) ? $prev : [], $user, $sanitizeStats)') > -1);
+  assert.ok(block.indexOf('sd_rfq_workflow_server_owned($row, is_array($prev) ? $prev : [], sd_actor_label($user), $sanitizeStats)') > -1); /* v34.39.56: wfLog با نام نمایشی */
 });
 T('سرور wf را همیشه از فهرست authoritative پیشنهادها مشتق می‌کند', function () {
   var m = /function sd_rfq_workflow_server_owned\([\s\S]*?\n\}/.exec(api);
-  assert.ok(m && m[0].indexOf("sd_workflow_for_inquiry($inqNo, sd_read('ptf_crm_offers'))") > -1);
+  /* v34.39.56: دیگر فقط یک شناسه نیست — سقوط WF50←WF10 دقیقاً از همین بود */
+  assert.ok(m && m[0].indexOf("ptf_rfq_workflow_aliases($row)") > -1 && m[0].indexOf("sd_workflow_for_inquiry($aliases[0] ?? '', sd_read('ptf_crm_offers'), $aliases)") > -1);
   assert.ok(m[0].indexOf("$row['stxt'] = sd_workflow_label($wf)") > -1);
 });
 T('ویرایش پیشنهاد از مسیر عمومی هم گردش کار را در همان commit می‌برد', function () {
@@ -81,17 +82,19 @@ T('حذف پیشنهاد هم گردش کار را بازخوانی می‌کن�
 });
 
 /* ═══ ۳) ترتیب آرایه دیگر نتیجه را عوض نمی‌کند ═══ */
-T('sd_workflow_for_inquiry با ترتیبِ کلِ پایدار انتخاب می‌کند، نه جایگاه آرایه', function () {
-  var m = /function sd_workflow_for_inquiry\(string \$inqNo, array \$offers\): string \{([\s\S]*?)\n\}/.exec(api);
-  assert.ok(m, 'function not found');
-  assert.ok(m[1].indexOf('$lastCo===null&&in_array') === -1, 'array-position pick must be gone');
-  assert.ok(m[1].indexOf('sd_offer_wf_rank_higher') > -1, 'total-order pick missing');
+T('موتور با ترتیبِ کلِ پایدار انتخاب می‌کند، نه جایگاه آرایه (v34.39.56: بدنه در lib)', function () {
+  /* sd_workflow_for_inquiry حالا delegate است؛ ترتیب کل در ptf_rfq_workflow_compute زندگی می‌کند */
+  assert.ok(api.indexOf('function sd_workflow_for_inquiry(string $inqNo, array $offers, array $aliases = []): string') > -1);
+  assert.ok(api.indexOf('return ptf_rfq_workflow_compute($aliases, $offers, $projects, $invoices);') > -1);
+  var m = /function ptf_rfq_workflow_compute\([\s\S]*?\n\}/.exec(lib);
+  assert.ok(m, 'compute not found in lib');
+  assert.ok(m[0].indexOf('ptf_offer_wf_rank_higher($rank, $coRank)') > -1, 'total-order pick missing');
 });
 T('ترتیبِ کل شامل مهر ISO، دنبالهٔ عددی شماره و خودِ شماره است (no یکتا ⇒ کلِ کامل)', function () {
-  var m = /function sd_offer_wf_rank\(array \$offer\): array \{([\s\S]*?)\n\}/.exec(api);
-  assert.ok(m, 'rank function not found');
-  assert.ok(m[1].indexOf('serverRegisteredAt') > -1 && m[1].indexOf('preg_match(\'/(\\d+)\\s*$/u\'') > -1);
-  assert.ok(m[1].indexOf('return [$stamp,$tail,$no];') > -1);
+  var m = /function ptf_offer_wf_rank\(array \$offer\): array \{([\s\S]*?)\n\}/.exec(lib);
+  assert.ok(m, 'rank function not found in lib');
+  assert.ok(m[1].indexOf('serverRegisteredAt') > -1 && m[1].indexOf("preg_match('/(\\d+)\\s*$/u'") > -1);
+  assert.ok(m[1].indexOf('return [$stamp, $tail, $no];') > -1);
 });
 
 /* ═══ ۴) مسیر legacy data_push (crm.php) ═══ */
