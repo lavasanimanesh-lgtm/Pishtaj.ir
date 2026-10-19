@@ -820,6 +820,7 @@
           '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#0e7490" onclick="supSiteDetail(\'' + ptfOnClickArg(s.code) + '\')">👁 جزئیات</button> ' +
           (s.status === 'pending' && isSenior()
             ? '<button class="bt" style="padding:4px 9px;font-size:11.5px;background:#059669" onclick="supApprove(\'' + ptfOnClickArg(s.code) + '\')">✅ تایید</button> ' +
+              '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#7c3aed;border-color:#ddd6fe" title="ثبت‌کننده خریدار/کارفرماست که اشتباهی فرم تامین‌کنندگان را پر کرده — پیامک هدایت به فرم استعلام خرید می‌رود" onclick="supRedirect(\'' + ptfOnClickArg(s.code) + '\')">🛒 خریدار است</button> ' +
               '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#dc2626" onclick="supReject(\'' + ptfOnClickArg(s.code) + '\')">✖ رد</button>'
             : (s.status === 'pending' ? '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>' : '')) +
           (isSenior()
@@ -879,7 +880,8 @@
         : '') +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">' +
       (isSenior() && s.status === 'pending'
-        ? '<button class="bt" style="background:#059669" onclick="this.closest(\'.md-b\').remove();supApprove(\'' + ptfOnClickArg(code) + '\')">✅ تایید و ورود به فهرست</button>'
+        ? '<button class="bt" style="background:#059669" onclick="this.closest(\'.md-b\').remove();supApprove(\'' + ptfOnClickArg(code) + '\')">✅ تایید و ورود به فهرست</button>' +
+          '<button class="bt bt-o" style="color:#7c3aed;border-color:#ddd6fe" onclick="this.closest(\'.md-b\').remove();supRedirect(\'' + ptfOnClickArg(code) + '\')">🛒 خریدار است — هدایت</button>'
         : '') +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -970,6 +972,25 @@
     if (typeof audit === 'function') audit('تامین‌کنندگان', 'رد تامین‌کننده سایت: ' + s.company + ' — ' + (REASON_LB[reasonType] || 'سایر') + (note ? ' (' + note + ')' : ''), code);
     if (reopen && typeof ptfToast === 'function') ptfToast('↻ رد با امکان تکمیل مدارک ثبت شد — پیامک به تامین‌کننده ارسال می‌شود تا مدارک را تکمیل کند', 'ok');
     renderSuppliers();
+  };
+
+  /* v34.39.57 (WRONG-FORM-REDIRECT): جهت معکوس — خریدارِ ثبت‌شده در فرم تامین‌کنندگان */
+  window.supRedirect = function (code) {
+    var s = siteSuppliers().filter(function (x) { return x.code === code; })[0];
+    if (!s) return;
+    var msg = '«' + (s.company || code) + '» خریدار/کارفرمایی است که اشتباهی فرم ثبت‌نام تامین‌کنندگان را پر کرده؟\n\n' +
+      'با این اقدام:\n' +
+      '• ثبت‌نام از صف بررسی خارج می‌شود (تاریخچه‌اش می‌ماند)\n' +
+      '• پیامک راهنما با لینک «فرم استعلام خرید» به ' + (s.phone || 'شمارهٔ ثبت‌شده') + ' ارسال می‌شود و اطلاعاتش پیش‌پر می‌شود\n' +
+      '• در صفحهٔ رهگیری هم همین راهنما و دکمه نمایش داده می‌شود';
+    if (!confirm(msg)) return;
+    api('set_status', { type: 'supplier', code: code, status: 'redirected', rejectType: 'wrong_form', statusText: 'ثبت در فرم اشتباه — راهنمای ثبت استعلام خرید ارسال شد', by: curSession().name }, function (resp) {
+      syncServerInbox();
+      if (typeof ptfToast === 'function') ptfToast(resp && resp.sms ? '🛒 هدایت ثبت شد — پیامک لینک فرم استعلام خرید ارسال شد' : '🛒 هدایت ثبت شد — پیامک ارسال نشد؛ راهنما در صفحهٔ رهگیری نمایش داده می‌شود', resp && resp.sms ? 'ok' : 'warn');
+      renderSuppliers();
+    });
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR6) {}
+    if (typeof audit === 'function') audit('تامین‌کنندگان', 'هدایت فرم اشتباه به استعلام خرید: ' + (s.company || ''), code);
   };
 
   /* v34.7.74 (SUP-SITE-DELETE): حذف رکورد ثبت‌نام سایت از صندوق ورودی.
@@ -1694,6 +1715,7 @@
           '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#0e7490" onclick="rfqSiteDetail(\'' + ptfOnClickArg(r.code) + '\')">👁 جزئیات کامل</button> ' +
           (isSenior()
             ? '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="rfqApprove(\'' + ptfOnClickArg(r.code) + '\')">✅ تایید و ورود</button> ' +
+              '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#7c3aed;border-color:#ddd6fe" title="ثبت‌کننده تامین‌کننده/فروشنده است که اشتباهی فرم استعلام خرید را پر کرده — پیامک هدایت به ثبت‌نام تامین‌کنندگان می‌رود" onclick="rfqRedirect(\'' + ptfOnClickArg(r.code) + '\')">🤝 تامین‌کننده است</button> ' +
               '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="rfqReject(\'' + ptfOnClickArg(r.code) + '\')">✖ رد</button>'
             : '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>') +
           '</td></tr>';
@@ -1743,7 +1765,8 @@
       siteAttachmentHtml(r.attachment) +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">' +
       (isSenior() && r.status === 'pending'
-        ? '<button class="bt" style="background:#059669" onclick="this.closest(\'.md-b\').remove();rfqApprove(\'' + ptfOnClickArg(code) + '\')">✅ تایید و ورود</button>'
+        ? '<button class="bt" style="background:#059669" onclick="this.closest(\'.md-b\').remove();rfqApprove(\'' + ptfOnClickArg(code) + '\')">✅ تایید و ورود</button>' +
+          '<button class="bt bt-o" style="color:#7c3aed;border-color:#ddd6fe" onclick="this.closest(\'.md-b\').remove();rfqRedirect(\'' + ptfOnClickArg(code) + '\')">🤝 تامین‌کننده است — هدایت</button>'
         : '') +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -1937,6 +1960,29 @@
     api('set_status', { type: 'rfq', code: code, status: 'rejected', statusText: 'مختومه' + (reason ? ' — ' + reason : ''), by: curSession().name }, function () { syncServerInbox(); });
     if (typeof audit === 'function') audit('استعلامات', 'رد استعلام سایت', code);
     renderRfqPending();
+  };
+
+  /* v34.39.57 (WRONG-FORM-REDIRECT — گزارش کارفرما): اکشن سوم صف تایید برای
+     «ثبت فرم اشتباه» — نه تایید (مشتری جعلی می‌سازد) نه رد (شخص بی‌خبر می‌ماند).
+     سرور پیامکِ لینک فرم تامین‌کنندگان را می‌فرستد و همان لینک در رهگیری هم هست؛
+     فرم مقصد اطلاعات مشترک را پیش‌پر می‌کند و شخص فقط OTP/شرایط پرداخت/مدارک را
+     تکمیل می‌کند. تبدیل مستقیم رکورد عمداً انجام نمی‌شود (داده و رضایتش را نداریم). */
+  window.rfqRedirect = function (code) {
+    var r = siteRfqs().filter(function (x) { return x.code === code; })[0];
+    if (!r) return;
+    var msg = '«' + (r.company || code) + '» تامین‌کننده/فروشنده‌ای است که اشتباهی فرم استعلام خرید را پر کرده؟\n\n' +
+      'با این اقدام:\n' +
+      '• درخواست از صف تایید خارج می‌شود (تاریخچه‌اش می‌ماند)\n' +
+      '• پیامک راهنما با لینک «ثبت‌نام تامین‌کنندگان» به ' + (r.phone || 'شمارهٔ ثبت‌شده') + ' ارسال می‌شود و اطلاعاتش در فرم مقصد پیش‌پر می‌شود\n' +
+      '• در صفحهٔ رهگیری هم همین راهنما و دکمه نمایش داده می‌شود';
+    if (!confirm(msg)) return;
+    api('set_status', { type: 'rfq', code: code, status: 'redirected', rejectType: 'wrong_form', statusText: 'ثبت در فرم اشتباه — راهنمای ثبت‌نام تامین‌کنندگان ارسال شد', by: curSession().name }, function (resp) {
+      syncServerInbox();
+      if (typeof ptfToast === 'function') ptfToast(resp && resp.sms ? '🤝 هدایت ثبت شد — پیامک لینک ثبت‌نام تامین‌کنندگان ارسال شد' : '🤝 هدایت ثبت شد — پیامک ارسال نشد (شماره موبایل معتبر نبود/پیامک غیرفعال)؛ راهنما در صفحهٔ رهگیری نمایش داده می‌شود', resp && resp.sms ? 'ok' : 'warn');
+      renderRfqPending();
+    });
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(code); } catch (eNR5) {}
+    if (typeof audit === 'function') audit('استعلامات', 'هدایت فرم اشتباه به ثبت‌نام تامین‌کنندگان: ' + (r.company || ''), code);
   };
 
   /* ---- مودال جدید ثبت RFQ (US-136 AC2..AC5) ---- */

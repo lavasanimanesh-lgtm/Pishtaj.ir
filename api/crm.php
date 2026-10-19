@@ -40,7 +40,7 @@ function verify_request() {
     // Public actions that don't need verification
     // v31.7.7 HOTFIX: Added 'users_get' — needed during login before token exists.
     // users_get only returns safe fields (no passhash) since BUG-AUDIT-004.
-    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'auth_login_otp', 'sms_status', 'upload_limits', 'users_get', 'chat_lead']; /* v34.8.46: auth_login_otp = مرحلهٔ دوم ورود دومرحله‌ای */ /* v34.38.0: upload_limits = فقط اعداد پیکربندی آپلود میزبان برای فرم‌های عمومی */
+    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'prefill_from', 'auth_login', 'auth_login_otp', 'sms_status', 'upload_limits', 'users_get', 'chat_lead']; /* v34.8.46: auth_login_otp = مرحلهٔ دوم ورود دومرحله‌ای */ /* v34.38.0: upload_limits = فقط اعداد پیکربندی آپلود میزبان برای فرم‌های عمومی */
     if (in_array($action, $public_actions)) {
         return true;
     }
@@ -92,7 +92,7 @@ if (in_array($action, $SENSITIVE_ACTIONS_HMAC)) {
 
 
 // ===== US-145 AC3: rate-limit سروری روی اکشن‌های عمومی =====
-$PUBLIC_LIMITED = ['add_supplier' => 10, 'add_rfq_site' => 10, 'track' => 60, 'chat_lead' => 10];
+$PUBLIC_LIMITED = ['add_supplier' => 10, 'add_rfq_site' => 10, 'track' => 60, 'prefill_from' => 30, 'chat_lead' => 10];
 if (isset($PUBLIC_LIMITED[$action])) {
     $rl_dir = __DIR__ . '/../crm/data';
     if (!is_dir($rl_dir)) { mkdir($rl_dir, 0755, true); file_put_contents($rl_dir . '/.htaccess', "Deny from all\n"); }
@@ -363,6 +363,40 @@ function otp_token_ok($token, $phone) {
     if ($otpAge < 0 || $otpAge > 1800) return false; // آینده نامعتبر؛ اعتبار ۳۰ دقیقه
     if ($ph !== $phone) return false;
     return hash_equals(hash_hmac('sha256', 'otp|' . $ph . '|' . $ts, $CAPTCHA_SECRET), $sig);
+}
+/* v34.39.57 (WRONG-FORM-REDIRECT — گزارش کارفرما): تامین‌کننده گاهی اشتباهی در فرم
+   «استعلام هوشمند» ثبت می‌کند (و برعکس). تبدیل خام رکورد ممکن/درست نیست (OTP و
+   شرایط پرداخت و مدارکِ فرم مقصد را ندارد)؛ مسیر درست «هدایت با لینک اختصاصی» است:
+   کارشناس دکمهٔ هدایت را می‌زند، پیامک با لینک فرم درست می‌رود و فرم مقصد با این
+   توکنِ امضاشده فیلدهای مشترک را از رکورد قبلی پیش‌پر می‌کند. توکن به شماره تلفن
+   گره نمی‌خورد (تلفن فرم استعلام ممکن است ثابت باشد) ولی به type+code قفل است. */
+function ptf_wrongform_token_make($type, $code) {
+    global $CAPTCHA_SECRET;
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return '';
+    $ts = time();
+    return base64_encode($ts . '|' . $type . '|' . $code . '|' . hash_hmac('sha256', 'wrongform|' . $type . '|' . $code . '|' . $ts, $CAPTCHA_SECRET));
+}
+function ptf_wrongform_token_ok($token, $type, $code) {
+    global $CAPTCHA_SECRET;
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return false;
+    $raw = base64_decode((string)$token, true);
+    if (!$raw) return false;
+    $parts = explode('|', $raw, 4);
+    if (count($parts) !== 4) return false;
+    list($ts, $tp, $cd, $sig) = $parts;
+    if (!ctype_digit($ts)) return false;
+    $age = time() - (int)$ts;
+    if ($age < 0 || $age > 2592000) return false; // اعتبار ۳۰ روز — لینک پیامک دیر هم برسد کار کند
+    if ($tp !== $type || $cd !== $code) return false;
+    return hash_equals(hash_hmac('sha256', 'wrongform|' . $tp . '|' . $cd . '|' . $ts, $CAPTCHA_SECRET), $sig);
+}
+/* لینک مطلق فرم «درست» برای رکورد ثبت‌شده در فرم اشتباه ($fromType = نوع رکورد فعلی) */
+function ptf_wrongform_url($fromType, $code) {
+    $host = preg_replace('/[^a-zA-Z0-9.\-]/', '', (string)($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '' || $host === 'localhost') $host = 'pishtaj.ir';
+    $path = $fromType === 'supplier' ? '/rfq/' : '/supplier/';
+    $tok = ptf_wrongform_token_make($fromType, $code);
+    return 'https://' . $host . $path . '?from=' . urlencode($code) . ($tok !== '' ? '&t=' . urlencode($tok) : '');
 }
 // پوشه داده باید قبل از سوییچ آماده باشد (برای otp)
 $data_dir_early = __DIR__ . '/../crm/data';
@@ -2050,7 +2084,9 @@ switch($action) {
             'status' => 'pending',
             'statusText' => 'در انتظار تایید مدیران',
             'date' => date('Y-m-d H:i'),
-            'approvedBy' => null
+            'approvedBy' => null,
+            /* v34.39.57: انتساب تبدیلِ «فرم اشتباه» — کد رکورد مبدأ (یا gate) برای سنجش اثر هدایت */
+            'fromCode' => clean($_POST['fromCode'] ?? '', 60)
         ];
         if (!save_data('rfqs', $rfqs)) {
             http_response_code(503);
@@ -2371,7 +2407,9 @@ switch($action) {
             'status' => 'pending',
             'statusText' => 'ثبت‌نام شده — در انتظار بررسی و تایید مدیران',
             'date' => date('Y-m-d H:i'),
-            'approvedBy' => null
+            'approvedBy' => null,
+            /* v34.39.57: انتساب تبدیلِ «فرم اشتباه» (کد استعلام مبدأ یا gate) */
+            'fromCode' => clean($_POST['fromCode'] ?? '', 60)
         ];
         save_data('suppliers', $suppliers);
         push_event_rec('supplier_site', 'یک تامین‌کننده در سایت ثبت‌نام کرد و منتظر بررسی است: ' . clean($_POST['company'] ?? '') . ' (' . $code . ')', ['code' => $code]);
@@ -2403,6 +2441,33 @@ switch($action) {
         break;
 
     // ===== US-134: رهگیری دوبخشی (استعلام + ثبت‌نام تامین‌کننده) =====
+    /* v34.39.57 (WRONG-FORM-REDIRECT): پیش‌پرکردن فرم درست از رکورد فرم اشتباه.
+       فقط با توکن امضاشدهٔ همان رکورد (لینک پیامک/رهگیری) و فقط فیلدهای عمومی فرم. */
+    case 'prefill_from':
+        $pfType = clean($_REQUEST['type'] ?? '', 20); /* نوع رکورد مبدأ: rfq | supplier */
+        $pfCode = strtoupper(clean($_REQUEST['code'] ?? '', 60));
+        $pfTok  = (string)($_REQUEST['t'] ?? '');
+        if (!in_array($pfType, ['rfq', 'supplier'], true) || $pfCode === '' || !ptf_wrongform_token_ok($pfTok, $pfType, $pfCode)) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'error' => 'bad_token'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        $pfRow = null;
+        foreach (load_data($pfType === 'supplier' ? 'suppliers' : 'rfqs') as $row) {
+            if (is_array($row) && strtoupper((string)($row['code'] ?? '')) === $pfCode) { $pfRow = $row; break; }
+        }
+        if (!$pfRow) { http_response_code(404); echo json_encode(['ok' => false, 'error' => 'notfound'], JSON_UNESCAPED_UNICODE); break; }
+        echo json_encode(['ok' => true, 'fields' => [
+            'company'  => (string)($pfRow['company'] ?? ''),
+            'name'     => (string)($pfRow['contact'] ?? ($pfRow['name'] ?? '')),
+            'phone'    => (string)($pfRow['phone'] ?? ''),
+            'email'    => (string)($pfRow['email'] ?? ''),
+            'category' => (string)($pfRow['category'] ?? ''),
+            'brands'   => (string)($pfRow['vendors'] ?? ($pfRow['brands'] ?? '')),
+            'message'  => (string)($pfRow['message'] ?? '')
+        ]], JSON_UNESCAPED_UNICODE);
+        break;
+
     case 'track':
         $code = strtoupper(clean($_REQUEST['code'] ?? '', 60));
         if (!$code) { echo json_encode(['ok' => false, 'error' => 'کد رهگیری وارد نشده']); break; }
@@ -2423,6 +2488,8 @@ switch($action) {
             $pubMap = [
                 'pending'  => 'ثبت شد — در انتظار بررسی کارشناسان',
                 'approved' => 'تایید شد — در حال بررسی فنی و تامین',
+                /* v34.39.57: فرم اشتباه — متن + دکمهٔ فرم درست در صفحهٔ رهگیری */
+                'redirected' => 'همکار گرامی، ثبت شما در فرم استعلام خرید انجام شده است. اگر تامین‌کننده/فروشنده هستید، از دکمهٔ زیر در سامانهٔ تامین‌کنندگان ثبت‌نام کنید؛ اطلاعاتتان خودکار منتقل می‌شود.',
                 'rejected' => $found['statusText'] ?? 'مختومه',
                 'st1' => 'دریافت شد — در حال بررسی اولیه',
                 'st2' => 'در حال بررسی فنی',
@@ -2475,6 +2542,8 @@ switch($action) {
             $rejectType = (string)($found['rejectType'] ?? '');
             $note = (string)($found['note'] ?? '');
         }
+        /* v34.39.57: کانال دوم هدایت — اگر پیامک نرسید، رهگیری همان لینک را می‌دهد */
+        $isRedirected = (($found['status'] ?? '') === 'redirected');
         echo json_encode([
             'ok' => true, 'type' => $type,
             'code' => $found['code'],
@@ -2484,7 +2553,9 @@ switch($action) {
             'statusText' => $found['statusText'] ?? '',
             'date' => $found['date'] ?? '',
             'order' => $order,
-            'reopen' => $reopen, 'rejectType' => $rejectType, 'note' => $note
+            'reopen' => $reopen, 'rejectType' => $rejectType, 'note' => $note,
+            'redirectUrl' => $isRedirected ? ptf_wrongform_url($type, (string)$found['code']) : '',
+            'redirectTo' => $isRedirected ? ($type === 'supplier' ? 'rfq' : 'supplier') : ''
         ], JSON_UNESCAPED_UNICODE);
         break;
 
@@ -2557,6 +2628,16 @@ switch($action) {
                     $it['rejectType'] = $rejectType;
                     if ($note !== '') $it['note'] = $note;
                 }
+                /* v34.39.57 (WRONG-FORM-REDIRECT): خروج از صف بدون تایید/رد — شخص با
+                   پیامک + رهگیری به فرم درست هدایت می‌شود و رکورد برای انتساب می‌ماند. */
+                if ($status === 'redirected') {
+                    $it['rejectType'] = 'wrong_form';
+                    $it['reopen'] = false;
+                    $it['redirectedAt'] = date('Y-m-d H:i');
+                    $it['redirectedBy'] = $by;
+                    $it['redirectTo'] = $type === 'supplier' ? 'rfq' : 'supplier';
+                    if ($note !== '') $it['note'] = $note;
+                }
                 if ($status === 'approved' && $note !== '') $it['apprNote'] = $note;
                 $smsPhone = preg_replace('/\D/', '', (string)($it['phone'] ?? ($it['ph'] ?? '')));
                 $smsStatus = $status;
@@ -2571,6 +2652,18 @@ switch($action) {
         }
         /* v34.7.71 (SUP-SMS-001): پیامک ثبت/رد تامین‌کننده */
         $smsSent = false;
+        /* v34.39.57 (WRONG-FORM-REDIRECT): پیامک هدایت برای هر دو جهت — قبلاً برای
+           نوع rfq اصلاً پیامکی در کار نبود و شخص بی‌خبر می‌ماند. فقط موبایل معتبر؛
+           تلفن ثابت/ناقص بی‌صدا رد می‌شود و مسیر دوم «رهگیری» همان لینک را نشان می‌دهد. */
+        if ($done && $smsStatus === 'redirected' && sms_enabled()) {
+            $wfMobile = ptf_normalize_phone($smsPhone);
+            if (preg_match('/^09\d{9}$/', $wfMobile)) {
+                $wfUrl = ptf_wrongform_url($type === 'supplier' ? 'supplier' : 'rfq', $code);
+                $smsSent = $type === 'supplier'
+                    ? sms_send($wfMobile, "پیشرو تجهیز فرتاک\nثبت شما در فرم تامین‌کنندگان انجام شده، اما به‌نظر می‌رسد متقاضی خرید تجهیزات هستید. برای ثبت استعلام خرید (اطلاعاتتان از قبل پر می‌شود):\n" . $wfUrl . "\n021-46087679")
+                    : sms_send($wfMobile, "پیشرو تجهیز فرتاک\nثبت شما در فرم استعلام خرید انجام شده، اما به‌نظر می‌رسد تامین‌کننده/فروشنده هستید. برای ثبت‌نام تامین‌کنندگان (اطلاعاتتان از قبل پر می‌شود):\n" . $wfUrl . "\n021-46087679");
+            }
+        }
         if ($done && $type === 'supplier' && $smsPhone !== '' && sms_enabled()) {
             if ($smsStatus === 'approved') {
                 $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nدرخواست ثبت‌نام تامین‌کنندگی شما تایید شد؛ به‌زودی کارشناسان ما با شما تماس می‌گیرند.\n021-46087679");

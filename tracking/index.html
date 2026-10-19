@@ -236,6 +236,11 @@
               <div id="venReopenNote" style="margin-top:4px;color:#475569"></div>
               <a id="venReopenLink" href="../supplier/" class="btn-wa" style="margin-top:10px;display:inline-block">↻ تکمیل مدارک و ثبت مجدد</a>
             </div>
+            <div id="venRedirectBox" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:14px 16px;font-size:13.5px;color:#1e3a8a;line-height:1.9">
+              <b>🛒 به‌نظر می‌رسد متقاضی خرید تجهیزات هستید، نه تامین‌کننده.</b>
+              <div style="margin-top:4px;color:#475569">ثبت شما در «فرم ثبت‌نام تامین‌کنندگان» انجام شده است. برای دریافت پیشنهاد فنی/مالی، درخواستتان را در فرم استعلام خرید ثبت کنید؛ اطلاعاتتان خودکار منتقل می‌شود و نیازی به تایپ مجدد نیست.</div>
+              <a id="venRedirectLink" href="../rfq/" class="btn-wa" style="margin-top:10px;display:inline-block;background:#2563eb;color:#fff">🛒 انتقال به فرم استعلام خرید ←</a>
+            </div>
           </div>
           <div class="help-actions" style="margin-top:20px">
             <a id="venWaLink" href="#" target="_blank" class="btn-wa">پیگیری در واتس‌اپ</a>
@@ -261,6 +266,12 @@
             <div><span>کد پرونده:</span><b id="dispCode">PTF-RFQ-7K3MW-P9X2R</b></div>
             <div><span>حوزه درخواستی:</span><b id="dispCat">تجهیزات پایپینگ و فلنج</b></div>
             <div><span>وضعیت جاری:</span><b id="dispStatus" style="color:#10b981;">پیشنهاد مالی صادر شد (مرحله ۴)</b></div>
+          </div>
+
+          <div id="rfqRedirectBox" style="display:none;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:14px;padding:14px 16px;font-size:13.5px;color:#4c1d95;line-height:1.9;margin-bottom:14px">
+            <b>🤝 به‌نظر می‌رسد تامین‌کننده/فروشنده هستید، نه خریدار.</b>
+            <div style="margin-top:4px;color:#475569">ثبت شما در «فرم استعلام خرید» انجام شده است. برای پیوستن به شبکهٔ تامین، در سامانهٔ ثبت‌نام تامین‌کنندگان ثبت‌نام کنید؛ اطلاعاتتان خودکار منتقل می‌شود و فقط تایید پیامکی، شرایط پرداخت و مدارک را تکمیل می‌کنید.</div>
+            <a id="rfqRedirectLink" href="../supplier/" class="btn-wa" style="margin-top:10px;display:inline-block;background:#7c3aed;color:#fff">🤝 انتقال به ثبت‌نام تامین‌کنندگان ←</a>
           </div>
 
           <div class="timeline">
@@ -454,6 +465,15 @@
             reopenBox.style.display = 'none';
           }
         }
+        /* v34.39.57: هدایت فرم اشتباه — خریدارِ ثبت‌شده در فرم تامین‌کنندگان */
+        const venRedir = document.getElementById('venRedirectBox');
+        if (venRedir) {
+          if (d.status === 'redirected' && d.redirectUrl) {
+            venRedir.style.display = '';
+            document.getElementById('venRedirectLink').href = d.redirectUrl;
+            box.style.background = '#eff6ff'; box.style.color = '#1d4ed8';
+          } else venRedir.style.display = 'none';
+        }
         document.getElementById('venWaLink').href = waUrl;
         return;
       }
@@ -468,6 +488,15 @@
       // کارت دانلود پیش‌فاکتور فقط وقتی پیشنهاد/پیش‌فاکتور صادر شده
       const qc = document.getElementById('quotationCard');
       if (qc) qc.style.display = doneSt.includes(d.status) ? '' : 'none';
+      /* v34.39.57: هدایت فرم اشتباه — تامین‌کنندهٔ ثبت‌شده در فرم استعلام خرید */
+      const rfqRedir = document.getElementById('rfqRedirectBox');
+      if (rfqRedir) {
+        if (d.status === 'redirected' && d.redirectUrl) {
+          rfqRedir.style.display = '';
+          document.getElementById('rfqRedirectLink').href = d.redirectUrl;
+          document.getElementById('dispStatus').style.color = '#7c3aed';
+        } else rfqRedir.style.display = 'none';
+      }
       document.getElementById('waLink').href = waUrl;
     }
   </script>
