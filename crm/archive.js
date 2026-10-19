@@ -306,6 +306,11 @@
       ptfCloudDelete(it.f.key, function (ok) { if (ok) done++; next(); });
     })();
   }
+  /* v34.39.56 (OFFER-STATUS-WF): تغییر وضعیت حالا فرمان ناهم‌زمان سرور است و چک
+     هم‌زمانِ هوک پایین (o.st==='lost' بلافاصله بعد از فراخوانی) دیگر نمی‌رسد؛
+     ptfOfferSetStatusCommand بعد از ACK همین تابع را صدا می‌زند. هوک قدیمی برای
+     مسیر fallback محلی سر جایش می‌ماند. */
+  window.ptfPurgeLostFiles = function (o) { if (o && o.st === 'lost') setTimeout(function () { purgeLostFiles(o); }, 400); };
 
   // هوک روی offerSetSt: باخت → پیشنهاد پاکسازی (بعد از هوک‌های قبلی petty)
   document.addEventListener('DOMContentLoaded', function () {

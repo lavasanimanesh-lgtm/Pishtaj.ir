@@ -723,6 +723,7 @@ function renderOffers() {
      پیش‌نویس → ثبت‌شده → ارسال‌شده → تاییدشده | عدم تایید (بسته؛ به CO نمی‌رسد) | درخواست اصلاح */
   var ST_TO = { draft: '📝 پیش‌نویس', registered: '📋 ثبت‌شده', sent: '📤 ارسال‌شده', approved: '✅ تاییدشده', rejected: '⛔ عدم تایید', revise: '✏️ درخواست اصلاح' };
   window.PTF_ST_TO = ST_TO;
+  window.PTF_ST_CO = ST; /* v34.39.56: برچسب CO برای audit گذار وضعیت */
   /* UI-03 (v34.7.20): تعریف تکراری `offerPostAwardLocked` از این‌جا حذف شد.
      پیش از این، همین تابع هم در سطح ماژول (بالای همین فایل) و هم این‌جا داخل renderOffers
      تعریف شده بود و هر بار رندر، `window.ptfOfferPostAwardLocked` دوباره ست می‌شد. بدنه‌ها
@@ -962,9 +963,19 @@ function offerSetSt(no, st, selEl) {
       if (selEl) selEl.value = o.st || 'draft';
       return;
     }
+    /* v34.39.56 (OFFER-STATUS-WF): تغییر وضعیت فقط از فرمان سروریِ set_offer_status —
+       ذخیرهٔ محلی+legacy sync نه گردش‌کار درخواست را بازخوانی می‌کرد نه پیام گروه
+       می‌فرستاد و ریشهٔ گزارش کارفرما بود. مسیر محلی زیر فقط وقتی ماژول فرمان
+       لود نشده باشد می‌ماند (و سرور در data_push همان‌جا گردش‌کار را اصلاح می‌کند). */
+    if (typeof window.ptfOfferSetStatusCommand === 'function') {
+      window.ptfOfferSetStatusCommand(no, st, selEl, {});
+      return;
+    }
     o.st = st;
-    o.tst = st === 'approved' ? 'approved' : st === 'rejected' ? 'rejected' : st === 'revise' ? 'revise' : (st === 'sent' ? 'sent' : o.tst); /* سازگاری گردش کار workflow.js */
-    o.stAt = faDateTime(); o.stBy = curSession().name;
+    /* v34.39.56: بازگشت به پیش‌نویس/ثبت‌شده باید سایهٔ tst را هم پاک کند (موتور tst||st می‌خواند) */
+    o.tst = (st === 'approved' || st === 'rejected' || st === 'revise' || st === 'sent') ? st : ''; /* سازگاری گردش کار workflow.js */
+    o.stAt = faDateTime(); o.stBy = curSession().name; o.stByUser = curSession().user || '';
+    o.stUpdatedAtISO = new Date().toISOString(); o.updatedAtISO = o.stUpdatedAtISO;
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     audit('پیشنهادها', 'وضعیت پیشنهاد فنی ' + no + ' → ' + ((window.PTF_ST_TO || {})[st] || st), no);
     addLog('وضعیت ' + no + ' → ' + st);
@@ -982,6 +993,9 @@ function offerSetSt(no, st, selEl) {
     o.st = 'won';
     o.wonAt = faDateTime();
     o.wonBy = curSession().name;
+    /* v34.39.56: مهر یکدست گذار وضعیت (فقط fallback — مسیر اصلی win_offer سروری است) */
+    o.stAt = o.wonAt; o.stBy = o.wonBy; o.stByUser = curSession().user || '';
+    o.stUpdatedAtISO = new Date().toISOString(); o.updatedAtISO = o.stUpdatedAtISO;
     /* v31.7.13 US-OFF-MARGIN-ANL: انجماد حاشیه لحظه بسته‌شدن — ویرایش بعدی آمار تحلیلگر را خراب نکند */
     try { o.marginAtClose = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(o) : null; } catch (eMC) {}
     /* v31.7.21 US-OFF-ALT: گزینه‌های موازی همین درخواست (اروپایی/چینی و…) با برد یکی، با تایید کاربر بازنده می‌شوند */
@@ -991,6 +1005,8 @@ function offerSetSt(no, st, selEl) {
         if (_sib.length && confirm('⑂ ' + _sib.length + ' پیشنهاد موازی دیگر برای همین درخواست باز است (' + _sib.map(function (x) { return x.no; }).join('، ') + ').\n\nآیا همه به وضعیت «بازنده» بروند؟ (آمار تحلیلگر دقیق می‌ماند)')) {
           _sib.forEach(function (x) {
             x.st = 'lost'; x.lostAt = faDateTime();
+            x.stAt = x.lostAt; x.stBy = curSession().name; x.stByUser = curSession().user || '';
+            x.stUpdatedAtISO = new Date().toISOString(); x.updatedAtISO = x.stUpdatedAtISO;
             try { x.marginAtClose = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(x) : null; } catch (eML2) {}
           });
           try { audit('پیشنهادها', 'بازنده‌شدن خودکار ' + _sib.length + ' گزینه موازی پس از برد ' + o.no, o.no); } catch (eAu) {}
@@ -1004,11 +1020,24 @@ function offerSetSt(no, st, selEl) {
     renderOffers();
     return;
   }
+  /* v34.39.56 (OFFER-STATUS-WF): همین بلوک دقیقاً صحنهٔ گزارش کارفرما بود — فقط
+     o.st عوض و در legacy sync ذخیره می‌شد؛ نه مهر، نه حسابرسی، نه رندر، و سرور
+     برایش هیچ‌وقت گردش‌کار/پیام نمی‌ساخت. حالا اول فرمان سروری؛ مسیر محلی فقط
+     fallback وقتی ماژول فرمان لود نشده باشد. */
+  if (typeof window.ptfOfferSetStatusCommand === 'function') {
+    window.ptfOfferSetStatusCommand(no, st, selEl, {});
+    return;
+  }
   o.st = st;
   /* v31.7.13: باخت هم لحظه بسته‌شدن snapshot می‌گیرد */
   if (st === 'lost') { try { o.marginAtClose = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(o) : null; o.lostAt = faDateTime(); } catch (eML) {} }
+  else if (o.lostAt) { delete o.lostAt; delete o.marginAtClose; }
+  o.stAt = faDateTime(); o.stBy = curSession().name; o.stByUser = curSession().user || '';
+  o.stUpdatedAtISO = new Date().toISOString(); o.updatedAtISO = o.stUpdatedAtISO;
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
+  audit('پیشنهادها', 'وضعیت پیشنهاد ' + no + ' → ' + ((window.PTF_ST_CO || {})[st] || st), no);
   addLog('وضعیت ' + no + ' → ' + st);
+  renderOffers();
 }
 
 /* ===== v13.6 (US-322 تکمیلی): CO برنده → دیگر پرونده در «بایگانی» نمی‌سازد.
@@ -1265,11 +1294,18 @@ function ptfOfferDelDo(no) {
   } catch (eArc) {}
   if (target && target.inqNo) {
     var inqNo = target.inqNo;
-    var otherOffs = rem.filter(function(o){ return o.inqNo === inqNo; });
-    if (!otherOffs.length) {
-      var rfqs = getData('ptf_crm_rfqs');
-      var r = rfqs.filter(function(x){ return x.cd === inqNo || x.inqNo === inqNo; })[0];
-      if (r) { r.st = 'st1'; r.stxt = '🔴 دریافت اولیه'; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs); }
+    var rfqs0 = getData('ptf_crm_rfqs');
+    var r0 = rfqs0.filter(function(x){ return x.cd === inqNo || x.inqNo === inqNo; })[0];
+    /* v34.39.56 (OFFER-STATUS-WF): «پیشنهاد دیگری نمانده؟» باید هر دو شناسهٔ درخواست
+       را ببیند (پیشنهاد خواهر ممکن است با cd لینک شده باشد و این یکی با inqNo) و
+       نسخهٔ همراه ارزی حذف‌شده/مانده وضعیت تجاری نیست. */
+    var aliasSet = {}; [inqNo, r0 && r0.cd, r0 && r0.inqNo].forEach(function (a) { a = String(a || '').trim(); if (a) aliasSet[a] = true; });
+    var otherOffs = rem.filter(function(o){ return aliasSet[String(o.inqNo || '').trim()] && !String(o.rialOf || '').trim() && !String(o.fxOf || '').trim(); });
+    if (!otherOffs.length && r0) {
+      /* وضعیت دستی به st1 برمی‌گردد (رفتار تاریخی) ولی stxt دست نمی‌خورد: برچسب
+         گردش‌کار مال سرور است و wfRefresh بلافاصله بعد همین‌جا مقدار درستش را می‌نویسد. */
+      r0.st = 'st1'; r0.stUpdatedAtISO = new Date().toISOString();
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs0, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs0);
     }
   }
   renderOffers();
@@ -3445,6 +3481,13 @@ function offerSave() {
   if (!o.items.length) { alert('حداقل یک ردیف کالا لازم است'); return; }
   offEnsureOfferLineIds(o.items, o.no);
   o.updatedAtISO = new Date().toISOString();
+  /* v34.39.56 (OFFER-STATUS-WF): اگر وضعیت در همین ویرایش عوض شده (مثلاً ساخت
+     رویژن ⇒ revise)، مهر گذار وضعیت هم تازه شود تا merge چنددستگاهی نسخهٔ درست
+     را برنده بداند و وضعیت در دستگاه دیگر به عقب برنگردد. */
+  if (_savedLock && String(_savedLock.st || '') !== String(o.st || '')) {
+    o.stAt = faDateTime(); o.stBy = curSession().name; o.stByUser = curSession().user || '';
+    o.stUpdatedAtISO = o.updatedAtISO;
+  }
   var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === o.buyerCd; })[0];
   if (c) o.buyerCo = c.coEn || c.co;
 

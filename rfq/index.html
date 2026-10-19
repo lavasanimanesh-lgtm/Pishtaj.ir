@@ -344,6 +344,28 @@
         <p>دریافت آنی پیشنهاد فنی و مالی جهت تجهیزات پایپینگ، برق صنعتی و ابزار دقیق</p>
       </div>
 
+      <!-- v34.39.57 (WRONG-FORM-REDIRECT): دوراهی هدف — تامین‌کننده قبل از ثبت اشتباه هدایت می‌شود -->
+      <div id="ptfPurposeGate" style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:16px;padding:16px 18px;margin:0 0 18px">
+        <div style="font-weight:900;font-size:15px;margin-bottom:10px">🎯 هدف شما از این فرم چیست؟</div>
+        <label style="display:flex;gap:8px;align-items:flex-start;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font-size:13.5px;line-height:1.9">
+          <input type="radio" name="ptfPurpose" value="buyer" checked style="margin-top:6px">
+          <span><b>🛒 خریدار / کارفرما هستم</b> — برای پروژه‌ام استعلام قیمت تجهیزات می‌خواهم. (همین فرم)</span>
+        </label>
+        <label style="display:flex;gap:8px;align-items:flex-start;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;cursor:pointer;font-size:13.5px;line-height:1.9">
+          <input type="radio" name="ptfPurpose" value="seller" style="margin-top:6px">
+          <span><b>🤝 تامین‌کننده / فروشنده هستم</b> — می‌خواهم کالا، برند یا موجودی انبارم را به این شرکت عرضه کنم.</span>
+        </label>
+        <div id="ptfSellerCard" style="display:none;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:14px;margin-top:10px;font-size:13.5px;line-height:2">
+          همکار گرامی، این فرم ویژهٔ <b>خریداران و کارفرمایان</b> است. ثبت‌نام تامین‌کنندگان و انبارداران در سامانهٔ جداگانه انجام می‌شود تا رزومه، برندها و موجودی شما مستقیم به واحد سورسینگ برسد.
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <a id="ptfGoSupplier" href="/supplier/" style="background:#7c3aed;color:#fff;padding:9px 16px;border-radius:10px;font-weight:800;text-decoration:none">🤝 انتقال به ثبت‌نام تامین‌کنندگان ←</a>
+            <button type="button" id="ptfBackBuyer" style="background:#fff;border:1px solid #cbd5e1;padding:9px 14px;border-radius:10px;cursor:pointer">نه، خریدار هستم</button>
+          </div>
+          <small style="color:#64748b">اطلاعاتی که تا اینجا در این فرم نوشته‌اید خودکار به فرم تامین‌کنندگان منتقل می‌شود.</small>
+        </div>
+      </div>
+      <div id="ptfPrefillNote" style="display:none;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:13px;color:#065f46">✅ اطلاعات شما از ثبت قبلی منتقل و در فرم پر شد؛ فقط بررسی و ارسال کنید.</div>
+
       <div class="stepper">
         <div class="step active" id="st-1"><div class="step-circle">۱</div><div class="step-label">انتخاب تجهیزات</div></div>
         <div class="step" id="st-2"><div class="step-circle">۲</div><div class="step-label">مشخصات فنی و MTO</div></div>
@@ -352,6 +374,7 @@
 
       <form id="rfqWizardForm" action="../api/crm.php?action=add_rfq_site" method="post" enctype="multipart/form-data">
         <input type="hidden" name="category" id="hiddenCategory" value="پایپینگ، لوله، فلنج و فیتینگ">
+        <input type="hidden" name="fromCode" id="fromCodeInput" value="">
         
         <!-- Step 1 -->
         <div class="step-content active" id="s-1">
@@ -762,6 +785,65 @@
     } catch(e){}
   })();
   </script>
+<script>
+  /* v34.39.57 (WRONG-FORM-REDIRECT): دوراهی هدف + پیش‌پرکردن از فرم/رکورد اشتباه */
+  (function () {
+    try {
+      var params = new URLSearchParams(location.search);
+      function val(id) { var e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }
+      function setVal(id, v) { var e = document.getElementById(id); if (e && v && !String(e.value || '').trim()) e.value = v; }
+      function showPrefillNote() { var n = document.getElementById('ptfPrefillNote'); if (n) n.style.display = 'block'; }
+      // انتقال از دوراهی فرم تامین‌کننده (مقادیر در URL)
+      var carried = ['company', 'name', 'phone', 'email', 'message'].some(function (k) { return params.get(k); });
+      if (carried) {
+        setVal('companyInput', params.get('company')); setVal('nameInput', params.get('name'));
+        setVal('phoneInput', params.get('phone')); setVal('emailInput', params.get('email'));
+        setVal('messageInput', params.get('message')); setVal('vendorInput', params.get('brands'));
+        var fc1 = document.getElementById('fromCodeInput'); if (fc1) fc1.value = params.get('from') || 'gate';
+        showPrefillNote();
+      }
+      // لینک هدایت پیامک/رهگیری (?from=VEN-..&t=..) — واکشی امن از رکورد مبدأ
+      var from = params.get('from'), tok = params.get('t');
+      if (from && tok) {
+        fetch('../api/crm.php?action=prefill_from&type=supplier&code=' + encodeURIComponent(from) + '&t=' + encodeURIComponent(tok))
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d || !d.ok || !d.fields) return;
+            setVal('companyInput', d.fields.company); setVal('nameInput', d.fields.name);
+            setVal('phoneInput', d.fields.phone); setVal('emailInput', d.fields.email);
+            setVal('messageInput', d.fields.message); setVal('vendorInput', d.fields.brands);
+            var fc = document.getElementById('fromCodeInput'); if (fc) fc.value = from;
+            showPrefillNote();
+          }).catch(function () {});
+      }
+      // دوراهی: فروشنده → کارت انتقال (فرم خرید پنهان می‌شود تا ثبت اشتباه رخ ندهد)
+      var form = document.getElementById('rfqWizardForm');
+      var stepper = document.querySelector('.stepper');
+      var card = document.getElementById('ptfSellerCard');
+      function applyPurpose(v) {
+        var seller = v === 'seller';
+        if (card) card.style.display = seller ? 'block' : 'none';
+        if (form) form.style.display = seller ? 'none' : '';
+        if (stepper) stepper.style.display = seller ? 'none' : '';
+        if (seller) {
+          var q = new URLSearchParams();
+          [['company', 'companyInput'], ['name', 'nameInput'], ['phone', 'phoneInput'], ['email', 'emailInput'], ['message', 'messageInput'], ['brands', 'vendorInput']].forEach(function (p) {
+            var x = val(p[1]); if (x) q.set(p[0], x.slice(0, 600));
+          });
+          q.set('from', 'gate');
+          var a = document.getElementById('ptfGoSupplier'); if (a) a.href = '/supplier/?' + q.toString();
+        }
+      }
+      document.querySelectorAll('input[name="ptfPurpose"]').forEach(function (r) {
+        r.addEventListener('change', function () { applyPurpose(r.value); });
+      });
+      var back = document.getElementById('ptfBackBuyer');
+      if (back) back.addEventListener('click', function () {
+        var b = document.querySelector('input[name="ptfPurpose"][value="buyer"]'); if (b) b.checked = true; applyPurpose('buyer');
+      });
+    } catch (e) {}
+  })();
+</script>
 <script src="../assets/js/ptf-metrics.js" defer></script>
 <script src="../assets/js/ptf-discover.js?v=20260919" defer></script>
 <script defer src="../assets/js/ptf-analytics.js"></script>

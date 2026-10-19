@@ -71,7 +71,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.54';
+const SD_SERVICE_VERSION = '34.39.57';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -805,8 +805,28 @@ function sd_rfq_matches_inquiry(array $rfq, string $inqNo): bool {
     return $inqNo !== '' && ((string)($rfq['cd'] ?? '') === $inqNo || (string)($rfq['inqNo'] ?? '') === $inqNo);
 }
 function sd_workflow_label(string $wf): string {
-    $labels=['WF10'=>'📥 دریافت اولیه','WF20'=>'🔧 پیشنهاد فنی صادر شد','WF30'=>'⏳ منتظر پاسخ کارفرما (فنی)','WF35'=>'✏️ در حال صدور پیشنهاد اصلاحی (فنی)','WF40'=>'💰 منتظر صدور پیشنهاد مالی','WF50'=>'💵 پیشنهاد مالی صادر شد','WF55'=>'✏️ در حال اصلاح پیشنهاد مالی','WF60'=>'⏳ منتظر پاسخ کارفرما (مالی)','WF70'=>'🏗 در حال تامین','WF80'=>'📦 تحویل شده','WF85'=>'✅ مختومه (تسویه)','WF90'=>'🗂 بایگانی — عدم تایید فنی','WF91'=>'🗂 بایگانی — بازنده مالی'];
-    return $labels[$wf] ?? $wf;
+    /* v34.39.56 (OFFER-STATUS-WF): برچسب‌ها و موتور گردش‌کار یک مرجع واحد در
+       rfq-notify-lib.php دارند تا sales-domain و data_push (crm.php) هرگز واگرا نشوند. */
+    return ptf_rfq_workflow_label($wf);
+}
+/* نام نمایشی کاربر برای wfLog/پیام گروه — username توکن، نام شخص نیست.
+   (گزارش کارفرما: پیام بات انجام‌دهنده را اشتباه/ناخوانا نشان می‌داد.) */
+function sd_actor_label(string $user): string {
+    static $users = null;
+    if ($users === null) $users = sd_read('ptf_crm_users');
+    return ptf_rfq_notify_resolve_actor($user, $users);
+}
+/* projects/invoices فقط برای CO برنده (WF80/WF85) لازم‌اند — خواندن تنبل. */
+function sd_wf_delivery_data(array $aliases, array $offers): array {
+    $set = [];
+    foreach ($aliases as $a) { $a = trim((string)$a); if ($a !== '') $set[$a] = true; }
+    foreach ($offers as $o) {
+        if (!is_array($o)) continue;
+        if (!in_array(strtoupper(trim((string)($o['kind'] ?? ''))), ['CO', 'TC'], true)) continue;
+        if (strtolower(trim((string)($o['st'] ?? ''))) !== 'won') continue;
+        if (isset($set[trim((string)($o['inqNo'] ?? ''))])) return [sd_read('ptf_crm_projects'), sd_read('ptf_crm_invoices')];
+    }
+    return [[], []];
 }
 /* v34.39.55 (RFQ-WF-ORDER — RCA 2026-۱۰-۱۳): «آخرین» CO/TO باید با یک ترتیبِ کلِ
    پایدار انتخاب شود، نه با جایگاه آرایه. ترتیب ptf_crm_offers قرارداد ندارد
@@ -829,9 +849,15 @@ function sd_rfq_workflow_server_owned(array $row, array $prev, string $user, ?ar
         ptf_rfq_workflow_preserve_row($row, $prev);
         return $row;
     }
-    $inqNo = trim((string)($row['inqNo'] ?? ''));
-    if ($inqNo === '') $inqNo = trim((string)($row['cd'] ?? ''));
-    $wf = sd_workflow_for_inquiry($inqNo, sd_read('ptf_crm_offers'));
+    /* v34.39.56 (OFFER-STATUS-WF — ریشهٔ مستقیم گزارش کارفرما): اینجا فقط «یک»
+       شناسه (inqNo اگر پر بود، وگرنه cd) به موتور داده می‌شد؛ ولی پیشنهادِ ساخته‌شده
+       از صف درخواست‌ها inqNo=cd سیستمی دارد (offerFromRfq). هر upsert روی RFQای که
+       شمارهٔ کارفرما داشت، موتور را با شناسهٔ اشتباه صدا می‌زد ⇒ «پیشنهادی نیست» ⇒
+       WF50 به WF10 (دریافت اولیه) سقوط می‌کرد و همان به گروه اعلام می‌شد. هر دو
+       شناسه همیشه با هم داده می‌شوند. */
+    $aliases = ptf_rfq_workflow_aliases($row);
+    if (!$aliases) $aliases = ptf_rfq_workflow_aliases($prev);
+    $wf = sd_workflow_for_inquiry($aliases[0] ?? '', sd_read('ptf_crm_offers'), $aliases);
     $changed = (string)($prev['wf'] ?? '') !== $wf;
     $row['wf'] = $wf;
     $row['stxt'] = sd_workflow_label($wf);
@@ -858,55 +884,26 @@ function sd_rfq_workflow_sync_for_offers(array $offers, array $rfqs, array $inqN
     }
     return $hit ? $rfqs : null;
 }
+/* v34.39.56: بدنهٔ موتور به ptf_offer_wf_rank در rfq-notify-lib.php منتقل شد؛
+   این نام‌ها برای سازگاری فراخواننده‌های موجود delegate می‌مانند. */
 function sd_offer_wf_rank(array $offer): array {
-    $stamp='';
-    foreach(['serverRegisteredAt','registeredAtISO','updatedAtISO','createdAtISO'] as $field){
-        $value=trim((string)($offer[$field]??''));
-        if($value!==''){$stamp=$value;break;}
-    }
-    $no=trim((string)($offer['no']??''));
-    $tail=0;
-    if(preg_match('/(\d+)\s*$/u',$no,$m))$tail=(int)$m[1];
-    return [$stamp,$tail,$no];
+    return ptf_offer_wf_rank($offer);
 }
 function sd_offer_wf_rank_higher(array $candidate, array $current): bool {
-    for($i=0;$i<3;$i++){
-        if($candidate[$i]===$current[$i])continue;
-        if($i===0){ /* مهر خالی همیشه قدیمی‌تر از مهرِ دار است */
-            if($candidate[$i]==='')return false;
-            if($current[$i]==='')return true;
-        }
-        return $candidate[$i]>$current[$i];
-    }
-    return false;
+    return ptf_offer_wf_rank_higher($candidate, $current);
 }
-function sd_workflow_for_inquiry(string $inqNo, array $offers): string {
-    $lastCo=null;$lastTo=null;$coRank=null;$toRank=null;
-    foreach($offers as $offer){
-        if(!is_array($offer)||(string)($offer['inqNo']??'')!==$inqNo)continue;
-        $kind=strtoupper((string)($offer['kind']??''));
-        $isCo=in_array($kind,['CO','TC'],true);
-        if(!$isCo&&$kind!=='TO')continue;
-        $rank=sd_offer_wf_rank($offer);
-        if($isCo){if($coRank===null||sd_offer_wf_rank_higher($rank,$coRank)){$lastCo=$offer;$coRank=$rank;}}
-        elseif($toRank===null||sd_offer_wf_rank_higher($rank,$toRank)){$lastTo=$offer;$toRank=$rank;}
-    }
-    if($lastCo!==null){$st=(string)($lastCo['st']??'draft');if($st==='won')return'WF70';if($st==='lost')return'WF91';if($st==='revise')return'WF55';if($st==='sent')return'WF60';return'WF50';}
-    if($lastTo!==null){$st=(string)($lastTo['tst']??$lastTo['st']??'draft');if($st==='rejected'||$st==='lost')return'WF90';if($st==='approved'||$st==='won')return'WF40';if($st==='revise')return'WF35';if($st==='sent')return'WF30';return'WF20';}
-    return'WF10';
+function sd_workflow_for_inquiry(string $inqNo, array $offers, array $aliases = []): string {
+    $aliases[] = $inqNo;
+    [$projects, $invoices] = sd_wf_delivery_data($aliases, $offers);
+    return ptf_rfq_workflow_compute($aliases, $offers, $projects, $invoices);
 }
 function sd_apply_offer_workflow(array &$rfqs,array $offers,string $inqNo,string $user,string $event): array {
     if($inqNo==='')return ['found'=>false,'wf'=>''];
     foreach($rfqs as &$rfq){
         if(!is_array($rfq)||!sd_rfq_matches_inquiry($rfq,$inqNo))continue;
-        $wf=sd_workflow_for_inquiry($inqNo,$offers);$changed=(string)($rfq['wf']??'')!==$wf;
-        $rfq['wf']=$wf;$rfq['stxt']=sd_workflow_label($wf);
-        if($changed){
-            $rfq['wfUpdatedAtISO']=sd_now();
-            if(!isset($rfq['wfLog'])||!is_array($rfq['wfLog']))$rfq['wfLog']=[];
-            $rfq['wfLog'][]=['t'=>sd_now(),'by'=>$user,'wf'=>$wf,'ev'=>$event];
-        }
-        $id=(string)($rfq['_id']??$rfq['cd']??'');unset($rfq);return ['found'=>true,'rfqId'=>$id,'wf'=>$wf,'changed'=>$changed];
+        [$projects,$invoices]=sd_wf_delivery_data(ptf_rfq_workflow_aliases($rfq),$offers);
+        $changed=ptf_rfq_workflow_apply_row($rfq,$offers,$projects,$invoices,$user,$event,sd_now());
+        $wf=(string)($rfq['wf']??'');$id=(string)($rfq['_id']??$rfq['cd']??'');unset($rfq);return ['found'=>true,'rfqId'=>$id,'wf'=>$wf,'changed'=>$changed];
     }unset($rfq);
     return ['found'=>false,'wf'=>''];
 }
@@ -1188,8 +1185,10 @@ function sd_commit(array $changes, array $context): int {
        Restores/import-style repair actions must not announce historical rows as new. */
     if (isset($changes['ptf_crm_rfqs']) && is_array($changes['ptf_crm_rfqs']) && ptf_rfq_notify_enabled()
         && !in_array((string)($context['action'] ?? ''), ['entity_restore', 'purge_test_data'], true)) {
+        /* v34.39.56: پیام گروه نام شخص را می‌گوید نه username توکن را؛ مالک فرمان
+           (همان کاربری که این commit را فرستاده) انجام‌دهنده است. */
         $record['rfqNotifications'] = ptf_rfq_notify_events(sd_read('ptf_crm_rfqs'), $changes['ptf_crm_rfqs'],
-            'crm', (string)($context['owner'] ?? ''), 'command:' . $fingerprint);
+            'crm', ptf_rfq_notify_resolve_actor((string)($context['owner'] ?? ''), sd_read('ptf_crm_users')), 'command:' . $fingerprint);
     }
     $walJson = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($walJson === false || file_put_contents($tmp, $walJson, LOCK_EX) === false) throw new RuntimeException('transaction_wal_write_failed');
@@ -2004,7 +2003,7 @@ try {
         /* فرم می‌تواند برای شمارهٔ دستی RFQ یک رکورد حداقلی ساخته باشد؛ همان candidate
            فقط وقتی هویت آن دقیقاً با inqNo فرمان می‌خواند، داخل همین commit پذیرفته می‌شود. */
         if($rfqIndex<0&&$inqNo!==''&&is_array($body['rfq']??null)){$candidate=$body['rfq'];if(sd_rfq_matches_inquiry($candidate,$inqNo)){array_unshift($rfqs,$candidate);$rfqIndex=0;}}
-        $wfResult=sd_apply_offer_workflow($rfqs,$offers,$inqNo,$user,(strtoupper((string)($incoming['kind']??''))==='TO'?'صدور پیشنهاد فنی ':'صدور پیشنهاد مالی ').$no);
+        $wfResult=sd_apply_offer_workflow($rfqs,$offers,$inqNo,sd_actor_label($user),(strtoupper((string)($incoming['kind']??''))==='TO'?'صدور پیشنهاد فنی ':'صدور پیشنهاد مالی ').$no);
         $changes=['ptf_crm_offers'=>$offers];if(!empty($wfResult['found']))$changes['ptf_crm_rfqs']=$rfqs;
         $result=['offerId'=>$incoming['_id'],'offerNo'=>$no,'created'=>$target<0,'recoveredPartialCommit'=>$crashRecovery,'rfqId'=>$wfResult['rfqId']??'','wf'=>$wfResult['wf']??''];
     }
@@ -2040,6 +2039,8 @@ try {
         if (count($existing) > 1) sd_out(['ok'=>false,'error'=>'duplicate_sales_cases','caseIds'=>array_map(function($i)use($cases){return $cases[$i]['_id']??$cases[$i]['cd']??'';},$existing)],409);
         $offer['priorStatus'] = $offer['priorStatus'] ?? ($offer['st'] ?? 'sent');
         $offer['st'] = 'won'; $offer['status'] = 'won'; $offer['wonAtISO'] = sd_now(); $offer['wonBy'] = $user;
+        /* v34.39.56 (OFFER-STATUS-WF): مهر یکدست گذار وضعیت برای merge زمان‌محور کلاینت */
+        $offer['stUpdatedAtISO'] = sd_now(); $offer['updatedAtISO'] = sd_now(); $offer['stByUser'] = $user; $offer['stBy'] = sd_actor_label($user);
         $offer['wonRevisionSnapshot'] = ['rev'=>(int)($offer['rev']??0),'lockedAt'=>sd_now(),'lockedBy'=>$user,'items'=>$offer['items']??[],'terms'=>$offer['terms']??[],'currency'=>$offer['currency']??'IRR','total'=>sd_offer_total($offer)];
         if ($attachCaseId !== '') {
             $ci = sd_find_case_index($cases, $attachCaseId);
@@ -2061,6 +2062,12 @@ try {
             array_unshift($cases, $case); $result['caseId'] = $case['_id']; $result['created'] = true;
         }
         $offers[$oi] = $offer; $changes = ['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases];
+        /* v34.39.56 (OFFER-STATUS-WF): برد هم گذار گردش‌کار است (WF60→WF70) و باید در
+           همان commit روی درخواست بنشیند و اعلام شود — پیش از این win_offer اصلاً
+           ptf_crm_rfqs را لمس نمی‌کرد و وضعیت درخواست تا یک نوشتنِ نامرتبطِ بعدی
+           «منتظر پاسخ کارفرما (مالی)» می‌ماند. */
+        $wfWin = sd_rfq_workflow_sync_for_offers($offers, $rfqs, [(string)($offer['inqNo'] ?? '')], sd_actor_label($user), 'برنده شدن پیشنهاد ' . (string)($offer['no'] ?? $no));
+        if ($wfWin !== null) $changes['ptf_crm_rfqs'] = $wfWin;
     }
     elseif ($action === 'revise_award') {
         /* P5 / v34.7.41 — رویژن همان پیشنهاد برنده از پروندهٔ فروش.
@@ -2331,7 +2338,11 @@ try {
         $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'offer','entityId'=>$offer['_id']??$no,'kind'=>'revoke_orphan_win','beforeSnapshot'=>$offer,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
         if($deleteIt){$deleted[]=['id'=>$no,'kind'=>'OFFER','label'=>($offer['kind']??'CO').' — '.($offer['buyerCo']??''),'reason'=>$reason,'by'=>$user,'iso'=>sd_now(),'snapshot'=>$offer]; array_splice($offers,$oi,1);}
         else{$offer['st']=$offer['priorStatus']??'sent';$offer['status']=$offer['st'];$offer['winRevokedAt']=sd_now();$offer['winRevokedBy']=$user;$offer['winRevokedReason']=$reason;if(isset($offer['wonRevisionSnapshot']))$offer['revokedWinSnapshot']=$offer['wonRevisionSnapshot'];unset($offer['wonAt'],$offer['wonAtISO'],$offer['wonBy'],$offer['wonRevisionSnapshot'],$offer['invRef'],$offer['amendmentOfCaseId']);$offers[$oi]=$offer;}
+        if(!$deleteIt){$offers[$oi]['stUpdatedAtISO']=sd_now();$offers[$oi]['updatedAtISO']=sd_now();$offers[$oi]['stByUser']=$user;$offers[$oi]['stBy']=sd_actor_label($user);}
         $changes=['ptf_crm_offers'=>$offers,'ptf_crm_corrections'=>$corrections,'ptf_crm_deleted_archive'=>$deleted];$result=['deleted'=>$deleteIt,'offerNo'=>$no];
+        /* v34.39.56: لغو برد/حذف پیشنهاد برندهٔ یتیم هم گردش‌کار درخواست را برمی‌گرداند */
+        $wfRevoke=sd_rfq_workflow_sync_for_offers($offers,$rfqs,[(string)($offer['inqNo']??'')],sd_actor_label($user),($deleteIt?'حذف پیشنهاد برندهٔ یتیم ':'لغو برد یتیم پیشنهاد ').$no);
+        if($wfRevoke!==null)$changes['ptf_crm_rfqs']=$wfRevoke;
     }
     elseif ($action === 'duplicate_case_merge') {
         sd_require_role(SD_OFFER_REPAIR_ROLES);
@@ -3217,7 +3228,7 @@ $row = sd_preserve_rfq_assignee($row, is_array($prev) ? $prev : [], $sanitizeSta
                    تحمیل کند — سرور همیشه از فهرست authoritative پیشنهادها بازخوانی
                    می‌کند. همان واگرداییِ کهنه پیش از این به‌عنوان «تغییر وضعیت» به
                    نام کاربر جاری به گروه اعلام می‌شد. */
-                $row = sd_rfq_workflow_server_owned($row, is_array($prev) ? $prev : [], $user, $sanitizeStats);
+                $row = sd_rfq_workflow_server_owned($row, is_array($prev) ? $prev : [], sd_actor_label($user), $sanitizeStats);
 }
                 /* v34.8.34 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
                    یعنی «تغییری نکرده»، نه «پاک». ریشهٔ حلقهٔ «کارتابل هر چند ثانیه تکرار
@@ -3251,7 +3262,7 @@ $row = sd_preserve_rfq_assignee($row, is_array($prev) ? $prev : [], $sanitizeSta
                کارِ درخواستِ مرتبط را در همان commit بازخوانی می‌کند (هم‌راستا با
                register_offer) — جایگزین نویسندهٔ کلاینتی wfRefresh. */
             if ($collection === 'ptf_crm_offers') {
-                $wfSynced = sd_rfq_workflow_sync_for_offers($rows, sd_read('ptf_crm_rfqs'), [(string)($stored['inqNo'] ?? '')], $user, 'ویرایش پیشنهاد ' . (string)($stored['no'] ?? $id));
+                $wfSynced = sd_rfq_workflow_sync_for_offers($rows, sd_read('ptf_crm_rfqs'), [(string)($stored['inqNo'] ?? '')], sd_actor_label($user), 'ویرایش پیشنهاد ' . (string)($stored['no'] ?? $id));
                 if ($wfSynced !== null) $changes['ptf_crm_rfqs'] = $wfSynced;
             }
             $result = ['collection' => $collection, 'id' => $id, 'created' => $created, 'row' => $stored, 'mode' => 'entity-command', 'sanitize' => $sanitizeStats];
@@ -3275,7 +3286,7 @@ $row = sd_preserve_rfq_assignee($row, is_array($prev) ? $prev : [], $sanitizeSta
                 /* v34.39.55 (RFQ-WF-SERVER-OWNED): حذف پیشنهاد هم گردش کار را
                    بازخوانی می‌کند — جایگزین سروریِ wfRefresh سراسریِ کلاینت. */
                 if ($collection === 'ptf_crm_offers') {
-                    $wfSynced = sd_rfq_workflow_sync_for_offers($rows, sd_read('ptf_crm_rfqs'), [$removedInqNo], $user, 'حذف پیشنهاد ' . $id);
+                    $wfSynced = sd_rfq_workflow_sync_for_offers($rows, sd_read('ptf_crm_rfqs'), [$removedInqNo], sd_actor_label($user), 'حذف پیشنهاد ' . $id);
                     if ($wfSynced !== null) $changes['ptf_crm_rfqs'] = $wfSynced;
                 }
                 $result = ['collection' => $collection, 'id' => $id, 'deleted' => true, 'mode' => 'entity-command'];
@@ -3466,6 +3477,82 @@ $row = sd_preserve_rfq_assignee($row, is_array($prev) ? $prev : [], $sanitizeSta
         }
         $changes = ['ptf_crm_deleted_archive' => $archive];
         $result = ['collection' => $collection, 'ids' => $ntIds, 'neutralized' => $neutralized, 'mode' => 'entity-command'];
+    }
+    elseif ($action === 'set_offer_status') {
+        /* v34.39.56 (OFFER-STATUS-WF — RCA 2026-۱۰-۱۹): فرمان اختصاصی تغییر وضعیت پیشنهاد.
+           ریشهٔ ماجرا: پیشنهاد هویتش no+_id است و هرگز cd نمی‌گیرد؛ ولی روتر کلاینت و
+           رجیستری entity_upsert هویت را cd می‌دانند ⇒ هر تغییر وضعیت از دراپ‌داون جلوی
+           پیشنهاد به legacyFallback و data_push سقوط می‌کرد: سرور نه گردش‌کار درخواست
+           را بازخوانی می‌کرد نه پیام می‌فرستاد، و wf اشتباهِ یک کلاینت دیگر بعداً به
+           نام آدم دیگری persist می‌شد (گزارش کارفرما). این فرمان رکورد «ذخیره‌شده» را
+           با no (و تطبیق _id برای شمارهٔ تکراری) پیدا و درجا جهش می‌دهد — عمداً
+           entity_upsert نیست چون سقف‌های sanitize آن (۶۰ آیتم/۲۰ فیلد) پیشنهاد واقعی
+           را تکه می‌کند. برد فقط از win_offer؛ لغو برد فقط از مسیر تعمیر (revoke). */
+        sd_require_role(['admin','chairman','ceo','commercial','sales','buyer','accountant','collector']);
+        $no = sd_text($body['offerNo'] ?? '', 100);
+        $oid = sd_text($body['offerId'] ?? '', 100);
+        $st = strtolower(sd_text($body['st'] ?? '', 30));
+        if ($no === '') sd_out(['ok'=>false,'error'=>'offer_number_required'], 422);
+        $hits = [];
+        foreach ($offers as $i => $o) if (is_array($o) && (string)($o['no'] ?? '') === $no) $hits[] = $i;
+        if (count($hits) === 0) sd_out(['ok'=>false,'error'=>'offer_not_found','offerNo'=>$no], 404);
+        if (count($hits) > 1) sd_out(['ok'=>false,'error'=>'duplicate_offer_no','offerNo'=>$no,'count'=>count($hits)], 409);
+        $oi = $hits[0]; $offer = $offers[$oi];
+        if ($oid !== '' && (string)($offer['_id'] ?? '') !== '' && (string)($offer['_id'] ?? '') !== $oid)
+            sd_out(['ok'=>false,'error'=>'offer_identity_mismatch','offerNo'=>$no], 409);
+        $kind = strtoupper(trim((string)($offer['kind'] ?? '')));
+        $cur = strtolower(trim((string)($offer['st'] ?? 'draft'))) ?: 'draft';
+        if ($st === 'won' && $cur !== 'won') sd_out(['ok'=>false,'error'=>'use_win_offer'], 422);
+        if ($cur === 'won' && $st !== 'won') sd_out(['ok'=>false,'error'=>'won_offer_locked'], 409);
+        $actorLabel = sd_actor_label($user);
+        if ($cur === 'won' && $st === 'won') {
+            $result = ['offerId'=>(string)($offer['_id'] ?? ''),'offerNo'=>$no,'st'=>'won','alreadyWon'=>true,
+                       'wf'=>sd_workflow_for_inquiry((string)($offer['inqNo'] ?? ''), $offers)];
+        } else {
+            $stLabelsTo = ['draft'=>'پیش‌نویس','registered'=>'ثبت‌شده','sent'=>'ارسال‌شده','approved'=>'تاییدشده','rejected'=>'رد شده','revise'=>'نیاز به اصلاح'];
+            $stLabelsCo = ['draft'=>'پیش‌نویس','sent'=>'ارسال شده','revise'=>'اصلاحیه لازم است','lost'=>'بازنده'];
+            if ($kind === 'TO') {
+                if (!isset($stLabelsTo[$st])) sd_out(['ok'=>false,'error'=>'invalid_offer_status','st'=>$st], 422);
+                $offer['st'] = $st;
+                /* tst سایهٔ نتیجهٔ فنی است (موتور tst||st می‌خواند)؛ بازگشت به پیش‌نویس/ثبت
+                   باید سایهٔ قبلی را پاک کند وگرنه رد/تاییدِ کهنه تا ابد وضعیت را قفل می‌کند. */
+                $offer['tst'] = in_array($st, ['approved','rejected','revise','sent'], true) ? $st : '';
+                if (array_key_exists('tstNote', $body)) {
+                    $offer['tstNote'] = sd_text($body['tstNote'] ?? '', 500);
+                    $offer['tstAt'] = sd_now();
+                    $offer['tstBy'] = $actorLabel;
+                }
+                $resultLabel = $stLabelsTo[$st];
+            } elseif (in_array($kind, ['CO','TC'], true)) {
+                if (!isset($stLabelsCo[$st])) sd_out(['ok'=>false,'error'=>'invalid_offer_status','st'=>$st], 422);
+                $isCompanion = trim((string)($offer['rialOf'] ?? '')) !== '' || trim((string)($offer['fxOf'] ?? '')) !== '';
+                /* نسخهٔ همراه ارزی برد/باخت مستقل ندارد (همان قفل کلاینت در هوک‌های تبدیل ارز) */
+                if ($isCompanion && $st === 'lost') sd_out(['ok'=>false,'error'=>'companion_status_locked'], 422);
+                $offer['st'] = $st;
+                if ($st === 'lost') {
+                    $offer['lostAt'] = sd_now();
+                    if (is_array($body['marginAtClose'] ?? null)
+                        && strlen((string)sd_json($body['marginAtClose'])) <= 4000)
+                        $offer['marginAtClose'] = $body['marginAtClose'];
+                } elseif ($cur === 'lost') {
+                    unset($offer['lostAt'], $offer['marginAtClose']);
+                }
+                $resultLabel = $stLabelsCo[$st];
+            } else sd_out(['ok'=>false,'error'=>'invalid_offer_kind','kind'=>$kind], 422);
+            $now = sd_now();
+            $offer['stAt'] = (isset($body['stAt']) && trim((string)$body['stAt']) !== '') ? sd_text($body['stAt'], 40) : $now;
+            $offer['stBy'] = $actorLabel;
+            $offer['stByUser'] = $user;
+            $offer['stUpdatedAtISO'] = $now;
+            $offer['updatedAtISO'] = $now;
+            $offers[$oi] = $offer;
+            $changes = ['ptf_crm_offers' => $offers];
+            $wfEvent = 'تغییر وضعیت پیشنهاد ' . $no . ' ← ' . ($resultLabel ?? $st);
+            $wfSynced = sd_rfq_workflow_sync_for_offers($offers, $rfqs, [(string)($offer['inqNo'] ?? '')], $actorLabel, $wfEvent);
+            if ($wfSynced !== null) $changes['ptf_crm_rfqs'] = $wfSynced;
+            $result = ['offerId'=>(string)($offer['_id'] ?? ''),'offerNo'=>$no,'st'=>$st,
+                       'wf'=>sd_workflow_for_inquiry((string)($offer['inqNo'] ?? ''), $offers)];
+        }
     }
     else sd_out(['ok'=>false,'error'=>'unknown_action'],404);
 

@@ -195,10 +195,33 @@
         <p>پیوستن به شبکه رسمی زنجیره تامین پروژه‌های نفت، گاز، پتروشیمی و صنایع مادر کشور</p>
       </div>
 
+      <!-- v34.39.57 (WRONG-FORM-REDIRECT): دوراهی هدف — خریدار قبل از ثبت اشتباه هدایت می‌شود -->
+      <div id="ptfPurposeGate" style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:16px;padding:16px 18px;margin:0 0 18px">
+        <div style="font-weight:900;font-size:15px;margin-bottom:10px">🎯 هدف شما از این فرم چیست؟</div>
+        <label style="display:flex;gap:8px;align-items:flex-start;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font-size:13.5px;line-height:1.9">
+          <input type="radio" name="ptfPurpose" value="seller" checked style="margin-top:6px">
+          <span><b>🤝 تامین‌کننده / فروشنده هستم</b> — می‌خواهم در شبکهٔ تامین این شرکت ثبت‌نام کنم. (همین فرم)</span>
+        </label>
+        <label style="display:flex;gap:8px;align-items:flex-start;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;cursor:pointer;font-size:13.5px;line-height:1.9">
+          <input type="radio" name="ptfPurpose" value="buyer" style="margin-top:6px">
+          <span><b>🛒 خریدار / کارفرما هستم</b> — برای پروژه‌ام استعلام قیمت تجهیزات می‌خواهم.</span>
+        </label>
+        <div id="ptfBuyerCard" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px;margin-top:10px;font-size:13.5px;line-height:2">
+          همکار گرامی، این فرم ویژهٔ <b>ثبت‌نام تامین‌کنندگان</b> است. استعلام خرید پروژه‌ای در سامانهٔ جداگانه ثبت می‌شود تا مستقیم به واحد بازرگانی برسد و پیشنهاد فنی/مالی دریافت کنید.
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <a id="ptfGoRfq" href="/rfq/" style="background:#2563eb;color:#fff;padding:9px 16px;border-radius:10px;font-weight:800;text-decoration:none">🛒 انتقال به فرم استعلام خرید ←</a>
+            <button type="button" id="ptfBackSeller" style="background:#fff;border:1px solid #cbd5e1;padding:9px 14px;border-radius:10px;cursor:pointer">نه، تامین‌کننده هستم</button>
+          </div>
+          <small style="color:#64748b">اطلاعاتی که تا اینجا در این فرم نوشته‌اید خودکار به فرم استعلام منتقل می‌شود.</small>
+        </div>
+      </div>
+      <div id="ptfPrefillNote" style="display:none;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:13px;color:#065f46">✅ اطلاعات شما از ثبت قبلی منتقل و در فرم پر شد؛ موارد باقی‌مانده (تایید پیامکی، شرایط پرداخت و مدارک) را تکمیل کنید.</div>
+
       <div class="sup-body">
         <form id="supplierForm" action="../api/crm.php?action=add_supplier" method="post" enctype="multipart/form-data">
           <input type="hidden" name="action" value="add_supplier">
           <input type="hidden" name="code" id="sCode" value="">
+          <input type="hidden" name="fromCode" id="fromCodeInput" value="">
 
           <div class="grid-2">
             <div class="field"><label>نام شرکت / فروشگاه / انبار صنعتی *:</label><input type="text" name="company" id="sComp" required placeholder="مثلاً: بازرگانی / شرکت تولیدی..."></div>
@@ -261,7 +284,7 @@
 
           <div class="field"><label for="sAttach">آپلود کاتالوگ شرکت یا لیست موجودی استاک (Excel/PDF/تصویر):</label><input type="file" name="attachment" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.zip,.rar" id="sAttach"><small id="sFileInfo" style="display:block;margin-top:5px;color:#64748b;font-size:11.5px">فرمت‌های مجاز: PDF / Word / Excel / تصویر / ZIP / RAR — حداکثر ۱۵ مگابایت. (پس از انتخاب فایل، نام و حجم آن در همین‌جا نمایش داده می‌شود.)</small></div>
 
-          <div class="field"><label>توضیحات تکمیلی (توانمندی‌های مالی، سوابق پروژه‌ای و انبارها):</label><textarea name="message" rows="3" placeholder="سوابق همکاری با پیمانکاران EPC، آدرس انبارها و توان تحویل فوری را ذکر فرمایید..."></textarea></div>
+          <div class="field"><label>توضیحات تکمیلی (توانمندی‌های مالی، سوابق پروژه‌ای و انبارها):</label><textarea name="message" id="sMsg" rows="3" placeholder="سوابق همکاری با پیمانکاران EPC، آدرس انبارها و توان تحویل فوری را ذکر فرمایید..."></textarea></div>
 
           <div class="field" id="supCaptcha" style="margin-top:10px;"></div>
           <div class="field" id="supOtp" style="margin-top:10px;"></div>
@@ -702,6 +725,63 @@
 <script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
 <script src="../assets/js/ptf-guard.js?v=34.38.6"></script>
 <script src="../assets/js/ptf-chat.js" defer></script>
+<script>
+  /* v34.39.57 (WRONG-FORM-REDIRECT): دوراهی هدف + پیش‌پرکردن از فرم/رکورد اشتباه */
+  (function () {
+    try {
+      var params = new URLSearchParams(location.search);
+      function val(id) { var e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }
+      function setVal(id, v) { var e = document.getElementById(id); if (e && v && !String(e.value || '').trim()) e.value = v; }
+      function showPrefillNote() { var n = document.getElementById('ptfPrefillNote'); if (n) n.style.display = 'block'; }
+      function applyFields(f) {
+        setVal('sComp', f.company); setVal('sName', f.name); setVal('sPhone', f.phone);
+        setVal('sEmail', f.email); setVal('sMsg', f.message); setVal('sBrands', f.brands);
+      }
+      // انتقال از دوراهی فرم استعلام (مقادیر در URL) — ?code= مسیر resubmit قدیمی دست‌نخورده می‌ماند
+      var carried = ['company', 'name', 'phone', 'email', 'message', 'brands'].some(function (k) { return params.get(k); });
+      if (carried) {
+        applyFields({ company: params.get('company'), name: params.get('name'), phone: params.get('phone'), email: params.get('email'), message: params.get('message'), brands: params.get('brands') });
+        var fc1 = document.getElementById('fromCodeInput'); if (fc1) fc1.value = params.get('from') || 'gate';
+        showPrefillNote();
+      }
+      // لینک هدایت پیامک/رهگیری (?from=RFQ-..&t=..)
+      var from = params.get('from'), tok = params.get('t');
+      if (from && tok) {
+        fetch('../api/crm.php?action=prefill_from&type=rfq&code=' + encodeURIComponent(from) + '&t=' + encodeURIComponent(tok))
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d || !d.ok || !d.fields) return;
+            applyFields(d.fields);
+            var fc = document.getElementById('fromCodeInput'); if (fc) fc.value = from;
+            showPrefillNote();
+          }).catch(function () {});
+      }
+      // دوراهی: خریدار → کارت انتقال (فرم تامین‌کننده پنهان می‌شود)
+      var form = document.getElementById('supplierForm');
+      var card = document.getElementById('ptfBuyerCard');
+      function applyPurpose(v) {
+        var buyer = v === 'buyer';
+        if (card) card.style.display = buyer ? 'block' : 'none';
+        if (form) form.style.display = buyer ? 'none' : '';
+        if (buyer) {
+          var q = new URLSearchParams();
+          [['company', 'sComp'], ['name', 'sName'], ['phone', 'sPhone'], ['email', 'sEmail'], ['message', 'sMsg'], ['brands', 'sBrands']].forEach(function (p) {
+            var x = val(p[1]); if (x) q.set(p[0], x.slice(0, 600));
+          });
+          q.set('from', 'gate');
+          var a = document.getElementById('ptfGoRfq'); if (a) a.href = '/rfq/?' + q.toString();
+        }
+      }
+      document.querySelectorAll('input[name="ptfPurpose"]').forEach(function (r) {
+        r.addEventListener('change', function () { applyPurpose(r.value); });
+      });
+      var back = document.getElementById('ptfBackSeller');
+      if (back) back.addEventListener('click', function () {
+        var b = document.querySelector('input[name="ptfPurpose"][value="seller"]'); if (b) b.checked = true; applyPurpose('seller');
+      });
+    } catch (e) {}
+  })();
+</script>
 <script src="../assets/js/ptf-metrics.js" defer></script>
 <script src="../assets/js/ptf-discover.js?v=20260919" defer></script>
 <script defer src="../assets/js/ptf-analytics.js"></script>

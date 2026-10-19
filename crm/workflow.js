@@ -53,43 +53,85 @@
       return r.cd === inqNoOrCd || (r.inqNo && r.inqNo === inqNoOrCd);
     })[0];
   }
+  /* v34.39.56 (OFFER-STATUS-WF): آینهٔ دقیق موتور واحد سرور
+     (ptf_rfq_workflow_compute در api/rfq-notify-lib.php) — tester697 هر دو را با
+     یک ماتریس مشترک اجرا و مقایسه می‌کند. واگرایی‌های قبلی که گزارش کارفرما را
+     ساختند: «اولین» پیشنهادِ آرایه به‌جای آخرین با ترتیب کل؛ تطبیق بدون trim و
+     فقط روی مقدار خام؛ kind با حروف کوچک گم می‌شد؛ نسخهٔ همراه ارزی (rialOf که
+     همیشه st=sent دارد) خودش وضعیت را تعیین می‌کرد؛ و نشان _serverStateِ
+     به‌جامانده روی رکوردِ ثبت‌شدهٔ سرور، پیشنهاد را نامرئی و وضعیت را WF10
+     («دریافت اولیه») می‌کرد. تنها قاعدهٔ اضافهٔ کلاینت: پیش‌نویسِ هنوز
+     ثبت‌نشدهٔ سرور (بدون serverRegisteredAt) «صادرشده» نیست (v34.7.39). */
+  function wfOfferRank(o) {
+    var stamp = '', f = ['serverRegisteredAt', 'registeredAtISO', 'updatedAtISO', 'createdAtISO'];
+    for (var i = 0; i < f.length; i++) { var v = String(o[f[i]] || '').trim(); if (v) { stamp = v; break; } }
+    var no = String(o.no || '').trim();
+    var m = no.match(/(\d+)\s*$/);
+    return [stamp, m ? parseInt(m[1], 10) : 0, no];
+  }
+  function wfRankHigher(a, b) {
+    for (var i = 0; i < 3; i++) {
+      if (a[i] === b[i]) continue;
+      if (i === 0) { /* مهر خالی همیشه قدیمی‌تر از مهرِ دار است */
+        if (a[i] === '') return false;
+        if (b[i] === '') return true;
+      }
+      return a[i] > b[i];
+    }
+    return false;
+  }
   function offersOf(r) {
     if (!r) return [];
+    var aliases = {};
+    [r.cd, r.inqNo, r.code].forEach(function (a) { a = String(a || '').trim(); if (a) aliases[a] = true; });
     return getData('ptf_crm_offers').filter(function (o) {
-      /* v34.7.39: پیش‌نویس command که هنوز ACK سرور ندارد «صادرشده» نیست. */
-      var confirmed = o && o._serverState !== 'pending' && o._serverState !== 'sending' && o._serverState !== 'rejected';
-      return confirmed && o.inqNo && (o.inqNo === r.inqNo || o.inqNo === r.cd);
+      if (!o || typeof o !== 'object') return false;
+      var inq = String(o.inqNo || '').trim();
+      if (!inq || !aliases[inq]) return false;
+      /* نسخهٔ همراه ارزی سند تجاری مستقل نیست؛ وضعیت از پیشنهاد اصلی می‌آید */
+      if (String(o.rialOf || '').trim() || String(o.fxOf || '').trim()) return false;
+      var unconfirmed = (o._serverState === 'pending' || o._serverState === 'sending' || o._serverState === 'rejected') && !o.serverRegisteredAt;
+      return !unconfirmed;
     });
   }
 
   /* ============ موتور: محاسبه وضعیت از رویدادها ============ */
   window.wfCompute = function (r) {
     var os = offersOf(r);
-    var tos = os.filter(function (o) { return o.kind === 'TO'; });
-    var cos = os.filter(function (o) { return o.kind === 'CO' || o.kind === 'TC'; }); // v122 US-261: TC هم‌رده مالی
-    var lastTo = tos[0], lastCo = cos[0]; // unshift → جدیدترین اول
+    var lastTo = null, lastCo = null, toRank = null, coRank = null;
+    os.forEach(function (o) {
+      var kind = String(o.kind || '').trim().toUpperCase();
+      var isCo = kind === 'CO' || kind === 'TC'; // v122 US-261: TC هم‌رده مالی
+      if (!isCo && kind !== 'TO') return;
+      var rank = wfOfferRank(o);
+      if (isCo) { if (coRank === null || wfRankHigher(rank, coRank)) { lastCo = o; coRank = rank; } }
+      else if (toRank === null || wfRankHigher(rank, toRank)) { lastTo = o; toRank = rank; }
+    });
     // مالی مقدم بر فنی
     if (lastCo) {
-      if (lastCo.st === 'won') {
-        // تحویل؟
-        var prj = getData('ptf_crm_projects').filter(function (p) { return p.offerNo === lastCo.no; })[0];
-        if (prj && (prj.state === 'done' || prj.state === 'closed' || prj.state === 'archived')) {
-          var inv = getData('ptf_crm_invoices').filter(function (v) { return v.offerNo === lastCo.no; })[0];
-          var paid = inv && (window.PTF && PTF.invPaidSum ? PTF.invPaidSum(inv) : ((inv.pays || []).concat(inv.payments || [])).reduce(function(s, p) { return s + (+p.amt || 0); }, 0)) >= (+inv.amount || 1);
-          return paid ? 'WF85' : 'WF80';
-        }
-        return 'WF70';
+      var cst = String(lastCo.st || 'draft').trim().toLowerCase() || 'draft';
+      if (cst === 'won') {
+        // تحویل؟ (هر پروژهٔ تحویل‌شدهٔ همین پیشنهاد — همان قاعدهٔ سرور)
+        var delivered = getData('ptf_crm_projects').some(function (p) {
+          return p && String(p.offerNo || '') === String(lastCo.no || '') &&
+            ['done', 'closed', 'archived'].indexOf(String(p.state || '').trim().toLowerCase()) > -1;
+        });
+        if (!delivered) return 'WF70';
+        var inv = getData('ptf_crm_invoices').filter(function (v) { return v && String(v.offerNo || '') === String(lastCo.no || ''); })[0];
+        var paid = inv && (window.PTF && PTF.invPaidSum ? PTF.invPaidSum(inv) : ((inv.pays || []).concat(inv.payments || [])).reduce(function(s, p) { return s + (+p.amt || 0); }, 0)) >= (+inv.amount || 1);
+        return paid ? 'WF85' : 'WF80';
       }
-      if (lastCo.st === 'lost') return 'WF91';
-      if (lastCo.st === 'revise') return 'WF55';
-      if (lastCo.st === 'sent') return 'WF60';
+      if (cst === 'lost') return 'WF91';
+      if (cst === 'revise') return 'WF55';
+      if (cst === 'sent') return 'WF60';
       return 'WF50'; // draft
     }
     if (lastTo) {
-      if (lastTo.tst === 'rejected' || lastTo.st === 'rejected') return 'WF90'; /* v14.3 US-367 */
-      if (lastTo.tst === 'approved' || lastTo.st === 'approved') return 'WF40';
-      if (lastTo.tst === 'revise' || lastTo.st === 'revise') return 'WF35';
-      if (lastTo.tst === 'sent' || lastTo.st === 'sent') return 'WF30';
+      var tst = String(lastTo.tst || lastTo.st || 'draft').trim().toLowerCase() || 'draft';
+      if (tst === 'rejected' || tst === 'lost') return 'WF90'; /* v14.3 US-367 */
+      if (tst === 'approved' || tst === 'won') return 'WF40';
+      if (tst === 'revise') return 'WF35';
+      if (tst === 'sent') return 'WF30';
       return 'WF20'; // draft
     }
     return 'WF10';
@@ -104,15 +146,19 @@
     if (r.wf !== wf) {
       r.wf = wf;
       r.stxt = WF[wf].lb; // سازگاری با نمایش‌های قدیمی
+      /* v34.39.56 (OFFER-STATUS-WF): مهر ISO یعنی «این wf را من همین حالا ساختم» —
+         بدون آن، مهر ورودی با مهر سرور برابر می‌ماند و سپر کهنگیِ data_push
+         (فقط مهر اکیداً بزرگ‌تر را نگه می‌دارد) مقدار اشتباه کلاینت را روی مقدار
+         درست سرور می‌نشاند؛ یکی از مسیرهای دقیق سقوط WF50←WF10. */
+      r.wfUpdatedAtISO = new Date().toISOString();
       r.wfLog = r.wfLog || [];
       r.wfLog.push({ t: faDateTime(), by: curSession().name, wf: wf, ev: evtText || '' });
-      /* v34.39.55 (RFQ-WF-SERVER-OWNED — RCA 2026-۱۰-۱۳): این ذخیره همان‌جا می‌ماند
-         (قرارداد tester442: حذف آخرین پیشنهاد باید RFQ را به WF10 برگرداند)، ولی
-         دیگر «منبع حقیقت» نیست. سرور در entity_upsert روی ptf_crm_rfqs مقدار wf را
-         از فهرست authoritative پیشنهادها بازخوانی می‌کند (sd_rfq_workflow_server_owned)،
-         پس موتور محلی (wfCompute که WF80/WF85 هم دارد و موتور سرور ندارد) دیگر
-         نمی‌تواند مقدار خودش را تحمیل کند یا وضعیت را به عقب ببرد — همان چیزی که
-         اعلان کاذب «تغییر وضعیت» به نام کاربر جاری می‌ساخت. */
+      /* v34.39.55 (RFQ-WF-SERVER-OWNED) + v34.39.56: این ذخیره همان‌جا می‌ماند (قرارداد tester442: حذف آخرین
+         پیشنهاد باید RFQ را به WF10 برگرداند)، ولی «منبع حقیقت» نیست. سرور هم در
+         entity_upsert (sd_rfq_workflow_server_owned) و هم در data_push مقدار wf را
+         از فهرست authoritative پیشنهادها با همان موتور واحد بازخوانی می‌کند — از
+         v34.39.56 شامل WF80/WF85 هم می‌شود — پس موتور محلی فقط نمایش فوری است و
+         دیگر نمی‌تواند وضعیت را به عقب ببرد یا اعلان کاذب بسازد. */
       if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
       audit('گردش کار', 'وضعیت ' + r.cd + ' → ' + WF[wf].lb + (evtText ? ' (' + evtText + ')' : ''), r.cd);
       if (typeof renderRfq === 'function') renderRfq();
@@ -161,6 +207,19 @@
       ] }, { id: 'note', label: 'یادداشت (اختیاری)' }],
       okText: 'ثبت پاسخ',
       onOk: function (v) {
+        /* v34.39.56 (OFFER-STATUS-WF): پاسخ کارفرما هم «تغییر وضعیت پیشنهاد» است و
+           از همان فرمان سروریِ set_offer_status می‌گذرد تا گردش‌کار درخواست و
+           پیام گروه در همان commit و به نام همین کاربر ثبت شود. */
+        if (typeof window.ptfOfferSetStatusCommand === 'function') {
+          window.ptfOfferSetStatusCommand(no, v.resp, null, {
+            tstNote: v.note || '',
+            onAck: function () {
+              if (v.resp === 'revise') ptfToast('✏️ TO برای اصلاح باز شد — پس از ویرایش دوباره «ارسال‌شده» کنید', 'warn');
+              if (v.resp === 'approved') ptfToast('✅ تایید فنی ثبت شد — حالا از TO پیشنهاد مالی بسازید', 'ok');
+            }
+          });
+          return;
+        }
         var offers2 = getData('ptf_crm_offers');
         var o2 = offers2.filter(function (x) { return x.no === no; })[0];
         o2.tst = v.resp;
@@ -171,6 +230,9 @@
         if (v.resp === 'approved') o2.st = 'approved';
         else if (v.resp === 'rejected') o2.st = 'rejected';
         else if (v.resp === 'revise') o2.st = 'revise';
+        /* v34.39.56: مهر گذار وضعیت — merge چنددستگاهی با همین مهر تصمیم می‌گیرد */
+        o2.stAt = o2.tstAt; o2.stBy = curSession().name; o2.stByUser = curSession().user || '';
+        o2.stUpdatedAtISO = new Date().toISOString(); o2.updatedAtISO = o2.stUpdatedAtISO;
         if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers2, { reason: 'w4' }); else setData('ptf_crm_offers', offers2);
         audit('پیشنهادها', 'پاسخ کارفرما برای ' + no + ': ' + v.resp + (v.note ? ' — ' + v.note : ''), no);
         wfRefresh(o2.inqNo, 'پاسخ کارفرما (فنی): ' + v.resp);
@@ -186,7 +248,14 @@
     var o = offers.filter(function (x) { return x.no === no; })[0];
     if (!o || o.kind !== 'CO' || o.st !== 'sent') { alert('فقط CO ارسال‌شده'); return; }
     if (!confirm('کارفرما درخواست اصلاح پیشنهاد مالی ' + no + ' را داده؟\nCO برای ویرایش باز می‌شود.')) return;
+    /* v34.39.56 (OFFER-STATUS-WF): از فرمان سروریِ واحد تغییر وضعیت */
+    if (typeof window.ptfOfferSetStatusCommand === 'function') {
+      window.ptfOfferSetStatusCommand(no, 'revise', null, {});
+      return;
+    }
     o.st = 'revise';
+    o.stAt = faDateTime(); o.stBy = curSession().name; o.stByUser = curSession().user || '';
+    o.stUpdatedAtISO = new Date().toISOString(); o.updatedAtISO = o.stUpdatedAtISO;
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     audit('پیشنهادها', 'درخواست اصلاح مالی ' + no, no);
     wfRefresh(o.inqNo, 'درخواست اصلاح مالی');
@@ -241,7 +310,12 @@
             var sel = document.getElementById('er_st');
             if (sel) {
               rfqs[i].st = sel.value;
-              rfqs[i].stxt = sel.options[sel.selectedIndex].text;
+              /* v34.39.56 (OFFER-STATUS-WF): stxt یعنی «برچسب گردش‌کار» و مال سرور است؛
+                 وضعیت دستی (st) فقط وقتی روی stxt می‌نشیند که رکورد اصلاً wf نداشته
+                 باشد (ردیف‌های میراثی). نوشتن هم‌زمان هر دو روی یک فیلد، برچسب قبلی/
+                 جدید پیام بات را وارونه می‌کرد. مهر stUpdatedAtISO مرجع merge است. */
+              if (!rfqs[i].wf) rfqs[i].stxt = sel.options[sel.selectedIndex].text;
+              rfqs[i].stUpdatedAtISO = new Date().toISOString();
             }
             break;
           }

@@ -71,10 +71,8 @@ function ptf_rfq_notify_state(array $row): string {
     $fallback = ($st === '' && $wf === 'WF10') ? ptf_rfq_notify_first($row, ['stxt','statusText']) : '';
     return json_encode([$st, $wf, $waiting, $fallback], JSON_UNESCAPED_UNICODE);
 }
-function ptf_rfq_notify_label(array $row): string {
-    $label = ptf_rfq_notify_first($row, ['stxt','statusText']);
-    if ($label !== '') return $label;
-    $labels = [
+function ptf_rfq_notify_labels(): array {
+    return [
         'st1'=>'دریافت اولیه', 'st2'=>'بررسی فنی', 'stTO'=>'صدور پیشنهاد فنی', 'stCO'=>'صدور پیشنهاد مالی',
         'st3'=>'تایید', 'st4'=>'پیش‌فاکتور', 'st5'=>'ابلاغ سفارش', 'st6'=>'آماده‌سازی', 'st7'=>'تحویل شده',
         'st8'=>'در حال تامین توسط تامین‌کننده', 'st9'=>'تحویل تامین‌کننده', 'stX'=>'لغو / مختومه',
@@ -87,8 +85,45 @@ function ptf_rfq_notify_label(array $row): string {
         'WF80'=>'تحویل شده', 'WF85'=>'مختومه (تسویه)',
         'WF90'=>'بایگانی — عدم تایید فنی', 'WF91'=>'بایگانی — بازنده مالی'
     ];
+}
+/* برچسب از روی «کد» وضعیت — نه از stxt که ممکن است از بُعد دیگر (دستی/گردش‌کار)
+   آلوده باشد. کد خالی = بدون برچسب (fallback با فراخواننده است). */
+function ptf_rfq_notify_code_label(string $code): string {
+    $code = trim($code);
+    if ($code === '') return '';
+    $labels = ptf_rfq_notify_labels();
+    return $labels[$code] ?? $code;
+}
+function ptf_rfq_notify_label(array $row): string {
+    $label = ptf_rfq_notify_first($row, ['stxt','statusText']);
+    if ($label !== '') return $label;
     $code = ptf_rfq_notify_first($row, ['wf','st','status'], 80);
-    return $labels[$code] ?? ($code ?: 'نامشخص');
+    return ptf_rfq_notify_code_label($code) ?: 'نامشخص';
+}
+/* آخرین رویداد گردش‌کارِ هم‌خوان با وضعیت جدید (برای خط «رویداد» پیام بات تا
+   گیرنده ببیند گذار دقیقاً از چه عملی آمده — مثلاً تغییر وضعیت کدام پیشنهاد). */
+function ptf_rfq_notify_last_wf_event(array $row, string $wf): string {
+    $log = is_array($row['wfLog'] ?? null) ? $row['wfLog'] : [];
+    for ($i = count($log) - 1; $i >= 0; $i--) {
+        $e = $log[$i];
+        if (!is_array($e) || (string)($e['wf'] ?? '') !== $wf) continue;
+        $ev = ptf_rfq_notify_text($e['ev'] ?? '', 160);
+        if ($ev !== '') return $ev;
+    }
+    return '';
+}
+/* نام نمایشی انجام‌دهنده از فهرست کاربران (username ← name)؛ پیام گروه باید نام
+   شخص را بگوید، نه شناسهٔ ورود را. نیافتن = همان شناسه — هرگز حدس زده نمی‌شود. */
+function ptf_rfq_notify_resolve_actor(string $actor, array $users): string {
+    $a = trim($actor);
+    if ($a === '') return '';
+    foreach ($users as $u) {
+        if (!is_array($u)) continue;
+        if (strcasecmp(trim((string)($u['username'] ?? '')), $a) !== 0) continue;
+        $name = trim((string)($u['name'] ?? ''));
+        return $name !== '' ? $name : $a;
+    }
+    return $a;
 }
 function ptf_rfq_notify_events(array $before, array $after, string $source, string $actor, string $operation, bool $creates = true): array {
     if ($operation === '') return [];
@@ -113,9 +148,40 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         $from = is_array($old) ? ptf_rfq_notify_state($old) : '';
         $to = ptf_rfq_notify_state($row);
         if ($old !== null && $from === $to) continue;
+        /* v34.39.56 (OFFER-STATUS-WF): دو بُعد وضعیت روی یک رکورد زندگی می‌کنند —
+           wf (گردش‌کار مشتق از پیشنهادها، بج جدول) و st (وضعیت دستی کانبان/رهگیری).
+           برچسب پیام باید از همان بُعدی بیاید که واقعاً عوض شده و از روی «کد» خوانده
+           شود، نه از stxt که هر دو بُعد رویش می‌نوشتند و پیام‌های قبلی/جدیدِ وارونه
+           می‌ساخت (گزارش کارفرما: «قبلی پیشنهاد مالی صادر شد، جدید دریافت اولیه»). */
+        $newWf = ptf_rfq_notify_text($row['wf'] ?? 'WF10', 80) ?: 'WF10';
+        $wfChanged = false;
+        $fromLabel = ''; $toLabel = ptf_rfq_notify_label($row);
         if ($old !== null) {
-            $fromLabel = ptf_rfq_notify_label($old);
-            $toLabel = ptf_rfq_notify_label($row);
+            $oldWf = ptf_rfq_notify_text($old['wf'] ?? 'WF10', 80) ?: 'WF10';
+            $wfChanged = $oldWf !== $newWf;
+            if ($wfChanged) {
+                $fromLabel = ptf_rfq_notify_code_label($oldWf);
+                $toLabel = ptf_rfq_notify_code_label($newWf);
+            } elseif (trim((string)($old['wf'] ?? '')) !== '' || trim((string)($row['wf'] ?? '')) !== '') {
+                /* ردیف گردش‌کاردار: stxt برچسب wf است؛ برچسب بُعد دستی باید از کدِ
+                   همان فیلدی بیاید که عوض شده (st کانبان یا status)، نه از stxt. */
+                $oldSt = ptf_rfq_notify_first($old, ['st'], 80); $newSt = ptf_rfq_notify_first($row, ['st'], 80);
+                $oldStatus = ptf_rfq_notify_first($old, ['status'], 80); $newStatus = ptf_rfq_notify_first($row, ['status'], 80);
+                if ($oldSt !== $newSt) {
+                    $fromLabel = ptf_rfq_notify_code_label($oldSt) ?: ptf_rfq_notify_label($old);
+                    $toLabel = ptf_rfq_notify_code_label($newSt) ?: ptf_rfq_notify_label($row);
+                } elseif ($oldStatus !== $newStatus) {
+                    $fromLabel = ptf_rfq_notify_code_label($oldStatus) ?: ptf_rfq_notify_label($old);
+                    $toLabel = ptf_rfq_notify_code_label($newStatus) ?: ptf_rfq_notify_label($row);
+                } else {
+                    $fromLabel = ptf_rfq_notify_code_label($oldSt ?: $oldStatus);
+                    $toLabel = ptf_rfq_notify_code_label($newSt ?: $newStatus);
+                }
+            } else {
+                /* ردیف میراثی/سایت (بدون wf): stxt/statusText خودش برچسب بُعد دستی است */
+                $fromLabel = ptf_rfq_notify_label($old);
+                $toLabel = ptf_rfq_notify_label($row);
+            }
             if ($fromLabel === $toLabel) continue;
             $cleanFrom = ptf_rfq_notify_clean_label($fromLabel);
             $cleanTo = ptf_rfq_notify_clean_label($toLabel);
@@ -139,8 +205,14 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
             $text .= "\nنام: " . ptf_rfq_notify_text($row['contact'] ?? '');
             $text .= "\nتلفن: " . ptf_rfq_notify_text($row['phone'] ?? '', 50);
         }
-        if ($old !== null) $text .= "\nوضعیت قبلی: " . ptf_rfq_notify_label($old);
-        $text .= "\nوضعیت " . ($old !== null ? 'جدید' : 'اولیه') . ': ' . ptf_rfq_notify_label($row);
+        if ($old !== null) $text .= "\nوضعیت قبلی: " . $fromLabel;
+        $text .= "\nوضعیت " . ($old !== null ? 'جدید' : 'اولیه') . ': ' . $toLabel;
+        /* گذار گردش‌کار: رویداد مولّد (مثلاً «تغییر وضعیت پیشنهاد CO-… → ارسال‌شده»)
+           از wfLog همان رکورد — پیام بدون آن قابل راستی‌آزمایی نبود. */
+        if ($wfChanged) {
+            $wfEv = ptf_rfq_notify_last_wf_event($row, $newWf);
+            if ($wfEv !== '') $text .= "\nرویداد: " . $wfEv;
+        }
         $text .= "\nانجام‌دهنده: " . (ptf_rfq_notify_text($actor, 120) ?: 'سیستم');
         $text .= "\nزمان: " . $at . ' (تهران)' . "\nمنبع: " . ($source === 'site' ? 'سایت' : 'CRM');
         /* Plain text; no parse_mode, email, attachment URL or financial amount. */
@@ -298,6 +370,143 @@ function ptf_rfq_notify_counts(?string $dir = null): array {
     $counts = ['pending'=>0, 'sending'=>0, 'sent'=>0, 'uncertain'=>0, 'failed'=>0, 'recoveryPending'=>count(glob(dirname($file) . '/.rfq-notify-recover-*.json') ?: [])];
     foreach (($state['jobs'] ?? []) as $job) { $s = (string)($job['status'] ?? ''); if (isset($counts[$s])) $counts[$s]++; }
     return $counts;
+}
+
+/* ═══ v34.39.56 (OFFER-STATUS-WF — RCA 2026-۱۰-۱۹) ═══
+   موتور «واحد» گردش‌کار درخواست. پیش از این دو پیاده‌سازی موازی بود:
+   sd_workflow_for_inquiry در sales-domain.php و wfCompute در crm/workflow.js؛
+   مسیر سوم نوشتن (data_push در crm.php) اصلاً بازخوانی نمی‌کرد. سه واگراییِ
+   اثبات‌شده با اجرای کد واقعی: ① کلاینت «اولین» CO/TO آرایه را برمی‌داشت، سرور
+   با ترتیب کل ② کلاینت WF80/WF85 می‌ساخت، سرور نه ⇒ نوسان ③ تطبیق پیشنهاد با
+   درخواست فقط روی یک شناسه بود، در حالی‌که هر درخواست دو شناسه دارد (cd سیستمی
+   + inqNo کارفرما) و پیشنهاد ممکن است هر کدام را حمل کند ⇒ «هیچ پیشنهادی نیست»
+   و سقوط به WF10 (دریافت اولیه) — همان گزارش کارفرما.
+   این توابع تنها مرجع سروری‌اند؛ sd_* در sales-domain.php روی همین‌ها delegate
+   می‌شوند و crm/workflow.js آینهٔ مستند همین قرارداد است (tester697). */
+function ptf_rfq_workflow_label_map(): array {
+    return ['WF10'=>'📥 دریافت اولیه','WF20'=>'🔧 پیشنهاد فنی صادر شد','WF30'=>'⏳ منتظر پاسخ کارفرما (فنی)','WF35'=>'✏️ در حال صدور پیشنهاد اصلاحی (فنی)','WF40'=>'💰 منتظر صدور پیشنهاد مالی','WF50'=>'💵 پیشنهاد مالی صادر شد','WF55'=>'✏️ در حال اصلاح پیشنهاد مالی','WF60'=>'⏳ منتظر پاسخ کارفرما (مالی)','WF70'=>'🏗 در حال تامین','WF80'=>'📦 تحویل شده','WF85'=>'✅ مختومه (تسویه)','WF90'=>'🗂 بایگانی — عدم تایید فنی','WF91'=>'🗂 بایگانی — بازنده مالی'];
+}
+function ptf_rfq_workflow_label(string $wf): string {
+    $labels = ptf_rfq_workflow_label_map();
+    return $labels[$wf] ?? $wf;
+}
+/* هر دو شناسهٔ درخواست — پیشنهاد با هر کدام لینک شده باشد مالِ همین درخواست است. */
+function ptf_rfq_workflow_aliases(array $rfq): array {
+    $out = [];
+    foreach (['cd', 'inqNo', 'code'] as $field) {
+        $v = trim((string)($rfq[$field] ?? ''));
+        if ($v !== '' && !in_array($v, $out, true)) $out[] = $v;
+    }
+    return $out;
+}
+/* ترتیبِ کلِ پایدار «آخرین پیشنهاد» — مهر ISO ثبت ← دنبالهٔ عددی شماره ← خود شماره.
+   (منتقل‌شده از sd_offer_wf_rank در v34.39.55؛ no یکتاست ⇒ ترتیب کامل و مستقل از جایگاه آرایه.) */
+function ptf_offer_wf_rank(array $offer): array {
+    $stamp = '';
+    foreach (['serverRegisteredAt','registeredAtISO','updatedAtISO','createdAtISO'] as $field) {
+        $value = trim((string)($offer[$field] ?? ''));
+        if ($value !== '') { $stamp = $value; break; }
+    }
+    $no = trim((string)($offer['no'] ?? ''));
+    $tail = 0;
+    if (preg_match('/(\d+)\s*$/u', $no, $m)) $tail = (int)$m[1];
+    return [$stamp, $tail, $no];
+}
+function ptf_offer_wf_rank_higher(array $candidate, array $current): bool {
+    for ($i = 0; $i < 3; $i++) {
+        if ($candidate[$i] === $current[$i]) continue;
+        if ($i === 0) { /* مهر خالی همیشه قدیمی‌تر از مهرِ دار است */
+            if ($candidate[$i] === '') return false;
+            if ($current[$i] === '') return true;
+        }
+        return $candidate[$i] > $current[$i];
+    }
+    return false;
+}
+function ptf_rfq_wf_num($value): float {
+    if (is_int($value) || is_float($value)) return (float)$value;
+    $s = strtr((string)$value, ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
+    $s = (string)preg_replace('/[^0-9.\-]/', '', $s);
+    return is_numeric($s) ? (float)$s : 0.0;
+}
+/* جمع وصولی فاکتور برای WF85 — آینهٔ PTF.invPaidSum (finance-helpers.js) بدون
+   لایهٔ بازسازی محلی PTF.ar: پرداخت‌های فعالِ میراثی + تخصیص سروریِ روی خود سند.
+   پرداخت ابطالی/مهاجرتشده به رسید پرونده (fromAdvance/migratedToReceiptId/
+   financialProjectionDisabled) شمرده نمی‌شود؛ سهم آن‌ها در allocatedBase/Vat است. */
+function ptf_invoice_paid_sum(array $inv): float {
+    $sum = 0.0;
+    foreach (['payments', 'pays'] as $key) {
+        foreach ((is_array($inv[$key] ?? null) ? $inv[$key] : []) as $p) {
+            if (!is_array($p)) continue;
+            $status = strtolower(trim((string)($p['status'] ?? '')));
+            if ($status === 'void' || $status === 'reversal' || !empty($p['void'])) continue;
+            if (!empty($p['fromAdvance']) || !empty($p['migratedToReceiptId']) || !empty($p['financialProjectionDisabled'])) continue;
+            $sum += ptf_rfq_wf_num($p['amt'] ?? 0);
+        }
+    }
+    return $sum + ptf_rfq_wf_num($inv['allocatedBase'] ?? 0) + ptf_rfq_wf_num($inv['allocatedVat'] ?? 0);
+}
+/* محاسبهٔ خالص وضعیت از رویدادها. $aliases: شناسه‌های درخواست؛ پیشنهادِ نسخهٔ
+   همراه (rialOf/fxOf) سند تجاری مستقل نیست و در تعیین وضعیت شمرده نمی‌شود —
+   وضعیت از پیشنهاد اصلی می‌آید (همان قاعدهٔ کانبان و هوک‌های تبدیل ارز). */
+function ptf_rfq_workflow_compute(array $aliases, array $offers, array $projects = [], array $invoices = []): string {
+    $aliasSet = [];
+    foreach ($aliases as $a) { $a = trim((string)$a); if ($a !== '') $aliasSet[$a] = true; }
+    if (!$aliasSet) return 'WF10';
+    $lastCo = null; $lastTo = null; $coRank = null; $toRank = null;
+    foreach ($offers as $offer) {
+        if (!is_array($offer)) continue;
+        $inq = trim((string)($offer['inqNo'] ?? ''));
+        if ($inq === '' || !isset($aliasSet[$inq])) continue;
+        if (trim((string)($offer['rialOf'] ?? '')) !== '' || trim((string)($offer['fxOf'] ?? '')) !== '') continue;
+        $kind = strtoupper(trim((string)($offer['kind'] ?? '')));
+        $isCo = in_array($kind, ['CO', 'TC'], true);
+        if (!$isCo && $kind !== 'TO') continue;
+        $rank = ptf_offer_wf_rank($offer);
+        if ($isCo) { if ($coRank === null || ptf_offer_wf_rank_higher($rank, $coRank)) { $lastCo = $offer; $coRank = $rank; } }
+        elseif ($toRank === null || ptf_offer_wf_rank_higher($rank, $toRank)) { $lastTo = $offer; $toRank = $rank; }
+    }
+    if ($lastCo !== null) {
+        $st = strtolower(trim((string)($lastCo['st'] ?? 'draft')));
+        if ($st === 'won') {
+            $delivered = false;
+            foreach ($projects as $p) {
+                if (!is_array($p) || (string)($p['offerNo'] ?? '') !== (string)($lastCo['no'] ?? '')) continue;
+                if (in_array(strtolower(trim((string)($p['state'] ?? ''))), ['done', 'closed', 'archived'], true)) { $delivered = true; break; }
+            }
+            if (!$delivered) return 'WF70';
+            $inv = null;
+            foreach ($invoices as $v) if (is_array($v) && (string)($v['offerNo'] ?? '') === (string)($lastCo['no'] ?? '')) { $inv = $v; break; }
+            $paid = $inv !== null && ptf_invoice_paid_sum($inv) >= max(1.0, ptf_rfq_wf_num($inv['amount'] ?? 0));
+            return $paid ? 'WF85' : 'WF80';
+        }
+        if ($st === 'lost') return 'WF91';
+        if ($st === 'revise') return 'WF55';
+        if ($st === 'sent') return 'WF60';
+        return 'WF50';
+    }
+    if ($lastTo !== null) {
+        $st = strtolower(trim((string)(($lastTo['tst'] ?? '') !== '' ? $lastTo['tst'] : ($lastTo['st'] ?? 'draft'))));
+        if ($st === 'rejected' || $st === 'lost') return 'WF90';
+        if ($st === 'approved' || $st === 'won') return 'WF40';
+        if ($st === 'revise') return 'WF35';
+        if ($st === 'sent') return 'WF30';
+        return 'WF20';
+    }
+    return 'WF10';
+}
+/* اعمال روی یک ردیف RFQ — true یعنی وضعیت عوض شد (مهر + wfLog فقط در گذار واقعی). */
+function ptf_rfq_workflow_apply_row(array &$rfq, array $offers, array $projects, array $invoices, string $actor, string $event, string $nowIso): bool {
+    $wf = ptf_rfq_workflow_compute(ptf_rfq_workflow_aliases($rfq), $offers, $projects, $invoices);
+    $changed = (string)($rfq['wf'] ?? '') !== $wf;
+    $rfq['wf'] = $wf;
+    $rfq['stxt'] = ptf_rfq_workflow_label($wf);
+    if ($changed) {
+        $rfq['wfUpdatedAtISO'] = $nowIso;
+        if (!isset($rfq['wfLog']) || !is_array($rfq['wfLog'])) $rfq['wfLog'] = [];
+        $rfq['wfLog'][] = ['t' => $nowIso, 'by' => $actor, 'wf' => $wf, 'ev' => $event];
+    }
+    return $changed;
 }
 
 /* ═══ v34.39.55 (RFQ-PHANTOM-NOTIFY — RCA 2026-۱۰-۱۳) ═══

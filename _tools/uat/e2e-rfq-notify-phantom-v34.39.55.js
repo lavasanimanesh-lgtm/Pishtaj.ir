@@ -127,14 +127,22 @@ function phpFn(name) { /* extract a real function body verbatim from sales-domai
   }
   throw new Error('unbalanced: ' + name);
 }
-const WF_PHP = ['sd_now', 'sd_rfq_matches_inquiry', 'sd_workflow_label', 'sd_offer_wf_rank', 'sd_offer_wf_rank_higher', 'sd_workflow_for_inquiry', 'sd_apply_offer_workflow'].map(phpFn).join('\n');
+/* v34.39.56 (OFFER-STATUS-WF): بدنهٔ موتور به rfq-notify-lib.php رفت و
+   sd_workflow_for_inquiry delegate شد؛ هارنس فایل واقعی lib را لود می‌کند و
+   sd_read را برای WF80/WF85 از دادهٔ سناریو سرو می‌دهد. */
+const WF_PHP = ['sd_now', 'sd_rfq_matches_inquiry', 'sd_workflow_label', 'sd_offer_wf_rank', 'sd_offer_wf_rank_higher', 'sd_wf_delivery_data', 'sd_workflow_for_inquiry', 'sd_apply_offer_workflow'].map(phpFn).join('\n');
+const LIB_PHP = fs.readFileSync(path.join(ROOT, 'api/rfq-notify-lib.php'), 'utf8');
 /* run the real sd_workflow_for_inquiry from sales-domain.php on given offers */
-async function serverWf(offers, inqNo) {
+async function serverWf(offers, inqNo, extra) {
   const php = new PhpNode();
   let out = '';
   php.addEventListener('output', e => { out += Array.isArray(e.detail ?? e.data) ? (e.detail ?? e.data).join('') : String(e.detail ?? e.data); });
+  await php.writeFile('/lib.php', LIB_PHP);
   await php.writeFile('/offers.json', JSON.stringify(offers));
-  await php.run('<?php ' + WF_PHP + '\n$offers=json_decode(file_get_contents("/offers.json"),true);'
+  await php.writeFile('/extra.json', JSON.stringify(extra || {}));
+  await php.run('<?php require "/lib.php";'
+    + '\nfunction sd_read(string $k): array { $x=json_decode(file_get_contents("/extra.json"),true)?:[]; if($k==="ptf_crm_projects")return $x["projects"]??[]; if($k==="ptf_crm_invoices")return $x["invoices"]??[]; return []; }'
+    + '\n' + WF_PHP + '\n$offers=json_decode(file_get_contents("/offers.json"),true);'
     + 'echo sd_workflow_for_inquiry(' + JSON.stringify(inqNo) + ',$offers);');
   return out.trim();
 }
@@ -179,10 +187,10 @@ async function main() {
   const offers9 = [{ no: 'CO-9', kind: 'CO', inqNo: 'RFQ-9', st: 'won', items: [] }];
   const rfq9 = { cd: 'RFQ-9', inqNo: 'RFQ-9', wf: 'WF70' };
   const data = { ptf_crm_offers: offers9, ptf_crm_rfqs: [rfq9], ptf_crm_projects: [{ offerNo: 'CO-9', state: 'done' }], ptf_crm_invoices: [{ offerNo: 'CO-9', amount: 1000, pays: [{ amt: 1000 }] }] };
-  const srvWf = await serverWf(offers9, 'RFQ-9');
+  const srvWf = await serverWf(offers9, 'RFQ-9', { projects: data.ptf_crm_projects, invoices: data.ptf_crm_invoices });
   const cliWf = clientWf(data, rfq9);
-  console.log('   server sd_workflow_for_inquiry = ' + srvWf + '   |   client wfCompute = ' + cliWf + '  ← واگرایی باز (باید سرور هم WF80/WF85 داشته باشد)');
-  T('گزارش: پروندهٔ برنده+تحویل+تسویه → سرور ' + srvWf + '، کلاینت ' + cliWf, srvWf === 'WF70' && cliWf === 'WF85', srvWf + ' vs ' + cliWf);
+  console.log('   server sd_workflow_for_inquiry = ' + srvWf + '   |   client wfCompute = ' + cliWf + '  ← v34.39.56: واگرایی بسته شد');
+  T('FIX (v34.39.56): پروندهٔ برنده+تحویل+تسویه → سرور و کلاینت هر دو WF85', srvWf === 'WF85' && cliWf === 'WF85', srvWf + ' vs ' + cliWf);
 
   /* ═══ S2b — مقدار موتور محلی کلاینت (WF85) دیگر روی سرور نوشته نمی‌شود ═══ */
   console.log('\n══ S2b — کلاینت WF85 می‌فرستد، سرور مقدار مشتقِ خودش را نگه می‌دارد ══');
@@ -205,6 +213,36 @@ async function main() {
     r.json.ok === true && rows(s)[0]?.wf === 'WF91', 'wf=' + rows(s)[0]?.wf);
   T('FIX: و همان گذار، یک‌بار و به نام انجام‌دهندهٔ واقعی اعلام می‌شود',
     mS2c.length === 1 && mS2c[0].text.includes('انجام‌دهنده: lavasani'), JSON.stringify(mS2c[0]?.text));
+
+  /* ═══ S2d — سناریوی دقیق گزارش کارفرما (v34.39.56): پیشنهادِ واقعی cd ندارد ═══ */
+  console.log('\n══ S2d — گزارش کارفرما: دراپ‌داون «ارسال شده» روی پیشنهادِ بدون cd ══');
+  const s2 = fresh();
+  r = await upsert(s2, { _id: 'RQ-201', cd: 'RFQ-201', inqNo: 'INQ-201', co: 'شرکت کارفرما', subj: 'استعلام شیر توپی', ca: 'شیرآلات' }, 'seed-201', { body: { expectCreate: true }, user: 'lavasani', role: 'admin' });
+  T('S2d: درخواست ثبت می‌شود', r.json.ok === true, r.response + r.stderr);
+  ready(s2);
+  /* پیشنهاد دقیقاً با فرم تولید: no + inqNo=cd سیستمی (offerFromRfq) و بدون cd */
+  r = await request(s2, { action: 'register_offer', body: { idempotencyKey: 'co-201', createIntent: true, offer: { no: 'CO-1405-0041', kind: 'CO', inqNo: 'RFQ-201', st: 'draft', items: [] } }, user: 'lavasani', role: 'admin' });
+  T('S2d: صدور CO ← «پیشنهاد مالی صادر شد» (WF50) حتی با لینک cd', r.json.ok === true && rows(s2)[0]?.wf === 'WF50', JSON.stringify(rows(s2)[0]?.wf));
+  ready(s2);
+  /* کاربر دیگری (نه ثبت‌کنندهٔ درخواست) از دراپ‌داون «ارسال شده» می‌کند */
+  r = await request(s2, { action: 'set_offer_status', body: { idempotencyKey: 'ofst-201', offerNo: 'CO-1405-0041', st: 'sent' }, user: 'yousefi', role: 'sales' });
+  const mS2d = messages(r);
+  console.log('   پیام گروه: ' + JSON.stringify(mS2d[0]?.text || null));
+  T('S2d FIX: وضعیت درخواست «منتظر پاسخ کارفرما (مالی)» می‌شود — نه دریافت اولیه',
+    r.json.ok === true && rows(s2)[0]?.wf === 'WF60', 'wf=' + rows(s2)[0]?.wf);
+  T('S2d FIX: پیام بات گذار درست را با نام تغییردهندهٔ واقعی می‌گوید',
+    mS2d.length === 1 && mS2d[0].text.includes('وضعیت قبلی: پیشنهاد مالی صادر شد') && mS2d[0].text.includes('وضعیت جدید: منتظر پاسخ کارفرما (مالی)') && mS2d[0].text.includes('انجام‌دهنده: yousefi') && !mS2d[0].text.includes('دریافت اولیه'),
+    JSON.stringify(mS2d[0]?.text));
+  T('S2d FIX: خط رویداد، پیشنهاد مولّد گذار را نام می‌برد',
+    mS2d.length === 1 && mS2d[0].text.includes('رویداد: تغییر وضعیت پیشنهاد CO-1405-0041'), JSON.stringify(mS2d[0]?.text));
+  /* بازگشت مشروع sent→revise هم باید همان‌جا بنشیند و اعلام شود */
+  ready(s2);
+  r = await request(s2, { action: 'set_offer_status', body: { idempotencyKey: 'ofst-202', offerNo: 'CO-1405-0041', st: 'revise' }, user: 'yousefi', role: 'sales' });
+  T('S2d FIX: درخواست اصلاح کارفرما ← WF55', r.json.ok === true && rows(s2)[0]?.wf === 'WF55', 'wf=' + rows(s2)[0]?.wf);
+  /* برد از این مسیر ممکن نیست */
+  ready(s2);
+  r = await request(s2, { action: 'set_offer_status', body: { idempotencyKey: 'ofst-203', offerNo: 'CO-1405-0041', st: 'won' }, user: 'yousefi', role: 'sales' });
+  T('S2d: برد از set_offer_status رد می‌شود (use_win_offer)', r.json.ok === false && rows(s2)[0]?.wf === 'WF55', JSON.stringify(r.json).slice(0, 160));
 
   /* ═══ S3 — ترتیب آرایه دیگر نتیجه را عوض نمی‌کند ═══ */
   console.log('\n══ S3 — sd_workflow_for_inquiry و ترتیب آرایه ══');
