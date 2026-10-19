@@ -51,11 +51,17 @@ function ptf_rfq_notify_enabled(): bool {
 }
 function ptf_rfq_notify_aliases(array $row): array {
     $out = [];
-    foreach (['_id', 'cd', 'code'] as $key) {
+    foreach (['_id', 'cd', 'code', 'inqNo'] as $key) {
         $id = ptf_rfq_notify_text($row[$key] ?? '', 160);
         if ($id !== '') $out[$id] = true;
     }
     return array_keys($out);
+}
+function ptf_rfq_notify_clean_label(string $label): string {
+    if ($label === '') return '';
+    $s = preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}\x{1F900}-\x{1F9FF}\x{1F600}-\x{1F64F}\x{1F300}-\x{1F5FF}\x{1F680}-\x{1F6FF}\x{2300}-\x{23FF}\x{2B50}\x{2B55}\x{200D}\x{200C}]+/u', ' ', $label);
+    $s = preg_replace('/[\x{2013}\x{2014}\-\:\(\)\[\]\{\}\.\,\;\!\?\x{061B}\x{061F}]+/u', ' ', (string)$s);
+    return trim((string)preg_replace('/\s+/u', ' ', (string)$s));
 }
 function ptf_rfq_notify_state(array $row): string {
     $st = ptf_rfq_notify_first($row, ['st','status'], 80);
@@ -78,6 +84,7 @@ function ptf_rfq_notify_label(array $row): string {
         'WF35'=>'در حال صدور پیشنهاد اصلاحی (فنی)', 'WF40'=>'منتظر صدور پیشنهاد مالی',
         'WF50'=>'پیشنهاد مالی صادر شد', 'WF55'=>'در حال اصلاح پیشنهاد مالی',
         'WF60'=>'منتظر پاسخ کارفرما (مالی)', 'WF70'=>'در حال تامین',
+        'WF80'=>'تحویل شده', 'WF85'=>'مختومه (تسویه)',
         'WF90'=>'بایگانی — عدم تایید فنی', 'WF91'=>'بایگانی — بازنده مالی'
     ];
     $code = ptf_rfq_notify_first($row, ['wf','st','status'], 80);
@@ -106,6 +113,14 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         $from = is_array($old) ? ptf_rfq_notify_state($old) : '';
         $to = ptf_rfq_notify_state($row);
         if ($old !== null && $from === $to) continue;
+        if ($old !== null) {
+            $fromLabel = ptf_rfq_notify_label($old);
+            $toLabel = ptf_rfq_notify_label($row);
+            if ($fromLabel === $toLabel) continue;
+            $cleanFrom = ptf_rfq_notify_clean_label($fromLabel);
+            $cleanTo = ptf_rfq_notify_clean_label($toLabel);
+            if ($cleanFrom !== '' && $cleanFrom === $cleanTo) continue;
+        }
         $id = $aliases[0]; /* canonical _id || cd; site uses code */
         $kind = $old === null ? 'created' : 'status';
         $eventId = hash('sha256', $operation . "\n" . $source . "\n" . $id . "\n" . $kind . "\n" . $from . "\n" . $to);
@@ -333,15 +348,25 @@ function ptf_rfq_workflow_merge_snapshot(array $incoming, array $server): ?array
     $byId = [];
     foreach ($server as $row) {
         if (!is_array($row)) continue;
+        foreach (ptf_rfq_notify_aliases($row) as $alias) {
+            if (!isset($byId[$alias])) $byId[$alias] = $row;
+        }
         $id = ptf_rfq_workflow_identity($row);
         if ($id !== '' && !isset($byId[$id])) $byId[$id] = $row;
     }
     $changed = false;
     foreach ($incoming as $i => $row) {
         if (!is_array($row)) continue;
-        $id = ptf_rfq_workflow_identity($row);
-        if ($id === '' || !isset($byId[$id])) continue;
-        if (ptf_rfq_workflow_preserve_row($incoming[$i], $byId[$id])) $changed = true;
+        $matched = null;
+        foreach (ptf_rfq_notify_aliases($row) as $alias) {
+            if (isset($byId[$alias])) { $matched = $byId[$alias]; break; }
+        }
+        if ($matched === null) {
+            $id = ptf_rfq_workflow_identity($row);
+            if ($id !== '' && isset($byId[$id])) $matched = $byId[$id];
+        }
+        if ($matched === null) continue;
+        if (ptf_rfq_workflow_preserve_row($incoming[$i], $matched)) $changed = true;
     }
     return $changed ? $incoming : null;
 }
