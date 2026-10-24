@@ -330,12 +330,18 @@ function letAssetMap() { /* کپی کم‌عمق برای نوشتن — خوا�
 function letAssetId(kind, dataUrl) {
   return LET_ASSET_PFX + String(kind || 'IMG').toUpperCase() + '-' + letHash12(String(dataUrl || ''));
 }
+/* خواندن از map داده‌شده — برای حلقه‌های رندر که یک‌بار map را می‌خوانند و چند نامه
+   را می‌سنجند (بدون این مسیر، هر ردیف جدول یک JSON.parse از کل map می‌خواست). */
+function letAssetGetIn(map, id) {
+  if (!letAssetIsId(id)) return '';
+  var r = map && map[id];
+  return (r && letIsImgDataUrl(r.src)) ? r.src : '';
+}
 function letAssetGet(id) {
   if (!letAssetIsId(id)) return '';
   var m = null;
   try { m = sigProfileMap(); } catch (e) { return ''; }
-  var r = m && m[id];
-  return (r && letIsImgDataUrl(r.src)) ? r.src : '';
+  return letAssetGetIn(m, id);
 }
 function letAssetCount(map) {
   return Object.keys(map || {}).filter(letAssetIsId).length;
@@ -513,11 +519,12 @@ function letSnapImg(snap, key, live) {
   return { url: '', from: 'none' };
 }
 /* وضعیت تصویر نامه برای نشان فهرست: ok | broken | empty | na */
-function letSnapState(l) {
+function letSnapState(l, assetMap) {
   if (!l || l.st !== 'signed') return 'na';
   var s = l.signatureSnapshot || {};
-  if ((s.sigAsset && letAssetGet(s.sigAsset)) || letImgDataUrlOk(s.sig)) return 'ok';
-  if ((s.stampAsset && letAssetGet(s.stampAsset)) || letImgDataUrlOk(s.stamp)) return 'ok';
+  function _a(id) { return assetMap ? letAssetGetIn(assetMap, id) : letAssetGet(id); }
+  if ((s.sigAsset && _a(s.sigAsset)) || letImgDataUrlOk(s.sig)) return 'ok';
+  if ((s.stampAsset && _a(s.stampAsset)) || letImgDataUrlOk(s.stamp)) return 'ok';
   if (s.sig || s.stamp || s.sigAsset || s.stampAsset) return 'broken';
   return 'empty';
 }
@@ -701,6 +708,9 @@ function renderLetters() {
     if (va === vb) return (letRank[a.cd] || 0) - (letRank[b.cd] || 0);
     return (va < vb ? -1 : 1) * (letSortMode.dir === 'asc' ? 1 : -1);
   });
+  /* v34.39.58: یک‌بار خواندنِ map دارایی برای کل جدول (نشان ⚠️ تصویر) */
+  var _letAssetMapForRender = null;
+  try { _letAssetMapForRender = sigProfileMap(); } catch (eAM) { _letAssetMapForRender = null; }
   var ST = { draft: '<span class="bd" style="background:#f1f5f9;color:#64748b">پیش‌نویس</span>',
     pending: '<span class="bd" style="background:#fef3c7;color:#b45309">در انتظار امضا</span>',
     signed: '<span class="bd b-st4">امضا شد</span>',
@@ -719,7 +729,7 @@ function renderLetters() {
     var canSign = l.st === 'pending' && l.signer === curSession().user;
     /* v34.39.58 (LETTER-AMEND-REV): نشان نسخهٔ اصلاحی و هشدار تصویر امضا */
     var _rev = letRevOf(l);
-    var _snapSt = letSnapState(l);
+    var _snapSt = letSnapState(l, _letAssetMapForRender);
     var _revBadge = _rev > 0 ? ' <span class="bd" style="background:#e0e7ff;color:#3730a3" title="نسخهٔ اصلاحی — شمارهٔ اندیکاتور تغییر نکرده است">Rev.' + _rev + '</span>' : '';
     var _sigWarn = (l.st === 'signed' && _snapSt !== 'ok')
       ? ' <span title="' + (_snapSt === 'broken' ? 'تصویر ذخیره‌شدهٔ این نامه ناقص/بریده است؛ با بازچاپ از مهر و امضای فعلی پروفایل استفاده می‌شود.' : 'این نامه تصویر مهر/امضا در سند ندارد؛ با بازچاپ از پروفایل جاری استفاده می‌شود.') + '" style="cursor:help;color:#b45309">⚠️</span>'
