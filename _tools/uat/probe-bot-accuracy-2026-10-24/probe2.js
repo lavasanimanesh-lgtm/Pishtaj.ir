@@ -43,7 +43,8 @@ async function phpRun(code, opts = {}) {
 }
 const boot = CURL + "\nrequire '/w/app/api/rfq-notify-lib.php';";
 
-function job(id, text, extra) { return { id, text: text || 'پیام تست', kind: 'status', createdAt: 1700000000, status: 'pending', attempts: 0, nextAttemptAt: 0, ...extra }; }
+const NOW = () => Math.floor(Date.now() / 1000);
+function job(id, text, extra) { return { id, text: text || 'پیام تست', kind: 'status', createdAt: NOW(), status: 'pending', attempts: 0, nextAttemptAt: 0, ...extra }; }
 function seedJobs(jobs, extra) { return { version: 1, jobs: Object.fromEntries(jobs.map(j => [j.id, j])), nextSendAt: 0, ...(extra || {}) }; }
 const H = 'a'.repeat(64), H2 = 'b'.repeat(64), H3 = 'c'.repeat(64);
 
@@ -94,25 +95,45 @@ const H = 'a'.repeat(64), H2 = 'b'.repeat(64), H3 = 'c'.repeat(64);
   const j5 = r.state && Object.values(r.state.jobs)[0];
   console.log('   job=' + JSON.stringify(j5));
   T('timeout: یک تلاش', r.calls.length === 1, r.calls.length);
-  T('timeout [انتظار: تلاش مجدد، نه رها کردن]', j5 && j5.status === 'pending', JSON.stringify(j5));
+  T('timeout: وضعیت uncertain است (سیاست عمدی ضد پیام تکراری) و در health دیده می‌شود', j5 && j5.status === 'uncertain', JSON.stringify(j5));
 
-  /* 6) burst: سه رویداد هم‌زمان */
+  /* 6) burst: سه رویداد هم‌زمان — قرارداد v34.39.63 (سطل توکن) */
   console.log('\n══ 6 — سه رویداد در یک صف (نرخ ارسال) ══');
   r = await phpRun(`<?php ${boot}
-  $a=ptf_rfq_notify_flush(); $b=ptf_rfq_notify_flush(); echo json_encode([$a,$b]);`,
+  echo json_encode(ptf_rfq_notify_flush(null, 5));`,
   { seed: seedJobs([job(H), job(H2), job(H3)]), mode: { http: 200, body: '{"ok":true,"result":{"message_id":7}}' } });
-  console.log('   flush1+flush2=' + r.out + ' | ارسال‌شده=' + r.calls.length);
-  T('در هر flush حداکثر یک پیام (نیاز به cron/ترافیک)', r.calls.length === 1, 'ارسال=' + r.calls.length);
-
-  /* 7) گذشت زمان طولانی: پیام کهنه با «زمان» تولید، دیرتر تحویل */
-  console.log('\n══ 7 — پیام سه‌روز-کهنه در صف ══');
-  const old = job(H, '🔄 تغییر وضعیت درخواست\nوضعیت جدید: منتظر پاسخ کارفرما (مالی)\nزمان: 2026-10-21 09:00:00 (تهران)');
-  old.createdAt = Math.floor(Date.now() / 1000) - 3 * 86400;
+  console.log('   flush(5)=' + r.out + ' | ارسال‌شده=' + r.calls.length);
+  T('یک فراخوانی می‌تواند صف را خالی کند (burst تا ۵ پیام)', r.calls.length === 3, 'ارسال=' + r.calls.length);
+  const six = [H, H2, H3, 'd'.repeat(64), 'e'.repeat(64), 'f'.repeat(64)];
   r = await phpRun(`<?php ${boot}
-  echo json_encode(ptf_rfq_notify_flush());`, { seed: seedJobs([old]), mode: { http: 200, body: '{"ok":true,"result":{"message_id":9}}' } });
-  const sentText = r.calls[0] ? JSON.parse(r.calls[0].body).text : '';
-  console.log('   ارسال‌شده=' + r.calls.length + ' | متن: ' + JSON.stringify(sentText.slice(0, 120)));
-  T('صف هیچ TTL/انقضا ندارد: پیام سه‌روزه با تاریخ کهنه تحویل می‌شود', r.calls.length === 1, 'ارسال=' + r.calls.length);
+  $a=ptf_rfq_notify_flush(null, 6); $b=ptf_rfq_notify_flush(null, 6); echo json_encode([$a,$b]);`,
+  { seed: seedJobs(six.map((h, i) => job(h))), mode: { http: 200, body: '{"ok":true,"result":{"message_id":7}}' } });
+  console.log('   شش پیام: ' + r.out + ' | ارسال‌شده=' + r.calls.length);
+  T('سقف ۲۰ در دقیقه نگه داشته می‌شود (burst=۵، پیام ششم در فراخوانی بعدی)',
+    r.calls.length === 5 && JSON.parse(r.out)[1].sent === 0, 'ارسال=' + r.calls.length);
+
+  /* 7) TTL: پیام کهنه (قرارداد v34.39.63 — P2-7) */
+  console.log('\n══ 7 — پیام کهنه در صف ══');
+  const veryOld = job(H, '🔄 تغییر وضعیت درخواست\nوضعیت جدید: منتظر پاسخ کارفرما (مالی)');
+  veryOld.createdAt = NOW() - 3 * 86400;
+  r = await phpRun(`<?php ${boot}
+  echo json_encode(['r'=>ptf_rfq_notify_flush(),'counts'=>ptf_rfq_notify_counts()]);`,
+  { seed: seedJobs([veryOld]), mode: { http: 200, body: '{"ok":true,"result":{"message_id":9}}' } });
+  console.log('   سه‌روزه: ' + r.out + ' | ارسال=' + r.calls.length);
+  T('پیام سه‌روزه به گروه نمی‌رود (منقضی می‌شود)', r.calls.length === 0, 'ارسال=' + r.calls.length);
+  T('و منقضی‌شدن شمرده و دیدنی است', JSON.parse(r.out).counts.expired === 1, r.out);
+  const late = job(H, '🔄 تغییر وضعیت درخواست\nوضعیت جدید: منتظر پاسخ کارفرما (مالی)');
+  late.createdAt = NOW() - 40 * 60;
+  r = await phpRun(`<?php ${boot}
+  echo json_encode(ptf_rfq_notify_flush());`,
+  { seed: seedJobs([late]), mode: { http: 200, body: '{"ok":true,"result":{"message_id":9}}' } });
+  const lateText = r.calls[0] ? JSON.parse(r.calls[0].body).text : '';
+  console.log('   چهل‌دقیقه‌ای: ' + JSON.stringify(lateText.slice(0, 90)));
+  T('پیام ۴۰ دقیقه‌ای با برچسب «تأخیری» می‌رود', lateText.includes('⏳ این پیام با تأخیر ارسال می‌شود'), lateText.slice(0, 80));
+  const fresh = job(H, 'پیام تازه');
+  r = await phpRun(`<?php ${boot} echo json_encode(ptf_rfq_notify_flush());`,
+  { seed: seedJobs([fresh]), mode: { http: 200, body: '{"ok":true,"result":{"message_id":9}}' } });
+  T('پیام تازه هیچ برچسب تأخیری نمی‌گیرد', r.calls.length === 1 && !JSON.parse(r.calls[0].body).text.includes('تأخیر'));
 
   /* 8) نبود health-check: وضعیت گروه با getChat بررسی نمی‌شود */
   console.log('\n══ 8 — بررسی اتصال (status) ══');
@@ -127,10 +148,10 @@ const H = 'a'.repeat(64), H2 = 'b'.repeat(64), H3 = 'c'.repeat(64);
   { config: `['telegram_token'=>'1:T','telegram_chat_id'=>'123456789']` });
   console.log('   chat_id مثبت: ' + r.out);
   T('chat_id مثبت ⇒ اعلان خودکار خاموش (طراحی)', r.out.includes('"enabled":false'), r.out);
-  r = await phpRun(`<?php ${boot} echo json_encode(['enabled'=>ptf_rfq_notify_enabled()]);`,
+  r = await phpRun(`<?php ${boot} echo json_encode(['enabled'=>ptf_rfq_notify_enabled(),'ch'=>ptf_rfq_notify_channel()]);`,
   { config: `['bale_token'=>'2:B','bale_chat_id'=>'-1001','telegram_token'=>'','telegram_chat_id'=>'']` });
   console.log('   فقط بله: ' + r.out);
-  T('کانال بله برای اعلان خودکار پشتیبانی نمی‌شود', r.out.includes('"enabled":false'), r.out);
+  T('کانال بله برای اعلان خودکار پشتیبانی می‌شود', r.out.includes('"enabled":true') && r.out.includes('"app":"bale"'), r.out);
   r = await phpRun(`<?php ${boot} echo json_encode(['enabled'=>ptf_rfq_notify_enabled(),'chat'=>ptf_rfq_notify_cfg()['telegram_chat_id']??null]);`,
   { config: `['telegram_token'=>'1:T','telegram_chat_id'=>'@company_group']` });
   T('chat_id به شکل @username کار می‌کند', r.out.includes('"enabled":true'), r.out);

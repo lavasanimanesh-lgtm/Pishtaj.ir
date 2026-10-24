@@ -16,7 +16,7 @@ T('رجیستری: مشتریان با ۸ نقش (عین ماتریس legacy)', 
 T('رجیستری: تامین‌کنندگان بدون accountant/collector', /'ptf_crm_suppliers' => \[\s*'roles' => \['admin','chairman','ceo','commercial','sales','buyer'\]/.test(php));
 T('رجیستری: کالاها بدون collector', /'ptf_crm_products' => \[\s*'roles' => \['admin','chairman','ceo','commercial','sales','buyer','accountant'\]/.test(php));
 T('maxFields=120 برای حداقل سه کلید W1', (php.match(/'maxFields' => 120/g) || []).length >= 3);
-/* v34.39.62: آرگومان چهارم (bigFields) اضافه شد — سقف‌های ویژهٔ فیلدهای سنگین
+/* v34.39.63: آرگومان چهارم (bigFields) اضافه شد — سقف‌های ویژهٔ فیلدهای سنگین
    نامه (bodyHtml/revs/signatureSnapshot). قرارداد «سقف از رجیستری خوانده شود» و
    «ردیف‌های بدون bigFields همان رفتار قبلی را دارند» هر دو پین می‌شوند. */
 T('sanitizer از maxFields رجیستری استفاده می‌کند', /sd_entity_sanitize_row\(\$rec, \$sanitizeStats, \(int\)\(\$cfg\['maxFields'\] \?\? 40\), is_array\(\$cfg\['bigFields'\] \?\? null\) \? \$cfg\['bigFields'\] : \[\]\)/.test(php));
@@ -134,8 +134,8 @@ T('A11: تطابق کامل رجیستری کلاینت/سرور', JSON.stringif
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.39.62', ver.crm_version === 'v34.39.62', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.39.62', /window\.PTF_CRM_RELEASE = 'v34\.39\.62'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.39\.62'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.39.63', ver.crm_version === 'v34.39.63', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.39.63', /window\.PTF_CRM_RELEASE = 'v34\.39\.63'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.39\.63'/.test(read('crm/sw.js')));
 
 console.log('\n— tester525 (v34.38.0: W1 entity commands for customers/suppliers/products) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

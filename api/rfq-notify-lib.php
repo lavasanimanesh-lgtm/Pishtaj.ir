@@ -6,10 +6,26 @@
  */
 declare(strict_types=1);
 
+/* ═══ v34.39.63 (BOT-MSG-P2-15 — متن آزاد فرم سایت) ═══
+   متن ارسالی کاربر (موضوع/شرکت/یادداشت) با «فیلدهای خود پیام» هم‌شکل می‌شد؛ مثلاً
+   موضوعی که عبارت «وضعیت جدید: تحویل شده» را داشت، داخل همان سطر دیده می‌شد و
+   خواننده را گمراه می‌کرد (probe9). سطر جعلی ساخته نمی‌شد (متن یک‌خطی و پاک می‌شود)
+   ولی همان اندازه گمراه‌کننده بود. حالا دو نقطهٔ بعد از هر «برچسب پیام» در متنِ ورودی
+   به خط تیره تبدیل می‌شود تا هیچ عبارتِ ورودی شکلِ فیلد رسمی نگیرد. */
+function ptf_rfq_notify_neutralize_labels(string $s): string {
+    if ($s === '' || strpos($s, ':') === false) return $s;
+    $labels = ['شماره درخواست', 'وضعیت قبلی', 'وضعیت جدید', 'وضعیت اولیه', 'وضعیت کانبان',
+        'وضعیت سایت', 'انجام‌دهنده', 'انجام دهنده', 'مشتری', 'موضوع', 'حوزه', 'زمان',
+        'منبع', 'یادداشت', 'رویداد', 'نام', 'تلفن'];
+    $quoted = array_map(function ($l) { return preg_quote($l, '/'); }, $labels);
+    $out = preg_replace('/(' . implode('|', $quoted) . ')\s*:/u', '$1 —', $s);
+    return is_string($out) ? $out : $s;
+}
 function ptf_rfq_notify_text($value, int $limit = 240): string {
     if (!is_scalar($value)) return '';
     $s = preg_replace('/[\x00-\x1f\x7f\x{202a}-\x{202e}\x{2066}-\x{2069}]+/u', ' ', (string)$value);
     $s = trim((string)preg_replace('/\s+/u', ' ', (string)$s));
+    $s = ptf_rfq_notify_neutralize_labels((string)$s);
     /* Unicode-safe even without mbstring; never truncate a Persian code point. */
     if (preg_match('/^.{0,' . $limit . '}/us', $s, $m)) return $m[0];
     return '';
@@ -21,32 +37,84 @@ function ptf_rfq_notify_first(array $row, array $keys, int $limit = 240): string
     }
     return '';
 }
+function ptf_rfq_notify_cfg_paths(): array {
+    return [dirname(__DIR__, 2) . '/bot-config.php', dirname(__DIR__, 3) . '/bot-config.php',
+        dirname(__DIR__) . '/bot-config.php', __DIR__ . '/bot-config.php'];
+}
+/* ═══ v34.39.63 (BOT-MSG-P2-16 — کشف فایل کانفیگ) ═══
+   پیش از این اولین فایل موجود بی‌صدا برنده می‌شد؛ اگر دو نسخه روی هاست می‌ماند
+   (یکی قدیمی/ناقص) هیچ‌کس نمی‌فهمید کدام اجرا می‌شود. حالا مسیر مصرف‌شده در
+   خروجی وضعیت و در --status گزارش می‌شود و وجود فایل‌های تکراری هشدار می‌دهد. */
+function ptf_rfq_notify_cfg_path(): string {
+    ptf_rfq_notify_cfg();
+    $p = $GLOBALS['ptf_rfq_notify_cfg_path'] ?? '';
+    return is_string($p) ? $p : '';
+}
+function ptf_rfq_notify_cfg_duplicates(): array {
+    $used = ptf_rfq_notify_cfg_path();
+    $out = [];
+    foreach (ptf_rfq_notify_cfg_paths() as $path) {
+        if ($path === $used || !is_file($path)) continue;
+        $out[] = $path;
+    }
+    return $out;
+}
 function ptf_rfq_notify_cfg(): ?array {
     static $loaded = false, $cfg = null;
     if ($loaded) return $cfg;
     $loaded = true;
-    $paths = [dirname(__DIR__, 2) . '/bot-config.php', dirname(__DIR__, 3) . '/bot-config.php',
-        dirname(__DIR__) . '/bot-config.php', __DIR__ . '/bot-config.php'];
-    foreach ($paths as $path) {
+    foreach (ptf_rfq_notify_cfg_paths() as $path) {
         if (!is_file($path)) continue;
         $value = include $path;
         if (!is_array($value)) continue;
         $cfg = $value;
         $fa = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹','٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
         $en = ['0','1','2','3','4','5','6','7','8','9','0','1','2','3','4','5','6','7','8','9'];
-        foreach (['telegram_token', 'telegram_chat_id'] as $key) {
+        foreach (['telegram_token', 'telegram_chat_id', 'bale_token', 'bale_chat_id'] as $key) {
             $v = is_scalar($cfg[$key] ?? null) ? (string)$cfg[$key] : '';
             $cfg[$key] = (string)preg_replace('/\s+/u', '', str_replace($fa, $en, $v));
         }
+        $GLOBALS['ptf_rfq_notify_cfg_path'] = $path;
         return $cfg;
     }
     return null;
 }
-function ptf_rfq_notify_enabled(): bool {
+/* کانالی که اعلان‌های خودکار از آن می‌روند — تلگرام اول، بعد بله (Bot API سازگار).
+   خروجی: ['app','token','chat','warning'] یا null. */
+function ptf_rfq_notify_channel(): ?array {
     $cfg = ptf_rfq_notify_cfg();
-    if (!$cfg || empty($cfg['telegram_token']) || empty($cfg['telegram_chat_id'])) return false;
-    /* A private positive chat id must not receive company/group RFQ events. */
-    if (!preg_match('/^(?:-\d{1,20}|@[A-Za-z0-9_]{5,64})$/', (string)$cfg['telegram_chat_id'])) return false;
+    if (!$cfg) return null;
+    $tgToken = (string)($cfg['telegram_token'] ?? '');
+    $tgChat = (string)($cfg['telegram_chat_id'] ?? '');
+    if ($tgToken !== '' && $tgChat !== '') {
+        /* چت خصوصی (عددی مثبت) نباید رخدادهای گروه شرکت را بگیرد. */
+        if (!preg_match('/^(?:-\d{1,20}|@[A-Za-z0-9_]{5,64})$/', $tgChat)) return null;
+        return ['app' => 'telegram', 'token' => $tgToken, 'chat' => $tgChat,
+            'warning' => preg_match('/^\d/', $tgChat) ? 'شناسهٔ چت تلگرام عددی مثبت است (چت خصوصی) — گروه باید -100… یا @group باشد' : ''];
+    }
+    $bToken = (string)($cfg['bale_token'] ?? '');
+    $bChat = (string)($cfg['bale_chat_id'] ?? '');
+    if ($bToken !== '' && $bChat !== '') {
+        if (!preg_match('/^(?:-?\d{1,20}|@[A-Za-z0-9_]{5,64})$/', $bChat)) return null;
+        return ['app' => 'bale', 'token' => $bToken, 'chat' => $bChat,
+            'warning' => preg_match('/^\d/', $bChat) ? 'شناسهٔ چت بله عددی مثبت است (چت خصوصی) — شناسهٔ گروه معمولاً منفی است' : ''];
+    }
+    return null;
+}
+/* دلیل خاموشی اعلان خودکار به زبان آدم — «خاموشِ بی‌صدا» ممنوع (v34.39.63). */
+function ptf_rfq_notify_config_issue(): string {
+    $cfg = ptf_rfq_notify_cfg();
+    if (!$cfg) return 'فایل bot-config.php پیدا نشد';
+    if (ptf_rfq_notify_channel()) return '';
+    $tgToken = (string)($cfg['telegram_token'] ?? '');
+    $tgChat = (string)($cfg['telegram_chat_id'] ?? '');
+    if ($tgToken !== '' && $tgChat !== '') return 'شناسهٔ چت تلگرام نامعتبر است (عددی مثبت = چت خصوصی؛ گروه باید -100… یا @group باشد)';
+    if ((string)($cfg['bale_token'] ?? '') !== '' && (string)($cfg['bale_chat_id'] ?? '') !== '') return 'شناسهٔ چت بله نامعتبر است';
+    return 'هیچ کانالی کامل نیست (telegram_token + telegram_chat_id یا bale_token + bale_chat_id)';
+}
+function ptf_rfq_notify_enabled(): bool {
+    if (!ptf_rfq_notify_channel()) return false;
+    $cfg = ptf_rfq_notify_cfg();
     return filter_var($cfg['rfq_notifications'] ?? true, FILTER_VALIDATE_BOOLEAN) === true;
 }
 function ptf_rfq_notify_aliases(array $row): array {
@@ -528,6 +596,42 @@ function ptf_rfq_notify_recover(string $dir): void {
         if (ptf_rfq_notify_enqueue($record['rfqNotifications'], $dir)) @unlink($file);
     }
 }
+/* ═══ v34.39.63 (BOT-MSG-P2-8 — نرخ و تراکم) ═══
+   پیش از این فاصلهٔ ثابت ۳ ثانیه بود (۱ پیام در هر ۳ ثانیه) و هر فراخوانی فقط
+   یک پیام برمی‌داشت؛ در FPM یعنی هر پاسخِ کاربر یک پیام و بقیه فقط با cron. بدون
+   cron، پیام‌های دوم به بعد ساعت‌ها معلق می‌ماندند و ترتیب/تازگی به هم می‌ریخت.
+   حالا «سطل توکن»: ظرفیت ۵ توکن و شارژ ۲۰ در دقیقه — همان سقف گروهی تلگرام، ولی
+   با اجازهٔ burst تا ۵ پیام. صف می‌تواند در یک فراخوانی چند پیام را خالی کند. */
+function ptf_rfq_notify_rate_take(array &$state, int $now): bool {
+    $cap = 5.0; $perMinute = 20.0;
+    $rate = is_array($state['rate'] ?? null) ? $state['rate'] : [];
+    $tokens = isset($rate['tokens']) ? (float)$rate['tokens'] : $cap;
+    $at = (int)($rate['at'] ?? 0);
+    if ($at <= 0) { $tokens = $cap; $at = $now; }
+    if ($now > $at) $tokens = min($cap, $tokens + ($now - $at) * ($perMinute / 60.0));
+    if ($tokens < 1.0) { $state['rate'] = ['tokens' => $tokens, 'at' => $now]; return false; }
+    $state['rate'] = ['tokens' => $tokens - 1.0, 'at' => $now];
+    return true;
+}
+/* ═══ v34.39.63 (BOT-MSG-P2-7 — TTL صف) ═══
+   پیامی که سه روز در صف مانده، امروز با متن و تاریخ خودش می‌رفت («زمان: ۲۰۲۶-۱۰-۲۱»)
+   و حس «پیام بی‌ربط/قدیمی» می‌ساخت. حالا دو آستانه (قابل تنظیم در bot-config.php):
+   rfq_stale_after (پیش‌فرض ۳۰ دقیقه) ⇒ پیام با خط «⏳ با تأخیر ارسال می‌شود» می‌رود؛
+   rfq_expire_after (پیش‌فرض ۶ ساعت) ⇒ هرگز به گروه نمی‌رود و فقط شمرده می‌شود. */
+function ptf_rfq_notify_ttl(): array {
+    $cfg = ptf_rfq_notify_cfg() ?: [];
+    $stale = isset($cfg['rfq_stale_after']) && is_numeric($cfg['rfq_stale_after']) ? (int)$cfg['rfq_stale_after'] : 1800;
+    $expire = isset($cfg['rfq_expire_after']) && is_numeric($cfg['rfq_expire_after']) ? (int)$cfg['rfq_expire_after'] : 21600;
+    if ($stale < 0) $stale = 0;
+    if ($expire > 0 && $expire < $stale) $expire = $stale;
+    return ['stale' => $stale, 'expire' => $expire];
+}
+function ptf_rfq_notify_delay_notice(int $minutes): string {
+    if ($minutes < 1) return '';
+    if ($minutes < 60) return '⏳ این پیام با تأخیر ارسال می‌شود (حدود ' . $minutes . ' دقیقه پیش ساخته شده بود)';
+    $hours = (int)floor($minutes / 60);
+    return '⏳ این پیام با تأخیر ارسال می‌شود (حدود ' . $hours . ' ساعت پیش ساخته شده بود)';
+}
 function ptf_rfq_notify_schedule(string $dir): void {
     if (PHP_SAPI === 'cli') return; /* CLI worker/test explicitly controls delivery. */
     if (isset($GLOBALS['ptf_rfq_notify_scheduled'][$dir])) return;
@@ -536,87 +640,144 @@ function ptf_rfq_notify_schedule(string $dir): void {
         /* FPM releases the HTTP response before external I/O. Other SAPIs retain
            the committed result; Telegram failure cannot roll back the RFQ. */
         if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
-        ptf_rfq_notify_flush($dir);
+        /* v34.39.63: تا ۳ پیام در همان پاسخ (سطل توکن اجازه می‌دهد) — بدون cron هم
+           صف به‌جای ماندن تا ساعت‌ها، در ترافیک عادی خالی می‌شود. */
+        ptf_rfq_notify_flush($dir, 3);
     });
 }
-function ptf_rfq_notify_flush(?string $dir = null): array {
+/* $maxJobs: چند پیام در همین فراخوانی حداکثر تلاش شود (سطل توکن سقف را نگه می‌دارد).
+   فاز ۱ = انتخاب و مهر «sending» زیر قفل؛ فاز ۲ = I/O بدون قفل؛ فاز ۳ = ثبت نتیجه. */
+function ptf_rfq_notify_flush(?string $dir = null, int $maxJobs = 1): array {
     $dir = $dir ?? ptf_rfq_notify_dir();
     if (!ptf_rfq_notify_enabled() || !is_dir($dir)) return ['sent'=>0];
+    $channel = ptf_rfq_notify_channel();
+    if (!$channel) return ['sent'=>0, 'error'=>'no_channel'];
     ptf_rfq_notify_recover($dir);
     if (!is_file($dir . '/.rfq-notify.json')) return ['sent'=>0];
+    $maxJobs = max(1, min(20, $maxJobs));
     $delivery = @fopen($dir . '/.rfq-notify-delivery.lock', 'c+');
     if (!$delivery || !flock($delivery, LOCK_EX | LOCK_NB)) {
         if (is_resource($delivery)) fclose($delivery);
         return ['sent'=>0, 'busy'=>true];
     }
+    $sent = 0; $attempted = 0; $error = ''; $retryable = false; $expired = 0;
     try {
-        $now = time();
-        $job = ptf_rfq_notify_store($dir, function (&$state) use ($now) {
-            foreach ($state['jobs'] as &$row) {
-                if (($row['status'] ?? '') === 'sending' && (int)($row['claimedAt'] ?? 0) + 90 < $now) {
-                    /* Telegram has no idempotency key: a crashed/ambiguous send is
-                       not auto-retried, since it may already exist in the group. */
-                    $row['status'] = 'uncertain'; $row['error'] = 'worker_interrupted';
+        $ttl = ptf_rfq_notify_ttl();
+        for ($n = 0; $n < $maxJobs; $n++) {
+            $now = time();
+            $job = ptf_rfq_notify_store($dir, function (&$state) use ($now, $ttl, &$expired) {
+                foreach ($state['jobs'] as &$row) {
+                    if (($row['status'] ?? '') === 'sending' && (int)($row['claimedAt'] ?? 0) + 90 < $now) {
+                        /* Telegram has no idempotency key: a crashed/ambiguous send is
+                           not auto-retried, since it may already exist in the group. */
+                        $row['status'] = 'uncertain'; $row['error'] = 'worker_interrupted';
+                    }
+                } unset($row);
+                if ((int)($state['nextSendAt'] ?? 0) > $now) return null;
+                /* ① انقضای کهنه‌ها (بدون ارسال) و انتخاب اولین پیام سزامانت */
+                $selectedId = null; $age = 0;
+                foreach ($state['jobs'] as $jid => $row) {
+                    if (($row['status'] ?? '') !== 'pending') continue;
+                    if ((int)($row['nextAttemptAt'] ?? 0) > $now) continue;
+                    $age = $now - (int)($row['createdAt'] ?? $now);
+                    if ($ttl['expire'] > 0 && $age > $ttl['expire']) {
+                        $state['jobs'][$jid]['status'] = 'cancelled';
+                        $state['jobs'][$jid]['error'] = 'expired_stale';
+                        $state['jobs'][$jid]['expiredAt'] = $now;
+                        unset($state['jobs'][$jid]['text']);
+                        $state['notifyDiag']['expired'] = (int)($state['notifyDiag']['expired'] ?? 0) + 1;
+                        $expired++;
+                        continue;
+                    }
+                    $selectedId = $jid; break;
                 }
-            } unset($row);
-            if ((int)($state['nextSendAt'] ?? 0) > $now) return null;
-            foreach ($state['jobs'] as &$row) {
-                if (($row['status'] ?? '') !== 'pending' || (int)($row['nextAttemptAt'] ?? 0) > $now) continue;
-                $row['status'] = 'sending'; $row['claimedAt'] = $now; $row['attempts'] = (int)($row['attempts'] ?? 0) + 1;
-                $state['nextSendAt'] = $now + 3; /* bounded group rate; no sleeping in HTTP */
-                $selected = $row; unset($row); return $selected;
-            } unset($row);
-            return null;
-        });
-        if (!$job) return ['sent'=>0];
-        $cfg = ptf_rfq_notify_cfg();
-        $http = 0; $errno = 0; $response = false;
-        try {
-            if (!function_exists('curl_init')) throw new RuntimeException('curl_unavailable');
-            $ch = curl_init('https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage');
-            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_POST=>true, CURLOPT_CONNECTTIMEOUT=>3,
-                CURLOPT_TIMEOUT=>6, CURLOPT_SSL_VERIFYPEER=>true, CURLOPT_HTTPHEADER=>['Content-Type: application/json'],
-                CURLOPT_POSTFIELDS=>json_encode(['chat_id'=>$cfg['telegram_chat_id'], 'text'=>$job['text'], 'disable_web_page_preview'=>true], JSON_UNESCAPED_UNICODE)]);
-            $response = curl_exec($ch); $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $errno = curl_errno($ch); curl_close($ch);
-        } catch (Throwable $e) { $errno = -1; }
-        $reply = is_string($response) ? json_decode($response, true) : null;
-        $ok = $http >= 200 && $http < 300 && is_array($reply) && ($reply['ok'] ?? false) === true;
-        $rejected = is_array($reply) && ($reply['ok'] ?? null) === false;
-        $retryable = $rejected || in_array($errno, [-1, 5, 6, 7, 35, 60], true);
-        $retryAfter = $http === 429 || (int)($reply['error_code'] ?? 0) === 429 ? max(3, min(86400, (int)($reply['parameters']['retry_after'] ?? 60))) : min(3600, 30 * (2 ** min(7, (int)$job['attempts'])));
-        ptf_rfq_notify_store($dir, function (&$state) use ($job, $ok, $retryable, $retryAfter, $reply, $http, $errno) {
-            if (!isset($state['jobs'][$job['id']])) return;
-            $row =& $state['jobs'][$job['id']];
-            if ($ok) {
-                $row['status'] = 'sent'; $row['sentAt'] = time(); $row['messageId'] = $reply['result']['message_id'] ?? null;
-                unset($row['text'], $row['error']);
-            } elseif ($retryable && (int)$row['attempts'] < 8) {
-                $row['status'] = 'pending'; $row['nextAttemptAt'] = time() + $retryAfter;
-                $row['error'] = 'telegram_rejected_' . (int)($reply['error_code'] ?? $http);
-                if ((int)($reply['error_code'] ?? $http) === 429) $state['nextSendAt'] = max((int)$state['nextSendAt'], $row['nextAttemptAt']);
-            } else {
-                $row['status'] = $retryable ? 'failed' : 'uncertain';
-                $row['error'] = $retryable ? 'retry_limit' : 'delivery_unconfirmed';
+                if ($selectedId === null) return null;
+                /* ② سطل توکن: نرخ پایدار ۲۰ در دقیقه، burst تا ۵ */
+                if (!ptf_rfq_notify_rate_take($state, $now)) return null;
+                $row =& $state['jobs'][$selectedId];
+                $row['status'] = 'sending'; $row['claimedAt'] = $now;
+                $row['attempts'] = (int)($row['attempts'] ?? 0) + 1;
+                if ($ttl['stale'] > 0 && $age > $ttl['stale']) $row['staleMinutes'] = (int)floor($age / 60);
+                $selected = $row; unset($row);
+                return $selected;
+            });
+            if (!$job) break;
+            $attempted++;
+            $text = (string)$job['text'];
+            if (!empty($job['staleMinutes'])) {
+                $notice = ptf_rfq_notify_delay_notice((int)$job['staleMinutes']);
+                if ($notice !== '') $text = $notice . "\n\n" . $text;
             }
-        });
-        if (!$ok) error_log('PTF RFQ Telegram: delivery not confirmed; event=' . substr($job['id'], 0, 12) . '; http=' . $http . '; errno=' . $errno);
-        return ['sent'=>$ok ? 1 : 0, 'attempted'=>1, 'retryable'=>$retryable];
+            $http = 0; $errno = 0; $response = false;
+            try {
+                if (!function_exists('curl_init')) throw new RuntimeException('curl_unavailable');
+                $base = $channel['app'] === 'bale' ? 'https://tapi.bale.ai/bot' : 'https://api.telegram.org/bot';
+                $ch = curl_init($base . $channel['token'] . '/sendMessage');
+                curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_POST=>true, CURLOPT_CONNECTTIMEOUT=>3,
+                    CURLOPT_TIMEOUT=>6, CURLOPT_SSL_VERIFYPEER=>true, CURLOPT_HTTPHEADER=>['Content-Type: application/json'],
+                    CURLOPT_POSTFIELDS=>json_encode(['chat_id'=>$channel['chat'], 'text'=>$text, 'disable_web_page_preview'=>true], JSON_UNESCAPED_UNICODE)]);
+                $response = curl_exec($ch); $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $errno = curl_errno($ch); curl_close($ch);
+            } catch (Throwable $e) { $errno = -1; }
+            $reply = is_string($response) ? json_decode($response, true) : null;
+            $ok = $http >= 200 && $http < 300 && is_array($reply) && ($reply['ok'] ?? false) === true;
+            $rejected = is_array($reply) && ($reply['ok'] ?? null) === false;
+            $retryable = $rejected || in_array($errno, [-1, 5, 6, 7, 35, 60], true);
+            $retryAfter = $http === 429 || (int)($reply['error_code'] ?? 0) === 429 ? max(3, min(86400, (int)($reply['parameters']['retry_after'] ?? 60))) : min(3600, 30 * (2 ** min(7, (int)$job['attempts'])));
+            ptf_rfq_notify_store($dir, function (&$state) use ($job, $ok, $retryable, $retryAfter, $reply, $http) {
+                if (!isset($state['jobs'][$job['id']])) return;
+                $row =& $state['jobs'][$job['id']];
+                if ($ok) {
+                    $row['status'] = 'sent'; $row['sentAt'] = time(); $row['messageId'] = $reply['result']['message_id'] ?? null;
+                    unset($row['text'], $row['error'], $row['staleMinutes']);
+                } elseif ($retryable && (int)$row['attempts'] < 8) {
+                    $row['status'] = 'pending'; $row['nextAttemptAt'] = time() + $retryAfter;
+                    $row['error'] = 'telegram_rejected_' . (int)($reply['error_code'] ?? $http);
+                    if ((int)($reply['error_code'] ?? $http) === 429) $state['nextSendAt'] = max((int)($state['nextSendAt'] ?? 0), $row['nextAttemptAt']);
+                } else {
+                    $row['status'] = $retryable ? 'failed' : 'uncertain';
+                    $row['error'] = $retryable ? 'retry_limit' : 'delivery_unconfirmed';
+                }
+            });
+            if ($ok) $sent++; else {
+                error_log('PTF RFQ Telegram: delivery not confirmed; event=' . substr($job['id'], 0, 12) . '; http=' . $http . '; errno=' . $errno);
+                break; /* در خطا بیشتر نمی‌کشیم؛ فراخوانی/کران بعدی */
+            }
+        }
+        $out = ['sent'=>$sent, 'attempted'=>$attempted, 'retryable'=>$retryable];
+        if ($expired) $out['expired'] = $expired;
+        return $out;
     } catch (Throwable $e) {
         error_log('PTF RFQ Telegram: outbox delivery failed');
-        return ['sent'=>0, 'error'=>'outbox_delivery_failed'];
+        return ['sent'=>$sent, 'error'=>'outbox_delivery_failed'];
     } finally { flock($delivery, LOCK_UN); fclose($delivery); }
 }
 function ptf_rfq_notify_counts(?string $dir = null): array {
     $file = ($dir ?? ptf_rfq_notify_dir()) . '/.rfq-notify.json';
     $state = is_file($file) ? json_decode((string)@file_get_contents($file), true) : ['jobs'=>[]];
     if (!is_array($state) || !is_array($state['jobs'] ?? null)) throw new RuntimeException('rfq_outbox_invalid');
-    $counts = ['pending'=>0, 'sending'=>0, 'sent'=>0, 'uncertain'=>0, 'failed'=>0, 'recoveryPending'=>count(glob(dirname($file) . '/.rfq-notify-recover-*.json') ?: [])];
-    foreach (($state['jobs'] ?? []) as $job) { $s = (string)($job['status'] ?? ''); if (isset($counts[$s])) $counts[$s]++; }
+    $counts = ['pending'=>0, 'sending'=>0, 'sent'=>0, 'uncertain'=>0, 'failed'=>0, 'cancelled'=>0,
+        'recoveryPending'=>count(glob(dirname($file) . '/.rfq-notify-recover-*.json') ?: [])];
+    /* ═══ v34.39.63 (BOT-MSG-P2-8): «صف خالی نمی‌شود» باید دیده شود ═══
+       اگر cron نصب نباشد، پیام‌ها در صف می‌مانند و هیچ‌کس نمی‌فهمد چرا دیر می‌رسند.
+       oldestPendingAge سنِ قدیمی‌ترین پیام در انتظار است. */
+    $oldest = 0;
+    foreach (($state['jobs'] ?? []) as $job) {
+        $s = (string)($job['status'] ?? ''); if (isset($counts[$s])) $counts[$s]++;
+        if ($s === 'pending') {
+            $stamp = (int)($job['createdAt'] ?? 0);
+            if ($stamp > 0 && ($oldest === 0 || $stamp < $oldest)) $oldest = $stamp;
+        }
+    }
+    $counts['oldestPendingAge'] = $oldest > 0 ? max(0, time() - $oldest) : 0;
     /* v34.39.59: چند پیام آینه با پیام مرجع یکی شد (قابل مشاهده برای پایش دقت) */
     $counts['alignSuppressed'] = (int)($state['notifyAlignSuppressed'] ?? 0);
     /* v34.39.61 (BOT-MSG-P1-4): چند تغییر واقعی به‌خاطر شناسهٔ تکراری پیام نساخت
        (حدس ممنوع) — تا کاربر بداند عمداً ساکت مانده‌ایم، نه اینکه پیام گم شده باشد. */
     $counts['ambiguousRows'] = (int)($state['notifyDiag']['ambiguousRows'] ?? 0);
+    /* v34.39.63 (BOT-MSG-P2-7): پیام‌هایی که به‌خاطر کهنگی هرگز به گروه نرفتند */
+    $counts['expired'] = (int)($state['notifyDiag']['expired'] ?? 0);
+    $channel = ptf_rfq_notify_channel();
+    $counts['channel'] = $channel ? $channel['app'] : '';
     return $counts;
 }
 

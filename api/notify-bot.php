@@ -111,8 +111,27 @@ switch ($action) {
             /* v34.39.61 (BOT-MSG-P1-4): تغییر واقعی روی ردیفی با شناسهٔ تکراری اعلام
                نشد (حدس ممنوع) — این عدد جلوی «پیام نیامد ولی کسی خبر ندارد» را می‌گیرد. */
             if ((int)($outbox['ambiguousRows'] ?? 0) > 0) $healthParts[] = (int)$outbox['ambiguousRows'] . ' تغییر به‌خاطر شناسهٔ تکراری اعلام نشد (حدس ممنوع) — ردیف‌های تکراری CRM را ادغام کنید';
+            /* v34.39.63 (BOT-MSG-P2-7): پیام‌های کهنه به گروه نمی‌روند — عمدی و دیدنی */
+            if ((int)($outbox['expired'] ?? 0) > 0) $healthParts[] = (int)$outbox['expired'] . ' پیام کهنه منقضی شد و به گروه نرفت (رویداد قدیمی)';
+            /* v34.39.63 (BOT-MSG-P2-8): «صف پاک نمی‌شود» = cron یا ترافیک کافی نیست */
+            if ((int)($outbox['pending'] ?? 0) > 0 && (int)($outbox['oldestPendingAge'] ?? 0) > 120) {
+                $mins = (int)floor(((int)$outbox['oldestPendingAge']) / 60);
+                $healthParts[] = 'قدیمی‌ترین پیام در صف ' . $mins . ' دقیقه است خارج نشده — cron (`php api/rfq-notify-cron.php`) یا ترافیک سایت را بررسی کنید';
+            }
             if ($stuck > 0) $healthParts[] = 'برای پیگیری: php api/rfq-notify-cron.php --status';
         }
+        /* v34.39.63 (BOT-MSG-P2-16): کانال واقعی و دلیل خاموشی/هشدار پیکربندی */
+        try {
+            $channel = ptf_rfq_notify_channel();
+            if (!$channel) {
+                $issue = ptf_rfq_notify_config_issue();
+                if ($issue !== '') $healthParts[] = 'اعلان خودکار درخواست‌ها کار نمی‌کند: ' . $issue;
+            } elseif (!empty($channel['warning'])) {
+                $healthParts[] = $channel['warning'];
+            }
+            $dups = ptf_rfq_notify_cfg_duplicates();
+            if ($dups) $healthParts[] = 'چند فایل bot-config.php وجود دارد؛ نسخهٔ مصرف‌شده: ' . basename(dirname(ptf_rfq_notify_cfg_path())) . '/' . basename(ptf_rfq_notify_cfg_path()) . ' — بقیه را حذف کنید (' . count($dups) . ' فایل اضافی)';
+        } catch (Throwable $eCfg) {}
         $health = $healthParts ? implode("\n", $healthParts) : 'صف ارسال سالم است — پیامی در انتظار نمانده';
         echo json_encode(['ok' => true, 'rfq_notifications' => $rfqAuto,
             'outbox' => $outbox, 'health' => $health,

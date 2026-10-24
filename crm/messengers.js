@@ -318,7 +318,10 @@
       (o.failed ? '\n• ناموفق: ' + o.failed : '') +
       (o.sent ? '\n• ارسال‌شده (نشانگر): ' + o.sent : '') +
       (o.alignSuppressed ? '\n• پیام تکراری حذف‌شده: ' + o.alignSuppressed : '') +
-      (o.ambiguousRows ? '\n• اعلام‌نشده به‌خاطر شناسهٔ تکراری: ' + o.ambiguousRows : '');
+      (o.ambiguousRows ? '\n• اعلام‌نشده به‌خاطر شناسهٔ تکراری: ' + o.ambiguousRows : '') +
+      /* v34.39.63 (BOT-MSG-P2-7/16): پیام کهنهٔ منقضی و کانال فعال هم دیده شود */
+      (o.expired ? '\n• منقضی‌شده (به گروه نرفت): ' + o.expired : '') +
+      (o.channel ? '\n• کانال: ' + (o.channel === 'bale' ? 'بله' : 'تلگرام') : '');
     if (cb) cb(t); else alert(t);
   };
   /* هوک notify: اعلان‌های حیاتی به بات هم برود (اگر کانفیگ فعال باشد — سرور خودش چک می‌کند) */
@@ -402,13 +405,15 @@
       if (!line) return;
       if (!d || !d.ok) { line.style.color = '#b45309'; line.textContent = '⚠️ وضعیت بات در دسترس نیست — ' + ((d && d.error) || 'کانفیگ/شبکه'); return; }
       var o = d.outbox || {};
-      var stuck = (+(o.uncertain || 0)) + (+(o.failed || 0)) + (+(o.ambiguousRows || 0));
+      var stuck = (+(o.uncertain || 0)) + (+(o.failed || 0)) + (+(o.ambiguousRows || 0)) + (+(o.expired || 0));
       line.style.color = stuck ? '#b45309' : '#166534';
       line.textContent = (stuck ? '⚠️ ' : '✅ ') + (d.health || 'صف ارسال سالم است') +
         (o.pending ? ' · در صف: ' + o.pending : '') +
         (o.uncertain ? ' · تأییدنشده: ' + o.uncertain : '') +
         (o.failed ? ' · ناموفق: ' + o.failed : '') +
         (o.ambiguousRows ? ' · اعلام‌نشده (شناسهٔ تکراری): ' + o.ambiguousRows : '') +
+        (o.expired ? ' · منقضی‌شده: ' + o.expired : '') +
+        (o.channel ? ' · کانال: ' + (o.channel === 'bale' ? 'بله' : 'تلگرام') : '') +
         ((d.rfq_notifications === false) ? ' · اعلان خودکار خاموش' : '');
     });
   }

@@ -33,8 +33,10 @@ try {
        the ordinary post-response worker attempts one due event without waiting. */
     if (!in_array('--status', $args, true) && ptf_rfq_notify_enabled()) {
         $until = microtime(true) + 55;
+        /* v34.39.63 (BOT-MSG-P2-8): سطل توکن تا ۵ پیام burst می‌دهد؛ هر فراخوانی چند
+           پیام را خالی می‌کند و نرخ پایدار همان ۲۰ در دقیقه می‌ماند. */
         for ($n = 0; $n < 18 && microtime(true) < $until; $n++) {
-            $result = ptf_rfq_notify_flush($dir);
+            $result = ptf_rfq_notify_flush($dir, 5);
             $sent += (int)($result['sent'] ?? 0);
             if (!empty($result['error']) || !empty($result['busy'])) break;
             $counts = ptf_rfq_notify_counts($dir);
@@ -45,7 +47,15 @@ try {
             sleep(3);
         }
     }
-    echo json_encode(['ok'=>true, 'enabled'=>ptf_rfq_notify_enabled(), 'sentThisRun'=>$sent, 'outbox'=>ptf_rfq_notify_counts($dir)], JSON_UNESCAPED_UNICODE) . "\n";
+    /* v34.39.63 (BOT-MSG-P2-16): کانال و مسیر فایل کانفیگ هم گزارش می‌شود تا «کدام
+       کانفیگ اجرا می‌شود» و «چرا خاموش است» بدون حدس معلوم باشد. */
+    $channel = ptf_rfq_notify_channel();
+    echo json_encode(['ok'=>true, 'enabled'=>ptf_rfq_notify_enabled(), 'sentThisRun'=>$sent,
+        'channel'=>$channel ? $channel['app'] : '', 'configPath'=>ptf_rfq_notify_cfg_path(),
+        'configIssues'=>array_merge((ptf_rfq_notify_config_issue() !== '' ? [ptf_rfq_notify_config_issue()] : []),
+            (ptf_rfq_notify_channel()['warning'] ?? '') !== '' ? [ptf_rfq_notify_channel()['warning']] : [],
+            ptf_rfq_notify_cfg_duplicates() ? ['چند فایل bot-config.php موجود است: ' . implode('، ', ptf_rfq_notify_cfg_duplicates())] : []),
+        'outbox'=>ptf_rfq_notify_counts($dir)], JSON_UNESCAPED_UNICODE) . "\n";
 } catch (Throwable $e) {
     fwrite(STDERR, "RFQ notification outbox unavailable; check server storage/logs.\n");
     exit(1);

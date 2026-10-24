@@ -18,7 +18,7 @@ function phpFn(name) {
 const WAL = ['sd_meta_commit','sd_projection_value','sd_publish_changes','sd_pending_transaction_files','sd_recover_pending_transactions','sd_commit'].map(phpFn).join('\n');
 const PHP_TEST = `<?php
 $pass=0;$fail=0;
-function T($name,$ok){global $pass,$fail;if($ok){$pass++;echo "PASS ".$name."\\n";}else{$fail++;echo "FAIL ".$name."\\n";}}
+function T($name,$ok,$detail=''){global $pass,$fail;if($ok){$pass++;echo "PASS ".$name."\\n";}else{$fail++;echo "FAIL ".$name.($detail!==''?' — '.$detail:'')."\\n";}}
 require __DIR__.'/app/api/rfq-notify-lib.php';
 function sd_sync_dir():string{return __DIR__.'/app/crm/data/sync';}
 function sd_now():string{return gmdate('Y-m-d\\TH:i:s\\Z');}
@@ -94,8 +94,13 @@ resetQueue();ptf_rfq_notify_enqueue($e);ptf_rfq_notify_store(sd_sync_dir(),funct
 T('confirmed failures stop after eight attempts and stay available for operator',storeRead()['jobs'][$e[0]['id']]['status']==='failed');
 resetQueue();ptf_rfq_notify_enqueue($e);ptf_rfq_notify_store(sd_sync_dir(),function(&$s){foreach($s['jobs'] as &$j){$j['status']='sending';$j['claimedAt']=time()-100;}unset($j);});ptf_rfq_notify_flush();
 T('crashed send is quarantined, not blindly duplicated',storeRead()['jobs'][$e[0]['id']]['status']==='uncertain'&&count($GLOBALS['calls'])===0);
+/* v34.39.63 (BOT-MSG-P2-8): نرخ از «فاصلهٔ ثابت ۳ ثانیه، یک پیام در هر فراخوانی» به سطل
+   توکن تغییر کرد: burst تا ۵ پیام، نرخ پایدار همان ۲۰ در دقیقه. قرارداد جدید: یک فراخوانی
+   پیش‌فرض (maxJobs=1) فقط یک پیام می‌فرستد و دومی در صف می‌ماند — بدون sleep در HTTP. */
 resetQueue();ptf_rfq_notify_enqueue(array_merge($e,$ch));ptf_rfq_notify_flush();ptf_rfq_notify_flush();
-T('group rate leaves next event pending without sleeping in HTTP',count($GLOBALS['calls'])===1&&ptf_rfq_notify_counts()['pending']===1);
+T('group burst delivers both queued events across calls without sleeping in HTTP',count($GLOBALS['calls'])===2&&ptf_rfq_notify_counts()['pending']===0);
+resetQueue();ptf_rfq_notify_enqueue(array_merge($e,$ch));ptf_rfq_notify_flush(null,5);
+T('burst drain delivers queued events in one call (bucket cap 5)',count($GLOBALS['calls'])>=1&&ptf_rfq_notify_counts()['pending']===0);
 /* Actual WAL function execution (not a reimplementation). */
 resetQueue();file_put_contents(sd_sync_dir().'/ptf_crm_rfqs.json','[]');
 $ctx=['key'=>'cmd-new','action'=>'entity_upsert','requestHash'=>'HASH','owner'=>'verified-user'];
