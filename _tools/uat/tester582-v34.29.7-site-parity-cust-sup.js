@@ -24,10 +24,12 @@ var bridge = fs.readFileSync(path.join(ROOT, 'crm/bridge.js'), 'utf8');
 var offers = fs.readFileSync(path.join(ROOT, 'crm/offers.js'), 'utf8');
 
 /* ── ① سرور: کانال‌های تماس داخل people زنده می‌مانند ── */
-T('SRV: sd_entity_sanitize_list پارامتر عمق دارد (int $depth = 2)', /function sd_entity_sanitize_list\(array \$v, array &\$stats = null, int \$depth = 2\): array/.test(php));
-T('SRV: مقدار آرایه‌ای داخل mapِ داخل لیست بازگشتی سانیتایز می‌شود (نه حذف)', php.indexOf('sd_entity_sanitize_list($v3, $stats, $depth - 1)') > -1);
+/* v34.39.58: دو پارامتر اختیاری سقف (itemLimit/maxKeys) برای فیلدهای سنگین نامه
+   اضافه شد؛ عمق همچنان محدود است و بازگشت همان است — فقط با انتقال سقف‌ها. */
+T('SRV: sd_entity_sanitize_list پارامتر عمق دارد (int $depth = 2)', /function sd_entity_sanitize_list\(array \$v, array &\$stats = null, int \$depth = 2, int \$itemLimit = 2000, int \$maxKeys = 20\): array/.test(php));
+T('SRV: مقدار آرایه‌ای داخل mapِ داخل لیست بازگشتی سانیتایز می‌شود (نه حذف)', php.indexOf('sd_entity_sanitize_list($v3, $stats, $depth - 1, $itemLimit, $maxKeys)') > -1);
 T('SRV: شاخهٔ حفظ لیست داخل map سطح ردیف (v34.23.0 — files.oth) دست‌نخورده ماند', /elseif \(is_string\(\$k2\) && strlen\(\$k2\) <= 60 && is_array\(\$v2\)\)/.test(php));
-T('SRV: سقف‌های قبلی (۶۰ قلم / ۲۰ فیلد) در جای خود هستند', /count\(\$list\) >= 60/.test(php) && /count\(\$subItem\) >= 20/.test(php));
+T('SRV: سقف‌های قبلی (۶۰ قلم / ۲۰ فیلد) در جای خود هستند', /count\(\$list\) >= 60/.test(php) && /count\(\$subItem\) >= \$maxKeys/.test(php) && /int \$maxKeys = 20/.test(php));
 
 /* ── ② کلاینت: مشتری سایت با موازین CRM ── */
 T('CUST: طبقه‌بندی استاندارد تلفن فرم سایت (chOf: ^09→mobs، sonst tels با ext)', (function () {

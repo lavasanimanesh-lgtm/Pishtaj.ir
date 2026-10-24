@@ -110,7 +110,9 @@ T('F: انتخاب از فهرست همان offerPickBuyer رسمی را صدا 
 T('F: بستن فهرست با کلیک بیرون', of.indexOf("e.target.closest && e.target.closest('#ofBuyerAcBox')") > -1);
 
 /* ═══ G) مکاتبات ═══ */
-T('G: فالبک امضا با نام نمایشی (letResolveSignerProfile)', lt.indexOf('function letResolveSignerProfile') > -1 && lt.indexOf("(l.signatureSnapshot || letResolveSignerProfile(l) || signerProfile)") > -1);
+/* v34.39.58: انتخاب تصویر به letSnapImg منتقل شد ولی ترتیب فالبک همان است:
+   snapshot سند ← letResolveSignerProfile(l) ← پروفایل امضاکننده. */
+T('G: فالبک امضا با نام نمایشی (letResolveSignerProfile)', lt.indexOf('function letResolveSignerProfile') > -1 && lt.indexOf('var _liveP = letResolveSignerProfile(l) || signerProfile') > -1 && lt.indexOf('letSnapImg(_snap, ') > -1);
 T('G: تطبیق nm/nmEn پروفایل‌ها', lt.indexOf("String(p.nm || '').trim() === nm") > -1);
 T('G: letCopyAsDraft تعریف شد', lt.indexOf('window.letCopyAsDraft') > -1);
 T('G: کپی = پیش‌نویس بدون امضا/شماره', lt.indexOf("copy.st = 'draft';") > -1 && lt.indexOf('delete copy.signatureSnapshot;') > -1 && lt.indexOf("copy.no = '';") > -1);

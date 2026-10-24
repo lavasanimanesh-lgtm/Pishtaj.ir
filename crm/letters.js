@@ -242,7 +242,9 @@ function letResolveSignerProfile(l) {
     var nm = String((l && (l.signerNm || l.signerName)) || '').trim();
     if (!nm) return direct || null;
     var map = sigProfiles();
-    var keys = Object.keys(map);
+    /* v34.39.58: کلیدهای دارایی («_asset_…») پروفایل نیستند — نباید در جست‌وجوی
+       نام نمایشی/فهرست امضاکنندگان دیده شوند. */
+    var keys = Object.keys(map).filter(function (k) { return !letAssetIsId(k); });
     var hit = keys.filter(function (k) {
       var p = map[k] || {};
       return String(p.nm || '').trim() === nm || String(p.nmEn || '').trim() === nm;
@@ -251,17 +253,316 @@ function letResolveSignerProfile(l) {
   } catch (e) { return null; }
 }
 function mySigProfile() { return sigProfileFor((curSession() || {}).user); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   v34.39.58 (LETTER-SIG-ASSET) — «تصویر یک‌بار، ارجاع در سند»
+   RCA 2026-10-24 (ARENA-LETTERS-SIGN-AND-AMEND-RCA-2026-10-24.md): نامه‌ها از
+   مسیر فرمان entity_upsert ذخیره می‌شوند و پاک‌ساز ردیف در سرور هر رشتهٔ داخل
+   map تو در تو را به ۳۰۰ کاراکتر می‌برد (api/sales-domain.php:354). تصویر
+   ۴۰–۱۲۰ کیلوبایتی مهر/امضا به ۳۰۰ کاراکتر می‌رسید، data URL نامعتبر می‌شد و
+   تصویر روی نامهٔ چاپی نمی‌آمد — در حالی که همان تصویر در پروفایل (که map است و
+   از مسیر data_push می‌رود) سالم می‌ماند.
+   راه‌حل: تصویر یک‌بار به‌صورت «دارایی» (asset) با کلید محتوایی نگه داشته شود و
+   سند فقط شناسهٔ کوتاه (<۳۰۰) داشته باشد: signatureSnapshot.{sigAsset,stampAsset}،
+   images[].asset و در متن ptfasset:<id>. محل نگه‌داری: همان map موجودِ
+   ptf_crm_sigprofiles با کلیدهای پیشوندی «_asset_» (گزینهٔ ب-۲ گزارش بررسی) —
+   چون map است، روتر فرمان آن را به مسیر legacy (setData → data_push) می‌برد که
+   پاک‌ساز per-record ندارد. هیچ کلید/مجوز سینک جدیدی لازم نیست.
+   ═══════════════════════════════════════════════════════════════════════ */
+var LET_ASSET_PFX = '_asset_';
+var LET_ASSET_BUDGET = 2 * 1024 * 1024; /* سقف مجموع حجم دارایی‌ها (نویسه) — هر push سینک کل map را می‌فرستد */
+var LET_ASSET_MAX = 120;                /* سقف تعداد دارایی‌ها */
+var _letAssetDraft = null;              /* دستهٔ نوشتن جاری (برای ذخیرهٔ یک‌باره) */
+var _letAssetKeep = null;               /* دارایی‌های تازه که در پیرایش نباید حذف شوند */
+var _letAssetDepth = 0;                 /* عمق تودرتویی begin/end */
+var _letAssetDirty = false;             /* آیا تغییری در map رخ داده است؟ */
+
+function letHash12(s) {
+  s = String(s || '');
+  var h = 0x811c9dc5, i, n = s.length;
+  for (i = 0; i < n; i++) { h ^= s.charCodeAt(i); h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; }
+  var h2 = (0x9e3779b9 ^ n) >>> 0;
+  for (i = n - 1; i >= 0; i -= 5) { h2 = ((h2 ^ s.charCodeAt(i)) * 16777619) >>> 0; }
+  var h3 = 0x85ebca6b;
+  for (i = 0; i < n; i += 11) { h3 = ((h3 + s.charCodeAt(i)) * 2654435761) >>> 0; }
+  return ('0000000' + (h >>> 0).toString(16)).slice(-8) + ('0000000' + (h2 >>> 0).toString(16)).slice(-4) +
+         ('000' + (h3 >>> 0).toString(16)).slice(-3);
+}
+function letIsImgDataUrl(u) { return typeof u === 'string' && /^data:image\/[a-z0-9.+-]+;base64,/i.test(u); }
+/* اعتبار عملی data URL: تصویر بریده‌شده (مثل برش ۳۰۰ کاراکتری سرور) payload ناقص
+   دارد و مرورگر آن را رندر نمی‌کند. حالت سبک فقط طول/پدینگ را می‌سنجد؛ حالت deep
+   امضای فایل (PNG IEND / JPEG FFD9 / GIF 3B) را هم بررسی می‌کند. */
+function letImgDataUrlOk(u, deep) {
+  if (!letIsImgDataUrl(u)) return false;
+  var parts = String(u).split(',');
+  var head = parts[0] || '', p = parts[1] || '';
+  if (p.length < 60) return false;
+  if (p.length % 4 !== 0) return false;
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(p)) return false;
+  if (!deep) return true;
+  var bin = null;
+  try { if (typeof atob === 'function') bin = atob(p); } catch (eD) { return false; }
+  if (bin == null) return true; /* بدون atob فقط بررسی طول */
+  if (bin.length < 64) return false;
+  var b0 = bin.charCodeAt(0), b1 = bin.charCodeAt(1);
+  var isPng = (b0 === 0x89 && b1 === 0x50);
+  var isJpg = (b0 === 0xFF && b1 === 0xD8);
+  var isGif = (b0 === 0x47 && b1 === 0x49);
+  var isWebp = (bin.length > 12 && bin.slice(0, 4) === 'RIFF' && bin.slice(8, 12) === 'WEBP');
+  if (isPng) return bin.slice(-12).indexOf('IEND') > -1;
+  if (isJpg) return bin.charCodeAt(bin.length - 2) === 0xFF && bin.charCodeAt(bin.length - 1) === 0xD9;
+  if (isGif) return bin.charCodeAt(bin.length - 1) === 0x3B;
+  if (isWebp) return bin.length > 256;
+  if (/^data:image\/(jpeg|jpg)/i.test(head)) return true; /* نوع‌های دیگری که مرورگر می‌پذیرد */
+  return bin.length > 256;
+}
+
+function letAssetIsId(k) { return typeof k === 'string' && k.indexOf(LET_ASSET_PFX) === 0; }
+function letAssetMap() { /* کپی کم‌عمق برای نوشتن — خواندن از letAssetGet انجام می‌شود */
+  var m = null;
+  try { m = sigProfileMap(); } catch (e) {}
+  var out = {};
+  if (m && typeof m === 'object' && !Array.isArray(m)) {
+    Object.keys(m).forEach(function (k) { out[k] = m[k]; });
+  }
+  return out;
+}
+function letAssetId(kind, dataUrl) {
+  return LET_ASSET_PFX + String(kind || 'IMG').toUpperCase() + '-' + letHash12(String(dataUrl || ''));
+}
+/* خواندن از map داده‌شده — برای حلقه‌های رندر که یک‌بار map را می‌خوانند و چند نامه
+   را می‌سنجند (بدون این مسیر، هر ردیف جدول یک JSON.parse از کل map می‌خواست). */
+function letAssetGetIn(map, id) {
+  if (!letAssetIsId(id)) return '';
+  var r = map && map[id];
+  return (r && letIsImgDataUrl(r.src)) ? r.src : '';
+}
+function letAssetGet(id) {
+  if (!letAssetIsId(id)) return '';
+  var m = null;
+  try { m = sigProfileMap(); } catch (e) { return ''; }
+  return letAssetGetIn(m, id);
+}
+function letAssetCount(map) {
+  return Object.keys(map || {}).filter(letAssetIsId).length;
+}
+function letAssetBytes(map) {
+  var n = 0;
+  Object.keys(map || {}).forEach(function (k) {
+    if (letAssetIsId(k) && map[k] && map[k].src) n += String(map[k].src).length;
+  });
+  return n;
+}
+/* شناسهٔ دارایی‌هایی که سندهای زنده به آن‌ها ارجاع می‌دهند (برای پیرایش ایمن) */
+function letAssetRefsInUse() {
+  var refs = {};
+  function addSnap(s) { if (!s) return; if (s.sigAsset) refs[s.sigAsset] = 1; if (s.stampAsset) refs[s.stampAsset] = 1; }
+  function addImgs(list) {
+    (list || []).forEach(function (im) { if (im && im.asset) refs[im.asset] = 1; });
+  }
+  function addHtml(h) {
+    var m = String(h || '').match(/ptfasset:[A-Za-z0-9_\-]+/g) || [];
+    m.forEach(function (x) { refs[x.slice(9)] = 1; });
+  }
+  try {
+    (getData('ptf_crm_letters') || []).forEach(function (l) {
+      if (!l) return;
+      addSnap(l.signatureSnapshot);
+      addImgs(l.images);
+      addHtml(l.bodyHtml);
+      (l.revs || []).forEach(function (r) { if (!r) return; addSnap(r.signatureSnapshot); addImgs(r.images); addHtml(r.bodyHtml); });
+    });
+  } catch (e) {}
+  return refs;
+}
+/* پیرایش: فقط دارایی‌های بی‌ارجاع حذف می‌شوند (هیچ سند زنده‌ای تصویرش را از دست نمی‌دهد) */
+function letAssetPrune(map, keep) {
+  var refs = letAssetRefsInUse();
+  Object.keys(keep || {}).forEach(function (k) { refs[k] = 1; });
+  var ids = Object.keys(map || {}).filter(letAssetIsId);
+  var total = letAssetBytes(map), count = ids.length;
+  ids.sort(function (a, b) {
+    var x = String((map[a] || {}).at || ''), y = String((map[b] || {}).at || '');
+    return x < y ? -1 : (x > y ? 1 : 0);
+  });
+  ids.forEach(function (id) {
+    if (count <= LET_ASSET_MAX && total <= LET_ASSET_BUDGET) return;
+    if (refs[id]) return;
+    total -= String((map[id] || {}).src || '').length;
+    count--;
+    delete map[id];
+  });
+  return map;
+}
+function letAssetSave(map) {
+  try {
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sigprofiles', map, { reason: 'w4' });
+    else setData('ptf_crm_sigprofiles', map);
+  } catch (e) {}
+}
+function letAssetBegin() {
+  if (_letAssetDepth === 0) { _letAssetDraft = letAssetMap(); _letAssetKeep = {}; _letAssetDirty = false; }
+  _letAssetDepth++;
+  return _letAssetDraft;
+}
+function letAssetEnd() {
+  if (_letAssetDepth > 1) { _letAssetDepth--; return; }
+  _letAssetDepth = 0;
+  if (!_letAssetDraft) return;
+  var map = _letAssetDraft, keep = _letAssetKeep || {};
+  _letAssetDraft = null; _letAssetKeep = null;
+  if (!_letAssetDirty) return; /* نوشتن بی‌مورد روی کلید همگام‌شده انجام نمی‌شود */
+  letAssetPrune(map, keep);
+  letAssetSave(map);
+  /* v34.39.58: اگر حجم دارایی‌های «در حال استفاده» از بودجه بگذرد، پیرایش نمی‌تواند کاری
+     کند (حذف آن‌ها = از دست رفتن تصویر سند زنده)؛ یک‌بار و آرام به کاربر خبر می‌دهیم
+     تا بداند فضای تصاویر در حال پر شدن است. */
+  try {
+    if (letAssetBytes(map) > LET_ASSET_BUDGET && !window._ptfAssetBudgetWarned) {
+      window._ptfAssetBudgetWarned = 1;
+      if (typeof ptfToast === 'function') ptfToast('⚠️ فضای تصاویر نامه‌ها پر شده است؛ تصاویر قدیمیِ بی‌ارجاع به‌صورت خودکار پاک می‌شوند. اگر چاپ تصویر نامه‌ای خالی بود، تصویر را دوباره درج کنید.', 'warn');
+    }
+  } catch (eW) {}
+}
+function letAssetPutRaw(map, dataUrl, kind) {
+  if (!letImgDataUrlOk(dataUrl, true)) return '';
+  var id = letAssetId(kind, dataUrl);
+  var cur = map[id];
+  if (cur && letIsImgDataUrl(cur.src)) return id;
+  map[id] = { src: dataUrl, kind: String(kind || 'IMG').toUpperCase(), at: (new Date()).toISOString(), by: (curSession() || {}).user || '' };
+  _letAssetDirty = true;
+  return id;
+}
+/* ثبت یک تصویر و برگرداندن شناسهٔ کوتاه ('' = ذخیره نشد/نامعتبر) */
+function letAssetPut(dataUrl, kind) {
+  if (!_letAssetDraft) {
+    var m = letAssetMap();
+    var id = letAssetPutRaw(m, dataUrl, kind);
+    if (id) {
+      var keep = {}; keep[id] = 1;
+      letAssetPrune(m, keep);
+      if (!m[id]) return ''; /* از سقف حجم/تعداد گذشته — درج رد شد */
+      letAssetSave(m);
+    }
+    return id;
+  }
+  var got = letAssetPutRaw(_letAssetDraft, dataUrl, kind);
+  if (got && _letAssetKeep) _letAssetKeep[got] = 1;
+  return got;
+}
+
+/* ---- جای‌گذاری دارایی در متن نامه (بدنه و تصاویر) ---- */
+function letHtmlAssetify(html) {
+  return String(html == null ? '' : html).replace(/<img\b[^>]*>/gi, function (tag) {
+    var m = tag.match(/\bsrc\s*=\s*"([^"]+)"/i);
+    if (!m || !letIsImgDataUrl(m[1])) return tag;
+    var id = letAssetPut(m[1], 'IMG');
+    if (!id) return tag; /* اگر دارایی ذخیره نشد، رفتار قبلی حفظ می‌شود */
+    return tag.replace(m[1], 'ptfasset:' + id);
+  });
+}
+function letHtmlExpand(html) {
+  var s = String(html == null ? '' : html);
+  /* تصویرهای بی‌دارایی حذف می‌شوند تا «آیکون شکسته» روی سند چاپی نیاید */
+  s = s.replace(/<img\b[^>]*\bsrc\s*=\s*"ptfasset:[^"]*"[^>]*>/gi, function (tag) {
+    var m = tag.match(/ptfasset:([A-Za-z0-9_\-]+)/);
+    return (m && letAssetGet(m[1])) ? tag : '';
+  });
+  return s.replace(/ptfasset:([A-Za-z0-9_\-]+)/g, function (all, id) { return letAssetGet(id) || ''; });
+}
+function letImagesAssetify(list) {
+  return (list || []).slice(0, 3).map(function (im) {
+    im = im || {};
+    var out = { cap: im.cap || '' };
+    var id = im.asset && letAssetGet(im.asset) ? im.asset : (letIsImgDataUrl(im.src) ? letAssetPut(im.src, 'IMG') : '');
+    if (id) out.asset = id;
+    else if (im.src) out.src = im.src;
+    return out;
+  }).filter(function (im) { return im.asset || im.src; });
+}
+function letImagesResolve(list) {
+  var out = [];
+  (list || []).forEach(function (im) {
+    if (!im) return;
+    var u = im.asset ? letAssetGet(im.asset) : (letImgDataUrlOk(im.src) ? im.src : '');
+    if (u) out.push({ src: u, cap: im.cap || '' });
+  });
+  return out;
+}
+
+/* ---- snapshot امضا: هویت تاریخی + ارجاع تصویر ---- */
+function letMakeSigSnapshot(p, nm, role) {
+  p = p || {};
+  var snap = {
+    v: 2,
+    nm: nm || '',
+    role: role || '',
+    at: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString())
+  };
+  var sigId = p.sig ? letAssetPut(p.sig, 'SIG') : '';
+  var stpId = p.stamp ? letAssetPut(p.stamp, 'STP') : '';
+  if (sigId) snap.sigAsset = sigId; else if (p.sig) snap.sig = p.sig;
+  if (stpId) snap.stampAsset = stpId; else if (p.stamp) snap.stamp = p.stamp;
+  if (sigId) snap.sigSha = sigId.split('-').pop();
+  if (stpId) snap.stampSha = stpId.split('-').pop();
+  return snap;
+}
+/* تصویر قابل‌چاپ: دارایی ← تصویر سالم درونی (نسخهٔ قدیمی) ← پروفایل جاری امضاکننده */
+function letSnapImg(snap, key, live) {
+  snap = snap || {}; live = live || {};
+  var id = snap[key + 'Asset'];
+  var u = id ? letAssetGet(id) : '';
+  if (u) return { url: u, from: 'asset' };
+  if (letImgDataUrlOk(snap[key], true)) return { url: snap[key], from: 'snapshot' };
+  var lv = live[key];
+  if (letImgDataUrlOk(lv, true)) return { url: lv, from: 'profile' };
+  return { url: '', from: 'none' };
+}
+/* وضعیت تصویر نامه برای نشان فهرست: ok | broken | empty | na */
+function letSnapState(l, assetMap) {
+  if (!l || l.st !== 'signed') return 'na';
+  var s = l.signatureSnapshot || {};
+  function _a(id) { return assetMap ? letAssetGetIn(assetMap, id) : letAssetGet(id); }
+  if ((s.sigAsset && _a(s.sigAsset)) || letImgDataUrlOk(s.sig)) return 'ok';
+  if ((s.stampAsset && _a(s.stampAsset)) || letImgDataUrlOk(s.stamp)) return 'ok';
+  if (s.sig || s.stamp || s.sigAsset || s.stampAsset) return 'broken';
+  return 'empty';
+}
+
 window.ptfSigProfiles = sigProfileMap;
 window.ptfSigProfileFor = sigProfileFor;
 
+/* وضعیت تصویر پروفایل برای UI: ok (سالم) | broken (ذخیره شده ولی قابل چاپ نیست) | empty */
+function letProfileImgState(v) {
+  if (!v) return 'empty';
+  return letImgDataUrlOk(v, true) ? 'ok' : 'broken';
+}
+function letProfileImgNote(v) {
+  var st = letProfileImgState(v);
+  if (st === 'ok') return '<small style="color:#10b981">✔ ثبت شده</small>';
+  if (st === 'broken') return '<small style="color:#b45309">⚠️ تصویر ذخیره‌شده ناقص است — دوباره بارگذاری کنید</small>';
+  return '';
+}
+function letProfileImgThumb(v) {
+  var st = letProfileImgState(v);
+  if (st !== 'ok') return '';
+  return '<img src="' + v + '" alt="" style="max-height:46px;max-width:120px;border:1px solid var(--brd);border-radius:6px;background:#fff;padding:2px;margin-top:4px">';
+}
 function showSigProfile() {
   var p = mySigProfile() || {};
+  /* v34.39.58 (LETTER-SIG-ASSET): وجودِ «کلید» کافی نیست؛ خودِ data URL باید سالم
+     باشد. قبلاً تصویر بریده/ناقص «✔ ثبت شده» نشان می‌داد و کاربر فکر می‌کرد امضا
+     ثبت شده، در حالی که هیچ چاپی از آن درنمی‌آمد. */
+  var _sigSt = letProfileImgState(p.sig), _stpSt = letProfileImgState(p.stamp);
+  if (_sigSt === 'broken' || _stpSt === 'broken') {
+    try { if (typeof ptfToast === 'function') ptfToast('⚠️ تصویر ' + (_sigSt === 'broken' ? 'امضا' : 'مهر') + ' ناقص ذخیره شده و روی نامه چاپ نمی‌شود — دوباره بارگذاری کنید', 'warn'); } catch (eT) {}
+  }
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:480px">' +
     '<h3>✍️ پروفایل امضای من</h3>' +
     '<div class="fr"><div class="fld"><label>نام رسمی (روی نامه)</label><input type="text" id="sgNm" value="' + escP(p.nm || curSession().name || '') + '"></div>' +
     '<div class="fld"><label>سمت</label><input type="text" id="sgRole" value="' + escP(p.role || (typeof roleDef === 'function' ? roleDef().lb : '')) + '"></div></div>' +
-    '<div class="fr"><div class="fld"><label>تصویر امضا</label><input type="file" id="sgSig" accept="image/*">' + (p.sig ? '<small style="color:#10b981">✔ ثبت شده</small>' : '') + '</div>' +
-    '<div class="fld"><label>تصویر مهر</label><input type="file" id="sgStamp" accept="image/*">' + (p.stamp ? '<small style="color:#10b981">✔ ثبت شده</small>' : '') + '</div></div>' +
+    '<div class="fr"><div class="fld"><label>تصویر امضا</label><input type="file" id="sgSig" accept="image/*">' + letProfileImgNote(p.sig) + letProfileImgThumb(p.sig) + '</div>' +
+    '<div class="fld"><label>تصویر مهر</label><input type="file" id="sgStamp" accept="image/*">' + letProfileImgNote(p.stamp) + letProfileImgThumb(p.stamp) + '</div></div>' +
     '<small style="color:#94a3b8">تصاویر به‌صورت فشرده و امن فقط در سیستم ذخیره می‌شوند و در نامه‌های امضاشده شما درج خواهند شد.</small>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
     '<button class="bt" onclick="saveSigProfile()">ذخیره</button></div></div></div>';
@@ -346,6 +647,8 @@ function buildLetters() {
     '<button class="bt" style="background:#0e7490" onclick="showInboundModal()">+ ثبت نامه وارده</button>' +
     '<button class="bt bt-o" onclick="showSigProfile()">✍️ امضای من' + (savedSig && savedSig.sig ? ' ✓ ذخیره‌شده' : '') + '</button>' +
     '<button class="bt bt-o" onclick="ptfLetterheadPasteOpen()" title="متن آماده را از Word کپی کنید تا همهٔ صفحات روی سربرگ رسمی با مهر و امضا چاپ شود — بدون تغییر متن">📄 متن آماده روی سربرگ</button>' +
+    /* v34.39.58 (LETTER-SIG-ASSET): ترمیم یک‌بارهٔ تصویر امضای نامه‌های قدیمی */
+    ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" onclick="letRepairSigSnapshots()" title="نامه‌هایی که تصویر مهر/امضای آن‌ها پیش از این نسخه بریده/ناقص ذخیره شده با پروفایل جاری ترمیم می‌شوند (فقط خواندن + ثبت در حسابرسی)">🩺 ترمیم تصویر امضا</button>' : '') +
     '</div></div><div id="ltWrap"></div>';
 }
 
@@ -384,6 +687,7 @@ window.letSortBy = function (k) {
   renderLetters();
 };
 
+
 function renderLetters() {
   var el = document.getElementById('ltWrap');
   if (!el) return;
@@ -404,6 +708,9 @@ function renderLetters() {
     if (va === vb) return (letRank[a.cd] || 0) - (letRank[b.cd] || 0);
     return (va < vb ? -1 : 1) * (letSortMode.dir === 'asc' ? 1 : -1);
   });
+  /* v34.39.58: یک‌بار خواندنِ map دارایی برای کل جدول (نشان ⚠️ تصویر) */
+  var _letAssetMapForRender = null;
+  try { _letAssetMapForRender = sigProfileMap(); } catch (eAM) { _letAssetMapForRender = null; }
   var ST = { draft: '<span class="bd" style="background:#f1f5f9;color:#64748b">پیش‌نویس</span>',
     pending: '<span class="bd" style="background:#fef3c7;color:#b45309">در انتظار امضا</span>',
     signed: '<span class="bd b-st4">امضا شد</span>',
@@ -420,16 +727,26 @@ function renderLetters() {
     '<th>وضعیت</th><th>عملیات</th></tr></thead><tbody>';
   ls.forEach(function (l) {
     var canSign = l.st === 'pending' && l.signer === curSession().user;
-    h += '<tr><td><b dir="' + (/^PTF-/.test(l.no || '') ? 'ltr' : 'rtl') + '">' + escP(l.no || '—') + '</b></td>' + /* v85.3: شماره فارسی RTL در فهرست */
+    /* v34.39.58 (LETTER-AMEND-REV): نشان نسخهٔ اصلاحی و هشدار تصویر امضا */
+    var _rev = letRevOf(l);
+    var _snapSt = letSnapState(l, _letAssetMapForRender);
+    var _revBadge = _rev > 0 ? ' <span class="bd" style="background:#e0e7ff;color:#3730a3" title="نسخهٔ اصلاحی — شمارهٔ اندیکاتور تغییر نکرده است">Rev.' + _rev + '</span>' : '';
+    var _sigWarn = (l.st === 'signed' && _snapSt !== 'ok')
+      ? ' <span title="' + (_snapSt === 'broken' ? 'تصویر ذخیره‌شدهٔ این نامه ناقص/بریده است؛ با بازچاپ از مهر و امضای فعلی پروفایل استفاده می‌شود.' : 'این نامه تصویر مهر/امضا در سند ندارد؛ با بازچاپ از پروفایل جاری استفاده می‌شود.') + '" style="cursor:help;color:#b45309">⚠️</span>'
+      : '';
+    h += '<tr><td><b dir="' + (/^PTF-/.test(l.no || '') ? 'ltr' : 'rtl') + '">' + escP(l.no || '—') + '</b>' + _revBadge + '</td>' + /* v85.3: شماره فارسی RTL در فهرست */
       '<td>' + (l.kind === 'OUT' ? '📤 صادره' : '📥 وارده') + '</td>' +
       '<td>' + escP(l.subject || '-') + (l.summary ? '<br><small style="color:#94a3b8">' + escP(l.summary.slice(0, 70)) + '…</small>' : '') + '</td>' +
       '<td>' + escP(l.kind === 'OUT' ? (l.to || '-') : (l.from || '-')) + '</td>' +
       '<td>' + escP(l.t || '-') + '</td>' +
-      '<td>' + (ST[l.st] || '') + (l.st === 'pending' ? '<br><small style="color:#94a3b8">امضاکننده: ' + escP(l.signerNm || l.signer) + '</small>' : '') + (l.rejectWhy ? '<br><small style="color:#b91c1c">' + escP(l.rejectWhy) + '</small>' : '') + '</td>' +
+      '<td>' + (ST[l.st] || '') + _sigWarn + (l.st === 'pending' ? '<br><small style="color:#94a3b8">امضاکننده: ' + escP(l.signerNm || l.signer) + '</small>' : '') + (l.sigInvalidated ? '<br><small style="color:#b45309">امضای قبلی پس از اصلاح باطل شد</small>' : '') + (l.reprintRequired ? '<br><small style="color:#b45309">بازچاپ پس از اصلاح لازم است</small>' : '') + (l.rejectWhy ? '<br><small style="color:#b91c1c">' + escP(l.rejectWhy) + '</small>' : '') + '</td>' +
       '<td>' +
       /* v12.5 (US-308): پیش‌نویس‌های دستیار (src=ai-workbench) هم قابل ویرایش‌اند — نامه‌های قدیمی دستیار kind/author نداشتند */
       (((l.kind === 'OUT' && l.author === curSession().user) || l.src === 'ai-workbench') && (l.st === 'draft' || l.st === 'rejected') ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="showLetterModal(\'' + l.cd + '\')">✏️</button> ' : '') +
       (canSign ? '<button class="bt" style="padding:3px 8px;font-size:11.5px;background:#10b981" onclick="letSign(\'' + l.cd + '\')">✅ امضا</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letReject(\'' + l.cd + '\')">رد</button> ' : '') +
+      /* v34.39.58 (LETTER-AMEND-REV): اصلاح متن نامهٔ ثبت‌شده — نویسنده یا نقش ارشد */
+      (letIsFinal(l) && letCanAmend(l) ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#4f46e5;border-color:#c7d2fe" onclick="letAmendOpen(\'' + l.cd + '\')" title="اصلاح متن با همان شمارهٔ اندیکاتور (Rev.' + (_rev + 1) + ')">📝 اصلاح</button> ' : '') +
+      (_rev > 0 ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letAmendHistory(\'' + l.cd + '\')" title="تاریخچهٔ نسخه‌ها و چاپ نسخهٔ قبلی">📚 نسخه‌ها</button> ' : '') +
       (l.st === 'signed' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#059669" onclick="letPrint(\'' + l.cd + '\',false,true)" title="خروجی با مهر و امضای ثبت‌شده">🖨 با امضای دیجیتال</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#7c3aed" onclick="letPrint(\'' + l.cd + '\',false,false)" title="خروجی بدون تصویر امضا برای امضای دستی">🖨 بدون امضا / چاپ فیزیکی</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#0e7490" onclick="letCopyAsDraft(\'' + l.cd + '\')" title="کپی این نامه به‌عنوان پیش‌نویس جدید قابل امضا">📋 کپی به پیش‌نویس</button> ' : (l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',false,false)">🖨 PDF</button> ' : '')) +
       (l.kind === 'OUT' && l.st !== 'signed' && l.st !== 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',true,false)">👁️ پیش‌نمایش بدون امضا</button> ' : '') +
       '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letDel(\'' + l.cd + '\')">🗑️</button>' +
@@ -476,7 +793,9 @@ function letSafeBodyHtml(html) {
       var keep = n === 'colspan' || n === 'rowspan' || n === 'alt' || n === 'title' ||
         n === 'face' || n === 'size' || n === 'color' ||
         (n === 'href' && /^(https?:|mailto:|#)/i.test(v)) ||
-        (n === 'src' && (/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(v) || /^https:\/\//i.test(v)));
+        (n === 'src' && (/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(v) || /^https:\/\//i.test(v) ||
+          /* v34.39.58 (LETTER-SIG-ASSET): ارجاع کوتاه به دارایی تصویر (به‌جای data URL) */
+          /^ptfasset:[A-Za-z0-9_\-]{3,80}$/i.test(v)));
       if (!keep) el.removeAttribute(a.name);
     });
   });
@@ -710,7 +1029,10 @@ window.ptfLetterSignerMode = function (value) {
   });
 };
 
-function showLetterModal(cd) {
+function showLetterModal(cd, opts) {
+  opts = opts || {};
+  var amend = !!opts.amend;
+  window._letAmend = (amend && cd) ? { cd: cd, reason: String(opts.reason || '') } : null;
   var l = cd ? getData('ptf_crm_letters').filter(function (x) { return x.cd === cd; })[0] : null;
   var custs = getData('ptf_crm_customers'), sups = getData('ptf_crm_suppliers');
   var toOpts = '<option value="">— انتخاب یا تایپ آزاد —</option>' +
@@ -729,13 +1051,21 @@ function showLetterModal(cd) {
       .map(function (u) {
         var up = (typeof sigProfileFor === 'function' ? sigProfileFor(u.username) : {}) || {};
         var un = up.nm || u.name || u.username, ur = up.role || u.role || '';
-        return '<option value="' + escP(u.username) + '"' + (!customSigner && l && l.signer === u.username ? ' selected' : '') + '>' + escP(un) + (ur ? ' — ' + escP(ur) : '') + '</option>';
+        /* v34.39.58: هشدارِ درون‌فهرست — کاربرِ بدون تصویر امضا انتخاب می‌شد و بعد
+           «مهر و امضا روی نامه نمی‌افتد» به‌عنوان باگ گزارش می‌شد. */
+        var uNote = (typeof letProfileImgState === 'function' && letProfileImgState(up.sig) !== 'ok') ? ' ⚠️ بدون تصویر امضا' : '';
+        return '<option value="' + escP(u.username) + '"' + (!customSigner && l && l.signer === u.username ? ' selected' : '') + '>' + escP(un) + (ur ? ' — ' + escP(ur) : '') + uNote + '</option>';
       }).join('') +
     '<option value="__other__"' + (customSigner ? ' selected' : '') + '>سایر — نام و سمت دلخواه (امضای فیزیکی)</option>';
   var s = (l && l.style) || {};
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:760px;max-height:94vh;overflow:auto">' +
     '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-editor-tools select{max-width:130px;padding:3px 6px;font-size:11px;border:1px solid var(--brd);border-radius:7px;background:#fff;color:#1e293b}.let-editor-tools input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--brd);border-radius:6px;background:#fff;cursor:pointer}.let-editor-tools .let-sep{width:1px;height:20px;background:var(--brd);margin:0 2px;align-self:center}.let-editor-tools .lg{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor.is-dragover{border:2px dashed #0e7490;background:#f0f9ff}.let-doc-font,.let-doc-font *{font-family:inherit!important}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
-    '<h3>📤 نامه صادره' + (l ? ' — ویرایش' : '') + '</h3>' +
+    '<h3>' + (amend ? '📝 اصلاحیهٔ نامه — Rev.' + (letRevOf(l) + 1) : '📤 نامه صادره' + (l ? ' — ویرایش' : '')) + '</h3>' +
+    /* v34.39.58 (LETTER-AMEND-REV): در حالت اصلاحیه، شمارهٔ نامه و دلیل اصلاح به کاربر نشان داده می‌شود */
+    (amend ? '<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:9px 11px;margin:6px 0 8px;font-size:12.5px;color:#3730a3;line-height:1.9">' +
+      '<b>شمارهٔ نامه:</b> <b dir="ltr">' + escP((l && (l.no || l.cd)) || '') + '</b> — تغییر نمی‌کند · <b>نسخهٔ جدید:</b> Rev.' + (letRevOf(l) + 1) + ' (نسخهٔ فعلی در تاریخچه بایگانی می‌شود)<br>' +
+      '<b>دلیل اصلاح:</b> ' + escP(opts.reason || '') + '<br>' +
+      '<small style="color:#4338ca">با ثبت، امضای فعلی باطل و نامه برای امضای مجدد ارسال می‌شود.</small></div>' : '') +
     '<div class="fr"><div class="fld"><label>زبان نامه</label><select id="ltLang"><option value="fa"' + (l && l.lang === 'fa' ? ' selected' : '') + '>فارسی</option><option value="en"' + (l && l.lang === 'en' ? ' selected' : '') + '>English</option></select></div>' +
     '<div class="fld"><label>گیرنده (شرکت/سازمان)</label><select id="ltToSel" onchange="document.getElementById(\'ltTo\').value=this.value">' + toOpts + '</select></div></div>' +
     '<div class="fr"><div class="fld"><label>گیرنده — متن روی نامه *</label><input type="text" id="ltTo" value="' + (l ? escP(l.to || '') : '') + '" placeholder="جناب آقای مهندس محمدی / مدیریت محترم بازرگانی ..."></div>' +
@@ -798,16 +1128,29 @@ function showLetterModal(cd) {
     '<div><small style="color:#94a3b8">چپ</small><input type="number" id="ltMl" min="0" max="40" value="' + (s.margin && s.margin.l !== '' && s.margin.l != null ? s.margin.l : '') + '" placeholder="16" style="width:100%"></div></div></div></details>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">' +
     '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
-    '<button class="bt bt-o" style="color:#0e7490;border-color:#0e7490" onclick="letSaveDraft(' + (l ? "'" + l.cd + "'" : 'null') + ')">💾 ثبت پیش‌نویس</button>' +
-    '<button class="bt bt-o" onclick="letPreviewDraft(' + (l ? "'" + l.cd + "'" : 'null') + ')">👁️ پیش‌نمایش</button>' +
-    '<button class="bt" onclick="letSubmit(' + (l ? "'" + l.cd + "'" : 'null') + ')">✅ تایید و ثبت / ارسال برای امضا</button></div>' +
-    '<small style="color:#94a3b8;display:block;margin-top:6px">«ثبت پیش‌نویس» نامه را بدون ارسال برای امضا نگه می‌دارد؛ بعداً می‌توانید آن را از فهرست دوباره باز، ویرایش و پیش‌نمایش کنید.</small>' +
+    (amend
+      ? '<button class="bt bt-o" onclick="letPreviewDraft(' + "'" + l.cd + "'" + ')">👁️ پیش‌نمایش</button>' +
+        '<button class="bt" style="background:#4f46e5" onclick="letAmendSave()">📝 ثبت اصلاحیه Rev.' + (letRevOf(l) + 1) + '</button>'
+      : '<button class="bt bt-o" style="color:#0e7490;border-color:#0e7490" onclick="letSaveDraft(' + (l ? "'" + l.cd + "'" : 'null') + ')">💾 ثبت پیش‌نویس</button>' +
+        '<button class="bt bt-o" onclick="letPreviewDraft(' + (l ? "'" + l.cd + "'" : 'null') + ')">👁️ پیش‌نمایش</button>' +
+        '<button class="bt" onclick="letSubmit(' + (l ? "'" + l.cd + "'" : 'null') + ')">✅ تایید و ثبت / ارسال برای امضا</button>') + '</div>' +
+    '<small style="color:#94a3b8;display:block;margin-top:6px">' + (amend
+      ? 'اصلاحیه با همان شمارهٔ اندیکاتور ثبت می‌شود؛ متن قبلی و امضای آن در «📚 نسخه‌ها» قابل چاپ می‌ماند.'
+      : '«ثبت پیش‌نویس» نامه را بدون ارسال برای امضا نگه می‌دارد؛ بعداً می‌توانید آن را از فهرست دوباره باز، ویرایش و پیش‌نمایش کنید.') + '</small>' +
     '</div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   /* v31.7.22 US-LTR-IMG */
-  window._ltImgs = (l && Array.isArray(l.images)) ? JSON.parse(JSON.stringify(l.images)) : [];
+  /* v34.39.58 (LETTER-SIG-ASSET): تصاویر نامه به‌صورت ارجاع دارایی ذخیره می‌شوند؛
+     ادیتور برای نمایش/ویرایش همان data URL را می‌بیند. */
+  window._ltImgs = (l && Array.isArray(l.images))
+    ? l.images.map(function (im) {
+        im = im || {};
+        var u = im.asset ? letAssetGet(im.asset) : (letImgDataUrlOk(im.src) ? im.src : '');
+        return { src: u || '', asset: im.asset || '', cap: im.cap || '' };
+      }).filter(function (im) { return im.src; })
+    : [];
   var editor = document.getElementById('ltBodyEditor');
-  if (editor) { editor.innerHTML = letSafeBodyHtml((l && l.bodyHtml) || letEscHtml((l && l.body) || '').replace(/\n/g, '<br>')); letEditorWirePasteAndDrop(editor); letSyncDocFont(); }
+  if (editor) { editor.innerHTML = letSafeBodyHtml(letHtmlExpand((l && l.bodyHtml) || letEscHtml((l && l.body) || '').replace(/\n/g, '<br>'))); letEditorWirePasteAndDrop(editor); letSyncDocFont(); }
   ptfLetterSignerMode((document.getElementById('ltSigner') || {}).value);
   ptfLtImgRender();
 }
@@ -860,38 +1203,45 @@ function _collectLetter(cd) {
   l.toRole = ((document.getElementById('ltToRole') || {}).value || '').trim(); // v123.1: سمت گیرنده
   l.subject = document.getElementById('ltSub').value.trim();
   var editor = document.getElementById('ltBodyEditor');
-  l.bodyHtml = letSafeBodyHtml(editor ? editor.innerHTML : '');
-  l.body = editor ? (editor.innerText || '').trim() : '';
-  l.att = document.getElementById('ltAtt').value;
-  l.bsm = document.getElementById('ltBsm').checked;
-  l.prjNo = document.getElementById('ltPrj').value;
-  l.signer = document.getElementById('ltSigner').value;
-  if (l.signer === '__other__') {
-    l.signerMode = 'other';
-    l.signerNm = ((document.getElementById('ltSignerOtherName') || {}).value || '').trim();
-    l.signerRole = ((document.getElementById('ltSignerOtherRole') || {}).value || '').trim();
-  } else {
-    delete l.signerMode;
-    var _targetSigner = l.signer === '__me__' ? (curSession() || {}).user : l.signer;
-    var _su = getData('ptf_crm_users').filter(function (u) { return u.username === _targetSigner; })[0] || {};
-    var _sp = (typeof sigProfileFor === 'function' ? sigProfileFor(_targetSigner) : (l.signer === '__me__' && typeof mySigProfile === 'function' ? mySigProfile() : {})) || {};
-    l.signerNm = _sp.nm || _su.name || (l.signer === '__me__' ? (curSession() || {}).name : l.signer) || '';
-    l.signerRole = _sp.role || _su.role || l.signerRole || '';
+  /* v34.39.58 (LETTER-SIG-ASSET): تصویرهای داخل متن به دارایی منتقل می‌شوند تا
+     bodyHtml کوتاه بماند (سقف ۸۰۰۰ کاراکتری سرور) و data URL بریده نشود. */
+  letAssetBegin();
+  try {
+    l.bodyHtml = letHtmlAssetify(letSafeBodyHtml(editor ? editor.innerHTML : ''));
+    l.body = editor ? (editor.innerText || '').trim() : '';
+    l.att = document.getElementById('ltAtt').value;
+    l.bsm = document.getElementById('ltBsm').checked;
+    l.prjNo = document.getElementById('ltPrj').value;
+    l.signer = document.getElementById('ltSigner').value;
+    if (l.signer === '__other__') {
+      l.signerMode = 'other';
+      l.signerNm = ((document.getElementById('ltSignerOtherName') || {}).value || '').trim();
+      l.signerRole = ((document.getElementById('ltSignerOtherRole') || {}).value || '').trim();
+    } else {
+      delete l.signerMode;
+      var _targetSigner = l.signer === '__me__' ? (curSession() || {}).user : l.signer;
+      var _su = getData('ptf_crm_users').filter(function (u) { return u.username === _targetSigner; })[0] || {};
+      var _sp = (typeof sigProfileFor === 'function' ? sigProfileFor(_targetSigner) : (l.signer === '__me__' && typeof mySigProfile === 'function' ? mySigProfile() : {})) || {};
+      l.signerNm = _sp.nm || _su.name || (l.signer === '__me__' ? (curSession() || {}).name : l.signer) || '';
+      l.signerRole = _sp.role || _su.role || l.signerRole || '';
+    }
+    l.images = letImagesAssetify(window._ltImgs || []); /* v31.7.22 US-LTR-IMG — v34.39.58: ارجاع دارایی */
+    function _num(id) { var v = (document.getElementById(id) || {}).value; return (v === '' ? '' : +v); }
+    l.style = {
+      fs: +document.getElementById('ltFs').value || '',
+      lh: document.getElementById('ltLh').value || '',
+      font: document.getElementById('ltFont').value || '',
+      align: document.getElementById('ltAlign').value || 'justify',
+      signFs: +document.getElementById('ltSignFs').value || '',
+      bold: document.getElementById('ltB').checked,
+      italic: document.getElementById('ltI').checked,
+      margin: { t: _num('ltMt'), r: _num('ltMr'), b: _num('ltMb'), l: _num('ltMl') }
+    };
+    l.author = curSession().user;
+    l.authorNm = curSession().name;
+  } finally {
+    letAssetEnd(); /* هر خطای DOM هم دستهٔ دارایی را می‌بندد و ذخیره را نیمه‌کاره نمی‌گذارد */
   }
-  l.images = (window._ltImgs || []).slice(0, 3); /* v31.7.22 US-LTR-IMG */
-  function _num(id) { var v = (document.getElementById(id) || {}).value; return (v === '' ? '' : +v); }
-  l.style = {
-    fs: +document.getElementById('ltFs').value || '',
-    lh: document.getElementById('ltLh').value || '',
-    font: document.getElementById('ltFont').value || '',
-    align: document.getElementById('ltAlign').value || 'justify',
-    signFs: +document.getElementById('ltSignFs').value || '',
-    bold: document.getElementById('ltB').checked,
-    italic: document.getElementById('ltI').checked,
-    margin: { t: _num('ltMt'), r: _num('ltMr'), b: _num('ltMb'), l: _num('ltMl') }
-  };
-  l.author = curSession().user;
-  l.authorNm = curSession().name;
   return l;
 }
 
@@ -913,6 +1263,14 @@ function letPreviewDraft(cd) {
    پرونده تولید نمی‌کند. محتوای ناقص هم عمداً قابل ذخیره است تا کاربر بتواند
    کار را متوقف کند و بعداً از فهرست ادامه دهد. */
 function letSaveDraft(cd) {
+  /* v34.39.58 (LETTER-AMEND-REV): نامهٔ ثبت/امضاشده هرگز به پیش‌نویس برنمی‌گردد
+     (پیش‌تر شمارهٔ رسمی می‌ماند ولی وضعیت draft و امضا پاک می‌شد). */
+  var _existDraft = cd ? getData('ptf_crm_letters').filter(function (x) { return x && x.cd === cd; })[0] : null;
+  if (_existDraft && letIsFinal(_existDraft)) {
+    alert('⛔ این نامه ' + (_existDraft.st === 'signed' ? 'امضا شده' : (_existDraft.st === 'registered' ? 'ثبت شده' : 'در انتظار امضاست')) +
+      ' و به پیش‌نویس برنمی‌گردد.\nبرای تغییر متن از «📝 اصلاح» استفاده کنید؛ شمارهٔ نامه تغییر نمی‌کند و نسخهٔ قبلی بایگانی می‌شود.');
+    return;
+  }
   var l = _collectLetter(cd);
   var ls = getData('ptf_crm_letters');
   var idx = -1;
@@ -938,6 +1296,16 @@ function letSaveDraft(cd) {
 window.letSaveDraft = letSaveDraft;
 
 function letSubmit(cd) {
+  /* v34.39.58 (LETTER-AMEND-REV): «تایید و ثبت» روی نامهٔ نهایی، شمارهٔ جدید صادر
+     می‌کرد و سند قبلی را از بین می‌برد. اکنون مسیر اصلاحیه پیشنهاد می‌شود. */
+  var _existSubmit = cd ? getData('ptf_crm_letters').filter(function (x) { return x && x.cd === cd; })[0] : null;
+  if (_existSubmit && letIsFinal(_existSubmit)) {
+    if (window._letAmend && window._letAmend.cd === cd) { alert('این نامه در حالت اصلاحیه است؛ دکمهٔ «📝 ثبت اصلاحیه» را بزنید.'); return; }
+    if (confirm('این نامه ' + (_existSubmit.no || '') + ' قبلاً ثبت/امضا شده است.\nثبت دوبارهٔ آن، شمارهٔ جدید صادر می‌کرد و سند قبلی را بی‌اعتبار می‌کرد.\n\nاصلاحیه با همان شماره ثبت شود؟')) {
+      letAmendOpen(cd);
+    }
+    return;
+  }
   var l = _collectLetter(cd);
   if (!l.to || !l.subject || !l.body.trim()) { alert('گیرنده، موضوع و متن الزامی است'); return; }
   if (!letSignerComplete(l)) return;
@@ -969,7 +1337,9 @@ function letSubmit(cd) {
     l.st = 'signed';
     l.signer = curSession().user;
     l.signerNm = selfNm; l.signerRole = selfRole;
-    l.signatureSnapshot = { sig: p.sig || '', stamp: p.stamp || '', nm: selfNm, role: selfRole, at: faDateTime() };
+    /* v34.39.58 (LETTER-SIG-ASSET): تصویر از سند بیرون می‌رود و فقط ارجاع کوتاه
+       می‌ماند؛ snapshot دیگر رشتهٔ چند ده‌کیلوبایتی داخل map تو در تو ندارد. */
+    l.signatureSnapshot = letMakeSigSnapshot(p, selfNm, selfRole);
     l.signedT = faDateTime(); l.tEn = l.tEn || new Date().toISOString().slice(0, 10);
   } else {
     l.st = 'pending';
@@ -1012,10 +1382,20 @@ function letSign(cd) {
   var signerNm = p.nm || u.name || l.signerNm, signerRole = p.role || u.role || l.signerRole;
   if (!signerNm || !signerRole) { alert('نام و سمت در پروفایل امضا یا مشخصات کاربری الزامی است.'); showSigProfile(); return; }
   if (!confirm('نامه «' + l.subject + '» با نام، سمت و امضای شما نهایی شود؟')) return;
-  l.no = letSerial('OUT', l.lang);
+  /* v34.39.58: شمارهٔ اندیکاتور فقط یک‌بار (در نخستین ثبت) صادر می‌شود. */
+  var _prevStSign = l.st;
+  if (!l.no) l.no = letSerial('OUT', l.lang);
   l.st = 'signed';
   l.signerNm = signerNm; l.signerRole = signerRole;
-  l.signatureSnapshot = { sig: p.sig || '', stamp: p.stamp || '', nm: signerNm, role: signerRole, at: faDateTime() };
+  l.signatureSnapshot = letMakeSigSnapshot(p, signerNm, signerRole);
+  delete l.sigInvalidated;
+  delete l.sigMissing;
+  delete l.reprintRequired;
+  delete l.reprintReason;
+  /* v34.39.58: تاریخچهٔ گذار وضعیت */
+  if (!Array.isArray(l.statusHistory)) l.statusHistory = [];
+  if (_prevStSign !== 'signed') l.statusHistory.push({ st: 'signed', from: _prevStSign, at: faDateTime(), by: (curSession() || {}).user || '', act: 'sign' });
+  if (l.statusHistory.length > 20) l.statusHistory = l.statusHistory.slice(-20);
   l.signedT = faDateTime(); l.tEn = l.tEn || new Date().toISOString().slice(0, 10);
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', ls, { reason: 'w4' }); else setData('ptf_crm_letters', ls);
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(l.cd); } catch (eNR) {} /* v33.4.1: امضا شد — درخواست امضای مرتبط برای همه حذف شود */
@@ -1056,6 +1436,283 @@ function letDel(cd) {
   renderLetters();
   if (typeof renderDeals === 'function') renderDeals();
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   v34.39.58 (LETTER-AMEND-REV) — «اصلاحیهٔ نسخه‌دار» پس از ثبت
+   سیاست تاییدشدهٔ کارفرما (۲۰۲۶-۱۰-۲۴):
+     • شمارهٔ اندیکاتور هرگز عوض نمی‌شود؛ نسخه با «Rev.N» نشانه‌گذاری می‌شود.
+     • فقط نویسندهٔ نامه یا نقش ارشد می‌تواند اصلاح کند؛ دلیل الزامی است.
+     • پنج نسخهٔ آخر نگه داشته می‌شود (سقف حجم داده).
+     • تغییر ماهوی، امضای قبلی را باطل و نامه را به چرخهٔ امضا برمی‌گرداند.
+   ═══════════════════════════════════════════════════════════════════════ */
+var LET_REV_MAX = 5;
+var LET_AMEND_FIELDS = ['lang', 'to', 'toRole', 'subject', 'body', 'bodyHtml', 'images', 'style',
+  'att', 'bsm', 'prjNo', 'signer', 'signerMode', 'signerNm', 'signerRole'];
+/* تنهٔ ماهوی: هر چیزی که متن/هویت سند را عوض می‌کند. signerNm/signerRole عمداً
+   نیستند: از پروفایل جاری مشتق می‌شوند و تغییر نام پروفایل نباید امضای سند را باطل کند. */
+var LET_AMEND_CORE = { lang: 1, to: 1, toRole: 1, subject: 1, body: 1, bodyHtml: 1, images: 1,
+  att: 1, bsm: 1, prjNo: 1, signer: 1, signerMode: 1 };
+
+function letRevOf(l) { var n = +(l && l.rev); return (isFinite(n) && n > 0) ? Math.floor(n) : 0; }
+function letIsFinal(l) { return !!l && (l.st === 'signed' || l.st === 'registered' || l.st === 'pending'); }
+function letCanAmend(l) {
+  if (!l) return false;
+  var me = (curSession() || {}).user || '';
+  var senior = (typeof isSenior === 'function') ? !!isSenior() : false;
+  return (!!me && l.author === me) || senior;
+}
+function letRevLabel(l) { var n = letRevOf(l); return n > 0 ? 'Rev.' + n : ''; }
+
+/* عکس کاملِ نسخهٔ فعلی برای تاریخچه — شماره و هویت امضا هم بایگانی می‌شوند */
+function letArchivedRevision(l) {
+  var snap = l.signatureSnapshot ? JSON.parse(JSON.stringify(l.signatureSnapshot)) : null;
+  return {
+    n: letRevOf(l),
+    at: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString()),
+    by: (curSession() || {}).user || '',
+    st: l.st || '', no: l.no || '', t: l.t || '', tEn: l.tEn || '',
+    lang: l.lang || 'fa', subject: l.subject || '', to: l.to || '', toRole: l.toRole || '',
+    att: l.att || '', bsm: l.bsm !== false, prjNo: l.prjNo || '',
+    body: l.body || '', bodyHtml: l.bodyHtml || '',
+    style: l.style ? JSON.parse(JSON.stringify(l.style)) : null,
+    images: JSON.parse(JSON.stringify(l.images || [])),
+    signer: l.signer || '', signerMode: l.signerMode || '',
+    signerNm: l.signerNm || '', signerRole: l.signerRole || '',
+    signedT: l.signedT || '', signatureSnapshot: snap, reason: ''
+  };
+}
+function letAmendDiff(a, b) {
+  var out = [];
+  LET_AMEND_FIELDS.forEach(function (k) {
+    var x = a ? a[k] : undefined, y = b ? b[k] : undefined;
+    if (k === 'bsm') { x = (x !== false); y = (y !== false); }
+    var sx, sy;
+    try { sx = JSON.stringify(x === undefined ? null : x); sy = JSON.stringify(y === undefined ? null : y); }
+    catch (eJ) { sx = String(x); sy = String(y); }
+    if (sx !== sy) out.push(k);
+  });
+  return out;
+}
+function letAmendSubstantive(changed) {
+  return (changed || []).some(function (k) { return !!LET_AMEND_CORE[k]; });
+}
+
+/* هستهٔ اصلاحیه — بدون DOM تا مستقیم تست‌شدنی باشد.
+   patch: همان شکل رکورد نامه (خروجی _collectLetter). خروجی: {ok, rev, st, ...} */
+function letApplyAmendment(cd, reason, patch) {
+  reason = String(reason == null ? '' : reason).trim();
+  if (!reason) return { ok: false, error: 'دلیل اصلاح الزامی است' };
+  if (reason.length > 300) reason = reason.slice(0, 300);
+  var ls = getData('ptf_crm_letters');
+  var l = (ls || []).filter(function (x) { return x && x.cd === cd; })[0];
+  if (!l) return { ok: false, error: 'نامه پیدا نشد' };
+  if (!letCanAmend(l)) return { ok: false, error: 'اصلاح این نامه فقط برای نویسندهٔ نامه یا نقش ارشد مجاز است' };
+  var changed = letAmendDiff(l, patch || {});
+  if (!changed.length) return { ok: false, error: 'تغییری برای ثبت وجود ندارد' };
+  var substantive = letAmendSubstantive(changed);
+  var me = (curSession() || {}).user || '';
+  var now = (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString());
+
+  /* ① بایگانی نسخهٔ فعلی (سقف ۵ نسخه) */
+  var prev = letArchivedRevision(l);
+  prev.reason = reason;
+  var revs = Array.isArray(l.revs) ? l.revs.slice() : [];
+  revs.push(prev);
+  while (revs.length > LET_REV_MAX) revs.shift();
+  l.revs = revs;
+
+  /* ② اعمال تغییرات — شمارهٔ نامه و شناسه دست‌نخورده می‌ماند */
+  letAssetBegin();
+  try {
+    LET_AMEND_FIELDS.forEach(function (k) {
+      if (Object.prototype.hasOwnProperty.call(patch, k)) l[k] = patch[k];
+    });
+    if (l.bsm === undefined) l.bsm = true;
+    var ex = letExtract(l.subject || '', l.body || '');
+    l.keywords = ex.keywords; l.summary = ex.summary;
+    l.rev = (+prev.n || 0) + 1; /* شمارهٔ نسخهٔ بایگانی‌شده + ۱ (prev شکل revs را دارد، نه فیلد rev) */
+    l.amendedT = now;
+    if (!Array.isArray(l.amendments)) l.amendments = [];
+    l.amendments.push({ rev: l.rev, at: now, by: me, reason: reason, substantive: substantive, changed: changed });
+    if (l.amendments.length > 20) l.amendments = l.amendments.slice(-20);
+
+    /* ③ پیامد امضا/وضعیت */
+    var prevSt = l.st;
+    var wasSigned = prev.st === 'signed';
+    var wasRegistered = prev.st === 'registered';
+    var needsSignature = false;
+    if (substantive && wasSigned) {
+      l.sigInvalidated = { at: now, by: me, rev: l.rev, reason: reason };
+      delete l.signatureSnapshot; delete l.signedT;
+      l.st = 'pending';
+      needsSignature = true;
+    } else if (substantive && wasRegistered) {
+      l.reprintRequired = 1;
+      l.reprintReason = 'اصلاح متن پس از ثبت (Rev.' + l.rev + ')';
+    }
+    if (!Array.isArray(l.statusHistory)) l.statusHistory = [];
+    if (prevSt !== l.st) l.statusHistory.push({ st: l.st, from: prevSt, at: now, by: me, act: 'amend' });
+    if (l.statusHistory.length > 20) l.statusHistory = l.statusHistory.slice(-20);
+    delete l.rejectWhy;
+  } finally {
+    letAssetEnd();
+  }
+  /* v34.39.58: نرمال‌سازی همان قواعد مسیر ثبت اولیه —
+     «خودم» به شناسهٔ کاربر جاری تبدیل می‌شود و signerMode فقط برای «سایر» می‌ماند؛
+     وگرنه نامه‌ای که از «امضای فیزیکی» به کاربر واقعی تغییر می‌کند، برچسب فیزیکی
+     را با خود می‌برد و مهر/امضای دیجیتال چاپ نمی‌شود. */
+  if (l.signer === '__me__') l.signer = me;
+  /* فقط وقتی «سایر/فیزیکی» انتخاب شده signerMode می‌ماند؛ فرم در بقیهٔ حالت‌ها این
+     کلید را برای اصلاحیه نمی‌فرستد (همان قرارداد _collectLetter). */
+  if (!patch || !Object.prototype.hasOwnProperty.call(patch, 'signerMode')) delete l.signerMode;
+  var idx = -1;
+  ls.forEach(function (x, i) { if (x && x.cd === cd) idx = i; });
+  if (idx > -1) ls[idx] = l;
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', ls, { reason: 'w4' });
+  else setData('ptf_crm_letters', ls);
+
+  /* ④ حسابرسی و اعلان */
+  try {
+    audit('مکاتبات', 'اصلاح نامه ' + (l.no || l.cd) + ' (Rev.' + l.rev + ') — ' + reason + (needsSignature ? ' — امضای قبلی باطل و نیازمند امضای مجدد' : ''), l.no || l.cd);
+  } catch (eA) {}
+  try {
+    if (needsSignature && l.signer && l.signer !== '__other__') {
+      notify({ toUsers: [l.signer], title: '♻️ نامهٔ «' + (l.subject || '') + '» اصلاح شد — امضای مجدد لازم است (Rev.' + l.rev + ')',
+        body: 'دلیل: ' + reason + '\nامضاکنندهٔ قبلی: ' + (prev.signerNm || prev.signer || ''), kind: 'sign_req',
+        channels: ['cart'], link: { panel: 'let' }, actionable: true, refCd: l.cd });
+    } else if (l.author && l.author !== me) {
+      notify({ toUsers: [l.author], title: '📝 نامهٔ «' + (l.subject || '') + '» اصلاح شد (Rev.' + l.rev + ')',
+        body: 'دلیل: ' + reason + (substantive ? '\nتغییر ماهوی — بازچاپ/امضای مجدد لازم است.' : ''), kind: 'letter_amend',
+        channels: ['cart'], link: { panel: 'let' }, refCd: l.cd });
+    }
+  } catch (eN) {}
+  return { ok: true, rev: l.rev, st: l.st, substantive: substantive, needsSignature: needsSignature, changed: changed };
+}
+
+/* ---- UI: باز کردن فرم در حالت اصلاحیه ---- */
+window.letAmendOpen = function (cd) {
+  var l = getData('ptf_crm_letters').filter(function (x) { return x && x.cd === cd; })[0];
+  if (!l) return;
+  if (!letCanAmend(l)) { alert('⛔ اصلاح این نامه فقط برای نویسندهٔ نامه یا نقش ارشد مجاز است'); return; }
+  if (l.st === 'pending') {
+    if (!confirm('این نامه در انتظار امضاست. اصلاح متن، درخواست امضای فعلی را با نسخهٔ اصلاح‌شده جایگزین می‌کند.\nادامه می‌دهید؟')) return;
+  } else if (l.st === 'signed') {
+    if (!confirm('این نامه امضا شده است. با ثبت اصلاحیه:\n• شمارهٔ نامه تغییر نمی‌کند و «Rev.' + (letRevOf(l) + 1) + '» می‌گیرد\n• متن فعلی در تاریخچه بایگانی می‌شود\n• امضای فعلی باطل و نامه برای امضای مجدد ارسال می‌شود.\nادامه می‌دهید؟')) return;
+  }
+  var why = prompt('دلیل اصلاح نامه (الزامی — در سابقهٔ نامه ثبت می‌شود):', '');
+  if (why === null) return;
+  if (!String(why).trim()) { alert('دلیل اصلاح الزامی است'); return; }
+  showLetterModal(cd, { amend: true, reason: String(why).trim() });
+};
+
+/* ثبت اصلاحیه از داخل فرم */
+window.letAmendSave = function () {
+  var st = window._letAmend;
+  if (!st || !st.cd) { alert('جریان اصلاحیه باز نیست؛ از دکمهٔ «📝 اصلاح» در فهرست شروع کنید.'); return; }
+  var l = _collectLetter(st.cd);
+  if (!l.to || !l.subject || !String(l.body || '').trim()) { alert('گیرنده، موضوع و متن الزامی است'); return; }
+  if (!letSignerComplete(l)) return;
+  var r = letApplyAmendment(st.cd, st.reason, l);
+  if (!r.ok) { alert('⛔ ' + r.error); return; }
+  window._letAmend = null;
+  hideModal();
+  renderLetters();
+  var msg = '✅ اصلاحیه Rev.' + r.rev + ' ثبت شد — شمارهٔ نامه تغییر نکرد.' +
+    (r.needsSignature ? '\nنامه برای امضای مجدد به کارتابل امضاکننده رفت.' : '') +
+    (r.substantive && !r.needsSignature ? '\nبازچاپ نامه لازم است.' : '');
+  if (typeof ptfToast === 'function') ptfToast('✅ اصلاحیه Rev.' + r.rev + ' ثبت شد', 'ok'); else alert(msg);
+  if (confirm(msg + '\n\nخروجی PDF نسخهٔ جدید باز شود؟')) letPrint(st.cd, false);
+};
+
+/* ---- تاریخچهٔ نسخه‌ها ---- */
+window.letAmendHistory = function (cd) {
+  var l = getData('ptf_crm_letters').filter(function (x) { return x && x.cd === cd; })[0];
+  if (!l) return;
+  var revs = (l.revs || []).slice().sort(function (a, b) { return (+b.n || 0) - (+a.n || 0); });
+  function row(n, at, by, reason, st, hasSig, isCur) {
+    return '<tr' + (isCur ? ' style="background:#f0fdf4"' : '') + '>' +
+      '<td style="padding:5px 8px"><b>' + (n > 0 ? 'Rev.' + n : 'نسخهٔ اصلی') + '</b>' + (isCur ? ' <small style="color:#059669">(جاری)</small>' : '') + '</td>' +
+      '<td style="padding:5px 8px;font-size:11.5px">' + escP(at || '—') + '<br><small style="color:#94a3b8">' + escP(by || '') + '</small></td>' +
+      '<td style="padding:5px 8px;font-size:11.5px">' + escP(st || '') + (hasSig ? ' · <span style="color:#059669">امضا دارد</span>' : '') + '</td>' +
+      '<td style="padding:5px 8px;font-size:11.5px;max-width:240px">' + escP(reason || '—') + '</td>' +
+      '<td style="padding:5px 8px;white-space:nowrap">' +
+      (isCur ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + cd + '\',false,' + (l.st === 'signed' ? 'true' : 'false') + ')">🖨 چاپ جاری</button>'
+             : '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#b45309" onclick="letPrint(\'' + cd + '\',false,' + (hasSig ? 'true' : 'false') + ',{rev:' + n + '})">🖨 چاپ این نسخه</button>') +
+      '</td></tr>';
+  }
+  var h = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:720px;max-height:90vh;overflow:auto">' +
+    '<h3>📚 نسخه‌های نامه ' + escP(l.no || l.cd) + '</h3>' +
+    '<div style="font-size:12px;color:#64748b;margin-bottom:8px">شمارهٔ اندیکاتور در همهٔ نسخه‌ها یکی است؛ هر اصلاحیه «Rev.N» می‌گیرد و نسخهٔ قبلی برای همیشه در همین فهرست قابل چاپ می‌ماند (۵ نسخهٔ آخر نگه داشته می‌شود).</div>' +
+    '<div class="tb2"><table><thead><tr><th>نسخه</th><th>زمان / کاربر</th><th>وضعیت</th><th>دلیل اصلاح</th><th>خروجی</th></tr></thead><tbody>' +
+    row(letRevOf(l), l.amendedT || l.signedT || l.registeredT || l.t, (l.authorNm || l.author || ''), (l.amendments && l.amendments.length) ? l.amendments[l.amendments.length - 1].reason : '', l.st, !!l.signatureSnapshot, true) +
+    revs.map(function (r) { return row(+r.n || 0, r.at, r.by, r.reason, r.st, !!r.signatureSnapshot, false); }).join('') +
+    '</tbody></table></div>' +
+    '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="hideModal()">بستن</button></div></div></div>';
+  document.getElementById('panels').insertAdjacentHTML('beforeend', h);
+};
+
+/* ---- ترمیم یک‌بارهٔ snapshotهای بریده (پیش از v34.39.58) ---- */
+function letHealSnapshot(l, res) {
+  if (!l || l.st !== 'signed' || l._printSuperseded) return false;
+  var snap = l.signatureSnapshot || {};
+  var changed = false;
+  if (res && res.sig && res.sig.from === 'profile' && res.sig.url) { snap.sigAsset = letAssetPut(res.sig.url, 'SIG'); if (snap.sigAsset) delete snap.sig; changed = true; }
+  if (res && res.stamp && res.stamp.from === 'profile' && res.stamp.url) { snap.stampAsset = letAssetPut(res.stamp.url, 'STP'); if (snap.stampAsset) delete snap.stamp; changed = true; }
+  if (!changed) return false;
+  snap.healedAt = (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString());
+  snap.healedBy = (curSession() || {}).user || '';
+  snap.healedFrom = 'profile';
+  snap.v = 2;
+  l.signatureSnapshot = snap;
+  delete l.sigMissing;
+  return true;
+}
+window.letRepairSigSnapshots = function (opts) {
+  opts = opts || {};
+  var senior = (typeof isSenior === 'function') ? !!isSenior() : false;
+  if (!senior && !opts.force) { alert('⛔ ترمیم تصویر امضای نامه‌ها فقط با نقش ارشد انجام می‌شود'); return { ok: false, error: 'permission' }; }
+  var ls = getData('ptf_crm_letters');
+  var fixed = [], missing = [], okCount = 0, touched = false;
+  var me = (curSession() || {}).user || '';
+  letAssetBegin();
+  (ls || []).forEach(function (l) {
+    if (!l || l.st !== 'signed') return;
+    if (letSnapState(l) === 'ok') { okCount++; return; }
+    var live = letResolveSignerProfile(l) || sigProfileFor(l.signer) || {};
+    var snap = l.signatureSnapshot || {};
+    var sigId = letAssetPut(live.sig, 'SIG');
+    var stpId = letAssetPut(live.stamp, 'STP');
+    if (sigId || stpId) {
+      if (sigId) { snap.sigAsset = sigId; delete snap.sig; }
+      if (stpId) { snap.stampAsset = stpId; delete snap.stamp; }
+      if (!snap.nm) snap.nm = l.signerNm || live.nm || '';
+      if (!snap.role) snap.role = l.signerRole || live.role || '';
+      snap.healedAt = (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString());
+      snap.healedBy = me; snap.healedFrom = 'profile'; snap.v = 2;
+      l.signatureSnapshot = snap;
+      delete l.sigMissing;
+      fixed.push(l.no || l.cd);
+      touched = true;
+    } else {
+      if (!l.sigMissing) { l.sigMissing = 1; touched = true; }
+      missing.push(l.no || l.cd);
+    }
+  });
+  letAssetEnd();
+  if (touched) {
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', ls, { reason: 'w4' });
+    else setData('ptf_crm_letters', ls);
+    try { audit('مکاتبات', 'ترمیم تصویر امضای نامه‌ها — ترمیم‌شده: ' + fixed.length + ' | بدون تصویر: ' + missing.length, me); } catch (eA) {}
+    renderLetters();
+  }
+  var msg = '🩺 بررسی تصویر امضا/مهر نامه‌ها\n' +
+    '• سالم: ' + okCount + '\n' +
+    '• ترمیم‌شده از پروفایل جاری: ' + fixed.length + (fixed.length ? '\n   ' + fixed.slice(0, 8).join('، ') : '') + '\n' +
+    '• بدون تصویر (پروفایل هم ندارد): ' + missing.length + (missing.length ? '\n   ' + missing.slice(0, 8).join('، ') : '');
+  alert(msg);
+  return { ok: true, okCount: okCount, fixed: fixed, missing: missing };
+};
 
 /* ---------- نامه وارده (AC4) ---------- */
 function showInboundModal() {
@@ -1117,6 +1774,10 @@ window.letCopyAsDraft = function (cd) {
   copy.signedAt = '';
   copy.signOrder = '';
   delete copy.signatureSnapshot;
+  /* v34.39.58: کپی، سند تازه است — تاریخچهٔ نسخه‌ها و پرچم‌های اصلاحیه منتقل نمی‌شوند */
+  delete copy.rev; delete copy.revs; delete copy.amendments; delete copy.amendedT;
+  delete copy.statusHistory; delete copy.sigInvalidated; delete copy.reprintRequired;
+  delete copy.reprintReason; delete copy.sigMissing; copy.copiedFrom = l.cd;
   copy.author = (curSession() || {}).user || l.author;
   copy.subject = (l.subject || '') + ' (کپی)';
   copy.t = new Date().toLocaleDateString('fa-IR');
@@ -1127,11 +1788,37 @@ window.letCopyAsDraft = function (cd) {
   if (typeof renderLetters === 'function') renderLetters();
   if (typeof showLetterModal === 'function') showLetterModal(copy.cd);
 };
-function letPrint(cd, isPreview, includeDigitalSignature) {
+function letPrint(cd, isPreview, includeDigitalSignature, opts) {
   var l = getData('ptf_crm_letters').filter(function (x) { return x.cd === cd; })[0];
   if (!l) return;
   if (includeDigitalSignature == null) includeDigitalSignature = !isPreview;
-  letPrintObj(l, isPreview, includeDigitalSignature);
+  opts = opts || {};
+  var target = l;
+  /* v34.39.58 (LETTER-AMEND-REV): چاپ نسخهٔ بایگانی‌شده (Rev کمتر از جاری) */
+  if (opts.rev != null && +opts.rev < letRevOf(l)) {
+    var arch = (l.revs || []).filter(function (r) { return r && +r.n === +opts.rev; })[0];
+    if (arch) {
+      target = {};
+      Object.keys(l).forEach(function (k) { target[k] = l[k]; });
+      LET_AMEND_FIELDS.forEach(function (k) { if (arch[k] !== undefined) target[k] = arch[k]; });
+      target.no = arch.no || l.no;
+      target.t = arch.t || l.t;
+      target.tEn = arch.tEn || l.tEn;
+      target.st = arch.st || l.st;
+      target.signedT = arch.signedT || '';
+      target.signerNm = arch.signerNm || l.signerNm;
+      target.signerRole = arch.signerRole || l.signerRole;
+      target.signatureSnapshot = arch.signatureSnapshot || null;
+      target.rev = +arch.n;
+      target.revs = [];
+      target._printSuperseded = true;
+      if (includeDigitalSignature == null) includeDigitalSignature = !!arch.signatureSnapshot;
+    } else {
+      alert('نسخهٔ Rev.' + opts.rev + ' در تاریخچهٔ این نامه نیست (فقط ۵ نسخهٔ آخر نگه داشته می‌شود).');
+      return;
+    }
+  }
+  letPrintObj(target, isPreview, includeDigitalSignature);
 }
 window.letPrint = letPrint;
 
@@ -1158,7 +1845,45 @@ function letPrintObj(l, isPreview) {
   /* نامهٔ امضاشده snapshot دارد تا تغییر پروفایل، سند تاریخی را عوض نکند؛ حالت
      بدون امضا همان نامه قطعی را فقط بدون تصاویر مهر/امضا برای چاپ فیزیکی می‌سازد. */
   var signerProfile = (typeof sigProfileFor === 'function' ? sigProfileFor(l.signer || (curSession() || {}).user) : ((typeof sigProfiles === 'function' ? sigProfiles() : {})[l.signer || (curSession() || {}).user] || {})) || {};
-  var sigP = (l.st === 'signed' && includeDigitalSignature) ? (l.signatureSnapshot || letResolveSignerProfile(l) || signerProfile) : {}; /* v34.9.2: فالبک نام نمایشی */
+  /* ═══ v34.39.58 (LETTER-SIG-ASSET): انتخاب تصویر بر اساس «داشتن تصویر» ═══
+     پیش‌تر هر snapshot موجود (حتی ناقص/بریده) بر پروفایل مقدم بود و نامه بدون
+     مهر/امضا چاپ می‌شد. اکنون ترتیب: دارایی سند ← تصویر سالمِ داخل سند ←
+     پروفایل امضاکننده (سیاست تاییدشدهٔ کارفرما: بازچاپ با مهر/امضای فعلی). */
+  var sigP = {};
+  var _sigFromProfile = false;
+  if (l.st === 'signed' && includeDigitalSignature) {
+    var _snap = l.signatureSnapshot || {};
+    var _liveP = letResolveSignerProfile(l) || signerProfile || {};
+    var _rSig = letSnapImg(_snap, 'sig', _liveP);
+    var _rStp = letSnapImg(_snap, 'stamp', _liveP);
+    sigP = {
+      nm: _snap.nm || l.signerNm || _liveP.nm || '',
+      role: _snap.role || l.signerRole || _liveP.role || '',
+      at: _snap.at || l.signedT || '',
+      sig: _rSig.url, stamp: _rStp.url,
+      _from: { sig: _rSig.from, stamp: _rStp.from }
+    };
+    _sigFromProfile = (_rSig.from === 'profile' || _rStp.from === 'profile');
+    /* ترمیم خودکار و ماندگار snapshot ناقص — همان سیاست «بازچاپ با امضای فعلی» */
+    if (_sigFromProfile && !isPreview && !l._printSuperseded) {
+      try {
+        setTimeout(function () {
+          try {
+            var _ls = getData('ptf_crm_letters');
+            var _live = _ls.filter(function (x) { return x && x.cd === l.cd; })[0];
+            if (!_live) return;
+            letAssetBegin();
+            if (letHealSnapshot(_live, { sig: _rSig, stamp: _rStp })) {
+              letAssetEnd();
+              if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', _ls, { reason: 'w4' });
+              else setData('ptf_crm_letters', _ls);
+              audit('مکاتبات', 'ترمیم خودکار تصویر مهر/امضا از پروفایل جاری در بازچاپ نامه ' + (l.no || l.cd), l.no || l.cd);
+            } else { letAssetEnd(); }
+          } catch (eHeal) {}
+        }, 0);
+      } catch (eT) {}
+    }
+  }
   var physicalMode = (l.st === 'signed' && !includeDigitalSignature) || (l.st === 'registered' && (l.signerMode === 'other' || l.manualSignature));
   var identitySnapshot = l.signatureSnapshot || {};
   var signerNameFa = identitySnapshot.nm || l.signerNm || signerProfile.nm || (curSession() || {}).name || '';
@@ -1166,7 +1891,9 @@ function letPrintObj(l, isPreview) {
   /* v34.38.23 (LETTER-SIG-PAGINATION): بدنهٔ چاپ — همان sanitize همیشگی + پیرایش
      سفیدهای نامرئیِ انتها (پاراگراف/‌<br>‌های خالی باقی‌مانده از کپی Word) تا بلوک
      مهر و امضا به‌خاطر فضای اشغال‌شدهٔ نامرئی به صفحهٔ بعد پرتاب نشود. */
-  var printBody = l.bodyHtml ? letSafeBodyHtml(l.bodyHtml) : escP(l.body).replace(/\n/g, '<br>');
+  /* v34.39.58 (LETTER-SIG-ASSET): ارجاع‌های ptfasset در متن، پیش از چاپ به تصویر
+     تبدیل می‌شوند؛ تصویرِ بی‌دارایی حذف می‌شود تا آیکون شکسته روی سند نیاید. */
+  var printBody = l.bodyHtml ? letSafeBodyHtml(letHtmlExpand(l.bodyHtml)) : escP(l.body).replace(/\n/g, '<br>');
   printBody = letTrimTrailingEmptyHtml(printBody);
   var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + escP(l.no || 'پیش‌نمایش') + '</title><style>' + letEmbeddedFontCss() +
     '@page{size:A4 portrait;margin:0}' +
@@ -1225,6 +1952,7 @@ function letPrintObj(l, isPreview) {
     '.ft .ln{display:flex;justify-content:center;align-items:center;gap:2mm;direction:rtl}' +
     '.ft .en{direction:ltr;gap:8mm}.ft svg{width:3.8mm;height:3.8mm}' +
     (isPreview ? 'body:before{content:"پیش‌نویس / PREVIEW";position:fixed;top:45%;left:10%;right:10%;text-align:center;font-size:42pt;color:rgba(220,40,40,.12);transform:rotate(-18deg);font-weight:900;z-index:99}' : '') +
+    (l._printSuperseded ? 'body:before{content:"نسخهٔ منسوخ / SUPERSEDED";position:fixed;top:45%;left:6%;right:6%;text-align:center;font-size:34pt;color:rgba(185,28,28,.13);transform:rotate(-18deg);font-weight:900;z-index:99}' : '') +
     '</style></head><body>' +
     /* v84.1: راهنمای تنظیم چاپ — نوارها فقط با Margins:None سرتاسر می‌شوند و «1/1» مرورگر با خاموش کردن Headers می‌رود */
     '<div class="prnhint" style="position:fixed;top:8mm;left:0;right:0;background:#0c4a6e;color:#fff;font-family:Tahoma;font-size:12px;padding:8px 14px;text-align:center;direction:rtl;z-index:9999">⚙️ در پنجره چاپ: <b>Margins = None</b> و <b>Headers and footers = خاموش</b> — تا نوارهای رنگی سرتاسر لبه‌ها بیفتند و شماره صفحه مرورگر حذف شود</div>' +
@@ -1238,10 +1966,12 @@ function letPrintObj(l, isPreview) {
       ? '<div class="flds">' +
         '<div class="row"><span class="lb">Date:</span><b dir="ltr">' + escP(l.tEn || new Date().toISOString().slice(0, 10)) + '</b></div>' +
         '<div class="row"><span class="lb">Ref No.:</span><b dir="ltr">' + escP(l.no || (isPreview ? '— after signing —' : '')) + '</b></div>' +
+        (letRevOf(l) > 0 ? '<div class="row"><span class="lb">Rev.:</span><b dir="ltr">Rev.' + letRevOf(l) + '</b></div>' : '') +
         '<div class="row"><span class="lb">Encl.:</span><b>' + escP((!l.att || l.att === 'ندارد') ? 'None' : l.att) + '</b></div></div>'
       : '<div class="flds">' +
         '<div class="row"><span class="lb">تاریـخ :</span><b>' + letFaDigits(escP(l.t || faDate())) + '</b></div>' +
         '<div class="row"><span class="lb">شمـاره :</span><b>' + letFaDigits(escP(l.no || (isPreview ? '— پس از ثبت —' : ''))) + '</b></div>' + /* v85.3: شماره فارسی RTL */
+        (letRevOf(l) > 0 ? '<div class="row"><span class="lb">اصلاحیه :</span><b dir="ltr">Rev.' + letRevOf(l) + '</b></div>' : '') +
         '<div class="row"><span class="lb">پیوست :</span><b>' + escP(l.att || 'ندارد') + '</b></div></div>') +
     /* v87: سربرگ EN → لوگوی انگلیسی */
     '</div>' +
@@ -1251,9 +1981,13 @@ function letPrintObj(l, isPreview) {
     (l.toRole ? '<div class="torl">' + escP(l.toRole) + '</div>' : '') + /* v123.1: سمت — دقیقا زیر نام */
     '<div class="sub">' + (isEn ? 'Subject: ' : 'موضوع: ') + escP(l.subject) + '</div>' +
     '<div class="body">' + printBody + '</div>' +
-    ((l.images && l.images.length) ? '<div class="limgs">' + l.images.map(function (im) {
-      return '<figure><img src="' + im.src + '" alt="">' + (im.cap ? '<figcaption>' + escP(im.cap) + '</figcaption>' : '') + '</figure>';
-    }).join('') + '</div>' : '') +
+    (function () {
+      var _imgs = letImagesResolve(l.images);
+      if (!_imgs.length) return '';
+      return '<div class="limgs">' + _imgs.map(function (im) {
+        return '<figure><img src="' + im.src + '" alt="">' + (im.cap ? '<figcaption>' + escP(im.cap) + '</figcaption>' : '') + '</figure>';
+      }).join('') + '</div>';
+    })() +
     '<div class="sig"><div class="sigbox">' +
     '<div class="salute">' + (isEn ? 'Yours Sincerely,' : 'با تجدید احترام') + '</div>' +
     /* v93: نامه EN → نام و سمت امضاکننده به انگلیسی */
@@ -1277,7 +2011,8 @@ function letPrintObj(l, isPreview) {
     '<div class="bar-bot"><i class="s1"></i><i class="s2"></i><i class="s3"></i></div>' +
     '</body></html>';
   var outputMode = physicalMode ? (isEn ? 'unsigned-physical' : 'بدون-امضا') : (includeDigitalSignature && l.st === 'signed' ? (isEn ? 'digitally-signed' : 'با-امضا') : 'preview');
-  if (typeof ptfPreviewPrintableDoc === 'function') ptfPreviewPrintableDoc((isEn ? 'Letter' : 'نامه') + ' — ' + escP(l.no || 'preview') + (physicalMode ? (isEn ? ' — without digital signature' : ' — بدون امضای دیجیتال') : ''), fullHtml, (l.no || 'letter') + '-' + outputMode);
+  var _revTag = letRevOf(l) > 0 ? '-rev' + letRevOf(l) : '';
+  if (typeof ptfPreviewPrintableDoc === 'function') ptfPreviewPrintableDoc((isEn ? 'Letter' : 'نامه') + ' — ' + escP(l.no || 'preview') + (letRevOf(l) > 0 ? ' — Rev.' + letRevOf(l) : '') + (l._printSuperseded ? (isEn ? ' (superseded)' : ' (نسخهٔ منسوخ)') : '') + (physicalMode ? (isEn ? ' — without digital signature' : ' — بدون امضای دیجیتال') : ''), fullHtml, (l.no || 'letter') + '-' + outputMode + _revTag);
   else {
     var w = window.open('', '_blank');
     w.document.write(fullHtml);
@@ -1391,8 +2126,24 @@ window.ptfLetterheadPastePrint = function () {
   function _num(id) { var v = (document.getElementById(id) || {}).value; return (v === '' ? '' : +v); }
   var mT = _num('lhpMt'), mR = _num('lhpMr'), mB = _num('lhpMb'), mL = _num('lhpMl');
   var me = (curSession() || {}).user;
-  var prof = (typeof sigProfileFor === 'function' ? sigProfileFor(me) : {}) || {};
-  if (sigMode !== 'none' && !prof.sig && !prof.stamp) {
+  /* v34.39.58 (LETTER-SIG-ASSET): همان زنجیرهٔ فالبک مسیر نامهٔ استاندارد —
+     پروفایل با شناسهٔ کاربر ← فالبک نام نمایشی (letResolveSignerProfile) ←
+     پروفایل جاری. پیش‌تر اگر پروفایل با نام نمایشی/شناسهٔ قدیمی ذخیره شده بود،
+     این مسیر «بدون مهر و امضا» چاپ می‌کرد. */
+  var prof = {};
+  try {
+    prof = (typeof letResolveSignerProfile === 'function'
+      ? letResolveSignerProfile({ signer: me, signerNm: (curSession() || {}).name || '' })
+      : null) || (typeof sigProfileFor === 'function' ? sigProfileFor(me) : null) || {};
+  } catch (eProf) { prof = {}; }
+  if ((!prof || !prof.sig && !prof.stamp) && typeof mySigProfile === 'function') prof = mySigProfile() || prof || {};
+  /* تصویر باید واقعاً قابل چاپ باشد (نه صرفاً کلید موجود) */
+  var pSig = letImgDataUrlOk(prof.sig, true) ? prof.sig : '';
+  var pStp = letImgDataUrlOk(prof.stamp, true) ? prof.stamp : '';
+  if (sigMode !== 'none' && (prof.sig || prof.stamp) && (!pSig || !pStp)) {
+    try { if (typeof ptfToast === 'function') ptfToast('⚠️ تصویر ' + (!pSig ? 'امضا' : 'مهر') + ' در پروفایل ناقص است و در سند درج نمی‌شود — از «✍️ امضای من» دوباره بارگذاری کنید', 'warn'); } catch (eT2) {}
+  }
+  if (sigMode !== 'none' && !pSig && !pStp) {
     if (!confirm('تصویر مهر/امضا در پروفایل شما ثبت نشده و سند بدون تصویر ساخته می‌شود.\nادامه می‌دهید؟ (ثبت از: مکاتبات → ✍️ امضای من)')) return;
   }
   var dir = isEn ? 'ltr' : 'rtl';
@@ -1407,8 +2158,8 @@ window.ptfLetterheadPastePrint = function () {
   var ml = (mL === '') ? 16 : mL;
   var everyPage = sigMode === 'every';
   var sigImgs = (sigMode !== 'none')
-    ? ((prof.sig ? '<img class="pgs-sig" src="' + prof.sig + '" alt="امضا">' : '') +
-       (prof.stamp ? '<img class="pgs-st" src="' + prof.stamp + '" alt="مهر">' : ''))
+    ? ((pSig ? '<img class="pgs-sig" src="' + pSig + '" alt="امضا">' : '') +
+       (pStp ? '<img class="pgs-st" src="' + pStp + '" alt="مهر">' : ''))
     : '';
   /* فضای رزرو پایین: فوتر ثابت (~26mm) + در حالت هر-صفحه ارتفاع مهر */
   var headSpace = (withDate || no || att) ? 46 : 40;
@@ -1479,8 +2230,8 @@ window.ptfLetterheadPastePrint = function () {
       ? '<div class="endsig"><div class="box">' +
         '<div class="nm">' + escP(prof.nm || (curSession() || {}).name || '') + '</div>' +
         '<div class="rl">' + escP(prof.role || '') + '</div>' +
-        (prof.sig ? '<img class="s" src="' + prof.sig + '" alt="امضا">' : '') +
-        (prof.stamp ? '<img class="st" src="' + prof.stamp + '" alt="مهر">' : '') +
+        (pSig ? '<img class="s" src="' + pSig + '" alt="امضا">' : '') +
+        (pStp ? '<img class="st" src="' + pStp + '" alt="مهر">' : '') +
         '</div></div>'
       : '') +
     '</td></tr></tbody>' +

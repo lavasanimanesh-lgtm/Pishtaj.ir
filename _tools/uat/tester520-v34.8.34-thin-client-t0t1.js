@@ -71,17 +71,19 @@ T('sw.js رجیستری را precache می‌کند', /'\.\/key-registry\.js' \+
 /* ---------- T1-3: sanitizer نرم + شمارش برش ---------- */
 var sd = read('api/sales-domain.php');
 T('sanitizer آمار برش برمی‌گرداند', /sd_entity_sanitize_row\(array \$row, array &\$stats/.test(sd) && /'sanitize' => \$sanitizeStats/.test(sd));
-T('سقف متن رکورد ۸۰۰۰ شد', /sd_text\(\$v, 8000\)/.test(sd));
-T('سقف hist ۲۰۰۰ شد', /sd_text\(\$v3, 2000\)/.test(sd));
+/* v34.39.58: سقف پیش‌فرض همان ۸۰۰۰/۲۰۰۰ است ولی برای فیلدهای سنگین نامه
+   (bigFields در رجیستری) تا پایان بودجهٔ ردیف سقف بلندتر اعمال می‌شود. */
+T('سقف متن رکورد ۸۰۰۰ شد', /\(isset\(\$bigFields\[\$k\]\) && \$bigBudget > 0\) \? \(int\)\$bigFields\[\$k\] : 8000/.test(sd));
+T('سقف hist ۲۰۰۰ شد', /int \$itemLimit = 2000/.test(sd));
 T('فیلد null حفظ می‌شود', /\$out\[\$k\] = null; \$n\+\+; \$stats\['kept'\]\+\+;/.test(sd));
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.39.57', ver.crm_version === 'v34.39.57', ver.crm_version);
+T('VERSION.json = v34.39.58', ver.crm_version === 'v34.39.58', ver.crm_version);
 var idx = read('crm/index.html');
-T('نسخهٔ UI = v34.39.57', /window\.PTF_CRM_RELEASE = 'v34\.39\.57'/.test(idx));
+T('نسخهٔ UI = v34.39.58', /window\.PTF_CRM_RELEASE = 'v34\.39\.58'/.test(idx));
 var swv = read('crm/sw.js');
-T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.39\.57'/.test(swv) && idx.indexOf('?v=34.39.57') > -1);
+T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.39\.58'/.test(swv) && idx.indexOf('?v=34.39.58') > -1);
 
 console.log('\n— tester520 (v34.38.0: T0/T1 thin-client contracts) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

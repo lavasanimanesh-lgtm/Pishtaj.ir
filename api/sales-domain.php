@@ -71,7 +71,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.39.57';
+const SD_SERVICE_VERSION = '34.39.58';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -185,7 +185,20 @@ function sd_entity_registry(): array {
         ],
         'ptf_crm_letters' => [
             'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
-            'id' => 'cd', 'maxFields' => 120, 'sortIso' => true,
+            'id' => 'cd', 'maxFields' => 150, 'sortIso' => true,
+            /* v34.39.58 (LETTER-SIG-ASSET): سقف‌های ویژهٔ «فیلدهای سنگین» نامه.
+               ریشهٔ باگ «مهر و امضا روی نامه نمی‌افتد»: پیش‌تر هر رشتهٔ داخل map
+               تو در تو به ۳۰۰ کاراکتر بریده می‌شد و data URL امضا نابود می‌شد.
+               اکنون کلاینت تصویر را به‌صورت دارایی ارجاعی نگه می‌دارد (رشته‌های
+               کوتاه) و این سقف‌ها فقط برای سازگاری با رکوردهای قدیمی و متن‌های
+               بلند (bodyHtml) بالا رفته‌اند؛ بودجهٔ کلی هر ردیف در پاک‌ساز اعمال
+               می‌شود تا حجم پاسخ/سینک از کنترل خارج نشود. */
+            'bigFields' => [
+                'bodyHtml' => 200000,
+                'images' => 600000,
+                'revs' => 900000,
+                'signatureSnapshot' => 600000,
+            ],
         ],
         'ptf_crm_sendqueue' => [
             'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
@@ -283,7 +296,7 @@ function sd_entity_registry(): array {
    پیش‌تر مقدارِ لیستیِ داخل map (مثل files.oth پیوست‌های RFQ تاییدشدهٔ سایت) در
    sd_entity_sanitize_row بی‌صدا حذف می‌شد → رکورد پس از همگام‌سازی بدون ضمیمه
    برمی‌گشت و فایلِ موجود در فضای ابری «گم» می‌شد. */
-function sd_entity_sanitize_list(array $v, array &$stats = null, int $depth = 2): array {
+function sd_entity_sanitize_list(array $v, array &$stats = null, int $depth = 2, int $itemLimit = 2000, int $maxKeys = 20): array {
     $list = [];
     foreach ($v as $item) {
         if (is_string($item)) {
@@ -299,7 +312,7 @@ function sd_entity_sanitize_list(array $v, array &$stats = null, int $depth = 2)
             $subItem = [];
             foreach ($item as $k3 => $v3) {
                 if (is_string($k3) && strlen($k3) <= 60 && (is_scalar($v3) || $v3 === null)) {
-                    $storedSub = is_string($v3) ? sd_text($v3, 2000) : (is_bool($v3) ? $v3 : ($v3 === null ? null : (int)$v3));
+                    $storedSub = is_string($v3) ? sd_text($v3, $itemLimit) : (is_bool($v3) ? $v3 : ($v3 === null ? null : (int)$v3));
                     if ($stats !== null && is_string($v3) && mb_strlen($v3, 'UTF-8') > mb_strlen($storedSub, 'UTF-8')) $stats['trimmed']++;
                     $subItem[$k3] = $storedSub;
                 }
@@ -312,9 +325,9 @@ function sd_entity_sanitize_list(array $v, array &$stats = null, int $depth = 2)
                    هم خالی بازنویسی می‌شد. اکنون با سقف عمق (پیش‌فرض ۲ سطح اضافه) و همان
                    سقف‌های ۶۰ قلم/۲۰ فیلد نگه داشته می‌شود — همسو با فرم استاندارد CRM. */
                 elseif (is_string($k3) && strlen($k3) <= 60 && is_array($v3) && $depth > 0) {
-                    $subItem[$k3] = sd_entity_sanitize_list($v3, $stats, $depth - 1);
+                    $subItem[$k3] = sd_entity_sanitize_list($v3, $stats, $depth - 1, $itemLimit, $maxKeys);
                 }
-                if (count($subItem) >= 20) break;
+                if (count($subItem) >= $maxKeys) break;
             }
             $list[] = $subItem;
             if (count($list) >= 60) break;
@@ -324,11 +337,16 @@ function sd_entity_sanitize_list(array $v, array &$stats = null, int $depth = 2)
     return $list;
 }
 
-function sd_entity_sanitize_row(array $row, array &$stats = null, int $maxFields = 40): array {
+function sd_entity_sanitize_row(array $row, array &$stats = null, int $maxFields = 40, array $bigFields = []): array {
     /* v34.8.34 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
        ۲۰۰۰→۸۰۰۰ و hist ۵۰۰→۲۰۰۰؛ تعداد برش/حذف به‌صورت ساخت‌یافته در پاسخ فرمان
        برمی‌گردد تا حذفِ بی‌صدا از بین برود. */
     $stats = ['trimmed' => 0, 'dropped' => 0, 'kept' => 0];
+    /* v34.39.58: بودجهٔ کلی «فیلدهای سنگین» برای هر ردیف (۲MB). تا زمانی که بودجه
+       باقی است فیلدهای فهرست‌شده در bigFields سقف بالاتر می‌گیرند؛ پس از پایان بودجه
+       همان سقف‌های پیش‌فرض (۳۰۰/۲۰۰۰/۸۰۰۰) اعمال می‌شود تا یک رکورد نتواند پاسخ
+       فرمان (که کل مجموعه را برمی‌گرداند) را بی‌نهایت بزرگ کند. */
+    $bigBudget = 2 * 1048576;
     $trackString = function (string $original, string $stored) use (&$stats): void {
         if (mb_strlen($original, 'UTF-8') > mb_strlen($stored, 'UTF-8')) $stats['trimmed']++;
     };
@@ -339,19 +357,37 @@ function sd_entity_sanitize_row(array $row, array &$stats = null, int $maxFields
         if ($v === null) { $out[$k] = null; $n++; $stats['kept']++; continue; }
         if (is_bool($v)) { $out[$k] = $v; $n++; $stats['kept']++; continue; }
         if (is_int($v) || is_float($v)) { $out[$k] = $v; $n++; $stats['kept']++; continue; }
-        if (is_string($v)) { $stored = sd_text($v, 8000); $trackString($v, $stored); $out[$k] = $stored; $n++; $stats['kept']++; continue; }
+        if (is_string($v)) {
+            /* v34.39.58: رشتهٔ سطح‌ردیفِ فهرست‌شده در bigFields (مثل bodyHtml) تا پایان
+               بودجه سقف بلندتری می‌گیرد؛ سایر رشته‌ها همان ۸۰۰۰ نویسه. */
+            $strLimit = (isset($bigFields[$k]) && $bigBudget > 0) ? (int)$bigFields[$k] : 8000;
+            $stored = sd_text($v, $strLimit); $trackString($v, $stored);
+            $bigBudget -= strlen($stored);
+            $out[$k] = $stored; $n++; $stats['kept']++; continue;
+        }
         if (is_array($v)) {
             /* v34.8.14: لیست اسکالر (مثل shareUsers) عیناً با سقف نگه داشته می‌شود؛
                map تودرتو با مقادیر اسکالر مجاز است (مثل link/notifiedUsers). */
             $isList = array_keys($v) === range(0, count($v) - 1);
             if ($isList) {
                 /* v34.23.0: بدنهٔ مشترک به sd_entity_sanitize_list منتقل شد (رفع حذف بی‌صدای files). */
-                $out[$k] = sd_entity_sanitize_list($v, $stats); $n++; continue;
+                $bigLimit = isset($bigFields[$k]) ? (int)$bigFields[$k] : 0;
+                if ($bigLimit > 0 && $bigBudget > 0) {
+                    $out[$k] = sd_entity_sanitize_list($v, $stats, 2, $bigLimit, 40);
+                    $bigBudget -= strlen(json_encode($out[$k]));
+                } else {
+                    $out[$k] = sd_entity_sanitize_list($v, $stats);
+                }
+                $n++; continue;
             }
             $sub = [];
             foreach ($v as $k2 => $v2) {
                 if (is_string($k2) && strlen($k2) <= 60 && (is_scalar($v2) || $v2 === null)) {
-                    $sub[$k2] = is_string($v2) ? sd_text($v2, 300) : (is_bool($v2) ? $v2 : ($v2 === null ? null : (int)$v2));
+                    /* v34.39.58: برای فیلدهای سنگین (signatureSnapshot) تا پایان بودجه
+                       سقف بالا اعمال می‌شود؛ در غیر این صورت همان ۳۰۰ کاراکتر. */
+                    $subLimit = (isset($bigFields[$k]) && $bigBudget > 0) ? (int)$bigFields[$k] : 300;
+                    $sub[$k2] = is_string($v2) ? sd_text($v2, $subLimit) : (is_bool($v2) ? $v2 : ($v2 === null ? null : (int)$v2));
+                    if (is_string($v2)) $bigBudget -= strlen((string)$sub[$k2]);
                 }
                 /* v34.23.0 (RFQ-ATT-FIX): مقدار لیستی داخل map — مثل files.oth — با همان
                    پاک‌ساز لیست نگه داشته می‌شود (سقف‌های قبلی: ۶۰ قلم/۲۰ فیلد/۲۰۰۰ نویسه). */
@@ -3191,7 +3227,7 @@ try {
             $id = sd_text($rec[$idField] ?? '', 60);
             if (!preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $id)) sd_out(['ok'=>false,'error'=>'entity_id_required'],422);
             $sanitizeStats = null;
-            $row = sd_entity_sanitize_row($rec, $sanitizeStats, (int)($cfg['maxFields'] ?? 40));
+            $row = sd_entity_sanitize_row($rec, $sanitizeStats, (int)($cfg['maxFields'] ?? 40), is_array($cfg['bigFields'] ?? null) ? $cfg['bigFields'] : []);
             $row[$idField] = $id;
             $found = -1;
             foreach ($rows as $i => $r) if (is_array($r) && (string)($r[$idField] ?? '') === $id) { $found = $i; break; }

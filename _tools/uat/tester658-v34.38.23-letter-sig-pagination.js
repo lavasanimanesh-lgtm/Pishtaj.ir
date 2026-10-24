@@ -1,4 +1,4 @@
-/* tester658 — v34.39.57 (LETTER-SIG-PAGINATION): رفع گزارش کارفرما در مکاتبات/نامهٔ صادره:
+/* tester658 — v34.39.58 (LETTER-SIG-PAGINATION): رفع گزارش کارفرما در مکاتبات/نامهٔ صادره:
    «مهر امضا به صفحهٔ بعد منتقل می‌شود و گاهاً یک صفحهٔ خالی بین متن و امضا وجود دارد».
    سه ریشه در letPrintObj (crm/letters.js):
    ۱) بلوک `.sig` شکستنی بود (بدون break-inside:avoid) — نام/سمت در صفحهٔ قبل می‌ماند و
@@ -35,14 +35,14 @@ T('مسیر سربرگ: همان اصلاح جدول اعمال شده است', 
 })());
 T('تابع پیرایش سفیدهای انتها تعریف شده است', letters.indexOf('function letTrimTrailingEmptyHtml(html) {') > -1);
 T('چاپ نامه از بدنهٔ پیرایش‌شده استفاده می‌کند (sanitize همیشگی حفظ شده)',
-  letters.indexOf('var printBody = l.bodyHtml ? letSafeBodyHtml(l.bodyHtml) : escP(l.body).replace(/\\n/g, \'<br>\');') > -1 &&
+  letters.indexOf('var printBody = l.bodyHtml ? letSafeBodyHtml(letHtmlExpand(l.bodyHtml)) : escP(l.body).replace(/\\n/g, \'<br>\');') > -1 &&
   letters.indexOf('printBody = letTrimTrailingEmptyHtml(printBody);') > -1 &&
   letters.indexOf("'<div class=\"body\">' + printBody + '</div>'") > -1);
 T('قرارداد «بدون تغییر متن» مسیر سربرگ دست‌نخورده: پیرایش فقط در مسیر نامهٔ استاندارد', (function () {
   var block = letters.slice(letters.indexOf('window.ptfLetterheadPastePrint'), letters.indexOf('/* ---------- روتینگ'));
   return block.indexOf('letTrimTrailingEmptyHtml') === -1 && /ptfLetterheadPastePrint[\s\S]{0,400}letSafeBodyHtml\(ed\.innerHTML\)/.test(letters);
 })());
-T('قراردادهای قدیمی چاپ حفظ شده‌اند (tester317/502/463)', letters.indexOf("l.bodyHtml ? letSafeBodyHtml(l.bodyHtml)") > -1 &&
+T('قراردادهای قدیمی چاپ حفظ شده‌اند (tester317/502/463)', letters.indexOf("l.bodyHtml ? letSafeBodyHtml(letHtmlExpand(l.bodyHtml))") > -1 &&
   count(letters, "<style>' + letEmbeddedFontCss()") === 2 &&
   letters.indexOf('.endsig{margin:12mm 16mm 0') > -1 &&
   letters.indexOf('.body table{width:100%') > -1 && letters.indexOf('.body img{display:block') > -1);
