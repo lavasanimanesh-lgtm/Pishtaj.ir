@@ -57,6 +57,54 @@ function ptf_rfq_notify_aliases(array $row): array {
     }
     return array_keys($out);
 }
+/* ═══ v34.39.61 (BOT-MSG-P1-4 — «شناسهٔ تکراری = خفه‌شدن کامل») ═══
+   پیش از این اگر یک شناسه (`cd`) بین دو ردیف مشترک بود، کل اعلانِ آن ردیف‌ها
+   برای همیشه دفن می‌شد: تغییر واقعی وضعیت هیچ پیامی نمی‌ساخت و هیچ‌کس خبر نداشت.
+   قاعدهٔ تازه: اول با هویت ذخیره‌سازی (`_id`، بعد `code`) تطبیق می‌دهیم که یکتاست؛
+   فقط اگر آن نبود، با شناسه‌های نمایشی و «تنها وقتی یکتا باشند»؛ و اگر باز هم چند
+   نامزد ماند با فیلدهای محتوایی (inqNo/تلفن/شرکت/موضوع) تفکیک می‌کنیم — هرگز حدس
+   نمی‌زنیم. آنچه تفکیک‌نشدنی ماند پیام نمی‌سازد ولی «دیده می‌شود»: شمارندهٔ
+   ambiguousRows در صف ثبت و در --status و خط سلامت کارت تنظیمات نمایش داده می‌شود. */
+function ptf_rfq_notify_primary_id(array $row): string {
+    /* `inqNo` عمداً اینجا نیست: یک استعلام می‌تواند چند ردیف/پیشنهاد داشته باشد. */
+    return ptf_rfq_notify_first($row, ['_id', 'code'], 160);
+}
+function ptf_rfq_notify_disambiguate(array $before, array $candidates, array $row): array {
+    foreach ([['inqNo'], ['phone'], ['co','company'], ['subj','subject'], ['contact','con']] as $keys) {
+        $want = ptf_rfq_notify_clean_label(ptf_rfq_notify_first($row, $keys, 160));
+        if ($want === '') continue;
+        $hits = [];
+        foreach ($candidates as $i) {
+            $cand = $before[$i] ?? null;
+            if (!is_array($cand)) continue;
+            if (ptf_rfq_notify_clean_label(ptf_rfq_notify_first($cand, $keys, 160)) === $want) $hits[] = $i;
+        }
+        if (count($hits) === 1) return $hits;
+        if (count($hits) > 1) $candidates = $hits;
+    }
+    return count($candidates) === 1 ? $candidates : [];
+}
+/* یادداشتی که فقط «برچسبِ کهنه» را تکرار می‌کند یادداشت نیست؛ مثلاً stxt قدیمی
+   («دریافت اولیه») که کلاینت هنگام تغییر `st` به‌روزش نکرده است. متن آزاد واقعی
+   دست‌نخورده می‌ماند — v34.39.61. */
+function ptf_rfq_notify_prune_note(string $note, string $fromLabel, string $toLabel): string {
+    $clean = ptf_rfq_notify_clean_label($note);
+    if ($clean === '') return '';
+    if ($clean === ptf_rfq_notify_clean_label($fromLabel) || $clean === ptf_rfq_notify_clean_label($toLabel)) return '';
+    foreach (ptf_rfq_notify_labels() as $label) {
+        if ($clean === ptf_rfq_notify_clean_label($label)) return '';
+    }
+    return $note;
+}
+function ptf_rfq_notify_diag_add(string $key, int $n = 1): void {
+    if (!isset($GLOBALS['ptf_rfq_notify_diag']) || !is_array($GLOBALS['ptf_rfq_notify_diag'])) $GLOBALS['ptf_rfq_notify_diag'] = [];
+    $GLOBALS['ptf_rfq_notify_diag'][$key] = (int)($GLOBALS['ptf_rfq_notify_diag'][$key] ?? 0) + $n;
+}
+function ptf_rfq_notify_diag_take(): array {
+    $diag = $GLOBALS['ptf_rfq_notify_diag'] ?? [];
+    $GLOBALS['ptf_rfq_notify_diag'] = [];
+    return is_array($diag) ? $diag : [];
+}
 function ptf_rfq_notify_clean_label(string $label): string {
     if ($label === '') return '';
     $s = preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE00}-\x{FE0F}\x{1F900}-\x{1F9FF}\x{1F600}-\x{1F64F}\x{1F300}-\x{1F5FF}\x{1F680}-\x{1F6FF}\x{2300}-\x{23FF}\x{2B50}\x{2B55}\x{200D}\x{200C}]+/u', ' ', $label);
@@ -64,12 +112,17 @@ function ptf_rfq_notify_clean_label(string $label): string {
     return trim((string)preg_replace('/\s+/u', ' ', (string)$s));
 }
 function ptf_rfq_notify_state(array $row): string {
-    $st = ptf_rfq_notify_first($row, ['st','status'], 80);
+    $st = ptf_rfq_notify_first($row, ['st'], 80);
+    /* v34.39.61 (BOT-MSG-P1-5): `status` بُعد دوم وضعیت است (رهگیری/تایید سایت) و
+       پیش از این فقط در نبودِ `st` دیده می‌شد. روی ردیفی که `st` هم داشت — همهٔ
+       درخواست‌های سایت پس از عبور از کانبان — تایید/رد شدنِ `status` هیچ تفاوتی در
+       اثر انگشت نمی‌ساخت، پس پیام هرگز ساخته نمی‌شد (probe6-۱). */
+    $status = ptf_rfq_notify_first($row, ['status'], 80);
     /* WF10 is the initial workflow; initializing it is not a status transition. */
     $wf = ptf_rfq_notify_text($row['wf'] ?? 'WF10', 80) ?: 'WF10';
     $waiting = ptf_rfq_notify_text($row['waiting'] ?? '', 80);
-    $fallback = ($st === '' && $wf === 'WF10') ? ptf_rfq_notify_first($row, ['stxt','statusText']) : '';
-    return json_encode([$st, $wf, $waiting, $fallback], JSON_UNESCAPED_UNICODE);
+    $fallback = ($st === '' && $status === '' && $wf === 'WF10') ? ptf_rfq_notify_first($row, ['stxt','statusText']) : '';
+    return json_encode([$st, $status, $wf, $waiting, $fallback], JSON_UNESCAPED_UNICODE);
 }
 function ptf_rfq_notify_labels(): array {
     return [
@@ -152,9 +205,17 @@ function ptf_rfq_notify_resolve_actor(string $actor, array $users): string {
    هر دو را بنویسد؛ با کلید هم‌ترازی صف، فقط یک پیام به گروه می‌رود (v34.39.59). */
 function ptf_rfq_notify_events(array $before, array $after, string $source, string $actor, string $operation, bool $creates = true, string $channel = 'canonical'): array {
     if ($operation === '') return [];
-    $oldIndex = []; $newIndex = [];
-    foreach ($before as $i => $row) if (is_array($row)) foreach (ptf_rfq_notify_aliases($row) as $alias) $oldIndex[$alias][$i] = true;
-    foreach ($after as $i => $row) if (is_array($row)) foreach (ptf_rfq_notify_aliases($row) as $alias) $newIndex[$alias][$i] = true;
+    $oldIndex = []; $newIndex = []; $oldPrimary = []; $newPrimary = [];
+    foreach ($before as $i => $row) if (is_array($row)) {
+        foreach (ptf_rfq_notify_aliases($row) as $alias) $oldIndex[$alias][$i] = true;
+        $pid = ptf_rfq_notify_primary_id($row);
+        if ($pid !== '') $oldPrimary[$pid][$i] = true;
+    }
+    foreach ($after as $i => $row) if (is_array($row)) {
+        foreach (ptf_rfq_notify_aliases($row) as $alias) $newIndex[$alias][$i] = true;
+        $pid = ptf_rfq_notify_primary_id($row);
+        if ($pid !== '') $newPrimary[$pid][$i] = true;
+    }
     $events = [];
     $at = (new DateTimeImmutable('now', new DateTimeZone('Asia/Tehran')))->format('Y-m-d H:i:s');
     foreach ($after as $row) {
@@ -162,12 +223,25 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         $aliases = ptf_rfq_notify_aliases($row);
         if (!$aliases) continue;
         $matches = []; $ambiguous = false;
-        foreach ($aliases as $alias) {
-            if (count($newIndex[$alias] ?? []) > 1) $ambiguous = true;
-            foreach (($oldIndex[$alias] ?? []) as $i => $_) $matches[$i] = true;
+        /* ① هویت ذخیره‌سازی یکتا (_id/code) بر همهٔ شناسه‌های نمایشی مقدم است؛ ردیف
+           تکراری در «شمارهٔ درخواست» دلیل نمی‌شود تغییر واقعیِ یک ردیف دفن شود. */
+        $pid = ptf_rfq_notify_primary_id($row);
+        if ($pid !== '' && count($oldPrimary[$pid] ?? []) === 1 && count($newPrimary[$pid] ?? []) === 1) {
+            $matches = array_keys($oldPrimary[$pid]);
+        } else {
+            foreach ($aliases as $alias) {
+                /* شناسه‌ای که در یک طرف مشترک است برای تطبیق قابل اعتماد نیست. */
+                if (count($oldIndex[$alias] ?? []) > 1 || count($newIndex[$alias] ?? []) > 1) { $ambiguous = true; continue; }
+                foreach (($oldIndex[$alias] ?? []) as $i => $_) $matches[$i] = true;
+            }
+            if (count($matches) > 1) {
+                $narrowed = ptf_rfq_notify_disambiguate($before, array_keys($matches), $row);
+                if (count($narrowed) === 1) { $matches = $narrowed; $ambiguous = false; }
+                else { $matches = []; $ambiguous = true; }
+            }
         }
-        /* Do not guess identities or send several notices for corrupt duplicates. */
-        if ($ambiguous || count($matches) > 1) continue;
+        /* هرگز حدس نمی‌زنیم؛ ولی «خفه‌شدن بی‌صدا» هم ممنوع است: شمارندهٔ دیدنی. */
+        if ($ambiguous && !$matches) { ptf_rfq_notify_diag_add('ambiguousRows'); continue; }
         $old = $matches ? $before[array_key_first($matches)] : null;
         if ($old === null && !$creates) continue;
         $from = is_array($old) ? ptf_rfq_notify_state($old) : '';
@@ -182,6 +256,7 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         $wfChanged = false;
         $fromLabel = ''; $toLabel = ptf_rfq_notify_label($row);
         $fromNote = ''; $toNote = ''; /* متن آزاد فقط «یادداشت» است، نه برچسب (v34.39.60) */
+        $extraState = ''; /* بُعد دومی که هم‌زمان عوض شده — پنهان نمی‌شود (v34.39.61) */
         /* کدهای دو بُعد وضعیت — هم برای انتخاب برچسب (مسیر گردش‌کاردار) و هم برای
            کلید هم‌ترازی صف لازم‌اند (پایین‌تر). */
         $newSt = ptf_rfq_notify_first($row, ['st'], 80);
@@ -196,12 +271,28 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
             if ($wfChanged) {
                 $fromLabel = ptf_rfq_notify_code_label($oldWf);
                 $toLabel = ptf_rfq_notify_code_label($newWf);
+                /* v34.39.61 (BOT-MSG-P1-5): یک اقدام می‌تواند هم گردش‌کار و هم وضعیت
+                   دستی/سایت را هم‌زمان عوض کند؛ قبلاً فقط بُعد گردش‌کار در پیام
+                   می‌آمد و تغییر دستی (مثلاً st2→st5 «ابلاغ سفارش») کاملاً پنهان
+                   می‌شد. حالا خط دوم می‌آید تا گیرنده هر دو را ببیند. */
+                if ($oldSt !== $newSt) {
+                    $extraState = 'وضعیت کانبان: از «' . (ptf_rfq_notify_code_label($oldSt) ?: 'تعیین‌نشده')
+                        . '» به «' . (ptf_rfq_notify_code_label($newSt) ?: 'تعیین‌نشده') . '»';
+                } elseif ($oldStatus !== $newStatus) {
+                    $extraState = 'وضعیت سایت: از «' . (ptf_rfq_notify_code_label($oldStatus) ?: 'تعیین‌نشده')
+                        . '» به «' . (ptf_rfq_notify_code_label($newStatus) ?: 'تعیین‌نشده') . '»';
+                }
             } elseif (trim((string)($old['wf'] ?? '')) !== '' || trim((string)($row['wf'] ?? '')) !== '') {
                 /* ردیف گردش‌کاردار: stxt برچسب wf است؛ برچسب بُعد دستی باید از کدِ
                    همان فیلدی بیاید که عوض شده (st کانبان یا status)، نه از stxt. */
                 if ($oldSt !== $newSt) {
                     $fromLabel = ptf_rfq_notify_code_label($oldSt) ?: ptf_rfq_notify_label($old);
                     $toLabel = ptf_rfq_notify_code_label($newSt) ?: ptf_rfq_notify_label($row);
+                    /* بُعد سوم هم همان لحظه عوض شده؟ پنهانش نمی‌کنیم (v34.39.61). */
+                    if ($oldStatus !== $newStatus) {
+                        $extraState = 'وضعیت سایت: از «' . (ptf_rfq_notify_code_label($oldStatus) ?: 'تعیین‌نشده')
+                            . '» به «' . (ptf_rfq_notify_code_label($newStatus) ?: 'تعیین‌نشده') . '»';
+                    }
                 } elseif ($oldStatus !== $newStatus) {
                     $fromLabel = ptf_rfq_notify_code_label($oldStatus) ?: ptf_rfq_notify_label($old);
                     $toLabel = ptf_rfq_notify_code_label($newStatus) ?: ptf_rfq_notify_label($row);
@@ -220,6 +311,11 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
                 if ($useSt) {
                     list($fromLabel, $fromNote) = ptf_rfq_notify_display_label($old, $oldSt, ['stxt','statusText']);
                     list($toLabel, $toNote) = ptf_rfq_notify_display_label($row, $newSt, ['stxt','statusText']);
+                    /* اگر همان لحظه بُعد سایت هم عوض شده، در خط دوم می‌آید. */
+                    if ($oldStatus !== $newStatus) {
+                        $extraState = 'وضعیت سایت: از «' . (ptf_rfq_notify_code_label($oldStatus) ?: 'تعیین‌نشده')
+                            . '» به «' . (ptf_rfq_notify_code_label($newStatus) ?: 'تعیین‌نشده') . '»';
+                    }
                 } else {
                     list($fromLabel, $fromNote) = ptf_rfq_notify_display_label($old, $oldStatus, ['stxt','statusText']);
                     list($toLabel, $toNote) = ptf_rfq_notify_display_label($row, $newStatus, ['stxt','statusText']);
@@ -271,7 +367,9 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         }
         if ($old !== null) $text .= "\nوضعیت قبلی: " . $fromLabel;
         $text .= "\nوضعیت " . ($old !== null ? 'جدید' : 'اولیه') . ': ' . $toLabel;
+        if ($extraState !== '') $text .= "\n" . $extraState;
         /* متن آزاد کلاینت (دلیل رد/توضیح) به‌صورت خط جداگانهٔ کوتاه — نه جای برچسب */
+        $toNote = ptf_rfq_notify_prune_note($toNote, $fromLabel, $toLabel);
         if ($toNote !== '') $text .= "\nیادداشت: " . ptf_rfq_notify_text($toNote, 160);
         /* گذار گردش‌کار: رویداد مولّد (مثلاً «تغییر وضعیت پیشنهاد CO-… → ارسال‌شده»)
            از wfLog همان رکورد — پیام بدون آن قابل راستی‌آزمایی نبود. */
@@ -313,10 +411,20 @@ function ptf_rfq_notify_store(string $dir, callable $change) {
     } finally { flock($lock, LOCK_UN); fclose($lock); }
 }
 function ptf_rfq_notify_enqueue(array $events, ?string $dir = null): bool {
-    if (!$events || !ptf_rfq_notify_enabled()) return true;
+    /* v34.39.61 (BOT-MSG-P1-4): ردیفی که با شناسهٔ مشترک قابل تفکیک نبود پیام
+       نمی‌سازد، ولی «هیچ پیامی نیامد» نباید بی‌سرنخ بماند: شمارندهٔ آن در همان صف
+       می‌نشیند تا در --status و خط سلامت کارت تنظیمات دیده شود. */
+    $diag = ptf_rfq_notify_diag_take();
+    if (!$events && !$diag) return true;
+    if (!ptf_rfq_notify_enabled()) return true;
     $dir = $dir ?? ptf_rfq_notify_dir();
     try {
-        ptf_rfq_notify_store($dir, function (&$state) use ($events) {
+        ptf_rfq_notify_store($dir, function (&$state) use ($events, $diag) {
+            if ($diag) {
+                foreach ($diag as $diagKey => $diagCount) {
+                    $state['notifyDiag'][$diagKey] = (int)($state['notifyDiag'][$diagKey] ?? 0) + (int)$diagCount;
+                }
+            }
             /* v34.39.59 (BOT-MSG-P0): هم‌ترازی «پیام مرجع» و «پیام آینهٔ رهگیری».
                برای یک اقدام، set_status و نوشتن مرجع هر دو رویداد می‌سازند؛ همیشه
                یکی از آن‌ها می‌ماند: اگر آینه هنوز ارسال نشده باشد با متن دقیق‌ترِ
@@ -375,7 +483,7 @@ function ptf_rfq_notify_enqueue(array $events, ?string $dir = null): bool {
             foreach ($state['jobs'] as $id => $job) if (in_array($job['status'] ?? '', ['sent', 'cancelled'], true)) $terminal[] = $id;
             foreach (array_slice($terminal, 0, max(0, count($terminal) - 2000)) as $id) unset($state['jobs'][$id]);
         });
-        ptf_rfq_notify_schedule($dir);
+        if ($events) ptf_rfq_notify_schedule($dir);
         return true;
     } catch (Throwable $e) {
         error_log('PTF RFQ Telegram: outbox enqueue failed');
@@ -486,6 +594,9 @@ function ptf_rfq_notify_counts(?string $dir = null): array {
     foreach (($state['jobs'] ?? []) as $job) { $s = (string)($job['status'] ?? ''); if (isset($counts[$s])) $counts[$s]++; }
     /* v34.39.59: چند پیام آینه با پیام مرجع یکی شد (قابل مشاهده برای پایش دقت) */
     $counts['alignSuppressed'] = (int)($state['notifyAlignSuppressed'] ?? 0);
+    /* v34.39.61 (BOT-MSG-P1-4): چند تغییر واقعی به‌خاطر شناسهٔ تکراری پیام نساخت
+       (حدس ممنوع) — تا کاربر بداند عمداً ساکت مانده‌ایم، نه اینکه پیام گم شده باشد. */
+    $counts['ambiguousRows'] = (int)($state['notifyDiag']['ambiguousRows'] ?? 0);
     return $counts;
 }
 

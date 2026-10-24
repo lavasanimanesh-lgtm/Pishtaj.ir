@@ -317,7 +317,8 @@
       (o.uncertain ? '\n• تأییدنشده: ' + o.uncertain : '') +
       (o.failed ? '\n• ناموفق: ' + o.failed : '') +
       (o.sent ? '\n• ارسال‌شده (نشانگر): ' + o.sent : '') +
-      (o.alignSuppressed ? '\n• پیام تکراری حذف‌شده: ' + o.alignSuppressed : '');
+      (o.alignSuppressed ? '\n• پیام تکراری حذف‌شده: ' + o.alignSuppressed : '') +
+      (o.ambiguousRows ? '\n• اعلام‌نشده به‌خاطر شناسهٔ تکراری: ' + o.ambiguousRows : '');
     if (cb) cb(t); else alert(t);
   };
   /* هوک notify: اعلان‌های حیاتی به بات هم برود (اگر کانفیگ فعال باشد — سرور خودش چک می‌کند) */
@@ -401,12 +402,13 @@
       if (!line) return;
       if (!d || !d.ok) { line.style.color = '#b45309'; line.textContent = '⚠️ وضعیت بات در دسترس نیست — ' + ((d && d.error) || 'کانفیگ/شبکه'); return; }
       var o = d.outbox || {};
-      var stuck = (+(o.uncertain || 0)) + (+(o.failed || 0));
+      var stuck = (+(o.uncertain || 0)) + (+(o.failed || 0)) + (+(o.ambiguousRows || 0));
       line.style.color = stuck ? '#b45309' : '#166534';
       line.textContent = (stuck ? '⚠️ ' : '✅ ') + (d.health || 'صف ارسال سالم است') +
         (o.pending ? ' · در صف: ' + o.pending : '') +
         (o.uncertain ? ' · تأییدنشده: ' + o.uncertain : '') +
         (o.failed ? ' · ناموفق: ' + o.failed : '') +
+        (o.ambiguousRows ? ' · اعلام‌نشده (شناسهٔ تکراری): ' + o.ambiguousRows : '') +
         ((d.rfq_notifications === false) ? ' · اعلان خودکار خاموش' : '');
     });
   }

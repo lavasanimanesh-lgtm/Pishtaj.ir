@@ -62,11 +62,11 @@ T('entity_upsert روی ptf_crm_rfqs مقدار wf را از سرور بازخو
   var i = api.indexOf("if ($collection === 'ptf_crm_rfqs') {", api.indexOf("$action === 'entity_upsert'"));
   assert.ok(i > -1, 'rfqs branch not found');
   var block = api.slice(i, api.indexOf('}', api.indexOf('sd_rfq_workflow_server_owned', i)) + 1);
-  assert.ok(block.indexOf('sd_rfq_workflow_server_owned($row, is_array($prev) ? $prev : [], sd_actor_label($user), $sanitizeStats)') > -1); /* v34.39.60: wfLog با نام نمایشی */
+  assert.ok(block.indexOf('sd_rfq_workflow_server_owned($row, is_array($prev) ? $prev : [], sd_actor_label($user), $sanitizeStats)') > -1); /* v34.39.61: wfLog با نام نمایشی */
 });
 T('سرور wf را همیشه از فهرست authoritative پیشنهادها مشتق می‌کند', function () {
   var m = /function sd_rfq_workflow_server_owned\([\s\S]*?\n\}/.exec(api);
-  /* v34.39.60: دیگر فقط یک شناسه نیست — سقوط WF50←WF10 دقیقاً از همین بود */
+  /* v34.39.61: دیگر فقط یک شناسه نیست — سقوط WF50←WF10 دقیقاً از همین بود */
   assert.ok(m && m[0].indexOf("ptf_rfq_workflow_aliases($row)") > -1 && m[0].indexOf("sd_workflow_for_inquiry($aliases[0] ?? '', sd_read('ptf_crm_offers'), $aliases)") > -1);
   assert.ok(m[0].indexOf("$row['stxt'] = sd_workflow_label($wf)") > -1);
 });
@@ -82,7 +82,7 @@ T('حذف پیشنهاد هم گردش کار را بازخوانی می‌کن�
 });
 
 /* ═══ ۳) ترتیب آرایه دیگر نتیجه را عوض نمی‌کند ═══ */
-T('موتور با ترتیبِ کلِ پایدار انتخاب می‌کند، نه جایگاه آرایه (v34.39.60: بدنه در lib)', function () {
+T('موتور با ترتیبِ کلِ پایدار انتخاب می‌کند، نه جایگاه آرایه (v34.39.61: بدنه در lib)', function () {
   /* sd_workflow_for_inquiry حالا delegate است؛ ترتیب کل در ptf_rfq_workflow_compute زندگی می‌کند */
   assert.ok(api.indexOf('function sd_workflow_for_inquiry(string $inqNo, array $offers, array $aliases = []): string') > -1);
   assert.ok(api.indexOf('return ptf_rfq_workflow_compute($aliases, $offers, $projects, $invoices);') > -1);

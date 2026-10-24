@@ -16,9 +16,9 @@ var sortable = read('crm/sortable.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.39.60', ver.crm_version === 'v34.39.60', ver.crm_version);
-T('sortable.js cache-bust 34.39.60', /sortable\.js\?v=34\.39\.60/.test(idx));
-T('tables.js cache-bust 34.39.60', /tables\.js\?v=34\.39\.60/.test(idx));
+T('VERSION.json = v34.39.61', ver.crm_version === 'v34.39.61', ver.crm_version);
+T('sortable.js cache-bust 34.39.61', /sortable\.js\?v=34\.39\.61/.test(idx));
+T('tables.js cache-bust 34.39.61', /tables\.js\?v=34\.39\.61/.test(idx));
 
 /* مرتب‌سازی: فلش واضح، نه مثلث سنجاق‌مانند */
 T('مرتب‌سازی از فلش ↑/↓ استفاده می‌کند', sortable.indexOf("? ' ↑' : ' ↓'") > -1);

@@ -123,12 +123,25 @@ const J = v => "json_decode(base64_decode('" + Buffer.from(JSON.stringify(v),'ut
 
   /* 9) شناسه‌های تکراری: چرا پیام خفه می‌شود */
   console.log('\n══ 9 — شناسهٔ تکراری/مبهم ══');
+  /* قرارداد v34.39.61: شناسهٔ نمایشی مشترک دلیل خفه‌شدن نیست؛ اول با هویت یکتای
+     ذخیره‌سازی (_id) تطبیق می‌دهیم، بعد با فیلدهای محتوایی، و فقط اگر واقعاً
+     تفکیک‌ناپذیر بود پیام نمی‌سازیم — آن‌وقت شمارندهٔ دیدنی ثبت می‌شود. */
   out = await run(`${boot}
-  $b=[['_id'=>'A','cd'=>'RFQ-D','co'=>'الف','stxt'=>'دریافت اولیه'],['_id'=>'B','cd'=>'RFQ-D','co'=>'ب','stxt'=>'دریافت اولیه']];
-  $a=[['_id'=>'A','cd'=>'RFQ-D','co'=>'الف','stxt'=>'بررسی فنی'],['_id'=>'B','cd'=>'RFQ-D','co'=>'ب','stxt'=>'دریافت اولیه']];
-  echo json_encode(['n'=>count(ptf_rfq_notify_events($b,$a,'crm','x','command:k'))]);`);
+  $b=[['_id'=>'A','cd'=>'RFQ-D','co'=>'الف','st'=>'st1'],['_id'=>'B','cd'=>'RFQ-D','co'=>'ب','st'=>'st1']];
+  $a=[['_id'=>'A','cd'=>'RFQ-D','co'=>'الف','st'=>'st2'],['_id'=>'B','cd'=>'RFQ-D','co'=>'ب','st'=>'st1']];
+  $e=ptf_rfq_notify_events($b,$a,'crm','x','command:k');
+  $d1=count($e).'|'.($e[0]['text']??'');
+  $d=ptf_rfq_notify_diag_take();
+  $b2=[['_id'=>'Z','cd'=>'RFQ-Z'],['_id'=>'Z','cd'=>'RFQ-Z']];
+  $a2=[['_id'=>'Z','cd'=>'RFQ-Z','st'=>'st2'],['_id'=>'Z','cd'=>'RFQ-Z']];
+  $n2=count(ptf_rfq_notify_events($b2,$a2,'crm','x','command:l'));
+  echo json_encode(['n'=>count($e),'t'=>$e[0]['text']??'','diag'=>$d,'n2'=>$n2,'diag2'=>ptf_rfq_notify_diag_take()]);`);
+  const d9 = JSON.parse(out);
   console.log('   ' + out);
-  T('ردیف‌های دارای شناسهٔ مشترک: اعلان کاملاً خفه می‌شود (بدون هشدار)', JSON.parse(out).n === 0, out);
+  T('شناسهٔ نمایشی مشترک ولی _id یکتا: تغییر واقعی اعلام می‌شود',
+    d9.n === 1 && d9.t.includes('مشتری: الف'), 'پیام‌ها=' + d9.n + ' | ' + d9.t.split('\n').slice(0, 3).join(' / '));
+  T('تفکیک‌ناپذیر (دو ردیف با همان _id): پیام ساخته نمی‌شود ولی شمارندهٔ دیدنی ثبت می‌شود',
+    d9.n2 === 0 && (d9.diag2.ambiguousRows || 0) > 0, JSON.stringify({ n2: d9.n2, diag2: d9.diag2 }));
 
   console.log('\n=== PROBE3: ' + pass + ' PASS / ' + fail + ' FAIL ===');
 })().catch(e => { console.error('CRASH', e); process.exit(1); });

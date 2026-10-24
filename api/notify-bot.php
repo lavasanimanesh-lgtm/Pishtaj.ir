@@ -108,6 +108,9 @@ switch ($action) {
             if ((int)($outbox['failed'] ?? 0) > 0) $healthParts[] = (int)$outbox['failed'] . ' پیام ناموفق (failed)';
             if ((int)($outbox['pending'] ?? 0) > 0) $healthParts[] = (int)$outbox['pending'] . ' پیام در صف';
             if ((int)($outbox['recoveryPending'] ?? 0) > 0) $healthParts[] = (int)$outbox['recoveryPending'] . ' فایل بازیابی در انتظار';
+            /* v34.39.61 (BOT-MSG-P1-4): تغییر واقعی روی ردیفی با شناسهٔ تکراری اعلام
+               نشد (حدس ممنوع) — این عدد جلوی «پیام نیامد ولی کسی خبر ندارد» را می‌گیرد. */
+            if ((int)($outbox['ambiguousRows'] ?? 0) > 0) $healthParts[] = (int)$outbox['ambiguousRows'] . ' تغییر به‌خاطر شناسهٔ تکراری اعلام نشد (حدس ممنوع) — ردیف‌های تکراری CRM را ادغام کنید';
             if ($stuck > 0) $healthParts[] = 'برای پیگیری: php api/rfq-notify-cron.php --status';
         }
         $health = $healthParts ? implode("\n", $healthParts) : 'صف ارسال سالم است — پیامی در انتظار نمانده';
