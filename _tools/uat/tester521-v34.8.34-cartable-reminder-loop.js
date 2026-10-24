@@ -122,8 +122,8 @@ T('جارو در بوت صندوق اجرا می‌شود', /sweepDuplicateRemin
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.39.63', ver.crm_version === 'v34.39.63', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.39.63', /window\.PTF_CRM_RELEASE = 'v34\.39\.63'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.39\.63'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.39.64', ver.crm_version === 'v34.39.64', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.39.64', /window\.PTF_CRM_RELEASE = 'v34\.39\.64'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.39\.64'/.test(read('crm/sw.js')));
 
 console.log('\n— tester521 (v34.38.0: CARTABLE-LOOP) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

@@ -94,7 +94,7 @@ resetQueue();ptf_rfq_notify_enqueue($e);ptf_rfq_notify_store(sd_sync_dir(),funct
 T('confirmed failures stop after eight attempts and stay available for operator',storeRead()['jobs'][$e[0]['id']]['status']==='failed');
 resetQueue();ptf_rfq_notify_enqueue($e);ptf_rfq_notify_store(sd_sync_dir(),function(&$s){foreach($s['jobs'] as &$j){$j['status']='sending';$j['claimedAt']=time()-100;}unset($j);});ptf_rfq_notify_flush();
 T('crashed send is quarantined, not blindly duplicated',storeRead()['jobs'][$e[0]['id']]['status']==='uncertain'&&count($GLOBALS['calls'])===0);
-/* v34.39.63 (BOT-MSG-P2-8): نرخ از «فاصلهٔ ثابت ۳ ثانیه، یک پیام در هر فراخوانی» به سطل
+/* v34.39.64 (BOT-MSG-P2-8): نرخ از «فاصلهٔ ثابت ۳ ثانیه، یک پیام در هر فراخوانی» به سطل
    توکن تغییر کرد: burst تا ۵ پیام، نرخ پایدار همان ۲۰ در دقیقه. قرارداد جدید: یک فراخوانی
    پیش‌فرض (maxJobs=1) فقط یک پیام می‌فرستد و دومی در صف می‌ماند — بدون sleep در HTTP. */
 resetQueue();ptf_rfq_notify_enqueue(array_merge($e,$ch));ptf_rfq_notify_flush();ptf_rfq_notify_flush();

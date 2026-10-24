@@ -110,7 +110,7 @@ T('F: انتخاب از فهرست همان offerPickBuyer رسمی را صدا 
 T('F: بستن فهرست با کلیک بیرون', of.indexOf("e.target.closest && e.target.closest('#ofBuyerAcBox')") > -1);
 
 /* ═══ G) مکاتبات ═══ */
-/* v34.39.63: انتخاب تصویر به letSnapImg منتقل شد ولی ترتیب فالبک همان است:
+/* v34.39.64: انتخاب تصویر به letSnapImg منتقل شد ولی ترتیب فالبک همان است:
    snapshot سند ← letResolveSignerProfile(l) ← پروفایل امضاکننده. */
 T('G: فالبک امضا با نام نمایشی (letResolveSignerProfile)', lt.indexOf('function letResolveSignerProfile') > -1 && lt.indexOf('var _liveP = letResolveSignerProfile(l) || signerProfile') > -1 && lt.indexOf('letSnapImg(_snap, ') > -1);
 T('G: تطبیق nm/nmEn پروفایل‌ها', lt.indexOf("String(p.nm || '').trim() === nm") > -1);

@@ -453,8 +453,12 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
             $text .= "\nنام: " . ptf_rfq_notify_text($row['contact'] ?? '');
             $text .= "\nتلفن: " . ptf_rfq_notify_text($row['phone'] ?? '', 50);
         }
-        if ($old !== null) $text .= "\nوضعیت قبلی: " . $fromLabel;
-        $text .= "\nوضعیت " . ($old !== null ? 'جدید' : 'اولیه') . ': ' . $toLabel;
+        /* v34.39.64 (VERIFY-2026-10-24): برچسب خالی «وضعیت قبلی: » خالی تولید می‌کرد —
+           در بازبینی میدانی، حرکت کارتِ ردیفی که قبلاً st نداشت پیام «وضعیت قبلی: ⏎»
+           می‌داد. حالا غیبت وضعیت صریح گفته می‌شود، نه خط خالی (نه داده‌سازی: واقعاً
+           تعیین‌نشده بود). */
+        if ($old !== null) $text .= "\nوضعیت قبلی: " . ($fromLabel !== '' ? $fromLabel : 'تعیین‌نشده');
+        $text .= "\nوضعیت " . ($old !== null ? 'جدید' : 'اولیه') . ': ' . ($toLabel !== '' ? $toLabel : 'تعیین‌نشده');
         if ($extraState !== '') $text .= "\n" . $extraState;
         /* متن آزاد کلاینت (دلیل رد/توضیح) به‌صورت خط جداگانهٔ کوتاه — نه جای برچسب */
         $toNote = ptf_rfq_notify_prune_note($toNote, $fromLabel, $toLabel);

@@ -64,7 +64,11 @@ async function request(state,opts={}){
  if(opts.config!==false)await php.writeFile('/w/bot-config.php',`<?php return ['telegram_token'=>'111:TEST_ONLY','telegram_chat_id'=>'${opts.chatId||'-۱۰۰۱۲۳'}','rfq_notifications'=>${opts.enabled===false?'false':'true'}];`);
  for(const [file,value] of Object.entries(state))await php.writeFile('/w/app/crm/data/'+file,value);
  await php.writeFile('/tmp2/body',JSON.stringify(opts.body||{}));await php.writeFile('/tmp2/calls','');await php.writeFile('/tmp2/mode',opts.mode||'ok');
- const auth=opts.auth===false?"$_SERVER['HTTP_X_CRM_TOKEN']='invalid-test-token';":`
+ /* v34.39.64 (VERIFY): auth:'none' = بازدیدکنندهٔ سایت بدون هیچ توکن — مسیر عمومی واقعی
+    (add_rfq_site/track). auth:false (توکن نامعتبر) همچنان برای تست ردِ احراز هویت است. */
+ let auth='';
+ if(opts.auth===false)auth="$_SERVER['HTTP_X_CRM_TOKEN']='invalid-test-token';";
+ else if(opts.auth!=='none')auth=`
  $user='${opts.user||'admin'}';$role='${opts.role||'admin'}';$now=time();$nonce=bin2hex(random_bytes(16));
  $p=$user.'|'.$role.'|'.$now.'|'.$nonce;$sig=hash_hmac('sha256',$p,'${SECRET}');
  $tok=rtrim(strtr(base64_encode($p.'|'.$sig),'+/','-_'),'=');
