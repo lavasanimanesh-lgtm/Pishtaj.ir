@@ -37,16 +37,28 @@ T('CSV جمع ورودی/خروجی/خالص را در انتهای فایل م�
 /* رفتار واقعی print mode با استخراج وابستگی‌های حداقلی */
 global.curSession=function(){return{user:'u1',name:'User One'};};
 global.faDate=function(){return'1405/05/24';};global.escP=function(v){return String(v==null?'':v);};
-global.letSafeBodyHtml=function(v){return v;};global.letTrimTrailingEmptyHtml=function(v){return v;};/* v34.39.57 (LETTER-SIG-PAGINATION): وابستگی جدید letPrintObj — این تست فقط قرارداد خروجی signed/physical را می‌سنجد؛ رفتار واقعی پیرایشِ دم در tester658 سنجیده می‌شود */global.letSignerEn=function(){return'User One';};global.letRoleEn=function(){return'Manager';};global.letFaDigits=function(v){return v;};global.letAutoSize=function(){return 14;};global.letEmbeddedFontCss=function(){return'';};
-global.sigProfiles=function(){return{u1:{nm:'کاربر یک',role:'مدیر',sig:'data:image/png;base64,SIG',stamp:'data:image/png;base64,STAMP'}};};
+global.letSafeBodyHtml=function(v){return v;};global.letTrimTrailingEmptyHtml=function(v){return v;};/* v34.39.58 (LETTER-SIG-PAGINATION): وابستگی جدید letPrintObj — این تست فقط قرارداد خروجی signed/physical را می‌سنجد؛ رفتار واقعی پیرایشِ دم در tester658 سنجیده می‌شود */global.letSignerEn=function(){return'User One';};global.letRoleEn=function(){return'Manager';};global.letFaDigits=function(v){return v;};global.letAutoSize=function(){return 14;};global.letEmbeddedFontCss=function(){return'';};
+global.sigProfiles=function(){return{u1:{nm:'کاربر یک',role:'مدیر',sig:PNG_T,stamp:PNG_T}};};
 global._printed='';global.ptfPreviewPrintableDoc=function(t,h,n){global._printed=h;global._printName=n;};
 global.LETTER_FONT_FA='Tahoma';global.LETTER_FONT_EN='Arial';
+/* v34.39.58 (LETTER-SIG-ASSET): letPrintObj اکنون تصویر را از «دارایی ارجاعی» می‌خواند؛
+   بلوک helperها و letRevOf از همان فایل استخراج می‌شوند (بدون بازنویسی منطق). */
+var _a0=letters.indexOf('var LET_ASSET_PFX'),_a1=letters.indexOf('function showSigProfile');
+if(_a0>-1&&_a1>_a0){try{
+  /* helperها در یک تابع جدا ساخته و به global منتقل می‌شوند تا letPrintObjِ evaled آن‌ها را ببیند */
+  var _rvSrc=(letters.match(/function letRevOf\(l\) \{[^\n]*\}/)||[''])[0];
+  var _h=new Function(letters.slice(_a0,_a1)+'\n'+_rvSrc+'\nreturn {letSnapImg:letSnapImg,letImagesResolve:letImagesResolve,letHtmlExpand:letHtmlExpand,letRevOf:letRevOf,letSnapState:letSnapState,letMakeSigSnapshot:letMakeSigSnapshot,letImgDataUrlOk:letImgDataUrlOk,letAssetGet:letAssetGet};')();
+  Object.keys(_h).forEach(function(k){ global[k]=_h[k]; });
+}catch(eA){T('بارگذاری helper دارایی تصویر',false,eA.stack);}}
+try{eval(letters.match(/function letResolveSignerProfile\(l\) \{[\s\S]*?\n\}/)[0].replace('function letResolveSignerProfile','global.letResolveSignerProfile=function'));}catch(eR1){}
+try{eval(letters.match(/function letRevOf\(l\) \{[^\n]*\}/)[0].replace('function letRevOf','global.letRevOf=function'));}catch(eR2){}
 var fn=letters.match(/function letPrintObj\(l, isPreview\) \{[\s\S]*?\n\}/)[0];eval(fn.replace('function letPrintObj','global.letPrintObj=function'));
-var L={no:'1405/پ/ص/001',lang:'fa',st:'signed',signer:'u1',signerNm:'کاربر یک',signerRole:'مدیر',to:'مخاطب',subject:'موضوع',body:'متن',signatureSnapshot:{sig:'data:image/png;base64,SIG',stamp:'data:image/png;base64,STAMP',nm:'کاربر یک',role:'مدیر'}};
+var PNG_T='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+var L={no:'1405/پ/ص/001',lang:'fa',st:'signed',signer:'u1',signerNm:'کاربر یک',signerRole:'مدیر',to:'مخاطب',subject:'موضوع',body:'متن',signatureSnapshot:{sig:PNG_T,stamp:PNG_T,nm:'کاربر یک',role:'مدیر'}};
 letPrintObj(L,false,true);var signed=global._printed;
 letPrintObj(L,false,false);var physical=global._printed;
-T('خروجی signed تصویر snapshot را دارد',signed.indexOf('base64,SIG')>-1&&signed.indexOf('base64,STAMP')>-1);
-T('خروجی physical تصاویر را حذف ولی محل امضای دستی را نگه می‌دارد',physical.indexOf('base64,SIG')<0&&physical.indexOf('محل مهر و امضای فیزیکی')>-1);
+T('خروجی signed تصویر snapshot را دارد',signed.indexOf(PNG_T)>-1);
+T('خروجی physical تصاویر را حذف ولی محل امضای دستی را نگه می‌دارد',physical.indexOf(PNG_T)<0&&physical.indexOf('محل مهر و امضای فیزیکی')>-1);
 
 /* رفتار period filter خزانه */
 global.window=global;global.document={getElementById:function(){return null;},createElement:function(){return{click:function(){},remove:function(){}};},body:{appendChild:function(){}}};

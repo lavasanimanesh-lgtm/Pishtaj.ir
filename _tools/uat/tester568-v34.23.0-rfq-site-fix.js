@@ -53,9 +53,11 @@ T('HEAL: فراخوانی در renderRfq و ابتدای rfqApprove', RND.indexO
 T('APPROVE: ایمپورت پیوست هنگام تایید دست‌نخورده (files: importedFiles)', APPROVE.indexOf('files: importedFiles') > -1 && APPROVE.indexOf('siteAttachment: r.attachment') > -1);
 
 /* ═══ ④ سرور — ریشه‌کنی حذف files ═══ */
-T('SRV: هلپر مشترک sd_entity_sanitize_list با سقف‌های قبلی', php.indexOf('function sd_entity_sanitize_list(') > -1 && blk(php, 'function sd_entity_sanitize_list', 'function sd_entity_sanitize_row').indexOf('count($list) >= 60') > -1 && blk(php, 'function sd_entity_sanitize_list', 'function sd_entity_sanitize_row').indexOf('count($subItem) >= 20') > -1);
+/* v34.39.58: سقف ۲۰ فیلد به پارامتر $maxKeys (پیش‌فرض ۲۰) منتقل شد تا فیلدهای
+   سنگین نامه (revs) بتوانند سقف بالاتری بگیرند؛ مقدار پیش‌فرض همان ۲۰ است. */
+T('SRV: هلپر مشترک sd_entity_sanitize_list با سقف‌های قبلی', php.indexOf('function sd_entity_sanitize_list(') > -1 && blk(php, 'function sd_entity_sanitize_list', 'function sd_entity_sanitize_row').indexOf('count($list) >= 60') > -1 && blk(php, 'function sd_entity_sanitize_list', 'function sd_entity_sanitize_row').indexOf('count($subItem) >= $maxKeys') > -1 && php.indexOf('int $maxKeys = 20') > -1);
 T('SRV: شاخهٔ map مقدار لیستی را نگه می‌دارد (RFQ-ATT-FIX)', php.indexOf("elseif (is_string($k2) && strlen($k2) <= 60 && is_array($v2))") > -1 && php.indexOf('$sub[$k2] = sd_entity_sanitize_list($v2, $stats);') > -1);
-T('SRV: شاخهٔ لیست هم از همان هلپر می‌گذرد (بدون دوگانگی)', php.indexOf('$out[$k] = sd_entity_sanitize_list($v, $stats); $n++; continue;') > -1);
+T('SRV: شاخهٔ لیست هم از همان هلپر می‌گذرد (بدون دوگانگی)', php.indexOf('$out[$k] = sd_entity_sanitize_list($v, $stats);') > -1 && php.indexOf('$out[$k] = sd_entity_sanitize_list($v, $stats, 2, $bigLimit, 40);') > -1);
 T('SRV: رفتاری — files.oth پس از sanitize زنده می‌ماند', (function () {
   /* شبیه‌سازی شاخهٔ map روی ساختار پیوست RFQ */
   var src = blk(php, 'function sd_entity_sanitize_row', 'function sd_require_role');

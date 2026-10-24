@@ -219,7 +219,11 @@ try {
     curSession: function () { return { user: 'author' }; },
     letExtract: function () { return { keywords: [], summary: '' }; }, audit: function () {},
     hideModal: function () { hidden++; }, renderLetters: function () { rendered++; }, ptfToast: function () {}, alert: function () {},
-    notify: function () { notified++; }, _letAttachToPrj: function () { attached++; }, letSerial: function () { serials++; }
+    notify: function () { notified++; }, _letAttachToPrj: function () { attached++; }, letSerial: function () { serials++; },
+    /* v34.39.58: منبع اصلی letIsFinal را در letters.js دارد؛ این sandbox فقط
+       بازهٔ letSaveDraft را ارزیابی می‌کند، پس همان تابع (رفتار یکسان) پرش می‌شود. */
+    letIsFinal: function (l) { return !!l && (l.st === 'signed' || l.st === 'registered' || l.st === 'pending'); },
+    letCanAmend: function () { return false; }
   };
   lctx.window = lctx;
   vm.createContext(lctx);
