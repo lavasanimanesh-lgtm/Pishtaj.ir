@@ -304,6 +304,22 @@
     fetch('../api/notify-bot.php?action=status').then(function (r) { return r.json(); }).then(cb)
       .catch(function () { cb({ ok: false, error: 'خطای اتصال' }); });
   };
+  /* v34.39.60 (BOT-MSG-P1-6): «بات وصل است ولی پیام نیامده» باید دیده شود.
+     متن وضعیت شامل سلامت صف است (uncertain/failed/pending) — نه فقط «فعال». */
+  window.ptfBotStatusText = function (d, cb) {
+    if (!d || !d.ok) { if (cb) cb('❌ ' + ((d && d.error) || 'کانفیگ یافت نشد')); return; }
+    var o = d.outbox || {};
+    var stuck = (+(o.uncertain || 0)) + (+(o.failed || 0));
+    var icon = stuck ? '⚠️' : '✅';
+    var t = (stuck ? '⚠️ بات متصل است، ولی ' : '✅ اتصال بات برقرار است\n') + (d.info || '') +
+      '\n\n' + icon + ' صف ارسال: ' + (d.health || '—') +
+      (o.pending ? '\n• در صف: ' + o.pending : '') +
+      (o.uncertain ? '\n• تأییدنشده: ' + o.uncertain : '') +
+      (o.failed ? '\n• ناموفق: ' + o.failed : '') +
+      (o.sent ? '\n• ارسال‌شده (نشانگر): ' + o.sent : '') +
+      (o.alignSuppressed ? '\n• پیام تکراری حذف‌شده: ' + o.alignSuppressed : '');
+    if (cb) cb(t); else alert(t);
+  };
   /* هوک notify: اعلان‌های حیاتی به بات هم برود (اگر کانفیگ فعال باشد — سرور خودش چک می‌کند) */
   function hookNotify() {
     if (window._botNotifyHooked || typeof window.notify !== 'function') return false;
@@ -352,6 +368,9 @@
     var _bs = window.buildSettings;
     window.buildSettings = function () {
       var on = localStorage.getItem('ptf_bot_enabled') === '1';
+      /* v34.39.60 (BOT-MSG-P1-6): خط سلامت صف پس از رندر پر می‌شود تا ادمین
+         «پیام نرسیده» را ببیند، نه فقط «فعال». */
+      setTimeout(initBotHealthLine, 80);
       return _bs() + '<div style="max-width:560px">' +
         '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
         '<h4 style="margin:0 0 8px">🤖 بات اعلان تلگرام/بله (US-333)</h4>' +
@@ -362,7 +381,7 @@
         '<small style="color:#94a3b8">پیش‌نیاز: فایل bot-config.php روی هاست طبق راهنمای BOT-SETUP-GUIDE.md</small></div>' +
         '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px">' +
         '<input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="localStorage.setItem(\'ptf_bot_enabled\',this.checked?\'1\':\'0\')"> فعال‌سازی ارسال به بات</label>' +
-        '<button class="bt bt-o" onclick="ptfBotStatus(function(d){alert(d.ok?\'✅ اتصال بات برقرار است\\n\'+(d.info||\'\'):\'❌ \'+(d.error||\'کانفیگ یافت نشد\'))})">🔌 تست اتصال بات</button>' +
+        '<button class="bt bt-o" onclick="ptfBotStatus(function(d){ptfBotStatusText(d)})">🔌 تست وضعیت بات</button>' +
         '<button class="bt bt-o" style="margin-right:6px" onclick="ptfBotSend(\'🔔 پیام آزمایشی از CRM پیشرو تجهیز فرتاک\',function(d){alert(d.ok?\'✅ پیام آزمایشی ارسال شد\':\'❌ \'+(d.error||\'\'))})">📨 ارسال پیام آزمایشی</button>' +
         '<button class="bt" style="margin-right:6px;background:#0e7490" onclick="ptfBotCompose()">✍️ نوشتن پیام به گروه</button>' +
         '<div style="margin-top:10px;border-top:1px dashed var(--brd);padding-top:10px">' +
@@ -370,8 +389,27 @@
         '<span style="font-size:11.5px;color:#64748b">' + (function () { try { var pp = JSON.parse(localStorage.getItem('ptf_bot_pairs') || '{}')[curSession().user]; return pp ? '✅ چت شخصی شما متصل است (' + (pp.app === 'bale' ? 'بله' : 'تلگرام') + ')' : 'چت شخصی شما هنوز متصل نیست'; } catch (e) { return ''; } })() + '</span><br>' +
         '<button class="bt bt-o" style="font-size:12px;margin-top:6px" onclick="ptfBotPairStart()">🔗 اتصال چت شخصی من به بات</button>' +
         '<div style="font-size:11px;color:#94a3b8;margin-top:4px">اعلان‌های شخصی (چک شخصی، ارجاع به شما، یادآور فردی) فقط به چت خودتان می‌رود — نه گروه</div></div>' +
+        '<div id="ptfBotHealthLine" style="font-size:12px;color:#64748b;margin-top:10px;line-height:1.7">⏳ بررسی وضعیت صف ارسال…</div>' +
         '</div>';
     };
+  /* پرکردن خط سلامت صف در کارت تنظیمات (BOT-MSG-P1-6) */
+  function initBotHealthLine() {
+    var el = document.getElementById('ptfBotHealthLine');
+    if (!el || typeof window.ptfBotStatus !== 'function') return;
+    window.ptfBotStatus(function (d) {
+      var line = document.getElementById('ptfBotHealthLine');
+      if (!line) return;
+      if (!d || !d.ok) { line.style.color = '#b45309'; line.textContent = '⚠️ وضعیت بات در دسترس نیست — ' + ((d && d.error) || 'کانفیگ/شبکه'); return; }
+      var o = d.outbox || {};
+      var stuck = (+(o.uncertain || 0)) + (+(o.failed || 0));
+      line.style.color = stuck ? '#b45309' : '#166534';
+      line.textContent = (stuck ? '⚠️ ' : '✅ ') + (d.health || 'صف ارسال سالم است') +
+        (o.pending ? ' · در صف: ' + o.pending : '') +
+        (o.uncertain ? ' · تأییدنشده: ' + o.uncertain : '') +
+        (o.failed ? ' · ناموفق: ' + o.failed : '') +
+        ((d.rfq_notifications === false) ? ' · اعلان خودکار خاموش' : '');
+    });
+  }
     return true;
   }
   var st2 = 0;

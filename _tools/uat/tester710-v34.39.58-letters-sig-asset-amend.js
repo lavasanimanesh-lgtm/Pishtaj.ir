@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester710 — v34.39.59 (LETTER-SIG-ASSET + LETTER-AMEND-REV)
+/* tester710 — v34.39.60 (LETTER-SIG-ASSET + LETTER-AMEND-REV)
    قرارداد اجرایی دو رفعِ تاییدشدهٔ کارفرما (RCA 2026-10-24):
 
    ① «مهر و امضا در پروفایل ذخیره است ولی روی نامه نمی‌افتد»
@@ -74,7 +74,7 @@ function makeCtx(store, opts) {
       createElement: function () { return { style: {}, setAttribute: function () {}, appendChild: function () {} }; },
       body: { appendChild: function () {} }
     },
-    /* v34.39.59: getData در لایهٔ دادهٔ واقعی همیشه JSON تازه برمی‌گرداند (storage.js).
+    /* v34.39.60: getData در لایهٔ دادهٔ واقعی همیشه JSON تازه برمی‌گرداند (storage.js).
        بدون این کلون، _collectLetter سند ذخیره‌شده را درجا تغییر می‌داد و مقایسهٔ
        «قبل/بعد» اصلاحیه در هارنس بی‌معنی می‌شد. */
     getData: function (k) {
@@ -720,6 +720,6 @@ function formDom(c, over) {
 })();
 
 console.log('\n══════════════════════════════════════════════════════════════');
-console.log('tester710 v34.39.59 — ' + P + ' PASS / ' + F + ' FAIL');
+console.log('tester710 v34.39.60 — ' + P + ' PASS / ' + F + ' FAIL');
 console.log('══════════════════════════════════════════════════════════════');
 process.exit(F ? 1 : 0);

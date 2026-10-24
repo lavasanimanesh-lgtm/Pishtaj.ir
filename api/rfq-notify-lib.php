@@ -78,6 +78,7 @@ function ptf_rfq_notify_labels(): array {
         'st8'=>'در حال تامین توسط تامین‌کننده', 'st9'=>'تحویل تامین‌کننده', 'stX'=>'لغو / مختومه',
         'pending'=>'در انتظار تایید مدیران', 'approved'=>'تاییدشده', 'rejected'=>'ردشده',
         'void'=>'باطل شده', 'cancelled'=>'لغو شده', 'closed'=>'مختومه',
+        'redirected'=>'هدایت به فرم درست', 'stInv'=>'صدور فاکتور', 'stPay'=>'تسویه شده',
         'WF10'=>'دریافت اولیه', 'WF20'=>'پیشنهاد فنی صادر شد', 'WF30'=>'منتظر پاسخ کارفرما (فنی)',
         'WF35'=>'در حال صدور پیشنهاد اصلاحی (فنی)', 'WF40'=>'منتظر صدور پیشنهاد مالی',
         'WF50'=>'پیشنهاد مالی صادر شد', 'WF55'=>'در حال اصلاح پیشنهاد مالی',
@@ -93,6 +94,27 @@ function ptf_rfq_notify_code_label(string $code): string {
     if ($code === '') return '';
     $labels = ptf_rfq_notify_labels();
     return $labels[$code] ?? $code;
+}
+/* ═══ v34.39.60 (BOT-MSG-P1-3 — «برچسب از متن آزاد») ═══
+   برای ردیف‌های بدون گردش‌کار (همهٔ درخواست‌های سایت) برچسب پیام از
+   `statusText`/`stxt` خوانده می‌شد؛ این متن از کلاینت می‌آید و هر چیزی می‌تواند
+   باشد («هر متن دلخواه — ۱۲۳ تومان تخفیف» در ارزیابی دیده شد) — پس یک وضعیت
+   می‌توانست در دو پیام دو نام داشته باشد. قاعدهٔ تازه: برچسب همیشه از «کد»
+   وضعیت؛ متن آزاد فقط یک خط «یادداشت» جداگانه (پاک‌شده، یک‌خطی، کوتاه) تا دلیل
+   رد یا توضیح کاربر از دست نرود. کد ناشناخته = همان متن (بدون داده‌سازی).
+   خروجی: [label, note]. */
+function ptf_rfq_notify_display_label(array $row, string $code, array $keys): array {
+    $raw = ptf_rfq_notify_first($row, $keys);
+    $code = trim($code);
+    if ($code !== '') {
+        $labels = ptf_rfq_notify_labels();
+        if (isset($labels[$code])) {
+            $label = $labels[$code];
+            $note = ($raw !== '' && ptf_rfq_notify_clean_label($raw) !== ptf_rfq_notify_clean_label($label)) ? $raw : '';
+            return [$label, $note];
+        }
+    }
+    return [$raw !== '' ? $raw : ptf_rfq_notify_code_label($code), ''];
 }
 function ptf_rfq_notify_label(array $row): string {
     $label = ptf_rfq_notify_first($row, ['stxt','statusText']);
@@ -159,6 +181,7 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         $newWf = ptf_rfq_notify_text($row['wf'] ?? 'WF10', 80) ?: 'WF10';
         $wfChanged = false;
         $fromLabel = ''; $toLabel = ptf_rfq_notify_label($row);
+        $fromNote = ''; $toNote = ''; /* متن آزاد فقط «یادداشت» است، نه برچسب (v34.39.60) */
         /* کدهای دو بُعد وضعیت — هم برای انتخاب برچسب (مسیر گردش‌کاردار) و هم برای
            کلید هم‌ترازی صف لازم‌اند (پایین‌تر). */
         $newSt = ptf_rfq_notify_first($row, ['st'], 80);
@@ -187,14 +210,29 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
                     $toLabel = ptf_rfq_notify_code_label($newSt ?: $newStatus);
                 }
             } else {
-                /* ردیف میراثی/سایت (بدون wf): stxt/statusText خودش برچسب بُعد دستی است */
-                $fromLabel = ptf_rfq_notify_label($old);
-                $toLabel = ptf_rfq_notify_label($row);
+                /* ردیف میراثی/سایت (بدون wf): برچسب از «کدِ همان بُعدی» که عوض شده
+                   (st کانبان یا status سایت) و متن آزاد فقط یادداشت — v34.39.60 (P1-3). */
+                $useSt = $oldSt !== $newSt;
+                $useStatus = !$useSt && $oldStatus !== $newStatus;
+                /* هیچ کدی عوض نشده و فقط متن آزاد ویرایش شده ⇒ پیام گروه نمی‌سازیم
+                   (متن آزاد «وضعیت» نیست؛ منبع حقیقت کد است). */
+                if (!$useSt && !$useStatus) continue;
+                if ($useSt) {
+                    list($fromLabel, $fromNote) = ptf_rfq_notify_display_label($old, $oldSt, ['stxt','statusText']);
+                    list($toLabel, $toNote) = ptf_rfq_notify_display_label($row, $newSt, ['stxt','statusText']);
+                } else {
+                    list($fromLabel, $fromNote) = ptf_rfq_notify_display_label($old, $oldStatus, ['stxt','statusText']);
+                    list($toLabel, $toNote) = ptf_rfq_notify_display_label($row, $newStatus, ['stxt','statusText']);
+                }
             }
             if ($fromLabel === $toLabel) continue;
             $cleanFrom = ptf_rfq_notify_clean_label($fromLabel);
             $cleanTo = ptf_rfq_notify_clean_label($toLabel);
             if ($cleanFrom !== '' && $cleanFrom === $cleanTo) continue;
+        } else {
+            /* رویداد «ثبت جدید»: برچسب وضعیت اولیه هم از کد خوانده می‌شود و متن
+               آزاد ارسالی (در صورت تفاوت) یادداشت می‌شود — v34.39.60 (P1-3). */
+            list($toLabel, $toNote) = ptf_rfq_notify_display_label($row, $newStatus !== '' ? $newStatus : $newSt, ['stxt','statusText']);
         }
         $id = $aliases[0]; /* canonical _id || cd; site uses code */
         /* v34.39.59 (BOT-MSG-P0 — «یک اقدام، دو پیام»):
@@ -233,6 +271,8 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         }
         if ($old !== null) $text .= "\nوضعیت قبلی: " . $fromLabel;
         $text .= "\nوضعیت " . ($old !== null ? 'جدید' : 'اولیه') . ': ' . $toLabel;
+        /* متن آزاد کلاینت (دلیل رد/توضیح) به‌صورت خط جداگانهٔ کوتاه — نه جای برچسب */
+        if ($toNote !== '') $text .= "\nیادداشت: " . ptf_rfq_notify_text($toNote, 160);
         /* گذار گردش‌کار: رویداد مولّد (مثلاً «تغییر وضعیت پیشنهاد CO-… → ارسال‌شده»)
            از wfLog همان رکورد — پیام بدون آن قابل راستی‌آزمایی نبود. */
         if ($wfChanged) {

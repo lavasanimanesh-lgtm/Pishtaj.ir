@@ -45,8 +45,12 @@ const USERS = JSON.stringify([
     post: { type: 'rfq', code: String(code), status: 'st2', statusText: 'هر متن دلخواه — ۱۲۳ تومان تخفیف' } });
   const m2 = messages(r);
   console.log('   پیام برچسب دلخواه: ' + JSON.stringify(m2[0] && m2[0].text));
-  T('A5 [انتظار: برچسب از «کد وضعیت» نه متن آزاد کلاینت]', m2.length === 1 && !((m2[0].text || '').includes('هر متن دلخواه')),
-    (m2[0] && m2[0].text || '').split('\n').filter(l => l.startsWith('وضعیت')).join(' | '));
+  /* قرارداد v34.39.60 (P1-3): برچسب از «کد وضعیت»؛ متن آزاد فقط خط «یادداشت:». */
+  const a5 = (m2[0] && m2[0].text) || '';
+  const a5label = a5.split('\n').filter(l => l.startsWith('وضعیت جدید')).join('');
+  T('A5 [انتظار: برچسب وضعیت از کد، متن آزاد فقط در خط «یادداشت»]',
+    m2.length === 1 && a5label.includes('بررسی فنی') && !a5label.includes('هر متن دلخواه') &&
+    /\nیادداشت: .*هر متن دلخواه/.test(a5), a5label + ' || ' + (a5.split('\n').filter(l => l.startsWith('یادداشت')).join('')));
 
   /* کد وضعیت ناشناخته (redirected / stInv) */
   ready(s);

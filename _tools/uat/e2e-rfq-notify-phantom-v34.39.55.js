@@ -296,10 +296,15 @@ async function main() {
     ready(s6);
     const moved = { ...row6, st: 'st2', stxt: '🔵 بررسی فنی', stUpdatedAtISO: '2026-10-24T00:00:00Z' };
     const send = [];
-    const doEntity = async () => { const x = await request(s6, { action: 'entity_upsert', body: { collection: 'ptf_crm_rfqs', record: moved, idempotencyKey: 'e-6-' + order }, user: 'yousefi', role: 'sales' }); send.push(...messages(x)); };
-    const doApi = async () => { const x = await request(s6, { endpoint: 'crm.php', action: 'set_status', user: 'yousefi', role: 'sales', post: { type: 'rfq', code: 'RFQ-601', status: 'st2', statusText: '🔵 بررسی فنی' } }); send.push(...messages(x)); };
-    if (order === 'entity-first') { await doEntity(); ready(s6); await doApi(); }
-    else { await doApi(); ready(s6); await doEntity(); }
+    /* نقش باید مجازِ approve_write باشد وگرنه نوشتن آینه 403 می‌شود و سناریو
+       «تصادفاً» سبز می‌ماند (نقصِ خودِ این تست که در v34.39.60 پیدا شد). */
+    const doEntity = async () => { const x = await request(s6, { action: 'entity_upsert', body: { collection: 'ptf_crm_rfqs', record: moved, idempotencyKey: 'e-6-' + order }, user: 'yousefi', role: 'admin' }); send.push(...messages(x)); return x; };
+    const doApi = async () => { const x = await request(s6, { endpoint: 'crm.php', action: 'set_status', user: 'yousefi', role: 'admin', post: { type: 'rfq', code: 'RFQ-601', status: 'st2', statusText: '🔵 بررسی فنی' } }); send.push(...messages(x)); return x; };
+    let resApi = null;
+    if (order === 'entity-first') { await doEntity(); ready(s6); resApi = await doApi(); }
+    else { resApi = await doApi(); ready(s6); await doEntity(); }
+    T('S6 (' + order + '): هر دو نوشتن این اقدام واقعاً موفق‌اند (سناریو بی‌اثر نیست)',
+      !!(resApi && resApi.json && resApi.json.ok === true), resApi ? resApi.response.slice(0, 160) : 'no response');
     console.log('   ' + order + ' → ' + send.length + ' پیام: ' + JSON.stringify(send.map(m => m.text)));
     T('S6 (' + order + '): یک تغییر وضعیت = یک پیام، نه دو',
       send.length === 1, 'پیام‌ها=' + send.length + ' ' + JSON.stringify(send.map(m => m.text)));

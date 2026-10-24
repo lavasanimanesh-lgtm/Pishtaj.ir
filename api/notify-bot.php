@@ -95,7 +95,24 @@ switch ($action) {
         if (!empty($cfg['bale_token']) && !empty($cfg['bale_chat_id'])) $chans[] = 'بله';
         if (!$chans) { echo json_encode(['ok' => false, 'error' => 'هیچ کانالی در bot-config.php کامل نیست'], JSON_UNESCAPED_UNICODE); break; }
         $rfqAuto = ptf_rfq_notify_enabled();
+        /* v34.39.60 (BOT-MSG-P1-6 — «بات وصل است ولی پیام نمی‌آید»): تا امروز وضعیت
+           فقط می‌گفت «فعال»، هرچند پیام‌هایی در صف `uncertain`/`failed` مانده باشند.
+           حالا شمارش صف هم برگردانده می‌شود تا «پیام نرسیده» قابل دیدن و پیگیری باشد
+           (بدون متن پیام، بدون توکن). */
+        $outbox = null;
+        try { $outbox = ptf_rfq_notify_counts(); } catch (Throwable $e) { $outbox = null; }
+        $healthParts = [];
+        if (is_array($outbox)) {
+            $stuck = (int)($outbox['uncertain'] ?? 0) + (int)($outbox['failed'] ?? 0);
+            if ((int)($outbox['uncertain'] ?? 0) > 0) $healthParts[] = (int)$outbox['uncertain'] . ' پیام تأییدنشده (uncertain) — گروه را بررسی کنید';
+            if ((int)($outbox['failed'] ?? 0) > 0) $healthParts[] = (int)$outbox['failed'] . ' پیام ناموفق (failed)';
+            if ((int)($outbox['pending'] ?? 0) > 0) $healthParts[] = (int)$outbox['pending'] . ' پیام در صف';
+            if ((int)($outbox['recoveryPending'] ?? 0) > 0) $healthParts[] = (int)$outbox['recoveryPending'] . ' فایل بازیابی در انتظار';
+            if ($stuck > 0) $healthParts[] = 'برای پیگیری: php api/rfq-notify-cron.php --status';
+        }
+        $health = $healthParts ? implode("\n", $healthParts) : 'صف ارسال سالم است — پیامی در انتظار نمانده';
         echo json_encode(['ok' => true, 'rfq_notifications' => $rfqAuto,
+            'outbox' => $outbox, 'health' => $health,
             'info' => 'کانال‌های فعال: ' . implode('، ', $chans) . "\nاعلان خودکار درخواست‌ها در گروه تلگرام: " . ($rfqAuto ? 'فعال' : 'غیرفعال — تنظیمات گروه/ربات را بررسی کنید')], JSON_UNESCAPED_UNICODE);
         break;
 

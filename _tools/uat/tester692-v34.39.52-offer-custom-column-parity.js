@@ -1,5 +1,5 @@
 /* =====================================================================
-   tester692 — v34.39.59 — BUG-OFF-XCOL-PARITY-001 + BUG-OFF-PRINT-STALE-DOC
+   tester692 — v34.39.60 — BUG-OFF-XCOL-PARITY-001 + BUG-OFF-PRINT-STALE-DOC
    گزارش کارفرما (۱۴۰۵/۰۷/۱۴) در پنجرهٔ مودال پیشنهادها:
      ۱) «ستون جدید می‌سازیم و مقدار می‌دهیم؛ موقع چاپ، مقادیر ستون جدید نمی‌آید.»
      ۲) «ستون‌های تازه‌ساخته را نمی‌توانیم جابه‌جا کنیم — نسبت به ستون‌های
@@ -21,14 +21,14 @@ var FA = { name: 'شرح کالا', desc: 'مشخصات', model: 'مدل', qty: 
 var LB = { name: 'Item Name', desc: 'Description', model: 'Model', qty: 'Qty', unit: 'Unit', brand: 'Brand' };
 
 SECTION('۰. نسخه و مستندات');
-T('نسخهٔ index.html = v34.39.59', /window\.PTF_CRM_RELEASE = 'v34\.39\.59'/.test(idx));
-T('کش sw.js = v34.39.59', /var RELEASE = 'v34\.39\.59';/.test(sw));
-T('cache-bust offers.js/offers-pro.js/offerlock.js = 34.39.59',
+T('نسخهٔ index.html = v34.39.60', /window\.PTF_CRM_RELEASE = 'v34\.39\.60'/.test(idx));
+T('کش sw.js = v34.39.60', /var RELEASE = 'v34\.39\.60';/.test(sw));
+T('cache-bust offers.js/offers-pro.js/offerlock.js = 34.39.60',
   ['offers.js', 'offers-pro.js', 'offerlock.js'].every(function (f) {
     var m = idx.match(new RegExp(f.replace('.', '\\.') + '\\?v=([0-9.]+)'));
-    return m && m[1] === '34.39.59';
+    return m && m[1] === '34.39.60';
   }));
-T('RELEASE-NOTES-v34.39.59.md موجود است', fs.existsSync(path.resolve(__dirname, '../../RELEASE-NOTES-v34.39.59.md')));
+T('RELEASE-NOTES-v34.39.60.md موجود است', fs.existsSync(path.resolve(__dirname, '../../RELEASE-NOTES-v34.39.60.md')));
 
 SECTION('۱. کد: یک موتور ترتیب برای ستون‌های پیش‌فرض و تکمیلی');
 T('offColOrderAll — ترتیب کامل (پایه + تکمیلی) با کلید x:', op.indexOf('window.offColOrderAll = function (st, isCO)') > -1);
