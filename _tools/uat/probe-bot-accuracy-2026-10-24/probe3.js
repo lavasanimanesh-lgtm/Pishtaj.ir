@@ -108,18 +108,24 @@ const J = v => "json_decode(base64_decode('" + Buffer.from(JSON.stringify(v),'ut
   echo json_encode(['events'=>count(ptf_rfq_notify_events([],$a,'crm','x','command:i'))]);`);
   T('ردیف بدون شناسه اعلان نمی‌سازد (نه پیام با شمارهٔ خالی)', JSON.parse(out).events === 0, out);
 
-  /* 8) «رویداد» از wfLog: آیا رویداد کهنه می‌تواند چاپ شود؟ */
+  /* 8) «رویداد» از wfLog: رویداد کهنه نباید چاپ شود (قرارداد v34.39.62 — P2-12) */
   console.log('\n══ 8 — خط «رویداد» از wfLog ══');
   out = await run(`${boot}
+  $old='2026-10-01T10:00:00Z'; $fresh=gmdate('Y-m-d\\TH:i:s\\Z', time()-60);
   $b=[['_id'=>'R1','cd'=>'RFQ-1','co'=>'شرکت','wf'=>'WF50','stxt'=>'پیشنهاد مالی صادر شد',
-      'wfLog'=>[['t'=>'2026-10-01T10:00:00Z','by'=>'یوسفی','wf'=>'WF60','ev'=>'ارسال پیشنهاد CO-9 (رویداد ۱۰ روز پیش)']]]];
+      'wfLog'=>[['t'=>$old,'by'=>'یوسفی','wf'=>'WF60','ev'=>'ارسال پیشنهاد CO-9 (رویداد ۱۰ روز پیش)']]]];
   $a=[['_id'=>'R1','cd'=>'RFQ-1','co'=>'شرکت','wf'=>'WF60','stxt'=>'منتظر پاسخ کارفرما (مالی)',
-      'wfLog'=>[['t'=>'2026-10-01T10:00:00Z','by'=>'یوسفی','wf'=>'WF60','ev'=>'ارسال پیشنهاد CO-9 (رویداد ۱۰ روز پیش)']]]];
-  echo json_encode(array_map(fn($e)=>$e['text'], ptf_rfq_notify_events($b,$a,'crm','لواسانی','command:j')));`);
-  const t8 = JSON.parse(out)[0] || '';
-  console.log('   پیام: ' + JSON.stringify(t8));
-  T('اگر گذار فعلی در wfLog ثبت نشده باشد، رویداد کهنهٔ همان کد چاپ می‌شود',
-    t8.includes('۱۰ روز پیش'), t8.split('\n').filter(l => l.startsWith('رویداد')).join());
+      'wfLog'=>[['t'=>$old,'by'=>'یوسفی','wf'=>'WF60','ev'=>'ارسال پیشنهاد CO-9 (رویداد ۱۰ روز پیش)']]]];
+  $stale=ptf_rfq_notify_events($b,$a,'crm','لواسانی','command:j');
+  $b2=$b; $b2[0]['wfLog']=[]; $a2=$a; $a2[0]['wfLog']=[['t'=>$fresh,'by'=>'یوسفی','wf'=>'WF60','ev'=>'ارسال پیشنهاد CO-9 (همین حالا)']];
+  $freshEv=ptf_rfq_notify_events($b2,$a2,'crm','لواسانی','command:j2');
+  echo json_encode(['stale'=>$stale[0]['text']??'','fresh'=>$freshEv[0]['text']??'']);`);
+  const d8 = JSON.parse(out);
+  console.log('   پیام (رویداد کهنه): ' + JSON.stringify(d8.stale));
+  T('اگر گذار فعلی در wfLog ثبت نشده باشد، رویداد کهنهٔ همان کد چاپ نمی‌شود',
+    !!d8.stale && !d8.stale.includes('۱۰ روز پیش'), d8.stale.split('\n').filter(l => l.startsWith('رویداد')).join());
+  T('رویداد تازه (همین گذار) همچنان در پیام می‌آید',
+    !!d8.fresh && d8.fresh.includes('رویداد: ارسال پیشنهاد CO-9 (همین حالا)'), d8.fresh.split('\n').filter(l => l.startsWith('رویداد')).join());
 
   /* 9) شناسه‌های تکراری: چرا پیام خفه می‌شود */
   console.log('\n══ 9 — شناسهٔ تکراری/مبهم ══');

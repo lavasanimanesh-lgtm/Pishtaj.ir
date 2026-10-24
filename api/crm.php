@@ -865,6 +865,47 @@ function sync_mass_deletion_report($key, $incomingJson, $serverJson, $serverArch
     if ($lost <= 3 || $lost < $srvCount * 0.25) return null;
     return ['lost' => $lost, 'serverCount' => $srvCount, 'incomingCount' => count($inc), 'sample' => array_slice($missing, 0, 10)];
 }
+/* ═══ v34.39.62 (BOT-MSG-P2-9/P2-10 — «push کهنهٔ بدون base ردیف را می‌بلعد») ═══
+   سناریوی بازتولیدشده (probe4-C1/D2): دستگاهی که نسخهٔ قدیمی/ناقص فهرست را دارد
+   (بدون base — کلاینت قدیمی، تبِ بازِ قدیمی، snapshot نیمه‌کاره) فهرست خودش را
+   push می‌کند؛ سرور ردیف‌هایی را که در آن فهرست نیستند حذف می‌کند، در حالی که
+   کاربر هیچ حذفی انجام نداده و حتی آن ردیف‌ها را ندیده است. سپس push بعدیِ دستگاه
+   سالم همان ردیف را برمی‌گرداند و پیام گروه «📥 ثبت درخواست جدید» برای رکوردی که
+   هرگز حذف نشده بود می‌فرستد.
+   قاعده: در CRM حذف همیشه «سنگ‌قبر» دارد (ptf_crm_deleted_archive / entity_delete).
+   پس push بدون شاهد نسخه (بدون base برای این کلید) اجازهٔ حذف ندارد: ردیف‌های
+   غایبِ بدون سنگ‌قبر از نسخهٔ سرور برگردانده می‌شوند (UNION) و شناسه‌شان در پاسخ
+   به‌عنوان staleKept گزارش می‌شود تا کلاینت ادغام کند. restore/allow_wipe و
+   پاک‌سازی گراف (archive_purge بدون collection) مثل قبل مستثنا هستند. */
+/* شناسهٔ نمایشی برای گزارش به کاربر (شمارهٔ درخواست/پیشنهاد، نه _id داخلی) */
+function sync_report_id_for_key($key, $r) {
+    if (!is_array($r)) return '';
+    if ($key === 'ptf_crm_offers') return trim((string)($r['no'] ?? $r['cd'] ?? $r['_id'] ?? ''));
+    return trim((string)($r['cd'] ?? $r['code'] ?? $r['inqNo'] ?? $r['_id'] ?? $r['no'] ?? ''));
+}
+function sync_stale_push_keep_missing($key, $incomingJson, $serverJson, $serverArchiveJson, $incomingArchiveJson) {
+    /* مخزن سنگ‌قبر و کلیدهای آبجکتی/مالی قرارداد خودشان را دارند */
+    if (in_array($key, ['ptf_crm_deleted_archive','ptf_crm_opex','ptf_crm_sharetx','ptf_crm_shareholders'], true)) return null;
+    $inc = json_decode((string)$incomingJson, true);
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($inc) || !is_array($srv) || !$srv) return null;
+    if (array_keys($srv) !== range(0, count($srv) - 1)) return null;
+    if ($inc !== [] && array_keys($inc) !== range(0, count($inc) - 1)) return null;
+    $tomb = sync_tombstone_id_set($key, $serverArchiveJson, $incomingArchiveJson);
+    if (isset($tomb['__alias_purge__'])) return null; /* پاک‌سازی گراف پروژه: حذف عمدی و گسترده */
+    $incIds = [];
+    foreach ($inc as $r) { $id = sync_record_id_for_key($key, $r); if ($id !== '') $incIds[$id] = true; }
+    $kept = [];
+    foreach ($srv as $r) {
+        $id = sync_record_id_for_key($key, $r);
+        if ($id === '' || isset($incIds[$id]) || isset($tomb[$id])) continue;
+        $inc[] = $r;
+        $kept[] = sync_report_id_for_key($key, $r) ?: $id;
+    }
+    if (!$kept) return null;
+    $json = json_encode($inc, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return is_string($json) ? ['json' => $json, 'ids' => $kept] : null;
+}
 function sync_log_blocked_deletion($sdir, $key, $report, $by) {
     try {
         $line = json_encode(['t' => date('c'), 'key' => $key, 'by' => (string)$by] + $report, JSON_UNESCAPED_UNICODE);
@@ -2970,6 +3011,7 @@ switch($action) {
         $rejected = []; /* v14.7 US-382 */
         $conflicts = []; $conflictData = []; $protectedConflicts = []; $krevs = []; /* v15.0 US-384 + v34.8.5 finance protection */
         $massBlocked = []; /* v34.38.12 MASS-DELETE-SHIELD: کلید ⇒ گزارش حذف انبوهِ مسدودشده */
+        $staleKept = []; /* v34.39.62 STALE-PUSH: کلید ⇒ شناسه‌هایی که push بدون base می‌خواست بی‌سنگ‌قبر حذف کند */
         $allow_wipe = !empty($j['allow_wipe']); /* فقط مسیر Go-Live (US-377) این فلگ را می‌فرستد */
         $restore = !empty($j['restore']); /* بازگردانی کامل سرور */
         if ($restore && !in_array($client_role, ['admin','chairman'], true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'restore_permission_denied']); break; }
@@ -3066,6 +3108,18 @@ switch($action) {
                         }
                         $krevs[$k] = (int)($meta[$k]['rev'] ?? 0);
                         continue;
+                    }
+                }
+            }
+            /* v34.39.62 (BOT-MSG-P2-9): push بدون شاهد نسخه حق حذف ندارد — ردیف‌های
+               غایب از سرور برمی‌گردند (جزئیات در sync_stale_push_keep_missing). */
+            if (!$restore && !$allow_wipe && !$isSharedUnion && ($base === null || !array_key_exists($k, $base))) {
+                $staleExisting = sync_key_read($sdir, $k);
+                if ($staleExisting !== null) {
+                    $staleKeptRows = sync_stale_push_keep_missing($k, $v, $staleExisting, $serverArchiveJson, $incomingArchiveJson);
+                    if ($staleKeptRows !== null) {
+                        $v = $staleKeptRows['json'];
+                        $staleKept[$k] = $staleKeptRows['ids'];
                     }
                 }
             }
@@ -3198,6 +3252,10 @@ if (is_string($wfMergedJson)) $v = $wfMergedJson;
             if (!sync_key_write($sdir, $k, $v, $pushNextRev)) { $dbWriteFailed = true; break; }
             $meta[$k] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
             $krevs[$k] = $pushNextRev;
+            /* v34.39.62: ردیف‌هایی که به‌خاطر push کهنه حفظ شدند باید به همان دستگاه هم
+               برگردند؛ نسخهٔ ذخیره‌شده مثل الگوی سپر حذف انبوه در conflictData می‌آید تا
+               کلاینت merge کند و dirty نماند (وگرنه آن دستگاه بی‌خبر عقب می‌ماند). */
+            if (isset($staleKept[$k]) && !isset($conflictData[$k])) { $conflictData[$k] = $v; $conflicts[] = $k; }
             $saved_keys[] = $k;
             $saved++;
         }
@@ -3216,7 +3274,11 @@ if (is_string($wfMergedJson)) $v = $wfMergedJson;
                 if (is_array($finalRfqs)) {
                     $wfUsers = json_decode((string)(sync_key_read($sdir, 'ptf_crm_users') ?? '[]'), true);
                     $wfActor = ptf_rfq_notify_resolve_actor((string)($auth_info['user'] ?? ''), is_array($wfUsers) ? $wfUsers : []);
-                    if (in_array('ptf_crm_rfqs', $saved_keys, true)) {
+                    /* v34.39.62 (BOT-MSG-P2-9): پیشنهادها هم گردش‌کار را می‌سازند. پیش از این
+                       بازخوانی فقط با حضور ptf_crm_rfqs در همان push انجام می‌شد؛ push ای که
+                       فقط وضعیت پیشنهاد را عوض می‌کرد، wf را روی مقدار کهنه می‌گذاشت و
+                       «وضعیت قبلی» همهٔ پیام‌های بعدی همان درخواست غلط می‌شد. */
+                    if (in_array('ptf_crm_rfqs', $saved_keys, true) || in_array('ptf_crm_offers', $saved_keys, true)) {
                         $finalOffers = json_decode((string)(sync_key_read($sdir, 'ptf_crm_offers') ?? '[]'), true);
                         if (is_array($finalOffers)) {
                             $wfNeedDelivery = false;
@@ -3310,7 +3372,8 @@ if (is_string($wfMergedJson)) $v = $wfMergedJson;
         echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $reportedRev, 'rejected' => array_values(array_unique($rejected)),
             'skipped' => array_values(array_unique($skipped_keys)), 'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
             'conflicts' => $conflicts, 'protectedConflicts' => array_values(array_unique($protectedConflicts)), 'serverData' => $conflictData, 'krevs' => $krevs,
-            'massDeletionBlocked' => $massBlocked], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK + v34.38.12 سپر حذف انبوه */
+            'massDeletionBlocked' => $massBlocked,
+            'staleKept' => $staleKept], JSON_UNESCAPED_UNICODE); /* v34.39.62: ردیف‌های حفظ‌شده در برابر push کهنه */ /* v14.7 US-382 + v15.0 US-384 + per-key ACK + v34.38.12 سپر حذف انبوه */
         break;
 
     case 'data_pull':

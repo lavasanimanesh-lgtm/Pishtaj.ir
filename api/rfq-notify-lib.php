@@ -176,14 +176,27 @@ function ptf_rfq_notify_label(array $row): string {
     return ptf_rfq_notify_code_label($code) ?: 'نامشخص';
 }
 /* آخرین رویداد گردش‌کارِ هم‌خوان با وضعیت جدید (برای خط «رویداد» پیام بات تا
-   گیرنده ببیند گذار دقیقاً از چه عملی آمده — مثلاً تغییر وضعیت کدام پیشنهاد). */
-function ptf_rfq_notify_last_wf_event(array $row, string $wf): string {
+   گیرنده ببیند گذار دقیقاً از چه عملی آمده — مثلاً تغییر وضعیت کدام پیشنهاد).
+   ═══ v34.39.62 (BOT-MSG-P2-12): رویداد «همان کد» کافی نیست ═══
+   پیش از این آخرین ورودیِ هم‌کد — هرچقدر هم قدیمی — چاپ می‌شد؛ پیام امروز
+   «رویداد: ارسال پیشنهاد CO-9» را از ده روز پیش نشان می‌داد (همان حس «پیام
+   متعلق به رویداد گذشته» که کارفرما گزارش کرد). حالا فقط ورودی‌ای که مهر زمانی
+   دارد و در پنجرهٔ کوتاهی پیش از همین گذار نوشته شده پذیرفته می‌شود؛ گذارهای
+   سروری (ptf_rfq_workflow_apply_row) همیشه همین لحظه لاگ می‌زنند. */
+function ptf_rfq_notify_last_wf_event(array $row, string $wf, int $maxAgeSeconds = 900): string {
     $log = is_array($row['wfLog'] ?? null) ? $row['wfLog'] : [];
+    $now = time();
     for ($i = count($log) - 1; $i >= 0; $i--) {
         $e = $log[$i];
         if (!is_array($e) || (string)($e['wf'] ?? '') !== $wf) continue;
         $ev = ptf_rfq_notify_text($e['ev'] ?? '', 160);
-        if ($ev !== '') return $ev;
+        if ($ev === '') continue;
+        $stamp = trim((string)($e['t'] ?? ($e['at'] ?? ($e['iso'] ?? ''))));
+        if ($stamp === '') continue; /* بی‌مهر = نمی‌دانیم مال همین گذار است یا نه */
+        $ts = strtotime($stamp);
+        if ($ts === false) continue;
+        if ($now - $ts > $maxAgeSeconds) continue; /* رویداد کهنه — خط گمراه‌کننده */
+        return $ev;
     }
     return '';
 }
@@ -354,7 +367,14 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         if ($kind === 'created' && $source === 'site') $title = '📥 استعلام جدید از سایت';
         if ($kind === 'created' && $source === 'crm' && ($row['src'] ?? '') === 'site') $title = '📥 ورود درخواست سایت به چرخهٔ فروش';
         $ref = (ptf_rfq_notify_first($row, ['cd','code'], 160) ?: $id);
-        $text = $title . "\nشماره درخواست: " . $ref . "\nمشتری: " . (ptf_rfq_notify_first($row, ['co','company']) ?: 'نامشخص');
+        /* v34.39.62 (BOT-MSG-P2-14): ردیف سایت همیشه «شرکت» ندارد؛ «نام تماس» جای آن
+           می‌نشیند تا گروه «مشتری: نامشخص» نگیرد. هر دو نبود = نامشخص (بدون داده‌سازی). */
+        $customer = ptf_rfq_notify_first($row, ['co','company'], 160);
+        if ($customer === '') {
+            $contactName = ptf_rfq_notify_first($row, ['con','contact'], 160);
+            if ($contactName !== '') $customer = $contactName . ' (نام تماس)';
+        }
+        $text = $title . "\nشماره درخواست: " . $ref . "\nمشتری: " . ($customer !== '' ? $customer : 'نامشخص');
         $subject = ptf_rfq_notify_first($row, ['subj','subject'], 300);
         if ($subject !== '') $text .= "\nموضوع: " . $subject;
         $category = ptf_rfq_notify_first($row, ['ca','category'], 120);

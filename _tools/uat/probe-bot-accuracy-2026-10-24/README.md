@@ -26,7 +26,7 @@ cp _tools/uat/probe-bot-accuracy-2026-10-24/*.js /tmp/probe/
 
 # ۲) اجرا
 export NODE_PATH=/tmp/phpwasm/node_modules
-for f in probe1 probe2 probe3 probe4 probe6 probe7 probe8 probe9; do
+for f in probe1 probe2 probe3 probe4 probe5 probe6 probe7 probe8 probe9; do
   echo "===== $f ====="; node /tmp/probe/$f.js; done
 ```
 
@@ -36,6 +36,7 @@ for f in probe1 probe2 probe3 probe4 probe6 probe7 probe8 probe9; do
 | `probe2.js` | صف خروجی: ۵۰۲/timeout/۴۰۰/۴۰۳/۴۲۹، نرخ ۱ پیام در ۳ ثانیه، پیام کهنه، پیکربندی chat_id |
 | `probe3.js` | واحد تولید متن: اثر انگشت رویداد، `waiting`، تغییر هم‌زمان `wf`+`st`، طول پیام، UTF-8، خط «رویداد» از wfLog |
 | `probe4.js` | `data_push` قدیمی بدون base: حذف پیشنهاد/درخواست و اعلان کاذب |
+| `probe5.js` | `data_push` فقط-پیشنهادها: بازخوانی گردش‌کار (WF91) و «وضعیت قبلی» پیام بعدی |
 | `probe6.js` | تایید/رد از صف روی ردیف دارای `st` (بی‌صدا) |
 | `probe7.js` | **یک اقدام، دو پیام** (entity_upsert + set_status) در هر دو ترتیب |
 | `probe8.js` | `notify-bot.php?action=send` و نادیده‌گرفتن `ok:false` تلگرام |
