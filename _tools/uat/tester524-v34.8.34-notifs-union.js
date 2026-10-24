@@ -135,8 +135,8 @@ function eqJson(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.39.58', ver.crm_version === 'v34.39.58', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.39.58', /window\.PTF_CRM_RELEASE = 'v34\.39\.58'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.39\.58'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.39.59', ver.crm_version === 'v34.39.59', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.39.59', /window\.PTF_CRM_RELEASE = 'v34\.39\.59'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.39\.59'/.test(read('crm/sw.js')));
 
 console.log('\n— tester524 (v34.38.0: NOTIFS-UNION convergence) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

@@ -1,4 +1,4 @@
-/* tester677 — v34.39.58 (RENT-CASH-UNTIL-PAID)
+/* tester677 — v34.39.59 (RENT-CASH-UNTIL-PAID)
    تکرارشونده و اجارهٔ متصل به چک تا پرداخت نهایی خروج نقدی نیست.
    تعهدی (total) صفر نمی‌شود. هزینهٔ یک‌بارهٔ بدون چک و چک مستقل دست نمی‌خورند.
    حقوق تا draw خروج نیست. گیت سررسید فقط ptfTodayISO است و دو تقویم با هم مقایسه نمی‌شوند. */
@@ -172,5 +172,5 @@ assert.strictEqual(sal.fiscalOpex, 0);
 assert.strictEqual(sal.accrual, 400000000);
 
 var version = JSON.parse(read('VERSION.json')).crm_version;
-assert.strictEqual(version, 'v34.39.58');
-console.log('PASS tester677 v34.39.58 rent cash until paid');
+assert.strictEqual(version, 'v34.39.59');
+console.log('PASS tester677 v34.39.59 rent cash until paid');

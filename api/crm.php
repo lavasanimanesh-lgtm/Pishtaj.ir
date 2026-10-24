@@ -1361,7 +1361,24 @@ function save_data($key, $data) {
         if (file_put_contents($file, $json, LOCK_EX) === false) return false;
         ptf_db_write($key, $json);
         if (is_array($data) && ptf_rfq_notify_enabled() && in_array($action, ['add_rfq_site','add_rfq','update_rfq','set_status'], true)) {
-            $events = ptf_rfq_notify_events($before, $data, 'site', (string)($auth_info['user'] ?? 'سایت'), 'site-write:' . bin2hex(random_bytes(16)));
+            /* v34.39.59 (BOT-MSG-P0-2 — «منبع/انجام‌دهندهٔ غلط در پیام»): پیش از این
+               منبع همیشه «سایت» و انجام‌دهنده username خامِ توکن بود، حتی وقتی کاربر
+               CRM از کانبان/دراپ‌داون/صف تایید وضعیت را عوض می‌کرد (set_status فقط با
+               توکن معتبر اجرا می‌شود ⇒ هرگز «فرم سایت» نیست).
+               ① منبع از وجود نشست تعیین می‌شود، نه از ثابت.
+               ② انجام‌دهنده با «نام نمایشی» همان کاربر از فهرست کاربران سرور.
+               ③ set_status برای RFQ آینهٔ رهگیری سایت است (نوشتن مرجع همان
+                  entity_upsert/data_push است) ⇒ کانال mirror تا صف دو پیام نسازد. */
+            $notifySource = $auth_info ? 'crm' : 'site';
+            static $notifyUsersCache = null;
+            if ($auth_info && $notifyUsersCache === null) $notifyUsersCache = load_all_crm_users_sources();
+            $notifyActor = $auth_info
+                ? ptf_rfq_notify_resolve_actor((string)($auth_info['user'] ?? ''), is_array($notifyUsersCache) ? $notifyUsersCache : [])
+                : 'سایت';
+            if ($notifyActor === '') $notifyActor = 'سایت';
+            $notifyChannel = ($key === 'rfqs' && $action === 'set_status') ? 'mirror' : 'canonical';
+            $events = ptf_rfq_notify_events($before, $data, $notifySource, $notifyActor,
+                'site-write:' . bin2hex(random_bytes(16)), true, $notifyChannel);
             ptf_rfq_notify_enqueue($events);
         }
         return true;

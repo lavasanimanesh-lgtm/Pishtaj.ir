@@ -37,11 +37,11 @@ T('CSV جمع ورودی/خروجی/خالص را در انتهای فایل م�
 /* رفتار واقعی print mode با استخراج وابستگی‌های حداقلی */
 global.curSession=function(){return{user:'u1',name:'User One'};};
 global.faDate=function(){return'1405/05/24';};global.escP=function(v){return String(v==null?'':v);};
-global.letSafeBodyHtml=function(v){return v;};global.letTrimTrailingEmptyHtml=function(v){return v;};/* v34.39.58 (LETTER-SIG-PAGINATION): وابستگی جدید letPrintObj — این تست فقط قرارداد خروجی signed/physical را می‌سنجد؛ رفتار واقعی پیرایشِ دم در tester658 سنجیده می‌شود */global.letSignerEn=function(){return'User One';};global.letRoleEn=function(){return'Manager';};global.letFaDigits=function(v){return v;};global.letAutoSize=function(){return 14;};global.letEmbeddedFontCss=function(){return'';};
+global.letSafeBodyHtml=function(v){return v;};global.letTrimTrailingEmptyHtml=function(v){return v;};/* v34.39.59 (LETTER-SIG-PAGINATION): وابستگی جدید letPrintObj — این تست فقط قرارداد خروجی signed/physical را می‌سنجد؛ رفتار واقعی پیرایشِ دم در tester658 سنجیده می‌شود */global.letSignerEn=function(){return'User One';};global.letRoleEn=function(){return'Manager';};global.letFaDigits=function(v){return v;};global.letAutoSize=function(){return 14;};global.letEmbeddedFontCss=function(){return'';};
 global.sigProfiles=function(){return{u1:{nm:'کاربر یک',role:'مدیر',sig:PNG_T,stamp:PNG_T}};};
 global._printed='';global.ptfPreviewPrintableDoc=function(t,h,n){global._printed=h;global._printName=n;};
 global.LETTER_FONT_FA='Tahoma';global.LETTER_FONT_EN='Arial';
-/* v34.39.58 (LETTER-SIG-ASSET): letPrintObj اکنون تصویر را از «دارایی ارجاعی» می‌خواند؛
+/* v34.39.59 (LETTER-SIG-ASSET): letPrintObj اکنون تصویر را از «دارایی ارجاعی» می‌خواند؛
    بلوک helperها و letRevOf از همان فایل استخراج می‌شوند (بدون بازنویسی منطق). */
 var _a0=letters.indexOf('var LET_ASSET_PFX'),_a1=letters.indexOf('function showSigProfile');
 if(_a0>-1&&_a1>_a0){try{

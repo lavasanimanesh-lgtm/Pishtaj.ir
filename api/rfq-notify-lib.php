@@ -125,7 +125,10 @@ function ptf_rfq_notify_resolve_actor(string $actor, array $users): string {
     }
     return $a;
 }
-function ptf_rfq_notify_events(array $before, array $after, string $source, string $actor, string $operation, bool $creates = true): array {
+/* $channel: 'canonical' = نوشتن مرجع (entity_upsert / data_push / ثبت سایت)،
+   'mirror' = آینهٔ رهگیری سایت (set_status روی rfqs.json). یک اقدام کاربر می‌تواند
+   هر دو را بنویسد؛ با کلید هم‌ترازی صف، فقط یک پیام به گروه می‌رود (v34.39.59). */
+function ptf_rfq_notify_events(array $before, array $after, string $source, string $actor, string $operation, bool $creates = true, string $channel = 'canonical'): array {
     if ($operation === '') return [];
     $oldIndex = []; $newIndex = [];
     foreach ($before as $i => $row) if (is_array($row)) foreach (ptf_rfq_notify_aliases($row) as $alias) $oldIndex[$alias][$i] = true;
@@ -156,17 +159,23 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         $newWf = ptf_rfq_notify_text($row['wf'] ?? 'WF10', 80) ?: 'WF10';
         $wfChanged = false;
         $fromLabel = ''; $toLabel = ptf_rfq_notify_label($row);
+        /* کدهای دو بُعد وضعیت — هم برای انتخاب برچسب (مسیر گردش‌کاردار) و هم برای
+           کلید هم‌ترازی صف لازم‌اند (پایین‌تر). */
+        $newSt = ptf_rfq_notify_first($row, ['st'], 80);
+        $oldSt = '';
+        $newStatus = ptf_rfq_notify_first($row, ['status'], 80);
+        $oldStatus = '';
         if ($old !== null) {
             $oldWf = ptf_rfq_notify_text($old['wf'] ?? 'WF10', 80) ?: 'WF10';
             $wfChanged = $oldWf !== $newWf;
+            $oldSt = ptf_rfq_notify_first($old, ['st'], 80);
+            $oldStatus = ptf_rfq_notify_first($old, ['status'], 80);
             if ($wfChanged) {
                 $fromLabel = ptf_rfq_notify_code_label($oldWf);
                 $toLabel = ptf_rfq_notify_code_label($newWf);
             } elseif (trim((string)($old['wf'] ?? '')) !== '' || trim((string)($row['wf'] ?? '')) !== '') {
                 /* ردیف گردش‌کاردار: stxt برچسب wf است؛ برچسب بُعد دستی باید از کدِ
                    همان فیلدی بیاید که عوض شده (st کانبان یا status)، نه از stxt. */
-                $oldSt = ptf_rfq_notify_first($old, ['st'], 80); $newSt = ptf_rfq_notify_first($row, ['st'], 80);
-                $oldStatus = ptf_rfq_notify_first($old, ['status'], 80); $newStatus = ptf_rfq_notify_first($row, ['status'], 80);
                 if ($oldSt !== $newSt) {
                     $fromLabel = ptf_rfq_notify_code_label($oldSt) ?: ptf_rfq_notify_label($old);
                     $toLabel = ptf_rfq_notify_code_label($newSt) ?: ptf_rfq_notify_label($row);
@@ -188,6 +197,23 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
             if ($cleanFrom !== '' && $cleanFrom === $cleanTo) continue;
         }
         $id = $aliases[0]; /* canonical _id || cd; site uses code */
+        /* v34.39.59 (BOT-MSG-P0 — «یک اقدام، دو پیام»):
+           یک اقدام کاربر در CRM دو نوشتن دارد: نوشتن مرجع (entity_upsert/data_push)
+           و آینهٔ رهگیری سایت (set_status روی rfqs.json). پیش از این هر دو پیام
+           می‌ساختند با «وضعیت قبلی» و منبع متفاوت. کلید هم‌ترازی = شناسهٔ رکورد +
+           کد وضعیت مقصد؛ صف با همین کلید پیام آینه را با پیام مرجع یکی می‌کند
+           (پایین‌تر: ptf_rfq_notify_enqueue). گذارهای واقعیِ تکراری از یک کانال
+           همچنان هر دو اعلام می‌شوند — فقط آینه در برابر مرجع حذف می‌شود. */
+        $toCode = '';
+        if ($old === null) $toCode = $newSt !== '' ? $newSt : $newStatus;
+        elseif ($wfChanged) $toCode = $newWf;
+        elseif ($oldSt !== $newSt) $toCode = $newSt;
+        elseif ($oldStatus !== $newStatus) $toCode = $newStatus;
+        /* شناسهٔ هم‌ترازی باید بین دو مجموعه یکی باشد: ردیف CRM با `_id` هویت دارد و
+           ردیف رهگیری سایت با `code`. پس مبنای کلید، «کد نمایشی» است (cd/code/inqNo)
+           و `_id` فقط آخرین انتخاب است. */
+        $alignId = ptf_rfq_notify_first($row, ['cd','code','inqNo'], 160) ?: $id;
+        $dedupeKey = $toCode === '' ? '' : hash('sha256', strtolower($alignId) . '|' . $toCode);
         $kind = $old === null ? 'created' : 'status';
         $eventId = hash('sha256', $operation . "\n" . $source . "\n" . $id . "\n" . $kind . "\n" . $from . "\n" . $to);
         $title = $kind === 'created' ? '📥 ثبت درخواست جدید' : '🔄 تغییر وضعیت درخواست';
@@ -216,7 +242,8 @@ function ptf_rfq_notify_events(array $before, array $after, string $source, stri
         $text .= "\nانجام‌دهنده: " . (ptf_rfq_notify_text($actor, 120) ?: 'سیستم');
         $text .= "\nزمان: " . $at . ' (تهران)' . "\nمنبع: " . ($source === 'site' ? 'سایت' : 'CRM');
         /* Plain text; no parse_mode, email, attachment URL or financial amount. */
-        $events[] = ['id'=>$eventId, 'text'=>$text, 'kind'=>$kind, 'createdAt'=>time()];
+        $events[] = ['id'=>$eventId, 'text'=>$text, 'kind'=>$kind, 'createdAt'=>time(),
+            'dedupeKey'=>$dedupeKey, 'channel'=>($channel === 'mirror' ? 'mirror' : 'canonical')];
     }
     return $events;
 }
@@ -250,10 +277,58 @@ function ptf_rfq_notify_enqueue(array $events, ?string $dir = null): bool {
     $dir = $dir ?? ptf_rfq_notify_dir();
     try {
         ptf_rfq_notify_store($dir, function (&$state) use ($events) {
+            /* v34.39.59 (BOT-MSG-P0): هم‌ترازی «پیام مرجع» و «پیام آینهٔ رهگیری».
+               برای یک اقدام، set_status و نوشتن مرجع هر دو رویداد می‌سازند؛ همیشه
+               یکی از آن‌ها می‌ماند: اگر آینه هنوز ارسال نشده باشد با متن دقیق‌ترِ
+               مرجع جایگزین می‌شود، و اگر مرجع تکراریِ آینهٔ ارسال‌شده باشد کنار
+               گذاشته می‌شود. پنجرهٔ ۵ دقیقه فقط برای همین هم‌ترازی است؛ گذارهای
+               تکراریِ واقعی در یک کانال همچنان هر بار اعلام می‌شوند. */
+            $now = time();
+            $window = 300;
+            $byKey = [];
+            foreach ($state['jobs'] as $jid => $job) {
+                $key = (string)($job['dedupeKey'] ?? '');
+                if ($key === '') continue;
+                $status = (string)($job['status'] ?? '');
+                if (in_array($status, ['sent', 'cancelled'], true)) {
+                    $stamp = (int)($job['sentAt'] ?? ($job['createdAt'] ?? 0));
+                    if ($stamp + $window < $now) continue;
+                }
+                $byKey[$key][] = $jid;
+            }
             foreach ($events as $event) {
                 if (!is_array($event) || !preg_match('/^[a-f0-9]{64}$/', (string)($event['id'] ?? '')) || !is_string($event['text'] ?? null)) continue;
+                $channel = ((string)($event['channel'] ?? 'canonical') === 'mirror') ? 'mirror' : 'canonical';
+                $key = (string)($event['dedupeKey'] ?? '');
+                if ($key !== '' && !empty($byKey[$key])) {
+                    $peerCanonical = false; $peerMirrorId = null;
+                    foreach ($byKey[$key] as $pid) {
+                        $pj = $state['jobs'][$pid] ?? null;
+                        if (!is_array($pj)) continue;
+                        if ((string)($pj['channel'] ?? 'canonical') === 'mirror') $peerMirrorId = $pid;
+                        else $peerCanonical = true;
+                    }
+                    if ($channel === 'mirror' && $peerCanonical) {
+                        /* همان گذار قبلاً از مسیر مرجع اعلام شده — پیام آینه تکرار است. */
+                        $state['notifyAlignSuppressed'] = (int)($state['notifyAlignSuppressed'] ?? 0) + 1;
+                        continue;
+                    }
+                    if ($channel === 'canonical' && $peerMirrorId !== null && !$peerCanonical) {
+                        $pj = $state['jobs'][$peerMirrorId];
+                        $pst = (string)($pj['status'] ?? '');
+                        if ($pst === 'pending') {
+                            /* آینه هنوز نرفته: با متن دقیق‌ترِ مرجع جایگزین می‌شود. */
+                            unset($state['jobs'][$peerMirrorId]);
+                        } elseif (in_array($pst, ['sending', 'sent'], true)) {
+                            /* آینه همین حالا/لحظهٔ پیش رفت — پیام دوم تکرار است. */
+                            $state['notifyAlignSuppressed'] = (int)($state['notifyAlignSuppressed'] ?? 0) + 1;
+                            continue;
+                        }
+                    }
+                }
                 if (isset($state['jobs'][$event['id']])) continue;
                 $state['jobs'][$event['id']] = $event + ['status'=>'pending', 'attempts'=>0, 'nextAttemptAt'=>0];
+                if ($key !== '') $byKey[$key][] = $event['id'];
             }
             /* Keep 2000 terminal dedup markers; never prune undelivered events. */
             $terminal = [];
@@ -369,6 +444,8 @@ function ptf_rfq_notify_counts(?string $dir = null): array {
     if (!is_array($state) || !is_array($state['jobs'] ?? null)) throw new RuntimeException('rfq_outbox_invalid');
     $counts = ['pending'=>0, 'sending'=>0, 'sent'=>0, 'uncertain'=>0, 'failed'=>0, 'recoveryPending'=>count(glob(dirname($file) . '/.rfq-notify-recover-*.json') ?: [])];
     foreach (($state['jobs'] ?? []) as $job) { $s = (string)($job['status'] ?? ''); if (isset($counts[$s])) $counts[$s]++; }
+    /* v34.39.59: چند پیام آینه با پیام مرجع یکی شد (قابل مشاهده برای پایش دقت) */
+    $counts['alignSuppressed'] = (int)($state['notifyAlignSuppressed'] ?? 0);
     return $counts;
 }
 

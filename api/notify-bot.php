@@ -78,6 +78,16 @@ function bot_post($url, $payload) {
     return ['code' => $code, 'body' => $res, 'err' => $err];
 }
 
+/* v34.39.59 (BOT-MSG-P2): تلگرام/بله خطای منطقی را با HTTP 200 و بدنهٔ
+   {"ok":false,...} برمی‌گردانند (مثلاً «chat not found» یا «bot was kicked»).
+   پیش از این فقط کد HTTP چک می‌شد، پس CRM به کاربر «ارسال شد» می‌گفت در حالی که
+   پیام هرگز به گروه نرسیده بود. حالا فقط ok===true در بدنهٔ JSON = ارسال موفق. */
+function bot_delivered(array $res): bool {
+    if ($res['code'] < 200 || $res['code'] >= 300) return false;
+    $reply = is_string($res['body'] ?? null) ? json_decode($res['body'], true) : null;
+    return is_array($reply) && ($reply['ok'] ?? false) === true;
+}
+
 switch ($action) {
     case 'status':
         $chans = [];
@@ -133,12 +143,12 @@ switch ($action) {
         if ($pChat !== '') {
             if ($pApp !== 'bale' && !empty($cfg['telegram_token'])) {
                 $rp = bot_post('https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage', ['chat_id' => $pChat, 'text' => $text]);
-                if ($rp['code'] >= 200 && $rp['code'] < 300) $sent[] = 'telegram-personal';
+                if (bot_delivered($rp)) $sent[] = 'telegram-personal';
                 else $errs[] = 'tg-p:' . $rp['code'] . (!empty($rp['err']) ? ' (' . $rp['err'] . ')' : '');
             }
             if ($pApp === 'bale' && !empty($cfg['bale_token'])) {
                 $rp2 = bot_post('https://tapi.bale.ai/bot' . $cfg['bale_token'] . '/sendMessage', ['chat_id' => $pChat, 'text' => $text]);
-                if ($rp2['code'] >= 200 && $rp2['code'] < 300) $sent[] = 'bale-personal';
+                if (bot_delivered($rp2)) $sent[] = 'bale-personal';
                 else $errs[] = 'bale-p:' . $rp2['code'] . (!empty($rp2['err']) ? ' (' . $rp2['err'] . ')' : '');
             }
             echo json_encode(['ok' => count($sent) > 0, 'sent' => $sent, 'errors' => $errs], JSON_UNESCAPED_UNICODE);
@@ -148,14 +158,14 @@ switch ($action) {
         if (!empty($cfg['telegram_token']) && !empty($cfg['telegram_chat_id'])) {
             $r = bot_post('https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage',
                 ['chat_id' => $cfg['telegram_chat_id'], 'text' => $text]);
-            if ($r['code'] >= 200 && $r['code'] < 300) $sent[] = 'telegram';
+            if (bot_delivered($r)) $sent[] = 'telegram';
             else $errs[] = 'telegram:' . $r['code'] . (!empty($r['err']) ? ' (' . $r['err'] . ')' : '');
         }
         /* بله: Bot API (سازگار با تلگرام — tapi.bale.ai) */
         if (!empty($cfg['bale_token']) && !empty($cfg['bale_chat_id'])) {
             $r = bot_post('https://tapi.bale.ai/bot' . $cfg['bale_token'] . '/sendMessage',
                 ['chat_id' => $cfg['bale_chat_id'], 'text' => $text]);
-            if ($r['code'] >= 200 && $r['code'] < 300) $sent[] = 'bale';
+            if (bot_delivered($r)) $sent[] = 'bale';
             else $errs[] = 'bale:' . $r['code'] . (!empty($r['err']) ? ' (' . $r['err'] . ')' : '');
         }
         echo json_encode(['ok' => count($sent) > 0, 'sent' => $sent, 'errors' => $errs], JSON_UNESCAPED_UNICODE);

@@ -92,7 +92,7 @@ function printed(ctx, letter, includeSig) {
   var pv = ctx._previews[ctx._previews.length - 1];
   return (pv && pv[1]) || '';
 }
-/* v34.39.58: تصاویر آزمایشی باید «data URL معتبر» باشند (PNG واقعی ۲×۲)؛ رشته‌های
+/* v34.39.59: تصاویر آزمایشی باید «data URL معتبر» باشند (PNG واقعی ۲×۲)؛ رشته‌های
    ساختگی مثل «base64,SIG» طبق قرارداد جدید (فقط تصویر سالم چاپ می‌شود) رد می‌شوند. */
 var PNG_SIG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEUlEQVR42mPgEpH7D8IMMAYAJowE7d8n2J0AAAAASUVORK5CYII=';
 var PNG_STAMP = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEUlEQVR42mM4ISf3H4QZYAwARzQIDRsnkbcAAAAASUVORK5CYII=';
@@ -272,7 +272,7 @@ head('A15) مسیر ذخیرهٔ نامه روی سرور — پاک‌ساز pe
 function phpNestedStringLimit() {
   var php = fs.readFileSync(path.join(ROOT, 'api/sales-domain.php'), 'utf8');
   var fn = php.slice(php.indexOf('function sd_entity_sanitize_row'), php.indexOf('function sd_require_role'));
-  /* v34.39.58: سقف‌ها دیگر عددِ ثابت داخل فراخوانی sd_text نیستند؛ «فیلدهای سنگین»
+  /* v34.39.59: سقف‌ها دیگر عددِ ثابت داخل فراخوانی sd_text نیستند؛ «فیلدهای سنگین»
      نامه (bigFields رجیستری) تا پایان بودجهٔ ردیف سقف بلندتر می‌گیرند و بقیه همان
      پیش‌فرض‌های قبلی را دارند. این هارنس «سقف پیش‌فرض» را می‌خواند — همان مقداری
      که یک snapshot/رشتهٔ معمولی می‌بیند. */
@@ -330,7 +330,7 @@ function base64PayloadValid(url) {
   } else {
     ok('A15b | برش سرور تصویر را خراب نمی‌کند');
   }
-  /* v34.39.58: اکنون snapshot ساخته‌شده با letMakeSigSnapshot هیچ رشتهٔ بلندی ندارد؛
+  /* v34.39.59: اکنون snapshot ساخته‌شده با letMakeSigSnapshot هیچ رشتهٔ بلندی ندارد؛
      همین snapshot را از همان پاک‌ساز (۳۰۰/۲۰۰۰/۸۰۰۰) عبور می‌دهیم و می‌سنجیم که
      پس از پروجکشن سرور، تصویر هنوز از دارایی خوانده و معتبر چاپ می‌شود. */
   (function () {
@@ -354,7 +354,7 @@ function base64PayloadValid(url) {
         'longestSnapshotString=' + longest.length + ' / cap=' + lim.nested + ' | sig=' + hasSig(h2) + ' stamp=' + hasStamp(h2));
     }
   })();
-  /* مسیر دوم (v34.39.58): تصاویر متن نامه به ارجاع دارایی تبدیل می‌شوند؛ رشته‌های
+  /* مسیر دوم (v34.39.59): تصاویر متن نامه به ارجاع دارایی تبدیل می‌شوند؛ رشته‌های
      ذخیره‌شده در images[] باید کوتاه‌تر از سقف ۲۰۰۰ کاراکتری سرور باشند. */
   (function () {
     var c = makeCtx(storeWith({ boss: clone(PROFILE_BOTH) }, [clone(BASE)]));

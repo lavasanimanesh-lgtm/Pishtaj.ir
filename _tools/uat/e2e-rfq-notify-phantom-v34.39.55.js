@@ -281,6 +281,35 @@ async function main() {
     r.json.ok === true && messages(r).length === 0 && JSON.parse(s5['sync/ptf_crm_rfqs.json'] || '[]')[0].wf === 'WF91',
     JSON.stringify(messages(r)) + ' wf=' + JSON.parse(s5['sync/ptf_crm_rfqs.json'] || '[]')[0]?.wf);
 
+  /* ═══ S6 — یک اقدام کاربر، دو نوشتن: فقط یک پیام (v34.39.59 — BOT-MSG-P0) ═══
+     ptfRfqSetStatus روی ردیف سایت دو نوشتن می‌فرستد: نوشتن مرجع
+     (entity_upsert) و آینهٔ رهگیری (crm.php?action=set_status). پیش از این
+     هر دو به گروه پیام می‌دادند با «وضعیت قبلی» و منبع متفاوت. */
+  console.log('\n══ S6 — یک اقدام، یک پیام (مرجع + آینهٔ رهگیری) ══');
+  for (const order of ['entity-first', 'api-first']) {
+    const s6 = fresh();
+    s6['sync/ptf_crm_users.json'] = JSON.stringify([{ username: 'yousefi', name: 'مهدی یوسفی', role: 'sales' }]);
+    const row6 = { _id: 'S-6', cd: 'RFQ-601', code: 'RFQ-601', src: 'site', co: 'شرکت س', con: 'رضایی', subj: 'استعلام',
+      st: 'st1', stxt: 'دریافت اولیه', status: 'pending', statusText: 'در انتظار تایید مدیران' };
+    s6['sync/ptf_crm_rfqs.json'] = JSON.stringify([row6]);
+    s6['rfqs.json'] = JSON.stringify([{ code: 'RFQ-601', src: 'site', company: 'شرکت س', subject: 'استعلام', status: 'pending', statusText: 'در انتظار تایید مدیران' }]);
+    ready(s6);
+    const moved = { ...row6, st: 'st2', stxt: '🔵 بررسی فنی', stUpdatedAtISO: '2026-10-24T00:00:00Z' };
+    const send = [];
+    const doEntity = async () => { const x = await request(s6, { action: 'entity_upsert', body: { collection: 'ptf_crm_rfqs', record: moved, idempotencyKey: 'e-6-' + order }, user: 'yousefi', role: 'sales' }); send.push(...messages(x)); };
+    const doApi = async () => { const x = await request(s6, { endpoint: 'crm.php', action: 'set_status', user: 'yousefi', role: 'sales', post: { type: 'rfq', code: 'RFQ-601', status: 'st2', statusText: '🔵 بررسی فنی' } }); send.push(...messages(x)); };
+    if (order === 'entity-first') { await doEntity(); ready(s6); await doApi(); }
+    else { await doApi(); ready(s6); await doEntity(); }
+    console.log('   ' + order + ' → ' + send.length + ' پیام: ' + JSON.stringify(send.map(m => m.text)));
+    T('S6 (' + order + '): یک تغییر وضعیت = یک پیام، نه دو',
+      send.length === 1, 'پیام‌ها=' + send.length + ' ' + JSON.stringify(send.map(m => m.text)));
+    T('S6 (' + order + '): انجام‌دهنده نام نمایشی است، نه username',
+      send.length === 1 && send[0].text.includes('انجام‌دهنده: مهدی یوسفی') && !send[0].text.includes('yousefi'),
+      send.length ? send[0].text : '');
+    T('S6 (' + order + '): منبع CRM است (کاربر CRM انجام داده)',
+      send.length === 1 && send[0].text.includes('منبع: CRM'), send.length ? send[0].text : '');
+  }
+
   console.log('\n=== PHANTOM NOTIFY E2E: ' + pass + ' PASS / ' + fail + ' FAIL ===');
   process.exitCode = fail ? 1 : 0;
 }

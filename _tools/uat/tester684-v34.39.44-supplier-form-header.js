@@ -148,7 +148,7 @@ var NOTICE = function (sel) { return /^(?:\.sup-notice|html\.ptf-dark \.sup-noti
 SECTION('ساختار هدر فرم');
 var hStart = PAGE.indexOf('<div class="sup-header">');
 var bStart = PAGE.indexOf('<div class="sup-body">');
-/* v34.39.58 (WRONG-FORM-REDIRECT): کارت «دوراهی هدف» عمداً «بیرون» هدر و بین هدر و
+/* v34.39.59 (WRONG-FORM-REDIRECT): کارت «دوراهی هدف» عمداً «بیرون» هدر و بین هدر و
    sup-body نشست؛ سنجش باید خودِ المان هدر باشد (تا </div> پایانیِ همان هدر)،
    نه تا sup-body — قصد این بخش (هیچ بلوک روشنی داخل هدر تیره نباشد) حفظ می‌شود. */
 var hEnd = hStart > -1 ? PAGE.indexOf('</div>', PAGE.indexOf('</p>', hStart)) + 6 : -1;
