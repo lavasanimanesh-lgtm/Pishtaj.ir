@@ -1558,6 +1558,14 @@ function letApplyAmendment(cd, reason, patch) {
   } finally {
     letAssetEnd();
   }
+  /* v34.39.58: نرمال‌سازی همان قواعد مسیر ثبت اولیه —
+     «خودم» به شناسهٔ کاربر جاری تبدیل می‌شود و signerMode فقط برای «سایر» می‌ماند؛
+     وگرنه نامه‌ای که از «امضای فیزیکی» به کاربر واقعی تغییر می‌کند، برچسب فیزیکی
+     را با خود می‌برد و مهر/امضای دیجیتال چاپ نمی‌شود. */
+  if (l.signer === '__me__') l.signer = me;
+  /* فقط وقتی «سایر/فیزیکی» انتخاب شده signerMode می‌ماند؛ فرم در بقیهٔ حالت‌ها این
+     کلید را برای اصلاحیه نمی‌فرستد (همان قرارداد _collectLetter). */
+  if (!patch || !Object.prototype.hasOwnProperty.call(patch, 'signerMode')) delete l.signerMode;
   var idx = -1;
   ls.forEach(function (x, i) { if (x && x.cd === cd) idx = i; });
   if (idx > -1) ls[idx] = l;

@@ -551,6 +551,35 @@ function panelsStub(ctx) {
     html2.indexOf(PNG_STAMP) > -1, JSON.stringify(c2._toasts));
 })();
 
+/* G — نرمال‌سازی امضاکننده در اصلاحیه (همان قواعد مسیر ثبت اولیه) */
+head('G) نرمال‌سازی امضاکننده در اصلاحیه');
+
+(function () {
+  /* G1: انتخاب «خودم» در فرم، شناسهٔ واقعی کاربر را ذخیره می‌کند */
+  var store = storeWith({ boss: clone(PROFILE) }, [clone(BASE)]);
+  var c = makeCtx(store, { promptValue: 'تغییر امضاکننده' });
+  formDom(c, { ltSigner: '__me__', ltSub: 'موضوع تازه' });
+  c.letAmendOpen('L1');
+  c.letAmendSave();
+  var l = store.ptf_crm_letters[0];
+  T('G1 | «خودم» در اصلاحیه به شناسهٔ کاربر واقعی تبدیل می‌شود (نه __me__)',
+    l.signer === 'boss' && l.rev === 1, 'signer=' + l.signer);
+
+  /* G2: تغییر از «نام دلخواه (فیزیکی)» به کاربر واقعی، برچسب signerMode را پاک می‌کند */
+  var L = clone(BASE);
+  L.st = 'registered'; L.signer = '__other__'; L.signerMode = 'other';
+  L.signerNm = 'جناب آقای خارجی'; L.signerRole = 'مدیر'; L.manualSignature = true;
+  var store2 = storeWith({ boss: clone(PROFILE) }, [L]);
+  var c2 = makeCtx(store2, { promptValue: 'امضاکننده عوض شد' });
+  formDom(c2, { ltSigner: 'boss', ltSub: 'موضوع تازه' });
+  c2.letAmendOpen('L1');
+  c2.letAmendSave();
+  var l2 = store2.ptf_crm_letters[0];
+  T('G2 | تغییر از «نام دلخواه/فیزیکی» به کاربر واقعی، signerMode قدیمی را پاک می‌کند',
+    l2.signer === 'boss' && l2.signerMode === undefined && l2.st === 'registered' && !!l2.reprintRequired,
+    'signer=' + l2.signer + ' mode=' + l2.signerMode + ' st=' + l2.st);
+})();
+
 /* ══════════════════════════════════════════════════════════════════
    بخش E — قرارداد سرور و سینک (بدون PHP در محیط: پین متنی روی منبع)
    ══════════════════════════════════════════════════════════════════ */
