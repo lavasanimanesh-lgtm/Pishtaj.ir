@@ -64,7 +64,11 @@ async function request(state,opts={}){
  if(opts.config!==false)await php.writeFile('/w/bot-config.php',`<?php return ['telegram_token'=>'111:TEST_ONLY','telegram_chat_id'=>'${opts.chatId||'-۱۰۰۱۲۳'}','rfq_notifications'=>${opts.enabled===false?'false':'true'}];`);
  for(const [file,value] of Object.entries(state))await php.writeFile('/w/app/crm/data/'+file,value);
  await php.writeFile('/tmp2/body',JSON.stringify(opts.body||{}));await php.writeFile('/tmp2/calls','');await php.writeFile('/tmp2/mode',opts.mode||'ok');
- const auth=opts.auth===false?"$_SERVER['HTTP_X_CRM_TOKEN']='invalid-test-token';":`
+ /* v34.39.65 (VERIFY): auth:'none' = بازدیدکنندهٔ سایت بدون هیچ توکن — مسیر عمومی واقعی
+    (add_rfq_site/track). auth:false (توکن نامعتبر) همچنان برای تست ردِ احراز هویت است. */
+ let auth='';
+ if(opts.auth===false)auth="$_SERVER['HTTP_X_CRM_TOKEN']='invalid-test-token';";
+ else if(opts.auth!=='none')auth=`
  $user='${opts.user||'admin'}';$role='${opts.role||'admin'}';$now=time();$nonce=bin2hex(random_bytes(16));
  $p=$user.'|'.$role.'|'.$now.'|'.$nonce;$sig=hash_hmac('sha256',$p,'${SECRET}');
  $tok=rtrim(strtr(base64_encode($p.'|'.$sig),'+/','-_'),'=');
@@ -280,6 +284,40 @@ async function main() {
   T('FIX: push کهنه در مسیر legacy هم نه اعلان می‌سازد نه وضعیت را برمی‌گرداند',
     r.json.ok === true && messages(r).length === 0 && JSON.parse(s5['sync/ptf_crm_rfqs.json'] || '[]')[0].wf === 'WF91',
     JSON.stringify(messages(r)) + ' wf=' + JSON.parse(s5['sync/ptf_crm_rfqs.json'] || '[]')[0]?.wf);
+
+  /* ═══ S6 — یک اقدام کاربر، دو نوشتن: فقط یک پیام (v34.39.59 — BOT-MSG-P0) ═══
+     ptfRfqSetStatus روی ردیف سایت دو نوشتن می‌فرستد: نوشتن مرجع
+     (entity_upsert) و آینهٔ رهگیری (crm.php?action=set_status). پیش از این
+     هر دو به گروه پیام می‌دادند با «وضعیت قبلی» و منبع متفاوت. */
+  console.log('\n══ S6 — یک اقدام، یک پیام (مرجع + آینهٔ رهگیری) ══');
+  for (const order of ['entity-first', 'api-first']) {
+    const s6 = fresh();
+    s6['sync/ptf_crm_users.json'] = JSON.stringify([{ username: 'yousefi', name: 'مهدی یوسفی', role: 'sales' }]);
+    const row6 = { _id: 'S-6', cd: 'RFQ-601', code: 'RFQ-601', src: 'site', co: 'شرکت س', con: 'رضایی', subj: 'استعلام',
+      st: 'st1', stxt: 'دریافت اولیه', status: 'pending', statusText: 'در انتظار تایید مدیران' };
+    s6['sync/ptf_crm_rfqs.json'] = JSON.stringify([row6]);
+    s6['rfqs.json'] = JSON.stringify([{ code: 'RFQ-601', src: 'site', company: 'شرکت س', subject: 'استعلام', status: 'pending', statusText: 'در انتظار تایید مدیران' }]);
+    ready(s6);
+    const moved = { ...row6, st: 'st2', stxt: '🔵 بررسی فنی', stUpdatedAtISO: '2026-10-24T00:00:00Z' };
+    const send = [];
+    /* نقش باید مجازِ approve_write باشد وگرنه نوشتن آینه 403 می‌شود و سناریو
+       «تصادفاً» سبز می‌ماند (نقصِ خودِ این تست که در v34.39.60 پیدا شد). */
+    const doEntity = async () => { const x = await request(s6, { action: 'entity_upsert', body: { collection: 'ptf_crm_rfqs', record: moved, idempotencyKey: 'e-6-' + order }, user: 'yousefi', role: 'admin' }); send.push(...messages(x)); return x; };
+    const doApi = async () => { const x = await request(s6, { endpoint: 'crm.php', action: 'set_status', user: 'yousefi', role: 'admin', post: { type: 'rfq', code: 'RFQ-601', status: 'st2', statusText: '🔵 بررسی فنی' } }); send.push(...messages(x)); return x; };
+    let resApi = null;
+    if (order === 'entity-first') { await doEntity(); ready(s6); resApi = await doApi(); }
+    else { resApi = await doApi(); ready(s6); await doEntity(); }
+    T('S6 (' + order + '): هر دو نوشتن این اقدام واقعاً موفق‌اند (سناریو بی‌اثر نیست)',
+      !!(resApi && resApi.json && resApi.json.ok === true), resApi ? resApi.response.slice(0, 160) : 'no response');
+    console.log('   ' + order + ' → ' + send.length + ' پیام: ' + JSON.stringify(send.map(m => m.text)));
+    T('S6 (' + order + '): یک تغییر وضعیت = یک پیام، نه دو',
+      send.length === 1, 'پیام‌ها=' + send.length + ' ' + JSON.stringify(send.map(m => m.text)));
+    T('S6 (' + order + '): انجام‌دهنده نام نمایشی است، نه username',
+      send.length === 1 && send[0].text.includes('انجام‌دهنده: مهدی یوسفی') && !send[0].text.includes('yousefi'),
+      send.length ? send[0].text : '');
+    T('S6 (' + order + '): منبع CRM است (کاربر CRM انجام داده)',
+      send.length === 1 && send[0].text.includes('منبع: CRM'), send.length ? send[0].text : '');
+  }
 
   console.log('\n=== PHANTOM NOTIFY E2E: ' + pass + ' PASS / ' + fail + ' FAIL ===');
   process.exitCode = fail ? 1 : 0;

@@ -226,6 +226,16 @@
   };
   window.ptfSyncAcknowledgeCommandKeys = function (keys) {
     (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+      /* v34.39.66 (RIAL-COMPANION-KEEP): اگر نسخهٔ محلیِ همین کلید هنوز ردیفی بدون
+         مهر سرور دارد (همراه/پیش‌نویس محلی)، ACK فرمان نباید پرچم ارسال را پاک کند؛
+         وگرنه PULL-COMPANION یا پروجکشن بعدی همان ردیف را بی‌صدا حذف می‌کند. */
+      if (k === 'ptf_crm_offers' && ptfOfferRowsWithoutServerStamp(rd(k)).length) {
+        state.dirty[k] = Date.now();
+        try { if (typeof window.ptfBEnqueueKeys === 'function') window.ptfBEnqueueKeys([k]); } catch (eOffAck) {}
+        try { setSyncBadge('warn'); } catch (eOffAckBadge) {}
+        schedulePush();
+        return;
+      }
       delete state.dirty[k];
       clearWriteFailure(k);
     });
@@ -648,10 +658,69 @@
         el.insertAdjacentHTML('afterbegin', '<div style="color:#047857">✅ همهٔ پیشنهادهای این دستگاه روی سرور ثبت شده‌اند؛ یک‌بار «⬆ تلاش مجدد ارسال» بزنید.</div>');
       } else {
         var list = unregistered.slice(0, 6).join('، ') + (unregistered.length > 6 ? ' …' : '');
+        /* v34.39.66 (RIAL-COMPANION-REG): تا دیروز تنها راه این بود که کاربر هر سند را
+           دستی باز و ذخیره کند. حالا ثبت خودکار: فقط ردیف‌هایی که «همراهِ یک پدرِ
+           ثبت‌شده» هستند از مسیر رسمی register_offer ثبت می‌شوند؛ بقیه (پیش‌نویس‌های
+           نیمه‌کاره) دست‌نخورده می‌مانند تا کسی بی‌خواسته سند ناقص منتشر نکند. */
+        if (window.ptfSyncOfferRegisterUnregistered) window.ptfSyncOfferRegisterUnregistered(unregistered, nos, el);
         el.insertAdjacentHTML('afterbegin', '<div style="color:#b45309">🔴 ' + unregistered.length + ' پیشنهادِ ثبت‌نشده پیدا شد: ' + escP(list) +
-          '<br><small>هرکدام را در ماژول پیشنهادها باز و «ذخیره» کنید (ثبت رسمی)، یا اگر زائد است حذف کنید. پس از آن وضعیت خودکار سبز می‌شود.</small></div>');
+          '<br><small>همراه‌های ریالی/ارزی که پدرشان روی سرور ثبت است، با دکمهٔ «📤 ثبت رسمی همراه‌ها» خودکار ثبت می‌شوند. سایر ردیف‌ها را در ماژول پیشنهادها باز و «ذخیره» کنید، یا اگر زائدند حذف کنید.</small></div>');
       }
     });
+  };
+  /* ═══ v34.39.66 (COMPANION-SWEEP) ═══
+     جاروی یتیم‌ها: هر ردیف محلیِ فاقد مهر سرور که «همراه» است (rialOf/fxOf) و پدرش
+     روی سرور ثبت است، از مسیر رسمی register_offer ثبت می‌شود. فقط همین دسته —
+     پیش‌نویس‌های نیمه‌کارهٔ کاربر هرگز خودکار منتشر نمی‌شوند. */
+  window.ptfSyncOfferRegisterUnregistered = function (unregisteredNos, serverNos, hostEl) {
+    var el = hostEl || document.getElementById('ptfSyncDiagBody');
+    var candidates = [];
+    try {
+      var arr = JSON.parse(rd('ptf_crm_offers') || '[]');
+      if (!Array.isArray(arr)) arr = [];
+      arr.forEach(function (o) {
+        if (!o || o.no == null) return;
+        var no = String(o.no).trim();
+        if (!no || (unregisteredNos && unregisteredNos.indexOf(no) < 0)) return;
+        if (String(o.serverRegisteredAt || '').trim()) return;
+        if (o._serverState === 'sending') return;
+        var parent = String(o.rialOf || o.fxOf || '').trim();
+        if (!parent || !serverNos || !serverNos[parent]) return;
+        if (!o.fxConvert || typeof o.fxConvert !== 'object') return;
+        candidates.push(o);
+      });
+    } catch (eScan) { candidates = []; }
+    if (!candidates.length) return 0;
+    if (el) {
+      el.insertAdjacentHTML('afterbegin', '<div id="ptfCompanionSweep" style="margin:0 0 6px"><button class="bt bt-o" onclick="ptfSyncOfferRegisterUnregisteredRun()">📤 ثبت رسمی همراه‌ها (' + candidates.length + ')</button> ' +
+        '<small style="color:#64748b">همراه‌های ریالی/ارزی ثبت‌نشده — از مسیر رسمی سرور ثبت می‌شوند</small></div>');
+    }
+    window._ptfCompanionSweepRows = candidates.slice(0, 40);
+    return candidates.length;
+  };
+  window.ptfSyncOfferRegisterUnregisteredRun = function () {
+    var rows = window._ptfCompanionSweepRows || [];
+    if (!rows.length) { try { ptfToast('همراه ثبت‌نشده‌ای برای ثبت رسمی پیدا نشد.', 'info'); } catch (e0) {} return; }
+    if (typeof window.ptfOfferRegisterCompanion !== 'function') {
+      try { ptfToast('لایهٔ فرمان در دسترس نیست؛ صفحه را یک‌بار تازه کنید.', 'warn'); } catch (e1) {}
+      return;
+    }
+    var ok = 0, fail = 0, left = rows.length;
+    var finishOne = function () {
+      left--;
+      if (left > 0) return;
+      try { audit('پیشنهادها', '📤 ثبت رسمی همراه‌ها: ' + ok + ' موفق، ' + fail + ' ناموفق', ''); } catch (eA) {}
+      try { ptfToast('📤 ثبت رسمی همراه‌ها: ' + ok + ' موفق' + (fail ? ' — ' + fail + ' ناموفق (پنل را بررسی کنید)' : ''), fail ? 'warn' : 'ok'); } catch (eT) {}
+      try { if (typeof renderOffers === 'function') renderOffers(); } catch (eR) {}
+      try { if (typeof window.ptfSyncDiagnosticsRefresh === 'function') window.ptfSyncDiagnosticsRefresh(); } catch (eD) {}
+    };
+    rows.forEach(function (row) {
+      window.ptfOfferRegisterCompanion(row, { source: 'companion-sweep' }, function (r) {
+        if (r && r.ok) ok++; else fail++;
+        finishOne();
+      });
+    });
+    return true;
   };
   window.ptfSyncDiagnosticsHtml = function () {
     return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
@@ -998,6 +1067,53 @@
       return { str: JSON.stringify(out), preserved: preserved };
     } catch (e) { return { str: remoteStr, preserved: 0 }; }
   }
+  /* ═══ v34.39.66 (RIAL-COMPANION-KEEP — RCA 2026-10-26) ═══
+     «نسخهٔ ریالی دیروز بود، امروز نیست.» مسیر مرگ رکورد این بود: همراهِ ریالی/ارزی
+     فقط با setData محلی ساخته می‌شد (بدون register_offer) و مهر serverRegisteredAt
+     نداشت؛ بعدی‌ترین فرمان موفق پیشنهاد، پروجکشن کامل مجموعهٔ سرور را برمی‌گرداند
+     و ptfSyncApplyServerProjection آن را بی‌هیچ merge‌ای روی نسخهٔ محلی می‌نوشت،
+     سپس پرچم «ارسال‌نشده» هم پاک می‌شد. حالا دو گارد:
+       ① پروجکشنِ سرور نمی‌تواند ردیف محلیِ **بدون مهر سرور** را ببلعد (زیر حفظ و
+          dirty می‌ماند تا ثبت شود یا سرور آن را از مسیر RIAL-COMPANION-ADOPT بپذیرد).
+       ② ACK فرمان، کلیدی را که هنوز ردیف بی‌مهر دارد «تسویه‌شده» اعلام نمی‌کند. */
+  function ptfOfferRowsWithoutServerStamp(raw) {
+    var out = [];
+    try {
+      var arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) return out;
+      arr.forEach(function (o) {
+        if (!o || typeof o !== 'object') return;
+        var no = o.no == null ? '' : String(o.no).trim();
+        if (!no) return;
+        if (String(o.serverRegisteredAt || '').trim()) return;
+        out.push(no);
+      });
+    } catch (e) { return []; }
+    return out;
+  }
+  function ptfOffersPreservePendingRows(localStr, remoteStr) {
+    try {
+      var loc = JSON.parse(localStr || '[]'), rem = JSON.parse(remoteStr || '[]');
+      if (!Array.isArray(loc) || !Array.isArray(rem)) return { str: remoteStr, preserved: 0, nos: [] };
+      var seen = {};
+      rem.forEach(function (r) { if (r && typeof r === 'object' && r.no != null) { var n = String(r.no).trim(); if (n) seen[n] = true; } });
+      var kept = [], nos = [];
+      loc.forEach(function (r) {
+        if (!r || typeof r !== 'object') return;
+        var no = r.no == null ? '' : String(r.no).trim();
+        if (!no || seen[no]) return;
+        if (String(r.serverRegisteredAt || '').trim()) return;  /* ثبت‌شده ⇒ حذف آن در سرور معتبر است */
+        seen[no] = true; kept.push(r); nos.push(no);
+      });
+      if (!kept.length) return { str: remoteStr, preserved: 0, nos: [] };
+      return { str: JSON.stringify(rem.concat(kept)), preserved: kept.length, nos: nos };
+    } catch (e) { return { str: remoteStr, preserved: 0, nos: [] }; }
+  }
+  window.ptfSyncOfferPendingNos = function () {
+    try { return ptfOfferRowsWithoutServerStamp(rd('ptf_crm_offers')); } catch (e) { return []; }
+  };
+  window.ptfSyncOffersPreservePendingRows = function (localStr, remoteStr) { return ptfOffersPreservePendingRows(localStr, remoteStr); };
+
   window.ptfSyncMergeServerProjection = function (key, localStr, remoteStr) {
     if (key !== 'ptf_crm_sharetx' && key !== 'ptf_crm_shareholders') return remoteStr;
     var result = ptfMergeIdentityProjection(key, localStr, remoteStr);
@@ -1038,6 +1154,10 @@
           serialized = ptfOpexMergeStrings(rd(k) || '[]', JSON.stringify(value), true);
         } else return false;
       } else serialized = typeof value === 'string' ? value : JSON.stringify(value);
+
+      /* v34.39.66 (RIAL-COMPANION-KEEP): حفاظت از ردیف‌های محلیِ فاقد مهر سرور داخل
+         نویسندهٔ مرکزی projection انجام می‌شود (client-server.js →
+         ptfBApplyServerProjection با استفاده از همان تابع خالص این فایل). */
 
       var applied;
       if (typeof window.ptfBApplyServerProjection === 'function') {
@@ -1270,6 +1390,18 @@
               if (typeof ptfToast === 'function') ptfToast('🛡 ارسال «' + lbl + '» رد شد: ' + (+rep.lost || 0) + ' رکورد بدون ثبت حذف، از بین می‌رفت. نسخهٔ سرور ادغام شد.', 'warn');
             });
           } catch (eMass) {}
+          /* v34.39.62 (BOT-MSG-P2-9/P2-10): این دستگاه نسخهٔ به‌روز فهرست را نداشت و
+             می‌خواست ردیف‌هایی را که هرگز ندیده، بی‌سنگ‌قبر حذف کند. سرور آن‌ها را حفظ
+             کرد و نسخهٔ کامل را در conflictData فرستاد تا همین‌جا merge شود — بدون این
+             پیام، کاربر فکر می‌کرد حذف انجام شده است. */
+          try {
+            var keptStale = d.staleKept || {};
+            Object.keys(keptStale).forEach(function (sk) {
+              var ids = keptStale[sk] || [], lbl2 = sk.replace('ptf_crm_', '');
+              audit('سیستم', '🛡 ارسال کهنه: «' + lbl2 + '» — ' + ids.length + ' رکورد بدون ثبت حذف نگه داشته شد: ' + ids.slice(0, 5).join('، '), sk);
+              if (typeof ptfToast === 'function') ptfToast('🛡 نسخهٔ این دستگاه از «' + lbl2 + '» عقب بود؛ ' + ids.length + ' رکورد که قصد حذفشان را نداشتید حفظ و ادغام شد.', 'warn');
+            });
+          } catch (eStale) {}
           /* پاسخ ok فقط یعنی درخواست پردازش شد، نه اینکه همهٔ کلیدها ذخیره شدند.
              حذف dirty صرفاً با ACK صریح هر کلید مجاز است؛ در غیر این صورت پیام زرد
              باید بماند تا کاربر با سبزشدن کاذب، تغییرِ نرسیده را امن تصور نکند. */

@@ -865,6 +865,47 @@ function sync_mass_deletion_report($key, $incomingJson, $serverJson, $serverArch
     if ($lost <= 3 || $lost < $srvCount * 0.25) return null;
     return ['lost' => $lost, 'serverCount' => $srvCount, 'incomingCount' => count($inc), 'sample' => array_slice($missing, 0, 10)];
 }
+/* ═══ v34.39.62 (BOT-MSG-P2-9/P2-10 — «push کهنهٔ بدون base ردیف را می‌بلعد») ═══
+   سناریوی بازتولیدشده (probe4-C1/D2): دستگاهی که نسخهٔ قدیمی/ناقص فهرست را دارد
+   (بدون base — کلاینت قدیمی، تبِ بازِ قدیمی، snapshot نیمه‌کاره) فهرست خودش را
+   push می‌کند؛ سرور ردیف‌هایی را که در آن فهرست نیستند حذف می‌کند، در حالی که
+   کاربر هیچ حذفی انجام نداده و حتی آن ردیف‌ها را ندیده است. سپس push بعدیِ دستگاه
+   سالم همان ردیف را برمی‌گرداند و پیام گروه «📥 ثبت درخواست جدید» برای رکوردی که
+   هرگز حذف نشده بود می‌فرستد.
+   قاعده: در CRM حذف همیشه «سنگ‌قبر» دارد (ptf_crm_deleted_archive / entity_delete).
+   پس push بدون شاهد نسخه (بدون base برای این کلید) اجازهٔ حذف ندارد: ردیف‌های
+   غایبِ بدون سنگ‌قبر از نسخهٔ سرور برگردانده می‌شوند (UNION) و شناسه‌شان در پاسخ
+   به‌عنوان staleKept گزارش می‌شود تا کلاینت ادغام کند. restore/allow_wipe و
+   پاک‌سازی گراف (archive_purge بدون collection) مثل قبل مستثنا هستند. */
+/* شناسهٔ نمایشی برای گزارش به کاربر (شمارهٔ درخواست/پیشنهاد، نه _id داخلی) */
+function sync_report_id_for_key($key, $r) {
+    if (!is_array($r)) return '';
+    if ($key === 'ptf_crm_offers') return trim((string)($r['no'] ?? $r['cd'] ?? $r['_id'] ?? ''));
+    return trim((string)($r['cd'] ?? $r['code'] ?? $r['inqNo'] ?? $r['_id'] ?? $r['no'] ?? ''));
+}
+function sync_stale_push_keep_missing($key, $incomingJson, $serverJson, $serverArchiveJson, $incomingArchiveJson) {
+    /* مخزن سنگ‌قبر و کلیدهای آبجکتی/مالی قرارداد خودشان را دارند */
+    if (in_array($key, ['ptf_crm_deleted_archive','ptf_crm_opex','ptf_crm_sharetx','ptf_crm_shareholders'], true)) return null;
+    $inc = json_decode((string)$incomingJson, true);
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($inc) || !is_array($srv) || !$srv) return null;
+    if (array_keys($srv) !== range(0, count($srv) - 1)) return null;
+    if ($inc !== [] && array_keys($inc) !== range(0, count($inc) - 1)) return null;
+    $tomb = sync_tombstone_id_set($key, $serverArchiveJson, $incomingArchiveJson);
+    if (isset($tomb['__alias_purge__'])) return null; /* پاک‌سازی گراف پروژه: حذف عمدی و گسترده */
+    $incIds = [];
+    foreach ($inc as $r) { $id = sync_record_id_for_key($key, $r); if ($id !== '') $incIds[$id] = true; }
+    $kept = [];
+    foreach ($srv as $r) {
+        $id = sync_record_id_for_key($key, $r);
+        if ($id === '' || isset($incIds[$id]) || isset($tomb[$id])) continue;
+        $inc[] = $r;
+        $kept[] = sync_report_id_for_key($key, $r) ?: $id;
+    }
+    if (!$kept) return null;
+    $json = json_encode($inc, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return is_string($json) ? ['json' => $json, 'ids' => $kept] : null;
+}
 function sync_log_blocked_deletion($sdir, $key, $report, $by) {
     try {
         $line = json_encode(['t' => date('c'), 'key' => $key, 'by' => (string)$by] + $report, JSON_UNESCAPED_UNICODE);
@@ -949,10 +990,13 @@ function sync_offers_payload_introduces_duplicates($incomingJson, $serverJson) {
 }
 /* v34.7.39: data_push عمومی حق ایجاد پیشنهاد تازه یا انتشار draft فرمان را ندارد.
    رکورد تازه باید ابتدا از register_offer شناسه/مهر سرور بگیرد. */
-function sync_offers_payload_has_unregistered_new($incomingJson, $serverJson) {
+function sync_offers_payload_has_unregistered_new($incomingJson, $serverJson, $extraNos = []) {
     $incoming=json_decode((string)$incomingJson,true);$server=json_decode((string)$serverJson,true);
     if(!is_array($incoming))return true;if(!is_array($server))$server=[];
     $serverNos=[];foreach($server as $offer)if(is_array($offer)&&trim((string)($offer['no']??''))!=='')$serverNos[trim((string)$offer['no'])]=true;
+    /* v34.39.66 (RIAL-COMPANION-ADOPT): شماره‌هایی که همین push به‌صورت «همراهِ ثبت‌شدهٔ
+       پدر» پذیرفته شد (sync_offers_adopt_companions) از نظر این گارد ثبت‌شده‌اند. */
+    if(is_array($extraNos))foreach($extraNos as $xn){$xn=trim((string)$xn);if($xn!=='')$serverNos[$xn]=true;}
     $seen=[];
     foreach($incoming as $offer){
         if(!is_array($offer))continue;$no=trim((string)($offer['no']??''));if($no==='')continue;
@@ -962,6 +1006,70 @@ function sync_offers_payload_has_unregistered_new($incomingJson, $serverJson) {
         if(!isset($serverNos[$no]))return true;
     }
     return false;
+}
+
+/* ═══ v34.39.66 (RIAL-COMPANION-ADOPT — RCA 2026-10-26) ═══
+   نشانهٔ کارفرما: «دیروز روی پیشنهاد ارزی 💱 زدم و نسخهٔ ریالی در کادر سبز آمد،
+   امروز نیست.»  ریشه: نسخهٔ همراه (rialOf/fxOf) فقط با setData محلی ساخته
+   می‌شد و register_offer را صدا نمی‌زد؛ پس شماره‌اش روی سرور نبود و push
+   مجموعه‌ای به‌خاطر همین یک ردیف، **کل** کلید ptf_crm_offers را رد می‌کرد.
+   حالا ردیفِ همراهی که:
+     ①no یکتا دارد، ②روی سرور نیست، ③مهر «در پرواز فرمان» (_serverState/
+     _serverOpId) یا مهر سرور جعلی ندارد، ④rialOf/fxOf دارد و پدرش **روی سرور
+     ثبت است**، ⑤fxConvert (مبنای تبدیل) دارد
+   همین‌جا مهر سرور می‌گیرد و پذیرفته می‌شود. هیچ ردیف غیرهمراه یا بی‌پدری از این
+   مسیر عبور نمی‌کند؛ گارد قبلی برای آن‌ها دست‌نخورده می‌ماند. */
+function sync_offer_companion_parent($offer) {
+    if (!is_array($offer)) return '';
+    foreach (['rialOf', 'fxOf'] as $f) {
+        $v = trim((string)($offer[$f] ?? ''));
+        if ($v !== '') return $v;
+    }
+    return '';
+}
+function sync_offers_adopt_companions($incomingJson, $serverJson, $by = '') {
+    $incoming = json_decode((string)$incomingJson, true);
+    $server = json_decode((string)$serverJson, true);
+    if (!is_array($incoming)) return null;
+    if (!is_array($server)) $server = [];
+    $serverNos = [];
+    foreach ($server as $offer) {
+        if (!is_array($offer)) continue;
+        $n = trim((string)($offer['no'] ?? ''));
+        if ($n !== '') $serverNos[$n] = true;
+    }
+    $now = gmdate('Y-m-d\TH:i:s\Z');
+    $actor = trim((string)$by);
+    if ($actor === '') $actor = 'sync-adopt';
+    $adopted = [];
+    $changed = false;
+    foreach ($incoming as $i => $offer) {
+        if (!is_array($offer)) continue;
+        $no = trim((string)($offer['no'] ?? ''));
+        if ($no === '' || isset($serverNos[$no])) continue;
+        if (isset($offer['_serverState']) || isset($offer['_serverOpId']) || isset($offer['serverRegisteredAt'])) continue;
+        $parent = sync_offer_companion_parent($offer);
+        if ($parent === '' || $parent === $no) continue;
+        if (!isset($serverNos[$parent])) continue;              /* پدر ثبت‌شده لازم است */
+        if (!is_array($offer['fxConvert'] ?? null)) continue;   /* فقط سندِ همراهِ تبدیل */
+        $hash = hash('sha256', $no . '|' . $parent . '|' . json_encode($offer, JSON_UNESCAPED_UNICODE));
+        if (empty($offer['_id'])) {
+            try { $rnd = bin2hex(random_bytes(16)); }
+            catch (Throwable $eRnd) { $rnd = hash('sha256', uniqid('', true) . mt_rand()); }
+            $offer['_id'] = 'OFR-' . substr($rnd, 0, 8) . '-' . substr($rnd, 8, 4) . '-' . substr($rnd, 12, 4) . '-' . substr($rnd, 16, 12);
+        }
+        $offer['serverRegisteredAt'] = $now;
+        $offer['serverRegisteredBy'] = $actor;
+        $offer['serverOperationId'] = 'ADOPT-' . substr($hash, 0, 20);
+        $offer['serverRequestHash'] = $hash;
+        if (trim((string)($offer['updatedAtISO'] ?? '')) === '') $offer['updatedAtISO'] = $now;
+        $incoming[$i] = $offer;
+        $serverNos[$no] = true;
+        $adopted[] = $no;
+        $changed = true;
+    }
+    if (!$changed) return null;
+    return ['json' => json_encode($incoming, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'adopted' => $adopted];
 }
 
 /* v34.8.5 — whole-array sync remains available for manual finance rows, but omission
@@ -1361,7 +1469,24 @@ function save_data($key, $data) {
         if (file_put_contents($file, $json, LOCK_EX) === false) return false;
         ptf_db_write($key, $json);
         if (is_array($data) && ptf_rfq_notify_enabled() && in_array($action, ['add_rfq_site','add_rfq','update_rfq','set_status'], true)) {
-            $events = ptf_rfq_notify_events($before, $data, 'site', (string)($auth_info['user'] ?? 'سایت'), 'site-write:' . bin2hex(random_bytes(16)));
+            /* v34.39.59 (BOT-MSG-P0-2 — «منبع/انجام‌دهندهٔ غلط در پیام»): پیش از این
+               منبع همیشه «سایت» و انجام‌دهنده username خامِ توکن بود، حتی وقتی کاربر
+               CRM از کانبان/دراپ‌داون/صف تایید وضعیت را عوض می‌کرد (set_status فقط با
+               توکن معتبر اجرا می‌شود ⇒ هرگز «فرم سایت» نیست).
+               ① منبع از وجود نشست تعیین می‌شود، نه از ثابت.
+               ② انجام‌دهنده با «نام نمایشی» همان کاربر از فهرست کاربران سرور.
+               ③ set_status برای RFQ آینهٔ رهگیری سایت است (نوشتن مرجع همان
+                  entity_upsert/data_push است) ⇒ کانال mirror تا صف دو پیام نسازد. */
+            $notifySource = $auth_info ? 'crm' : 'site';
+            static $notifyUsersCache = null;
+            if ($auth_info && $notifyUsersCache === null) $notifyUsersCache = load_all_crm_users_sources();
+            $notifyActor = $auth_info
+                ? ptf_rfq_notify_resolve_actor((string)($auth_info['user'] ?? ''), is_array($notifyUsersCache) ? $notifyUsersCache : [])
+                : 'سایت';
+            if ($notifyActor === '') $notifyActor = 'سایت';
+            $notifyChannel = ($key === 'rfqs' && $action === 'set_status') ? 'mirror' : 'canonical';
+            $events = ptf_rfq_notify_events($before, $data, $notifySource, $notifyActor,
+                'site-write:' . bin2hex(random_bytes(16)), true, $notifyChannel);
             ptf_rfq_notify_enqueue($events);
         }
         return true;
@@ -2953,6 +3078,8 @@ switch($action) {
         $rejected = []; /* v14.7 US-382 */
         $conflicts = []; $conflictData = []; $protectedConflicts = []; $krevs = []; /* v15.0 US-384 + v34.8.5 finance protection */
         $massBlocked = []; /* v34.38.12 MASS-DELETE-SHIELD: کلید ⇒ گزارش حذف انبوهِ مسدودشده */
+        $staleKept = []; /* v34.39.62 STALE-PUSH: کلید ⇒ شناسه‌هایی که push بدون base می‌خواست بی‌سنگ‌قبر حذف کند */
+        $offersAdopted = []; /* v34.39.66 RIAL-COMPANION-ADOPT: کلید ⇒ شمارهٔ همراه‌هایی که مهر سرور گرفتند */
         $allow_wipe = !empty($j['allow_wipe']); /* فقط مسیر Go-Live (US-377) این فلگ را می‌فرستد */
         $restore = !empty($j['restore']); /* بازگردانی کامل سرور */
         if ($restore && !in_array($client_role, ['admin','chairman'], true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'restore_permission_denied']); break; }
@@ -3052,6 +3179,18 @@ switch($action) {
                     }
                 }
             }
+            /* v34.39.62 (BOT-MSG-P2-9): push بدون شاهد نسخه حق حذف ندارد — ردیف‌های
+               غایب از سرور برمی‌گردند (جزئیات در sync_stale_push_keep_missing). */
+            if (!$restore && !$allow_wipe && !$isSharedUnion && ($base === null || !array_key_exists($k, $base))) {
+                $staleExisting = sync_key_read($sdir, $k);
+                if ($staleExisting !== null) {
+                    $staleKeptRows = sync_stale_push_keep_missing($k, $v, $staleExisting, $serverArchiveJson, $incomingArchiveJson);
+                    if ($staleKeptRows !== null) {
+                        $v = $staleKeptRows['json'];
+                        $staleKept[$k] = $staleKeptRows['ids'];
+                    }
+                }
+            }
             /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: do not accept a stale client
                payload that increases duplicate offer lines. Existing corrupted
                records are deliberately not auto-mutated here; repair is explicit. */
@@ -3059,7 +3198,19 @@ switch($action) {
                 /* v33.22.0: مسیر یکپارچه (mysql → DB) */
                 $serverOffersJson = sync_key_read($sdir, 'ptf_crm_offers');
                 if ($serverOffersJson === null) $serverOffersJson = '[]';
-                if (sync_offers_payload_introduces_duplicates($v, $serverOffersJson) || sync_offers_payload_has_unregistered_new($v, $serverOffersJson)) {
+                /* v34.39.66 (RIAL-COMPANION-ADOPT): پیش از گارد یکپارچگی، همراه‌های
+                   بی‌مهرِ پدرثبت‌شده را همین‌جا رسمی می‌کنیم؛ وگرنه یک ردیف همراه،
+                   کل پیشنهادهای دستگاه را برای همیشه از سینک خارج می‌کرد و
+                   پروجکشن بعدی فرمان، آن را بی‌صدا حذف می‌کرد. */
+                $adoptedNos = [];
+                $adoptRows = sync_offers_adopt_companions($v, $serverOffersJson, (string)($j['by'] ?? ''));
+                if (is_array($adoptRows) && !empty($adoptRows['adopted'])) {
+                    $v = $adoptRows['json'];
+                    $adoptedNos = $adoptRows['adopted'];
+                    $offersAdopted[$k] = $adoptedNos;
+                    try { @error_log('[PTF] offers_adopt key=' . $k . ' nos=' . implode(',', $adoptedNos) . ' by=' . (string)($j['by'] ?? '')); } catch (Throwable $eAdoptLog) {}
+                }
+                if (sync_offers_payload_introduces_duplicates($v, $serverOffersJson) || sync_offers_payload_has_unregistered_new($v, $serverOffersJson, $adoptedNos)) {
                     $rejected[] = $k;
                     $conflicts[] = $k;
                     $conflictData[$k] = $serverOffersJson;
@@ -3181,6 +3332,10 @@ if (is_string($wfMergedJson)) $v = $wfMergedJson;
             if (!sync_key_write($sdir, $k, $v, $pushNextRev)) { $dbWriteFailed = true; break; }
             $meta[$k] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
             $krevs[$k] = $pushNextRev;
+            /* v34.39.62: ردیف‌هایی که به‌خاطر push کهنه حفظ شدند باید به همان دستگاه هم
+               برگردند؛ نسخهٔ ذخیره‌شده مثل الگوی سپر حذف انبوه در conflictData می‌آید تا
+               کلاینت merge کند و dirty نماند (وگرنه آن دستگاه بی‌خبر عقب می‌ماند). */
+            if (isset($staleKept[$k]) && !isset($conflictData[$k])) { $conflictData[$k] = $v; $conflicts[] = $k; }
             $saved_keys[] = $k;
             $saved++;
         }
@@ -3199,7 +3354,11 @@ if (is_string($wfMergedJson)) $v = $wfMergedJson;
                 if (is_array($finalRfqs)) {
                     $wfUsers = json_decode((string)(sync_key_read($sdir, 'ptf_crm_users') ?? '[]'), true);
                     $wfActor = ptf_rfq_notify_resolve_actor((string)($auth_info['user'] ?? ''), is_array($wfUsers) ? $wfUsers : []);
-                    if (in_array('ptf_crm_rfqs', $saved_keys, true)) {
+                    /* v34.39.62 (BOT-MSG-P2-9): پیشنهادها هم گردش‌کار را می‌سازند. پیش از این
+                       بازخوانی فقط با حضور ptf_crm_rfqs در همان push انجام می‌شد؛ push ای که
+                       فقط وضعیت پیشنهاد را عوض می‌کرد، wf را روی مقدار کهنه می‌گذاشت و
+                       «وضعیت قبلی» همهٔ پیام‌های بعدی همان درخواست غلط می‌شد. */
+                    if (in_array('ptf_crm_rfqs', $saved_keys, true) || in_array('ptf_crm_offers', $saved_keys, true)) {
                         $finalOffers = json_decode((string)(sync_key_read($sdir, 'ptf_crm_offers') ?? '[]'), true);
                         if (is_array($finalOffers)) {
                             $wfNeedDelivery = false;
@@ -3293,7 +3452,9 @@ if (is_string($wfMergedJson)) $v = $wfMergedJson;
         echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $reportedRev, 'rejected' => array_values(array_unique($rejected)),
             'skipped' => array_values(array_unique($skipped_keys)), 'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
             'conflicts' => $conflicts, 'protectedConflicts' => array_values(array_unique($protectedConflicts)), 'serverData' => $conflictData, 'krevs' => $krevs,
-            'massDeletionBlocked' => $massBlocked], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK + v34.38.12 سپر حذف انبوه */
+            'massDeletionBlocked' => $massBlocked,
+            'staleKept' => $staleKept,
+            'offersAdopted' => $offersAdopted], JSON_UNESCAPED_UNICODE); /* v34.39.66: همراه‌های ریالی/ارزی که همین push مهر سرور گرفتند */ /* v34.39.62: ردیف‌های حفظ‌شده در برابر push کهنه */ /* v14.7 US-382 + v15.0 US-384 + per-key ACK + v34.38.12 سپر حذف انبوه */
         break;
 
     case 'data_pull':

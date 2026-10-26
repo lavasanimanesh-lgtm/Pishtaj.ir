@@ -745,7 +745,8 @@ function renderLetters() {
       (((l.kind === 'OUT' && l.author === curSession().user) || l.src === 'ai-workbench') && (l.st === 'draft' || l.st === 'rejected') ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="showLetterModal(\'' + l.cd + '\')">✏️</button> ' : '') +
       (canSign ? '<button class="bt" style="padding:3px 8px;font-size:11.5px;background:#10b981" onclick="letSign(\'' + l.cd + '\')">✅ امضا</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letReject(\'' + l.cd + '\')">رد</button> ' : '') +
       /* v34.39.58 (LETTER-AMEND-REV): اصلاح متن نامهٔ ثبت‌شده — نویسنده یا نقش ارشد */
-      (letIsFinal(l) && letCanAmend(l) ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#4f46e5;border-color:#c7d2fe" onclick="letAmendOpen(\'' + l.cd + '\')" title="اصلاح متن با همان شمارهٔ اندیکاتور (Rev.' + (_rev + 1) + ')">📝 اصلاح</button> ' : '') +
+      /* v34.39.65 (D4): دکمه فقط برای نامهٔ صادره — فرم اصلاحیه فرمِ نامهٔ صادره است */
+      (l.kind === 'OUT' && letIsFinal(l) && letCanAmend(l) ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#4f46e5;border-color:#c7d2fe" onclick="letAmendOpen(\'' + l.cd + '\')" title="اصلاح متن با همان شمارهٔ اندیکاتور (Rev.' + (_rev + 1) + ')">📝 اصلاح</button> ' : '') +
       (_rev > 0 ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letAmendHistory(\'' + l.cd + '\')" title="تاریخچهٔ نسخه‌ها و چاپ نسخهٔ قبلی">📚 نسخه‌ها</button> ' : '') +
       (l.st === 'signed' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#059669" onclick="letPrint(\'' + l.cd + '\',false,true)" title="خروجی با مهر و امضای ثبت‌شده">🖨 با امضای دیجیتال</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#7c3aed" onclick="letPrint(\'' + l.cd + '\',false,false)" title="خروجی بدون تصویر امضا برای امضای دستی">🖨 بدون امضا / چاپ فیزیکی</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#0e7490" onclick="letCopyAsDraft(\'' + l.cd + '\')" title="کپی این نامه به‌عنوان پیش‌نویس جدید قابل امضا">📋 کپی به پیش‌نویس</button> ' : (l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',false,false)">🖨 PDF</button> ' : '')) +
       (l.kind === 'OUT' && l.st !== 'signed' && l.st !== 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',true,false)">👁️ پیش‌نمایش بدون امضا</button> ' : '') +
@@ -1046,6 +1047,12 @@ function showLetterModal(cd, opts) {
   var customSigner = !!(l && (l.signerMode === 'other' || l.signer === '__other__' || (l.signer && l.signer !== '__me__' && !knownSigner)));
   var ownName = myProfile.nm || session.name || myUser.name || session.user || '';
   var ownRole = myProfile.role || myUser.role || '';
+  /* v34.39.65 (D9): اگر signer نام کاربری‌ای باشد که دیگر در فهرست کاربران نیست
+     (کاربر حذف/غیرفعال شده)، پیش‌تر هیچ گزینه‌ای برایش ساخته نمی‌شد؛ select به
+     «سایر — امضای فیزیکی» می‌افتاد و ثبتِ بدون هیچ ویرایشی، امضاکننده را بی‌سروصدا
+     به «امضای فیزیکی» تغییر می‌داد (تغییر ماهوی + باطل‌شدن امضا). اکنون همان شناسه
+     با برچسب «کاربر حذف‌شده (بدون تغییر)» یک گزینهٔ صریح است. */
+  var ghostSigner = (l && l.signer && l.signer !== '__me__' && l.signer !== '__other__' && !knownSigner && l.signerMode !== 'other') ? l.signer : null;
   var signOpts = '<option value="__me__"' + (!customSigner && (!l || l.signer === '__me__' || l.signer === session.user) ? ' selected' : '') + '>خودم (' + escP(ownName) + (ownRole ? ' — ' + escP(ownRole) : '') + ')</option>' +
     users.filter(function (u) { return u.username !== session.user; })
       .map(function (u) {
@@ -1056,7 +1063,8 @@ function showLetterModal(cd, opts) {
         var uNote = (typeof letProfileImgState === 'function' && letProfileImgState(up.sig) !== 'ok') ? ' ⚠️ بدون تصویر امضا' : '';
         return '<option value="' + escP(u.username) + '"' + (!customSigner && l && l.signer === u.username ? ' selected' : '') + '>' + escP(un) + (ur ? ' — ' + escP(ur) : '') + uNote + '</option>';
       }).join('') +
-    '<option value="__other__"' + (customSigner ? ' selected' : '') + '>سایر — نام و سمت دلخواه (امضای فیزیکی)</option>';
+    (ghostSigner ? '<option value="' + escP(ghostSigner) + '" selected>👤 ' + escP(l.signerNm || ghostSigner) + ' — کاربر حذف‌شده (بدون تغییر)</option>' : '') +
+    '<option value="__other__"' + ((customSigner && !ghostSigner) ? ' selected' : '') + '>سایر — نام و سمت دلخواه (امضای فیزیکی)</option>';
   var s = (l && l.style) || {};
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:760px;max-height:94vh;overflow:auto">' +
     '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-editor-tools select{max-width:130px;padding:3px 6px;font-size:11px;border:1px solid var(--brd);border-radius:7px;background:#fff;color:#1e293b}.let-editor-tools input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--brd);border-radius:6px;background:#fff;cursor:pointer}.let-editor-tools .let-sep{width:1px;height:20px;background:var(--brd);margin:0 2px;align-self:center}.let-editor-tools .lg{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor.is-dragover{border:2px dashed #0e7490;background:#f0f9ff}.let-doc-font,.let-doc-font *{font-family:inherit!important}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
@@ -1064,8 +1072,16 @@ function showLetterModal(cd, opts) {
     /* v34.39.58 (LETTER-AMEND-REV): در حالت اصلاحیه، شمارهٔ نامه و دلیل اصلاح به کاربر نشان داده می‌شود */
     (amend ? '<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:9px 11px;margin:6px 0 8px;font-size:12.5px;color:#3730a3;line-height:1.9">' +
       '<b>شمارهٔ نامه:</b> <b dir="ltr">' + escP((l && (l.no || l.cd)) || '') + '</b> — تغییر نمی‌کند · <b>نسخهٔ جدید:</b> Rev.' + (letRevOf(l) + 1) + ' (نسخهٔ فعلی در تاریخچه بایگانی می‌شود)<br>' +
-      '<b>دلیل اصلاح:</b> ' + escP(opts.reason || '') + '<br>' +
-      '<small style="color:#4338ca">با ثبت، امضای فعلی باطل و نامه برای امضای مجدد ارسال می‌شود.</small></div>' : '') +
+      /* v34.39.65 (D6/R5): دلیل اصلاح، فیلد داخل فرم است (نه prompt) با سقف و شمارنده */
+      '<label for="ltAmendReason"><b>دلیل اصلاح *</b></label>' +
+      '<small style="color:#4338ca"> (حداکثر ' + LET_AMEND_REASON_MAX + ' نویسه — در سابقهٔ نامه ثبت می‌شود)</small>' +
+      '<textarea id="ltAmendReason" maxlength="' + LET_AMEND_REASON_MAX + '" rows="2" placeholder="مثلاً: اصلاح شمارهٔ نامه و تاریخ به درخواست مدیریت" ' +
+        'style="width:100%;margin:4px 0 2px;border:1px solid #c7d2fe;border-radius:8px;padding:6px 8px;font-family:inherit;font-size:12.5px;color:#1e293b;resize:vertical;background:#fff">' +
+        escP(opts.reason || '') + '</textarea>' +
+      '<div style="text-align:left;margin-bottom:2px"><small id="ltAmendCnt" style="color:#4338ca;font-variant-numeric:tabular-nums">' +
+        String(String(opts.reason || '').length) + '/' + LET_AMEND_REASON_MAX + '</small></div>' +
+      /* v34.39.65: متن راهنما با رفتار واقعی هم‌تراز شد — تغییر ظاهری امضا را باطل نمی‌کند */
+      '<small style="color:#4338ca">با ثبت، نسخهٔ فعلی بایگانی می‌شود. اگر متن، گیرنده یا موضوع عوض شود، امضای فعلی باطل و نامه برای امضای مجدد ارسال می‌شود؛ تغییر فقط ظاهری (فونت/حاشیه) امضا را حفظ می‌کند.</small></div>' : '') +
     '<div class="fr"><div class="fld"><label>زبان نامه</label><select id="ltLang"><option value="fa"' + (l && l.lang === 'fa' ? ' selected' : '') + '>فارسی</option><option value="en"' + (l && l.lang === 'en' ? ' selected' : '') + '>English</option></select></div>' +
     '<div class="fld"><label>گیرنده (شرکت/سازمان)</label><select id="ltToSel" onchange="document.getElementById(\'ltTo\').value=this.value">' + toOpts + '</select></div></div>' +
     '<div class="fr"><div class="fld"><label>گیرنده — متن روی نامه *</label><input type="text" id="ltTo" value="' + (l ? escP(l.to || '') : '') + '" placeholder="جناب آقای مهندس محمدی / مدیریت محترم بازرگانی ..."></div>' +
@@ -1151,6 +1167,30 @@ function showLetterModal(cd, opts) {
     : [];
   var editor = document.getElementById('ltBodyEditor');
   if (editor) { editor.innerHTML = letSafeBodyHtml(letHtmlExpand((l && l.bodyHtml) || letEscHtml((l && l.body) || '').replace(/\n/g, '<br>'))); letEditorWirePasteAndDrop(editor); letSyncDocFont(); }
+  /* v34.39.65 (R4): انتخاب صریح «سایر» توسط کاربر ثبت می‌شود تا گارد letApplyAmendment
+     تبدیل ضمنیِ امضاکنندهٔ واقعی به «امضای فیزیکی» را رد کند. */
+  var _sigSel = document.getElementById('ltSigner');
+  if (_sigSel && typeof _sigSel.setAttribute === 'function' && typeof _sigSel.addEventListener === 'function') {
+    _sigSel.addEventListener('change', function () {
+      if (this.value === '__other__') this.setAttribute('data-lt-explicit', '1');
+      else this.removeAttribute('data-lt-explicit');
+    });
+  }
+  /* v34.39.65 (R5): شمارندهٔ نویسه‌های دلیل اصلاح */
+  var _whyTa = document.getElementById('ltAmendReason');
+  if (_whyTa && typeof _whyTa.addEventListener === 'function') {
+    var _whyCnt = document.getElementById('ltAmendCnt');
+    /* v34.39.65 (D6): maxlength جلوی تایپ بیشتر را می‌گیرد؛ برای این‌که این سقف
+       «بی‌صدا» نباشد، شمارنده در لحظهٔ رسیدن به سقف قرمز می‌شود و پیام می‌دهد. */
+    _whyTa.addEventListener('input', function () {
+      var n = this.value.length, atMax = n >= LET_AMEND_REASON_MAX;
+      if (_whyCnt) {
+        _whyCnt.textContent = n + '/' + LET_AMEND_REASON_MAX + (atMax ? ' — به سقف رسید' : '');
+        _whyCnt.style.color = atMax ? '#dc2626' : '#4338ca';
+      }
+    });
+    if (amend) _whyTa.focus();
+  }
   ptfLetterSignerMode((document.getElementById('ltSigner') || {}).value);
   ptfLtImgRender();
 }
@@ -1215,15 +1255,24 @@ function _collectLetter(cd) {
     l.signer = document.getElementById('ltSigner').value;
     if (l.signer === '__other__') {
       l.signerMode = 'other';
+      /* v34.39.65 (R4): فقط تبدیل صریح به «امضای فیزیکی» مجاز است */
+      var _sigEl = document.getElementById('ltSigner');
+      l._signerExplicit = !!(_sigEl && _sigEl.getAttribute && _sigEl.getAttribute('data-lt-explicit') === '1');
       l.signerNm = ((document.getElementById('ltSignerOtherName') || {}).value || '').trim();
       l.signerRole = ((document.getElementById('ltSignerOtherRole') || {}).value || '').trim();
     } else {
       delete l.signerMode;
-      var _targetSigner = l.signer === '__me__' ? (curSession() || {}).user : l.signer;
+      var _isSelf = l.signer === '__me__';
+      var _prevNm = l.signerNm || '', _prevRole = l.signerRole || '';
+      var _targetSigner = _isSelf ? (curSession() || {}).user : l.signer;
       var _su = getData('ptf_crm_users').filter(function (u) { return u.username === _targetSigner; })[0] || {};
-      var _sp = (typeof sigProfileFor === 'function' ? sigProfileFor(_targetSigner) : (l.signer === '__me__' && typeof mySigProfile === 'function' ? mySigProfile() : {})) || {};
-      l.signerNm = _sp.nm || _su.name || (l.signer === '__me__' ? (curSession() || {}).name : l.signer) || '';
-      l.signerRole = _sp.role || _su.role || l.signerRole || '';
+      var _sp = (typeof sigProfileFor === 'function' ? sigProfileFor(_targetSigner) : (_isSelf && typeof mySigProfile === 'function' ? mySigProfile() : {})) || {};
+      /* v34.39.65 (D9): اگر امضاکننده در فهرست کاربران نیست («کاربر حذف‌شده»)، نام و
+         سمتِ ثبت‌شدهٔ سند حفظ می‌شود؛ پیش‌تر نامِ کاربر به «نام کاربری» تنزل می‌کرد
+         و همان تنها رفت‌وبرگشتِ فرم، تغییر جعلی روی سند می‌ساخت. */
+      var _known = !!_su.username || !!_sp.nm;
+      l.signerNm = _sp.nm || _su.name || (_isSelf ? (curSession() || {}).name : ((_known ? l.signer : _prevNm) || '')) || '';
+      l.signerRole = _sp.role || _su.role || _prevRole || '';
     }
     l.images = letImagesAssetify(window._ltImgs || []); /* v31.7.22 US-LTR-IMG — v34.39.58: ارجاع دارایی */
     function _num(id) { var v = (document.getElementById(id) || {}).value; return (v === '' ? '' : +v); }
@@ -1482,17 +1531,58 @@ function letArchivedRevision(l) {
     signedT: l.signedT || '', signatureSnapshot: snap, reason: ''
   };
 }
+var LET_AMEND_REASON_MAX = 300;
+/* v34.39.65 (LETTER-AMEND-FIX — D1/D2): «__me__» شناسهٔ نمایشیِ select امضاکننده است،
+   نه دادهٔ سند. پیش‌تر نرمال‌سازی __me__ → username در letApplyAmendment و **بعد از**
+   محاسبهٔ diff انجام می‌شد؛ بنابراین هر اصلاحیه‌ای که خودِ امضاکننده ثبت می‌کرد یک
+   «تغییر signer» (و چون signer در تنهٔ ماهوی است، تغییر ماهوی) شمرده می‌شد:
+   ① امضا باطل و نامه به «در انتظار امضا» می‌رفت حتی با تغییر فقط فونت؛
+   ② گارد «تغییری برای ثبت وجود ندارد» هرگز فعال نمی‌شد و ثبتِ بدون هیچ ویرایشی هم
+      یک Rev خالی می‌ساخت. اکنون patch پیش از diff نرمال می‌شود. */
+function letAmendNormalizePatch(patch) {
+  var p = patch || {};
+  var me = (curSession() || {}).user || '';
+  if (p.signer === '__me__' && me) p.signer = me;
+  return p;
+}
+/* v34.39.65 (D2): مقایسهٔ قالب بر پایهٔ کلیدهای شناخته‌شده. رکوردهای قدیمی (یا ساختهٔ
+   نسخه‌های پیشین/دستگاه دیگر) ممکن است style ناقص یا با نوع متفاوت داشته باشند
+   (fs:'' در برابر نبودِ کلید، یا '14' در برابر 14). مقایسهٔ خام JSON «تغییر قالب»
+   جعلی می‌ساخت و همان تغییر جعلی، امضا را باطل می‌کرد. */
+function letAmendStyleKey(v) {
+  v = v || {}; var m = v.margin || {};
+  var num = function (x) { return (x === '' || x == null) ? '' : (+x || ''); };
+  return JSON.stringify({ fs: +v.fs || '', lh: v.lh ? String(+v.lh || v.lh) : '',
+    font: v.font || '', align: v.align || 'justify', signFs: +v.signFs || '',
+    bold: !!v.bold, italic: !!v.italic,
+    margin: { t: num(m.t), r: num(m.r), b: num(m.b), l: num(m.l) } });
+}
 function letAmendDiff(a, b) {
   var out = [];
   LET_AMEND_FIELDS.forEach(function (k) {
     var x = a ? a[k] : undefined, y = b ? b[k] : undefined;
     if (k === 'bsm') { x = (x !== false); y = (y !== false); }
+    if (k === 'style') { if (letAmendStyleKey(x) !== letAmendStyleKey(y)) out.push(k); return; }
     var sx, sy;
     try { sx = JSON.stringify(x === undefined ? null : x); sy = JSON.stringify(y === undefined ? null : y); }
     catch (eJ) { sx = String(x); sy = String(y); }
     if (sx !== sy) out.push(k);
   });
   return out;
+}
+/* v34.39.65 (D5): کارت «درخواست امضا»ی قبلیِ همین نامه بسته می‌شود تا کارتابل
+   امضاکننده یک کارت مردهٔ مربوط به نسخهٔ پیش از اصلاحیه نداشته باشد. عمداً فقط
+   kind='sign_req' پاک می‌شود؛ اعلان‌های «نامه اصلاح شد» برای نویسنده می‌مانند. */
+function letAmendResolveSignReq(cd) {
+  if (!cd) return 0;
+  try {
+    var ns = getData('ptf_crm_notifs') || [];
+    var kept = ns.filter(function (n) { return !(n && n.refCd === cd && n.kind === 'sign_req'); });
+    if (kept.length === ns.length) return 0;
+    if (typeof ntfCommitRemoval === 'function') ntfCommitRemoval(ns, kept);
+    else setData('ptf_crm_notifs', kept);
+    return ns.length - kept.length;
+  } catch (e) { return 0; }
 }
 function letAmendSubstantive(changed) {
   return (changed || []).some(function (k) { return !!LET_AMEND_CORE[k]; });
@@ -1501,13 +1591,26 @@ function letAmendSubstantive(changed) {
 /* هستهٔ اصلاحیه — بدون DOM تا مستقیم تست‌شدنی باشد.
    patch: همان شکل رکورد نامه (خروجی _collectLetter). خروجی: {ok, rev, st, ...} */
 function letApplyAmendment(cd, reason, patch) {
+  patch = letAmendNormalizePatch(patch);   /* v34.39.65 (D1): پیش از diff، نه بعد از آن */
   reason = String(reason == null ? '' : reason).trim();
   if (!reason) return { ok: false, error: 'دلیل اصلاح الزامی است' };
-  if (reason.length > 300) reason = reason.slice(0, 300);
+  /* v34.39.65 (D6): برش بی‌صدای دلیل حذف شد — کاربر باید بداند چه چیزی ثبت می‌شود. */
+  if (reason.length > LET_AMEND_REASON_MAX) return { ok: false, error: 'دلیل اصلاح حداکثر ' + LET_AMEND_REASON_MAX + ' نویسه است (اکنون ' + reason.length + ')' };
   var ls = getData('ptf_crm_letters');
   var l = (ls || []).filter(function (x) { return x && x.cd === cd; })[0];
   if (!l) return { ok: false, error: 'نامه پیدا نشد' };
+  /* v34.39.65 (D4): نامهٔ وارده سند طرف مقابل است؛ فرم نامهٔ صادره نباید متن آن را
+     بازنویسی کند (پیش‌تر دکمه برای نامهٔ وارده هم می‌آمد و ثبت به بن‌بست می‌خورد). */
+  if (l.kind !== 'OUT') return { ok: false, error: 'اصلاحیه فقط برای نامهٔ صادره است' };
   if (!letCanAmend(l)) return { ok: false, error: 'اصلاح این نامه فقط برای نویسندهٔ نامه یا نقش ارشد مجاز است' };
+  /* v34.39.65 (D9 — دفاع دوم): اگر امضاکنندهٔ ثبت‌شده یک نام کاربری واقعی است، انتخاب
+     ضمنی «سایر» نباید نامه را بی‌سروصدا «امضای فیزیکی» کند. تبدیل به «سایر» فقط با
+     انتخاب صریح در فرم (_signerExplicit) پذیرفته می‌شود. */
+  if (patch && patch.signer === '__other__' && l.signer && l.signer !== '__other__' && patch._signerExplicit !== true) {
+    delete patch.signer;
+    delete patch.signerMode;
+  }
+  if (patch) delete patch._signerExplicit;   /* نشانهٔ صریح‌بودن، دادهٔ سند نیست */
   var changed = letAmendDiff(l, patch || {});
   if (!changed.length) return { ok: false, error: 'تغییری برای ثبت وجود ندارد' };
   var substantive = letAmendSubstantive(changed);
@@ -1540,6 +1643,7 @@ function letApplyAmendment(cd, reason, patch) {
     /* ③ پیامد امضا/وضعیت */
     var prevSt = l.st;
     var wasSigned = prev.st === 'signed';
+    var wasPending = prev.st === 'pending';
     var wasRegistered = prev.st === 'registered';
     var needsSignature = false;
     if (substantive && wasSigned) {
@@ -1547,6 +1651,13 @@ function letApplyAmendment(cd, reason, patch) {
       delete l.signatureSnapshot; delete l.signedT;
       l.st = 'pending';
       needsSignature = true;
+    } else if (substantive && wasPending) {
+      /* v34.39.65 (D5): نامه از قبل در انتظار امضاست. متن عوض شده، پس درخواست
+         امضای قبلی به نسخهٔ قدیمی اشاره می‌کند: باید بسته و از نو ارسال شود.
+         پیش‌تر هیچ اعلانی نمی‌رفت و کارتابل امضاکننده به نسخهٔ بایگانی‌شده اشاره
+         می‌کرد، در حالی که دیالوگ صریحاً «جایگزین می‌کند» وعده می‌داد. */
+      needsSignature = true;
+      l.st = 'pending';
     } else if (substantive && wasRegistered) {
       l.reprintRequired = 1;
       l.reprintReason = 'اصلاح متن پس از ثبت (Rev.' + l.rev + ')';
@@ -1576,10 +1687,17 @@ function letApplyAmendment(cd, reason, patch) {
   try {
     audit('مکاتبات', 'اصلاح نامه ' + (l.no || l.cd) + ' (Rev.' + l.rev + ') — ' + reason + (needsSignature ? ' — امضای قبلی باطل و نیازمند امضای مجدد' : ''), l.no || l.cd);
   } catch (eA) {}
+  var replacedReq = 0;
   try {
     if (needsSignature && l.signer && l.signer !== '__other__') {
-      notify({ toUsers: [l.signer], title: '♻️ نامهٔ «' + (l.subject || '') + '» اصلاح شد — امضای مجدد لازم است (Rev.' + l.rev + ')',
-        body: 'دلیل: ' + reason + '\nامضاکنندهٔ قبلی: ' + (prev.signerNm || prev.signer || ''), kind: 'sign_req',
+      if (wasPending) replacedReq = letAmendResolveSignReq(l.cd);
+      var _ttl = wasPending
+        ? '♻️ درخواست امضای نامه به‌روزرسانی شد: «' + (l.subject || '') + '» (Rev.' + l.rev + ')'
+        : '♻️ نامهٔ «' + (l.subject || '') + '» اصلاح شد — امضای مجدد لازم است (Rev.' + l.rev + ')';
+      notify({ toUsers: [l.signer], title: _ttl,
+        body: 'دلیل: ' + reason + '\nامضاکنندهٔ قبلی: ' + (prev.signerNm || prev.signer || '') +
+          (wasPending ? '\nاین درخواست جایگزین درخواست قبلی (نسخهٔ بایگانی‌شده) است.' : ''),
+        kind: 'sign_req',
         channels: ['cart'], link: { panel: 'let' }, actionable: true, refCd: l.cd });
     } else if (l.author && l.author !== me) {
       notify({ toUsers: [l.author], title: '📝 نامهٔ «' + (l.subject || '') + '» اصلاح شد (Rev.' + l.rev + ')',
@@ -1587,23 +1705,27 @@ function letApplyAmendment(cd, reason, patch) {
         channels: ['cart'], link: { panel: 'let' }, refCd: l.cd });
     }
   } catch (eN) {}
-  return { ok: true, rev: l.rev, st: l.st, substantive: substantive, needsSignature: needsSignature, changed: changed };
+  return { ok: true, rev: l.rev, st: l.st, substantive: substantive, needsSignature: needsSignature,
+    replacedReq: replacedReq, wasPending: wasPending, changed: changed };
 }
 
 /* ---- UI: باز کردن فرم در حالت اصلاحیه ---- */
 window.letAmendOpen = function (cd) {
   var l = getData('ptf_crm_letters').filter(function (x) { return x && x.cd === cd; })[0];
   if (!l) return;
+  /* v34.39.65 (D4): فقط نامهٔ صادره — فرم این مودال فرم نامهٔ صادره است و روی نامهٔ
+     وارده، «گیرنده» خالی می‌شد و ثبت به بن‌بست «گیرنده، موضوع و متن الزامی است» می‌رسید. */
+  if (l.kind !== 'OUT') { alert('⛔ اصلاحیه فقط برای نامهٔ صادره است — نامهٔ وارده سند طرف مقابل است و از این فرم بازنویسی نمی‌شود.'); return; }
   if (!letCanAmend(l)) { alert('⛔ اصلاح این نامه فقط برای نویسندهٔ نامه یا نقش ارشد مجاز است'); return; }
   if (l.st === 'pending') {
-    if (!confirm('این نامه در انتظار امضاست. اصلاح متن، درخواست امضای فعلی را با نسخهٔ اصلاح‌شده جایگزین می‌کند.\nادامه می‌دهید؟')) return;
+    if (!confirm('این نامه در انتظار امضاست. با ثبت اصلاحیه:\n• نسخهٔ فعلی بایگانی و «Rev.' + (letRevOf(l) + 1) + '» ثبت می‌شود\n• درخواست امضای قبلی بسته و برای نسخهٔ اصلاح‌شده درخواست تازه‌ای ارسال می‌شود.\nادامه می‌دهید؟')) return;
   } else if (l.st === 'signed') {
     if (!confirm('این نامه امضا شده است. با ثبت اصلاحیه:\n• شمارهٔ نامه تغییر نمی‌کند و «Rev.' + (letRevOf(l) + 1) + '» می‌گیرد\n• متن فعلی در تاریخچه بایگانی می‌شود\n• امضای فعلی باطل و نامه برای امضای مجدد ارسال می‌شود.\nادامه می‌دهید؟')) return;
   }
-  var why = prompt('دلیل اصلاح نامه (الزامی — در سابقهٔ نامه ثبت می‌شود):', '');
-  if (why === null) return;
-  if (!String(why).trim()) { alert('دلیل اصلاح الزامی است'); return; }
-  showLetterModal(cd, { amend: true, reason: String(why).trim() });
+  /* v34.39.65 (D6/R5): prompt() حذف شد. در PWA نصب‌شده prompt ممکن است مسدود یا
+     بی‌مورد آزاردهنده باشد و متن بلند هم بی‌صدا بریده می‌شد. دلیل، اکنون فیلد
+     متنیِ داخل خود فرم است (textarea#ltAmendReason) با شمارنده و سقف ۳۰۰ نویسه. */
+  showLetterModal(cd, { amend: true, reason: '' });
 };
 
 /* ثبت اصلاحیه از داخل فرم */
@@ -1613,16 +1735,30 @@ window.letAmendSave = function () {
   var l = _collectLetter(st.cd);
   if (!l.to || !l.subject || !String(l.body || '').trim()) { alert('گیرنده، موضوع و متن الزامی است'); return; }
   if (!letSignerComplete(l)) return;
-  var r = letApplyAmendment(st.cd, st.reason, l);
+  /* v34.39.65 (D6): دلیل از فیلد فرم خوانده می‌شود؛ اگر خالی یا بلندتر از سقف باشد
+     صریح هشدار می‌دهد و چیزی بی‌صدا بریده نمی‌شود. */
+  var _whyEl = document.getElementById('ltAmendReason');
+  var _why = String((_whyEl && _whyEl.value) || '').trim();
+  if (!_why) { alert('دلیل اصلاح الزامی است'); if (_whyEl && _whyEl.focus) _whyEl.focus(); return; }
+  if (_why.length > LET_AMEND_REASON_MAX) {
+    alert('⛔ دلیل اصلاح حداکثر ' + LET_AMEND_REASON_MAX + ' نویسه است (اکنون ' + _why.length + '). لطفاً کوتاه‌تر کنید.');
+    if (_whyEl && _whyEl.focus) _whyEl.focus();
+    return;
+  }
+  var r = letApplyAmendment(st.cd, _why, l);
   if (!r.ok) { alert('⛔ ' + r.error); return; }
   window._letAmend = null;
   hideModal();
   renderLetters();
   var msg = '✅ اصلاحیه Rev.' + r.rev + ' ثبت شد — شمارهٔ نامه تغییر نکرد.' +
-    (r.needsSignature ? '\nنامه برای امضای مجدد به کارتابل امضاکننده رفت.' : '') +
+    (r.needsSignature ? (r.wasPending ? '\nدرخواست امضای قبلی بسته و برای نسخهٔ اصلاح‌شده درخواست تازه ارسال شد.' : '\nنامه برای امضای مجدد به کارتابل امضاکننده رفت.') : '') +
     (r.substantive && !r.needsSignature ? '\nبازچاپ نامه لازم است.' : '');
   if (typeof ptfToast === 'function') ptfToast('✅ اصلاحیه Rev.' + r.rev + ' ثبت شد', 'ok'); else alert(msg);
-  if (confirm(msg + '\n\nخروجی PDF نسخهٔ جدید باز شود؟')) letPrint(st.cd, false);
+  /* v34.39.65 (D7): نسخهٔ اصلاح‌شدهٔ نامهٔ امضانشده «پیش‌نویس» است و نباید نسخهٔ
+     نهایی چاپ شود؛ letPrint خودش با watermark «پیش‌نویس» چاپ می‌کند. */
+  var _nl = getData('ptf_crm_letters').filter(function (x) { return x && x.cd === st.cd; })[0] || {};
+  var _isDraft = (_nl.st !== 'signed');
+  if (confirm(msg + '\n\n' + (_isDraft ? 'خروجی PDF «پیش‌نویس» (بدون مهر/امضا) باز شود؟' : 'خروجی PDF نسخهٔ جدید باز شود؟'))) letPrint(st.cd, _isDraft, !_isDraft);
 };
 
 /* ---- تاریخچهٔ نسخه‌ها ---- */

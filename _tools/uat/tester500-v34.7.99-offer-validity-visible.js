@@ -23,12 +23,12 @@ var pro = read('crm/offers-pro.js');
 var bridge = read('crm/bridge.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('نسخه رسمی v34.39.58 است', ver.crm_version === 'v34.39.58', ver.crm_version);
-T('index و service worker روی v34.39.58 هستند',
-  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.58'") > -1 &&
-  sw.indexOf("RELEASE = 'v34.39.58'") > -1);
+T('نسخه رسمی v34.39.66 است', ver.crm_version === 'v34.39.66', ver.crm_version);
+T('index و service worker روی v34.39.66 هستند',
+  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.66'") > -1 &&
+  sw.indexOf("RELEASE = 'v34.39.66'") > -1);
 T('cache-bust هر دو فایل فرم تازه شده است',
-  idx.indexOf('offers.js?v=34.39.58') > -1 && idx.indexOf('offers-pro.js?v=34.39.58') > -1);
+  idx.indexOf('offers.js?v=34.39.66') > -1 && idx.indexOf('offers-pro.js?v=34.39.66') > -1);
 
 T('فیلد تاریخ اعتبار در فرم مالی/فنی‌مالی رندر می‌شود',
   offers.indexOf("o.kind !== 'TO'") > -1 && offers.indexOf("ptfDatePicker('ofValidJ'") > -1);

@@ -78,6 +78,16 @@ function bot_post($url, $payload) {
     return ['code' => $code, 'body' => $res, 'err' => $err];
 }
 
+/* v34.39.59 (BOT-MSG-P2): تلگرام/بله خطای منطقی را با HTTP 200 و بدنهٔ
+   {"ok":false,...} برمی‌گردانند (مثلاً «chat not found» یا «bot was kicked»).
+   پیش از این فقط کد HTTP چک می‌شد، پس CRM به کاربر «ارسال شد» می‌گفت در حالی که
+   پیام هرگز به گروه نرسیده بود. حالا فقط ok===true در بدنهٔ JSON = ارسال موفق. */
+function bot_delivered(array $res): bool {
+    if ($res['code'] < 200 || $res['code'] >= 300) return false;
+    $reply = is_string($res['body'] ?? null) ? json_decode($res['body'], true) : null;
+    return is_array($reply) && ($reply['ok'] ?? false) === true;
+}
+
 switch ($action) {
     case 'status':
         $chans = [];
@@ -85,7 +95,46 @@ switch ($action) {
         if (!empty($cfg['bale_token']) && !empty($cfg['bale_chat_id'])) $chans[] = 'بله';
         if (!$chans) { echo json_encode(['ok' => false, 'error' => 'هیچ کانالی در bot-config.php کامل نیست'], JSON_UNESCAPED_UNICODE); break; }
         $rfqAuto = ptf_rfq_notify_enabled();
+        /* v34.39.60 (BOT-MSG-P1-6 — «بات وصل است ولی پیام نمی‌آید»): تا امروز وضعیت
+           فقط می‌گفت «فعال»، هرچند پیام‌هایی در صف `uncertain`/`failed` مانده باشند.
+           حالا شمارش صف هم برگردانده می‌شود تا «پیام نرسیده» قابل دیدن و پیگیری باشد
+           (بدون متن پیام، بدون توکن). */
+        $outbox = null;
+        try { $outbox = ptf_rfq_notify_counts(); } catch (Throwable $e) { $outbox = null; }
+        $healthParts = [];
+        if (is_array($outbox)) {
+            $stuck = (int)($outbox['uncertain'] ?? 0) + (int)($outbox['failed'] ?? 0);
+            if ((int)($outbox['uncertain'] ?? 0) > 0) $healthParts[] = (int)$outbox['uncertain'] . ' پیام تأییدنشده (uncertain) — گروه را بررسی کنید';
+            if ((int)($outbox['failed'] ?? 0) > 0) $healthParts[] = (int)$outbox['failed'] . ' پیام ناموفق (failed)';
+            if ((int)($outbox['pending'] ?? 0) > 0) $healthParts[] = (int)$outbox['pending'] . ' پیام در صف';
+            if ((int)($outbox['recoveryPending'] ?? 0) > 0) $healthParts[] = (int)$outbox['recoveryPending'] . ' فایل بازیابی در انتظار';
+            /* v34.39.61 (BOT-MSG-P1-4): تغییر واقعی روی ردیفی با شناسهٔ تکراری اعلام
+               نشد (حدس ممنوع) — این عدد جلوی «پیام نیامد ولی کسی خبر ندارد» را می‌گیرد. */
+            if ((int)($outbox['ambiguousRows'] ?? 0) > 0) $healthParts[] = (int)$outbox['ambiguousRows'] . ' تغییر به‌خاطر شناسهٔ تکراری اعلام نشد (حدس ممنوع) — ردیف‌های تکراری CRM را ادغام کنید';
+            /* v34.39.63 (BOT-MSG-P2-7): پیام‌های کهنه به گروه نمی‌روند — عمدی و دیدنی */
+            if ((int)($outbox['expired'] ?? 0) > 0) $healthParts[] = (int)$outbox['expired'] . ' پیام کهنه منقضی شد و به گروه نرفت (رویداد قدیمی)';
+            /* v34.39.63 (BOT-MSG-P2-8): «صف پاک نمی‌شود» = cron یا ترافیک کافی نیست */
+            if ((int)($outbox['pending'] ?? 0) > 0 && (int)($outbox['oldestPendingAge'] ?? 0) > 120) {
+                $mins = (int)floor(((int)$outbox['oldestPendingAge']) / 60);
+                $healthParts[] = 'قدیمی‌ترین پیام در صف ' . $mins . ' دقیقه است خارج نشده — cron (`php api/rfq-notify-cron.php`) یا ترافیک سایت را بررسی کنید';
+            }
+            if ($stuck > 0) $healthParts[] = 'برای پیگیری: php api/rfq-notify-cron.php --status';
+        }
+        /* v34.39.63 (BOT-MSG-P2-16): کانال واقعی و دلیل خاموشی/هشدار پیکربندی */
+        try {
+            $channel = ptf_rfq_notify_channel();
+            if (!$channel) {
+                $issue = ptf_rfq_notify_config_issue();
+                if ($issue !== '') $healthParts[] = 'اعلان خودکار درخواست‌ها کار نمی‌کند: ' . $issue;
+            } elseif (!empty($channel['warning'])) {
+                $healthParts[] = $channel['warning'];
+            }
+            $dups = ptf_rfq_notify_cfg_duplicates();
+            if ($dups) $healthParts[] = 'چند فایل bot-config.php وجود دارد؛ نسخهٔ مصرف‌شده: ' . basename(dirname(ptf_rfq_notify_cfg_path())) . '/' . basename(ptf_rfq_notify_cfg_path()) . ' — بقیه را حذف کنید (' . count($dups) . ' فایل اضافی)';
+        } catch (Throwable $eCfg) {}
+        $health = $healthParts ? implode("\n", $healthParts) : 'صف ارسال سالم است — پیامی در انتظار نمانده';
         echo json_encode(['ok' => true, 'rfq_notifications' => $rfqAuto,
+            'outbox' => $outbox, 'health' => $health,
             'info' => 'کانال‌های فعال: ' . implode('، ', $chans) . "\nاعلان خودکار درخواست‌ها در گروه تلگرام: " . ($rfqAuto ? 'فعال' : 'غیرفعال — تنظیمات گروه/ربات را بررسی کنید')], JSON_UNESCAPED_UNICODE);
         break;
 
@@ -133,12 +182,12 @@ switch ($action) {
         if ($pChat !== '') {
             if ($pApp !== 'bale' && !empty($cfg['telegram_token'])) {
                 $rp = bot_post('https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage', ['chat_id' => $pChat, 'text' => $text]);
-                if ($rp['code'] >= 200 && $rp['code'] < 300) $sent[] = 'telegram-personal';
+                if (bot_delivered($rp)) $sent[] = 'telegram-personal';
                 else $errs[] = 'tg-p:' . $rp['code'] . (!empty($rp['err']) ? ' (' . $rp['err'] . ')' : '');
             }
             if ($pApp === 'bale' && !empty($cfg['bale_token'])) {
                 $rp2 = bot_post('https://tapi.bale.ai/bot' . $cfg['bale_token'] . '/sendMessage', ['chat_id' => $pChat, 'text' => $text]);
-                if ($rp2['code'] >= 200 && $rp2['code'] < 300) $sent[] = 'bale-personal';
+                if (bot_delivered($rp2)) $sent[] = 'bale-personal';
                 else $errs[] = 'bale-p:' . $rp2['code'] . (!empty($rp2['err']) ? ' (' . $rp2['err'] . ')' : '');
             }
             echo json_encode(['ok' => count($sent) > 0, 'sent' => $sent, 'errors' => $errs], JSON_UNESCAPED_UNICODE);
@@ -148,14 +197,14 @@ switch ($action) {
         if (!empty($cfg['telegram_token']) && !empty($cfg['telegram_chat_id'])) {
             $r = bot_post('https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage',
                 ['chat_id' => $cfg['telegram_chat_id'], 'text' => $text]);
-            if ($r['code'] >= 200 && $r['code'] < 300) $sent[] = 'telegram';
+            if (bot_delivered($r)) $sent[] = 'telegram';
             else $errs[] = 'telegram:' . $r['code'] . (!empty($r['err']) ? ' (' . $r['err'] . ')' : '');
         }
         /* بله: Bot API (سازگار با تلگرام — tapi.bale.ai) */
         if (!empty($cfg['bale_token']) && !empty($cfg['bale_chat_id'])) {
             $r = bot_post('https://tapi.bale.ai/bot' . $cfg['bale_token'] . '/sendMessage',
                 ['chat_id' => $cfg['bale_chat_id'], 'text' => $text]);
-            if ($r['code'] >= 200 && $r['code'] < 300) $sent[] = 'bale';
+            if (bot_delivered($r)) $sent[] = 'bale';
             else $errs[] = 'bale:' . $r['code'] . (!empty($r['err']) ? ' (' . $r['err'] . ')' : '');
         }
         echo json_encode(['ok' => count($sent) > 0, 'sent' => $sent, 'errors' => $errs], JSON_UNESCAPED_UNICODE);
