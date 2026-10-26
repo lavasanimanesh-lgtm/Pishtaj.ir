@@ -19,6 +19,9 @@ on:
 
 permissions:
   contents: read
+  # انتشار خلاصهٔ خطا روی PR (گام «Publish gate failure summary») — گیت قرمز نباید
+  # بی‌توضیح بماند؛ لاگ اکشن‌ها از بیرون قابل خواندن نیست، کامنت PR هست.
+  pull-requests: write
 
 jobs:
   gate:
@@ -36,7 +39,38 @@ jobs:
         run: node _tools/arch/arch-guard.js
 
       - name: CI gate
-        run: node _tools/uat/run-ci-gate.js
+        run: |
+          set -o pipefail
+          node _tools/uat/run-ci-gate.js 2>&1 | tee "$RUNNER_TEMP/ci-gate.log"
+
+      # اگر گیت قرمز شد، فهرست تسترهای شکست‌خورده + دنبالهٔ لاگ روی همان PR کامنت
+      # می‌شود تا تشخیص بدون دسترسی به لاگ اکشن‌ها ممکن باشد. برای PR از فورک، توکن
+      # فقط‌خواندنی است؛ continue-on-error مانع قرمز شدنِ بی‌دلیل می‌شود.
+      - name: Publish gate failure summary
+        if: failure() && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          f="$RUNNER_TEMP/ci-gate.log"
+          [ -f "$f" ] || { echo "گیت لاگ تولید نکرد (شکست پیش از اجرای گیت)"; exit 0; }
+          {
+            echo '### ❌ Quality Gate — خلاصهٔ خطا'
+            echo ''
+            echo '```'
+            grep -nE '✘|→ FAIL|=== CI gate|^ *• ' "$f" | tail -80 || true
+            echo '```'
+            echo ''
+            echo '<details><summary>۳۰۰ خط آخر لاگ گیت</summary>'
+            echo ''
+            echo '```'
+            tail -300 "$f"
+            echo '```'
+            echo ''
+            echo '</details>'
+          } > "$RUNNER_TEMP/gate-summary.md"
+          gh pr comment "$PR" --body-file "$RUNNER_TEMP/gate-summary.md"
 
       - name: PHP syntax lint (api + crm)
         run: |
