@@ -64,7 +64,7 @@ async function request(state,opts={}){
  if(opts.config!==false)await php.writeFile('/w/bot-config.php',`<?php return ['telegram_token'=>'111:TEST_ONLY','telegram_chat_id'=>'${opts.chatId||'-۱۰۰۱۲۳'}','rfq_notifications'=>${opts.enabled===false?'false':'true'}];`);
  for(const [file,value] of Object.entries(state))await php.writeFile('/w/app/crm/data/'+file,value);
  await php.writeFile('/tmp2/body',JSON.stringify(opts.body||{}));await php.writeFile('/tmp2/calls','');await php.writeFile('/tmp2/mode',opts.mode||'ok');
- /* v34.39.64 (VERIFY): auth:'none' = بازدیدکنندهٔ سایت بدون هیچ توکن — مسیر عمومی واقعی
+ /* v34.39.65 (VERIFY): auth:'none' = بازدیدکنندهٔ سایت بدون هیچ توکن — مسیر عمومی واقعی
     (add_rfq_site/track). auth:false (توکن نامعتبر) همچنان برای تست ردِ احراز هویت است. */
  let auth='';
  if(opts.auth===false)auth="$_SERVER['HTTP_X_CRM_TOKEN']='invalid-test-token';";

@@ -24,7 +24,7 @@ var bridge = fs.readFileSync(path.join(ROOT, 'crm/bridge.js'), 'utf8');
 var offers = fs.readFileSync(path.join(ROOT, 'crm/offers.js'), 'utf8');
 
 /* ── ① سرور: کانال‌های تماس داخل people زنده می‌مانند ── */
-/* v34.39.64: دو پارامتر اختیاری سقف (itemLimit/maxKeys) برای فیلدهای سنگین نامه
+/* v34.39.65: دو پارامتر اختیاری سقف (itemLimit/maxKeys) برای فیلدهای سنگین نامه
    اضافه شد؛ عمق همچنان محدود است و بازگشت همان است — فقط با انتقال سقف‌ها. */
 T('SRV: sd_entity_sanitize_list پارامتر عمق دارد (int $depth = 2)', /function sd_entity_sanitize_list\(array \$v, array &\$stats = null, int \$depth = 2, int \$itemLimit = 2000, int \$maxKeys = 20\): array/.test(php));
 T('SRV: مقدار آرایه‌ای داخل mapِ داخل لیست بازگشتی سانیتایز می‌شود (نه حذف)', php.indexOf('sd_entity_sanitize_list($v3, $stats, $depth - 1, $itemLimit, $maxKeys)') > -1);

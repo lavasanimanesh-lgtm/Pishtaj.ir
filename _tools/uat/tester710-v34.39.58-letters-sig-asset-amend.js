@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester710 — v34.39.64 (LETTER-SIG-ASSET + LETTER-AMEND-REV)
+/* tester710 — v34.39.65 (LETTER-SIG-ASSET + LETTER-AMEND-REV)
    قرارداد اجرایی دو رفعِ تاییدشدهٔ کارفرما (RCA 2026-10-24):
 
    ① «مهر و امضا در پروفایل ذخیره است ولی روی نامه نمی‌افتد»
@@ -74,7 +74,7 @@ function makeCtx(store, opts) {
       createElement: function () { return { style: {}, setAttribute: function () {}, appendChild: function () {} }; },
       body: { appendChild: function () {} }
     },
-    /* v34.39.64: getData در لایهٔ دادهٔ واقعی همیشه JSON تازه برمی‌گرداند (storage.js).
+    /* v34.39.65: getData در لایهٔ دادهٔ واقعی همیشه JSON تازه برمی‌گرداند (storage.js).
        بدون این کلون، _collectLetter سند ذخیره‌شده را درجا تغییر می‌داد و مقایسهٔ
        «قبل/بعد» اصلاحیه در هارنس بی‌معنی می‌شد. */
     getData: function (k) {
@@ -95,7 +95,9 @@ function makeCtx(store, opts) {
     notify: function (n) { notifies.push(n); },
     alert: function (m) { alerts.push(String(m)); },
     confirm: function (m) { alerts.push('CONFIRM ' + m); return opts.confirm !== false; },
-    prompt: function (m, d) { alerts.push('PROMPT ' + m); return opts.promptValue === undefined ? 'دلیل آزمایشی' : opts.promptValue; },
+    /* v34.39.65 (R5): دلیل اصلاح دیگر از prompt() نمی‌آید؛ فیلد textarea درون فرم است.
+       این stub فقط برای سازگاری نگاه داشته شده و باید بی‌استفاده بماند. */
+    prompt: function (m) { alerts.push('PROMPT ' + m); return opts.promptValue === undefined ? 'دلیل آزمایشی' : opts.promptValue; },
     ptfToast: function (m, k) { toasts.push([m, k]); },
     ptfPreviewPrintableDoc: function () { previews.push([].slice.call(arguments)); },
     ptfLetterSignerMode: function () {}, ptfLtImgRender: function () {},
@@ -103,7 +105,10 @@ function makeCtx(store, opts) {
   };
   ctx.window = ctx; ctx.globalThis = ctx;
   ctx._previews = previews; ctx._alerts = alerts; ctx._audits = audits; ctx._notifies = notifies;
-  ctx._toasts = toasts; ctx._els = els; ctx._store = store; ctx._setSession = function (s) { session = s; };
+  ctx._toasts = toasts;
+  /* v34.39.65: دلیل اصلاح، فیلد درون فرم است (نه prompt) */
+  ctx._reason = opts.promptValue === undefined ? 'دلیل آزمایشی' : opts.promptValue;
+  ctx._els = els; ctx._store = store; ctx._setSession = function (s) { session = s; };
   vm.createContext(ctx);
   vm.runInContext(letters, ctx, { filename: 'letters-runtime.js' });
   ctx.letSafeBodyHtml = function (h) { return String(h == null ? '' : h); };
@@ -624,6 +629,8 @@ function formDom(c, over) {
   Object.keys(v).forEach(function (id) { e[id] = { value: v[id], checked: false, innerHTML: '', innerText: '' }; });
   e.ltBsm = { checked: true, value: '' }; e.ltB = { checked: false }; e.ltI = { checked: false };
   e.ltBodyEditor = { innerHTML: '<p>متن نامه</p>', innerText: 'متن نامه', dataset: {}, addEventListener: function () {}, classList: { add: function () {}, remove: function () {} }, style: {} };
+  /* v34.39.65: دلیل اصلاح، فیلد درون فرم است (maxlength=300) */
+  e.ltAmendReason = { value: (over && over.ltAmendReason !== undefined ? over.ltAmendReason : c._reason) || '', focus: function () {} };
   e.panels = { html: '', insertAdjacentHTML: function (pos, h) { this.html += h; } };
   return e;
 }
@@ -635,21 +642,26 @@ function formDom(c, over) {
   formDom(c);
   c.letAmendOpen('L1');
   var h = c._els.panels.html || '';
-  T('F1 | دکمهٔ «📝 اصلاح» فرم را با دلیل گرفته‌شده در حالت اصلاحیه باز می‌کند',
-    h.indexOf('ثبت اصلاحیه') > -1 && h.indexOf('Rev.1') > -1 && (c.window._letAmend || {}).cd === 'L1' &&
-    String((c.window._letAmend || {}).reason).indexOf('اشتباه') > -1, h.slice(0, 160));
+  T('F1 | دکمهٔ «📝 اصلاح» فرم را در حالت اصلاحیه با فیلد دلیل باز می‌کند',
+    h.indexOf('ثبت اصلاحیه') > -1 && h.indexOf('Rev.1') > -1 && h.indexOf('id="ltAmendReason"') > -1 &&
+    h.indexOf('maxlength="300"') > -1 && (c.window._letAmend || {}).cd === 'L1', h.slice(0, 160));
   T('F1b | فرم اصلاحیه شمارهٔ ثابت نامه را نشان می‌دهد و دکمهٔ «ثبت پیش‌نویس» را حذف می‌کند',
     h.indexOf('1405/پ/ص/0007') > -1 && h.indexOf('ثبت پیش‌نویس') === -1);
 })();
 
 (function () {
-  /* F2 — دلیل خالی: هیچ مودالی باز نمی‌شود */
+  /* F2 — دلیل خالی (v34.39.65: اعتبارسنجی درون‌فرم، نه prompt) */
   var store = storeWith({ boss: clone(PROFILE) }, [clone(BASE)]);
   var c = makeCtx(store, { promptValue: '   ' });
   formDom(c);
   c.letAmendOpen('L1');
-  T('F2 | دلیل خالی، اصلاحیه را ثبت نمی‌کند و پنجره باز نمی‌شود',
-    (c._els.panels.html || '') === '' && c._alerts.join('|').indexOf('دلیل اصلاح الزامی است') > -1);
+  c._els.ltBodyEditor.innerHTML = '<p>متن تازه</p>';
+  c._els.ltBodyEditor.innerText = 'متن تازه';
+  c.letAmendSave();
+  T('F2 | دلیل خالی در فرم، اصلاحیه را ثبت نمی‌کند (پیام روشن، بدون نسخهٔ تازه)',
+    c._alerts.join('|').indexOf('دلیل اصلاح الزامی است') > -1 &&
+    !(store.ptf_crm_letters[0].rev) && (store.ptf_crm_letters[0].st === 'signed'),
+    'alerts=' + c._alerts.join(' | ') + ' · rev=' + store.ptf_crm_letters[0].rev);
 })();
 
 (function () {
@@ -720,6 +732,6 @@ function formDom(c, over) {
 })();
 
 console.log('\n══════════════════════════════════════════════════════════════');
-console.log('tester710 v34.39.64 — ' + P + ' PASS / ' + F + ' FAIL');
+console.log('tester710 v34.39.65 — ' + P + ' PASS / ' + F + ' FAIL');
 console.log('══════════════════════════════════════════════════════════════');
 process.exit(F ? 1 : 0);

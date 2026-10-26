@@ -119,9 +119,14 @@ function renderModalDom(c, letter) {
   const me = (c.curSession() || {}).user || '';
   /* همان محاسبهٔ دقیق showLetterModal (letters.js) برای انتخاب مقدار select */
   const knownSigner = (c.getData('ptf_crm_users') || []).some(u => u && u.username === letter.signer);
+  /* v34.39.65 (D9): امضاکنندهٔ حذف‌شده اکنون گزینهٔ صریح «کاربر حذف‌شده» دارد و
+     خودکار به «سایر» نمی‌افتد — آینهٔ دقیق همین رفتار در DOM شبیه‌سازی‌شده. */
+  const ghostSigner = !!(letter.signer && letter.signer !== '__me__' && letter.signer !== '__other__' &&
+    !knownSigner && letter.signerMode !== 'other');
   const customSigner = !!(letter.signerMode === 'other' || letter.signer === '__other__' ||
     (letter.signer && letter.signer !== '__me__' && !knownSigner));
-  set('ltSigner', customSigner ? '__other__' : (letter.signer === me ? '__me__' : (letter.signer || '__me__')));
+  set('ltSigner', ghostSigner ? letter.signer
+    : (customSigner ? '__other__' : (letter.signer === me ? '__me__' : (letter.signer || '__me__'))));
   set('ltSignerOtherName', customSigner ? letter.signerNm || '' : '');
   set('ltSignerOtherRole', customSigner ? letter.signerRole || '' : '');
   const s = letter.style || {};
@@ -154,6 +159,8 @@ function runAmend(store, opts) {
   const letter = clone(store.ptf_crm_letters[0]);
   renderModalDom(c, letter);
   c.letAmendOpen('L1');
+  /* v34.39.65 (R5): دلیل اصلاح از prompt() به textarea درون فرم منتقل شد. */
+  c._els.ltAmendReason = { value: (opts && opts.reason) || 'دلیل آزمایشی', focus() {} };
   if (opts && typeof opts.edit === 'function') opts.edit(c);
   c.letAmendSave();
   return { c, after: store.ptf_crm_letters[0] };
@@ -279,12 +286,14 @@ head('۸) دلیل ۴۰۰ نویسه‌ای');
 (function () {
   const longReason = 'د'.repeat(400);
   const store = signedStore();
-  const { c, after } = runAmend(store, { promptValue: longReason, role: 'admin' });
-  const banner = c._els.panels.html || '';
+  const { c, after } = runAmend(store, { reason: longReason, role: 'admin' });
   const stored = ((after.amendments || [])[0] || {}).reason || '';
-  if (stored.length === longReason.length) OK('دلیل کامل ذخیره می‌شود', 'len=' + stored.length);
+  const said = c._alerts.join(' | ');
+  /* v34.39.65 (D6): رفتار درست = رد صریح با پیام روشن و ثبت‌نشدن؛ برش بی‌صدا ایراد است. */
+  const explicit = /حداکثر 300 نویسه/.test(said) && /اکنون 400/.test(said);
+  if (!stored.length && explicit) OK('دلیل بلندتر از سقف، صریح رد می‌شود (نه برش بی‌صدا)', 'پیام: ' + said);
   else BAD('D6', 'دلیل بلند بی‌هشدار بریده می‌شود؛ فرم دلیل کامل را نشان می‌دهد ولی سابقه/پیام ۳۰۰ نویسه دارد',
-    'در فرم=' + longReason.length + ' · ذخیره‌شده=' + stored.length + ' · بنر دلیل کامل را دارد؟ ' + (banner.indexOf(longReason) > -1));
+    'در فرم=' + longReason.length + ' · ذخیره‌شده=' + stored.length + ' · پیام‌ها: ' + said);
 })();
 
 /* ═══════════════ ۹) خروجی خودکار PDF پس از ثبت ═══════════════ */
@@ -309,6 +318,7 @@ head('۱۰) دو اصلاح پیاپی — شماره‌گذاری و چاپ ن�
   const c2 = makeCtx(store, { promptValue: 'اصلاح ۲', role: 'admin' });
   renderModalDom(c2, clone(store.ptf_crm_letters[0]));
   c2.letAmendOpen('L1');
+  c2._els.ltAmendReason = { value: 'اصلاح ۲', focus() {} };
   typeBody(c2, 'متن سوم');
   c2.letAmendSave();
   const after = store.ptf_crm_letters[0];
@@ -431,4 +441,7 @@ head('۱۳) فهرست نامه‌ها — دکمهٔ «📝 اصلاح»، نش
   console.log('نتیجه: ' + oks + ' مورد سالم · ' + findings.length + ' ایراد');
   findings.forEach(f => console.log('  • ' + f.id + ' — ' + f.name));
   console.log('══════════════════════════════════════════════════');
+  /* v34.39.65: این پروب اکنون بخشی از گیت CI است ⇒ قالب نتیجهٔ گیت + کد خروج */
+  console.log(oks + ' PASS / ' + findings.length + ' FAIL');
+  process.exit(findings.length ? 1 : 0);
 })().catch(e => { console.error('CRASH', e); process.exit(1); });
