@@ -42,12 +42,16 @@ T('بازبینی میدانی: متن هر پیام چاپ و از نظر کد 
 T('بازبینی میدانی: مسیر سایت با auth:none و کپچا می‌رود (نه با نشست ادمین)',
   field.includes("endpoint: 'crm.php', action: 'add_rfq_site', captcha: true, auth: 'none'"));
 
-/* ═══ ② اجرای واقعی (در صورت وجود php-wasm/php-cli) ═══ */
+/* ═══ ② اجرای واقعی (فقط با php-wasm) ═══
+   v34.39.66 (NOTIFY-TEST-DETERMINISM): بازبینی میدانی از php-wasm با سیستم فایل
+   مجازی استفاده می‌کند و php-cli ساده کافی نیست. قبلاً شرط اجرا «php-wasm یا php-cli»
+   بود؛ روی رانر CI که php نصب است ولی php-wasm نصب نیست، فرزند با exit=2 و پیام
+   «SKIP: php-wasm لازم است» برمی‌گشت و این تستر یک FAIL می‌ساخت (گیت CI ۳۱۸/۲).
+   حالا شرط دقیقاً همان چیزی است که فرزند لازم دارد. */
 let haveWasm = false;
 try { require.resolve('php-wasm/PhpNode'); haveWasm = true; } catch (e) {}
-const havePhp = (() => { const r = cp.spawnSync('php', ['-v'], { encoding: 'utf8' }); return !r.error && r.status === 0; })();
 
-if (haveWasm || havePhp) {
+if (haveWasm) {
   const env = Object.assign({}, process.env);
   if (haveWasm) {
     /* php-wasm ممکن است وابستگی محلی ریپو نباشد (مثلاً NODE_PATH=/tmp/phpwasm) —
@@ -67,7 +71,7 @@ if (haveWasm || havePhp) {
     T('اجرای بازبینی میدانی خلاصهٔ PASS/FAIL برگرداند', false, out.slice(-500) + ' | ' + String(r.stderr || '').slice(-300));
   }
 } else {
-  console.log('SKIP field run: php-cli و php-wasm هر دو نیستند — لایهٔ قرارداد بررسی شد.');
+  console.log('SKIP field run: php-wasm نصب نیست — بازبینی میدانیِ اجرایی (۸ سفر واقعی) در این محیط اجرا نشد؛ لایهٔ قرارداد بررسی شد. اجرای کامل: NODE_PATH=<php-wasm>/node_modules node _tools/uat/tester716-v34.39.64-field-message-verification.js');
 }
 
 console.log('\n=== tester716 FIELD-VERIFY: ' + pass + ' PASS / ' + fail + ' FAIL ===');

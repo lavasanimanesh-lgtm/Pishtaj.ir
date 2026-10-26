@@ -105,18 +105,32 @@ T('متن چندخطی به یک خط تبدیل می‌شود',substr_count($tx
 echo "PHP_RUNTIME_COUNTS $pass $fail\\n";
 `;
 
-/* قلاب ضبط متن ارسالی برای بررسی برچسب تأخیر */
+/* قلاب ضبط متن ارسالی برای بررسی برچسب تأخیر.
+   v34.39.66 (NOTIFY-TEST-DETERMINISM): نسخهٔ قبلی تابع‌های curl را فقط وقتی سایه
+   می‌انداخت که curl در PHP نصب نباشد. روی رانر CI، php-curl نصب است ⇒ سایه ساخته
+   نمی‌شد و ارسال به api.telegram.org واقعی می‌رفت؛ با توکن ساختگی پاسخ ۴۰۱ می‌آمد و
+   هر پنج سنجهٔ «ارسال شد» قرمز می‌شد (گیت CI ۳۱۸/۲). حالا به‌جای سایه‌انداختنِ یک
+   تابع درون‌ساخت، نسخهٔ آزمایشی lib با نام‌های ptf_test_curl_* بازنویسی می‌شود؛ این
+   نام‌ها هرگز با افزونهٔ curl برخورد نمی‌کنند و در php-cli و php-wasm یکسان‌اند.
+   نتیجه: هیچ تستی در هیچ محیطی درخواست شبکه‌ای واقعی نمی‌زند. */
+const TEST_LIB = lib
+  .split('curl_init').join('ptf_test_curl_init')
+  .split('curl_setopt_array').join('ptf_test_curl_setopt_array')
+  .split('curl_exec').join('ptf_test_curl_exec')
+  .split('curl_getinfo').join('ptf_test_curl_getinfo')
+  .split('curl_errno').join('ptf_test_curl_errno')
+  .split('curl_close').join('ptf_test_curl_close');
+
 const PRELUDE = `
-if(!function_exists('curl_init')){
- function curl_init($u=null){return 1;}
- function curl_setopt_array($h,$o){$GLOBALS['lastText']=json_decode($o[CURLOPT_POSTFIELDS]??'{}',true)['text']??'';$GLOBALS['calls']=($GLOBALS['calls']??0)+1;return true;}
- function curl_exec($h){return '{"ok":true,"result":{"message_id":1}}';}
- function curl_getinfo($h,$k=null){return 200;}
- function curl_errno($h){return 0;}
- function curl_error($h){return '';}
- function curl_close($h){return true;}
- foreach(['CURLOPT_RETURNTRANSFER'=>19913,'CURLOPT_POST'=>47,'CURLOPT_TIMEOUT'=>13,'CURLOPT_CONNECTTIMEOUT'=>78,'CURLOPT_HTTPHEADER'=>10023,'CURLOPT_POSTFIELDS'=>10015,'CURLOPT_SSL_VERIFYPEER'=>64,'CURLINFO_HTTP_CODE'=>2097154]as $k=>$v)if(!defined($k))define($k,$v);
+if(!function_exists('ptf_test_curl_init')){
+ function ptf_test_curl_init($u=null){return 1;}
+ function ptf_test_curl_setopt_array($h,$o){$GLOBALS['lastText']=json_decode($o[CURLOPT_POSTFIELDS]??'{}',true)['text']??'';$GLOBALS['calls']=($GLOBALS['calls']??0)+1;return true;}
+ function ptf_test_curl_exec($h){return '{"ok":true,"result":{"message_id":1}}';}
+ function ptf_test_curl_getinfo($h,$k=null){return 200;}
+ function ptf_test_curl_errno($h){return 0;}
+ function ptf_test_curl_close($h){return true;}
 }
+foreach(['CURLOPT_RETURNTRANSFER'=>19913,'CURLOPT_POST'=>47,'CURLOPT_TIMEOUT'=>13,'CURLOPT_CONNECTTIMEOUT'=>78,'CURLOPT_HTTPHEADER'=>10023,'CURLOPT_POSTFIELDS'=>10015,'CURLOPT_SSL_VERIFYPEER'=>64,'CURLINFO_HTTP_CODE'=>2097154]as $k=>$v)if(!defined($k))define($k,$v);
 $GLOBALS['calls']=0;$GLOBALS['lastText']='';
 `;
 
@@ -129,7 +143,7 @@ $GLOBALS['calls']=0;$GLOBALS['lastText']='';
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 't715-'));
     fs.mkdirSync(path.join(dir, 'app/api'), { recursive: true });
     fs.mkdirSync(path.join(dir, 'sync'), { recursive: true });
-    fs.writeFileSync(path.join(dir, 'app/api/rfq-notify-lib.php'), lib);
+    fs.writeFileSync(path.join(dir, 'app/api/rfq-notify-lib.php'), TEST_LIB);
     fs.writeFileSync(path.join(dir, 'bot-config.php'), CONFIG);
     fs.writeFileSync(path.join(dir, 'test.php'), body);
     try { stdout = cp.execFileSync('php', [path.join(dir, 'test.php')], { encoding: 'utf8', cwd: dir }); }
@@ -142,7 +156,7 @@ $GLOBALS['calls']=0;$GLOBALS['lastText']='';
       php.addEventListener('output', e => out.push(e.detail || e.data || ''));
       php.addEventListener('error', e => err.push(e.detail || e.data || ''));
       await php.run("<?php @mkdir('/test/app/api',0777,true);@mkdir('/test/sync',0777,true);");
-      await php.writeFile('/test/app/api/rfq-notify-lib.php', lib);
+      await php.writeFile('/test/app/api/rfq-notify-lib.php', TEST_LIB);
       await php.writeFile('/test/bot-config.php', CONFIG);
       await php.writeFile('/test/test.php', body);
       await php.run("<?php require '/test/test.php';");
