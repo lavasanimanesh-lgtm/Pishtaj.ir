@@ -37,6 +37,45 @@
 
   /* ---------- کمکی ---------- */
   function offersAll() { try { return getData(OFFERS_KEY) || []; } catch (e) { return []; } }
+
+  /* ═══ v34.39.66 (RIAL-COMPANION-REG — RCA 2026-10-26) ═══
+     ریشهٔ «نسخهٔ ریالی دیروز در کادر سبز بود، امروز نیست»: این فایل همراه را فقط
+     با setData محلی می‌ساخت و register_offer را صدا نمی‌زد؛ رکورد بدون
+     serverRegisteredAt/_id می‌ماند، push مجموعه‌ای به‌خاطر همان یک شمارهٔ ناشناخته
+     کلید پیشنهادها را رد می‌کرد و اولین پروجکشن موفق فرمان، آرایهٔ سرور را جای
+     آرایهٔ محلی می‌نوشت ⇒ حذف بی‌صدا. حالا ساخت، از مسیر رسمی ثبت می‌شود:
+       • ACK → پروجکشن پاسخ، رکورد را با مهر سرور جایگزین می‌کند.
+       • رد قطعی (۴xx) → رکورد محلی برداشته می‌شود (سند ظاهراً صادرشدهٔ بی‌مهر نمی‌ماند).
+       • خطای گذرا/آفلاین → رکورد با نشان «ثبت‌نشده» می‌ماند و push بعدی از مسیر
+         RIAL-COMPANION-ADOPT سرور رسمی‌اش می‌کند؛ داده گم نمی‌شود. */
+  function registerCompanionLocal(comp, label, opts) {
+    if (!comp || !comp.no) return;
+    opts = opts || {};
+    if (comp.serverRegisteredAt && !opts.force) return;      /* قبلاً رسمی شده */
+    if (typeof window.ptfOfferRegisterCompanion !== 'function') {
+      /* لایهٔ فرمان بارگذاری نشده — همان مسیر push (با پذیرش سرور) پابرجاست. */
+      return;
+    }
+    window.ptfOfferRegisterCompanion(comp, { source: 'rial-convert' }, function (r) {
+      if (r && r.ok) {
+        try { if (typeof renderOffers === 'function') renderOffers(); } catch (eR) {}
+        return;
+      }
+      var why = String((r && (r.error || r.why)) || 'unknown');
+      if (r && r.definitive && opts.dropOnReject !== false) {
+        try {
+          var kept = offersAll().filter(function (x) { return !(x && x.no === comp.no && !x.serverRegisteredAt); });
+          setData(OFFERS_KEY, kept);
+          if (typeof renderOffers === 'function') renderOffers();
+        } catch (eDrop) {}
+        try { audit('پیشنهادها', '⛔ ثبت ' + label + ' ' + comp.no + ' روی سرور رد شد (' + why + ') — رکورد محلی برداشته شد', comp.rialOf || ''); } catch (eA) {}
+        try { alert('⛔ ' + label + ' ' + comp.no + ' روی سرور ثبت نشد.\n\nعلت: ' + why + '\n\nرکورد محلی برداشته شد تا سندِ بدون مهر سرور باقی نماند. لطفاً دوباره تلاش کنید (💱).'); } catch (eAl) {}
+        return;
+      }
+      try { audit('پیشنهادها', '⚠️ ثبت ' + label + ' ' + comp.no + ' به تعویق افتاد (' + why + ') — در صف ارسال می‌ماند', comp.rialOf || ''); } catch (eA2) {}
+      try { ptfToast('⚠️ ' + label + ' ' + comp.no + ' فعلاً روی سرور ثبت نشد (' + why + ')؛ در صف ارسال می‌ماند و خودکار رسمی می‌شود.', 'warn'); } catch (eT) {}
+    });
+  }
   function offerByNo(no) { return offersAll().filter(function (o) { return o && o.no === no; })[0] || null; }
   function curName() { try { return curSession().name || ''; } catch (e) { return ''; } }
   function curUser() { try { return curSession().user || ''; } catch (e) { return ''; } }
@@ -228,6 +267,8 @@
     comp.fxConvert.termsCur = src.currency;
     comp.updatedAtISO = new Date().toISOString();
     setData(OFFERS_KEY, offers);
+    /* v34.39.66: خودترمیمی — همراهِ بی‌مهرِ به‌جامانده در اولین ویرایش رسمی می‌شود. */
+    registerCompanionLocal(comp, 'نسخهٔ ریالی', { dropOnReject: false });
     try { audit('پیشنهادها', 'بازسازی شرایط و ضوابط ریالی ' + comp.no + ' از ' + src.no + ' (نرخ ' + rate + ')', comp.no); } catch (e) {}
     toast('🔧 شرایط و ضوابط نسخه ریالی به‌صورت ریالی بازسازی شد (' + conv.terms.length + ' بند)', 'ok');
     try { if (typeof renderDeals === 'function') renderDeals(); } catch (e2) {}
@@ -370,6 +411,7 @@
     comp.currency = 'IRR';
     comp.updatedAtISO = new Date().toISOString();
     setData(OFFERS_KEY, offers);
+    registerCompanionLocal(comp, 'نسخهٔ ریالی', { dropOnReject: false });
     try { audit('پیشنهادها', 'اصلاح شرایط/نرخ نسخه ریالی ' + comp.no + ' از ' + src.no + ' (نرخ ' + rate + ')', comp.no); } catch (eA) {}
     toast('🔧 شرایط و ضوابط نسخه ریالی ' + comp.no + ' ذخیره و منضم شد', 'ok');
     var dlg = document.getElementById('sfRcTermsDlg');
@@ -458,9 +500,13 @@
            → ارجاع فاکتور، آمار برد، زنجیره گزینه‌ها و یادآور انقضا به پیشنهاد اصلی ارزی متصل می‌مانند */
       };
       try { if (typeof offEnsureOfferLineIds === 'function') offEnsureOfferLineIds(comp.items, comp.no); } catch (eL) {}
+      /* v34.39.66: مهر ساخت ماشین‌خوان (createdAtISO) — بدون آن گارد سنگ‌قبر/merge
+         تاریخی هیچ مبنایی برای «تازه‌تر بودن» این ردیف ندارد. */
+      try { if (typeof dedupStamp === 'function') dedupStamp(comp); } catch (eStamp) {}
       var offers = offersAll();
       offers.unshift(comp);
       setData(OFFERS_KEY, offers);
+      registerCompanionLocal(comp, 'نسخهٔ ریالی');
 
       /* اثر روی پرونده فروش (اگر دارد — فاز ۱ همیشه دارد، فاز ۲ ممکن است نداشته باشد) */
       try {

@@ -470,6 +470,8 @@
        آرایه برمی‌گرداند). قبلاً فقط رشته پذیرفته می‌شد و projection اصلاً اعمال
        نمی‌شد — نتیجه: رکورد جدید تا pull بعدی دیده نمی‌شد و watermark کلاینت
        عقب می‌ماند. */
+    /* v34.39.66 (RIAL-COMPANION-KEEP): حفاظت از ردیف‌های محلیِ بی‌مهر، داخل خودِ
+       نویسندهٔ projection (client-server.js) اعمال می‌شود؛ این مسیر هم پوشش دارد. */
     try {
       if (typeof window.ptfBApplyServerProjection === 'function' && value != null) {
         return window.ptfBApplyServerProjection(collection, value, rev);
@@ -482,6 +484,41 @@
     } catch (eLegacy) {}
     return false;
   }
+  /* ═══ v34.39.66 (RIAL-COMPANION-REG — RCA 2026-10-26) ═══
+     نسخهٔ همراه ریالی/ارزی باید مثل هر سند پیشنهاد دیگر از مسیر رسمی
+     register_offer ثبت شود؛ قبلاً فقط setData محلی بود و مهر سرور نداشت
+     (ریشهٔ «کادر سبز دیروز بود، امروز نیست»). این تابع قرارداد مشترک دو مبدل
+     (offer-rial-convert.js / offer-fx-convert.js) است:
+       • ACK  → پروجکشن پاسخ، رکورد را با مهر سرور جایگزین می‌کند (کار تمام است).
+       • رد قطعی (4xx) → فراخوان تصمیم می‌گیرد رکورد محلی را بردارد.
+       • خطای گذرا/offline → رکورد محلی می‌ماند و push بعدی از مسیر
+         RIAL-COMPANION-ADOPT سرور، رسمی‌اش می‌کند (داده گم نمی‌شود).
+     اگر لایهٔ فرمان در دسترس نباشد، بازگشت به همان مسیر push (fail-open). */
+  window.ptfOfferRegisterCompanion = function (row, meta, cb) {
+    cb = typeof cb === 'function' ? cb : function () {};
+    if (!row || !row.no) { cb({ ok: false, why: 'no_record', definitive: true }); return; }
+    if (typeof api !== 'function') { cb({ ok: false, why: 'api_unavailable', definitive: false }); return; }
+    var payloadOffer = clone(row);
+    delete payloadOffer._serverState; delete payloadOffer._serverOpId; delete payloadOffer._serverError;
+    var payload = {
+      offer: payloadOffer,
+      createIntent: false,
+      idempotencyKey: 'COMP|' + String(row.no) + '|' + Date.now()
+    };
+    var p;
+    try { p = api('register_offer', payload, { autoReplay: false }); }
+    catch (eRegSync) { cb({ ok: false, why: 'api_throw', error: String((eRegSync && eRegSync.message) || eRegSync || ''), definitive: false }); return; }
+    p.then(function (d) { cb({ ok: true, data: d }); }, function (eReg) {
+      var st = +(eReg && eReg.status) || 0;
+      cb({
+        ok: false, why: 'rejected',
+        error: String((eReg && (eReg.message || eReg.detail)) || eReg || ''),
+        status: st,
+        definitive: st >= 400 && st < 500 && st !== 408 && st !== 429
+      });
+    });
+  };
+
   /* v34.8.16 (T1-2): پیام خطای فرمان دقیق — «دوباره تلاش کنید» فقط برای خطای قابل‌تلاش؛
      ۴۰۳ = عدم مجوز، ۴۰۱ = نشست منقضی، نامشخص = بررسی رسید، آفلاین = صف. */
   window.ptfEntityCommandMessage = function (st, label) {

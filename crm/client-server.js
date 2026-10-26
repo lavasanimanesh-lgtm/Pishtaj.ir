@@ -129,6 +129,27 @@
         str = window.ptfSyncMergeServerProjection(k, currentProjection, str);
       }
 
+      /* ═══ v34.39.66 (RIAL-COMPANION-KEEP — RCA 2026-10-26) ═══
+         «نسخهٔ ریالی دیروز در کادر سبز بود، امروز نیست.» مسیر مرگ رکورد: همراه ریالی/
+         ارزی فقط با setData محلی ساخته می‌شد و register_offer را صدا نمی‌زد، پس مهر
+         serverRegisteredAt نداشت؛ بعدی‌ترین فرمان موفق پیشنهاد، پروجکشن کامل مجموعهٔ
+         سرور را برمی‌گرداند و همین‌جا **بی‌merge** روی نسخهٔ محلی می‌نوشت و پرچم
+         «ارسال‌نشده» هم پاک می‌شد ⇒ حذف بی‌صدا. اکنون نویسندهٔ مرکزی projection هیچ
+         ردیف محلیِ **بدون مهر سرور** را که در نسخهٔ سرور نیست حذف نمی‌کند؛ ردیف حفظ
+         می‌شود و کلید dirty می‌ماند تا سرور آن را از مسیر RIAL-COMPANION-ADOPT رسمی کند. */
+      if (k === 'ptf_crm_offers' && typeof window.ptfSyncOffersPreservePendingRows === 'function') {
+        try {
+          var currentOffersRaw = null;
+          try { if (typeof window.ptfBRead === 'function') currentOffersRaw = window.ptfBRead(k); } catch (eCur) {}
+          if (currentOffersRaw === null || currentOffersRaw === undefined) currentOffersRaw = localGet(k);
+          var keepPending = window.ptfSyncOffersPreservePendingRows(currentOffersRaw || '[]', str);
+          if (keepPending && keepPending.preserved > 0) {
+            str = keepPending.str;
+            if (typeof window.ptfSyncNotifyDirty === 'function') window.ptfSyncNotifyDirty(k);
+          }
+        } catch (eKeep) {}
+      }
+
       var stored = false;
       if (window.ptfBMirrorActive() && heavyList(k, str)) {
         idbKnown[k] = 1;

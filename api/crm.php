@@ -990,10 +990,13 @@ function sync_offers_payload_introduces_duplicates($incomingJson, $serverJson) {
 }
 /* v34.7.39: data_push عمومی حق ایجاد پیشنهاد تازه یا انتشار draft فرمان را ندارد.
    رکورد تازه باید ابتدا از register_offer شناسه/مهر سرور بگیرد. */
-function sync_offers_payload_has_unregistered_new($incomingJson, $serverJson) {
+function sync_offers_payload_has_unregistered_new($incomingJson, $serverJson, $extraNos = []) {
     $incoming=json_decode((string)$incomingJson,true);$server=json_decode((string)$serverJson,true);
     if(!is_array($incoming))return true;if(!is_array($server))$server=[];
     $serverNos=[];foreach($server as $offer)if(is_array($offer)&&trim((string)($offer['no']??''))!=='')$serverNos[trim((string)$offer['no'])]=true;
+    /* v34.39.66 (RIAL-COMPANION-ADOPT): شماره‌هایی که همین push به‌صورت «همراهِ ثبت‌شدهٔ
+       پدر» پذیرفته شد (sync_offers_adopt_companions) از نظر این گارد ثبت‌شده‌اند. */
+    if(is_array($extraNos))foreach($extraNos as $xn){$xn=trim((string)$xn);if($xn!=='')$serverNos[$xn]=true;}
     $seen=[];
     foreach($incoming as $offer){
         if(!is_array($offer))continue;$no=trim((string)($offer['no']??''));if($no==='')continue;
@@ -1003,6 +1006,70 @@ function sync_offers_payload_has_unregistered_new($incomingJson, $serverJson) {
         if(!isset($serverNos[$no]))return true;
     }
     return false;
+}
+
+/* ═══ v34.39.66 (RIAL-COMPANION-ADOPT — RCA 2026-10-26) ═══
+   نشانهٔ کارفرما: «دیروز روی پیشنهاد ارزی 💱 زدم و نسخهٔ ریالی در کادر سبز آمد،
+   امروز نیست.»  ریشه: نسخهٔ همراه (rialOf/fxOf) فقط با setData محلی ساخته
+   می‌شد و register_offer را صدا نمی‌زد؛ پس شماره‌اش روی سرور نبود و push
+   مجموعه‌ای به‌خاطر همین یک ردیف، **کل** کلید ptf_crm_offers را رد می‌کرد.
+   حالا ردیفِ همراهی که:
+     ①no یکتا دارد، ②روی سرور نیست، ③مهر «در پرواز فرمان» (_serverState/
+     _serverOpId) یا مهر سرور جعلی ندارد، ④rialOf/fxOf دارد و پدرش **روی سرور
+     ثبت است**، ⑤fxConvert (مبنای تبدیل) دارد
+   همین‌جا مهر سرور می‌گیرد و پذیرفته می‌شود. هیچ ردیف غیرهمراه یا بی‌پدری از این
+   مسیر عبور نمی‌کند؛ گارد قبلی برای آن‌ها دست‌نخورده می‌ماند. */
+function sync_offer_companion_parent($offer) {
+    if (!is_array($offer)) return '';
+    foreach (['rialOf', 'fxOf'] as $f) {
+        $v = trim((string)($offer[$f] ?? ''));
+        if ($v !== '') return $v;
+    }
+    return '';
+}
+function sync_offers_adopt_companions($incomingJson, $serverJson, $by = '') {
+    $incoming = json_decode((string)$incomingJson, true);
+    $server = json_decode((string)$serverJson, true);
+    if (!is_array($incoming)) return null;
+    if (!is_array($server)) $server = [];
+    $serverNos = [];
+    foreach ($server as $offer) {
+        if (!is_array($offer)) continue;
+        $n = trim((string)($offer['no'] ?? ''));
+        if ($n !== '') $serverNos[$n] = true;
+    }
+    $now = gmdate('Y-m-d\TH:i:s\Z');
+    $actor = trim((string)$by);
+    if ($actor === '') $actor = 'sync-adopt';
+    $adopted = [];
+    $changed = false;
+    foreach ($incoming as $i => $offer) {
+        if (!is_array($offer)) continue;
+        $no = trim((string)($offer['no'] ?? ''));
+        if ($no === '' || isset($serverNos[$no])) continue;
+        if (isset($offer['_serverState']) || isset($offer['_serverOpId']) || isset($offer['serverRegisteredAt'])) continue;
+        $parent = sync_offer_companion_parent($offer);
+        if ($parent === '' || $parent === $no) continue;
+        if (!isset($serverNos[$parent])) continue;              /* پدر ثبت‌شده لازم است */
+        if (!is_array($offer['fxConvert'] ?? null)) continue;   /* فقط سندِ همراهِ تبدیل */
+        $hash = hash('sha256', $no . '|' . $parent . '|' . json_encode($offer, JSON_UNESCAPED_UNICODE));
+        if (empty($offer['_id'])) {
+            try { $rnd = bin2hex(random_bytes(16)); }
+            catch (Throwable $eRnd) { $rnd = hash('sha256', uniqid('', true) . mt_rand()); }
+            $offer['_id'] = 'OFR-' . substr($rnd, 0, 8) . '-' . substr($rnd, 8, 4) . '-' . substr($rnd, 12, 4) . '-' . substr($rnd, 16, 12);
+        }
+        $offer['serverRegisteredAt'] = $now;
+        $offer['serverRegisteredBy'] = $actor;
+        $offer['serverOperationId'] = 'ADOPT-' . substr($hash, 0, 20);
+        $offer['serverRequestHash'] = $hash;
+        if (trim((string)($offer['updatedAtISO'] ?? '')) === '') $offer['updatedAtISO'] = $now;
+        $incoming[$i] = $offer;
+        $serverNos[$no] = true;
+        $adopted[] = $no;
+        $changed = true;
+    }
+    if (!$changed) return null;
+    return ['json' => json_encode($incoming, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'adopted' => $adopted];
 }
 
 /* v34.8.5 — whole-array sync remains available for manual finance rows, but omission
@@ -3012,6 +3079,7 @@ switch($action) {
         $conflicts = []; $conflictData = []; $protectedConflicts = []; $krevs = []; /* v15.0 US-384 + v34.8.5 finance protection */
         $massBlocked = []; /* v34.38.12 MASS-DELETE-SHIELD: کلید ⇒ گزارش حذف انبوهِ مسدودشده */
         $staleKept = []; /* v34.39.62 STALE-PUSH: کلید ⇒ شناسه‌هایی که push بدون base می‌خواست بی‌سنگ‌قبر حذف کند */
+        $offersAdopted = []; /* v34.39.66 RIAL-COMPANION-ADOPT: کلید ⇒ شمارهٔ همراه‌هایی که مهر سرور گرفتند */
         $allow_wipe = !empty($j['allow_wipe']); /* فقط مسیر Go-Live (US-377) این فلگ را می‌فرستد */
         $restore = !empty($j['restore']); /* بازگردانی کامل سرور */
         if ($restore && !in_array($client_role, ['admin','chairman'], true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'restore_permission_denied']); break; }
@@ -3130,7 +3198,19 @@ switch($action) {
                 /* v33.22.0: مسیر یکپارچه (mysql → DB) */
                 $serverOffersJson = sync_key_read($sdir, 'ptf_crm_offers');
                 if ($serverOffersJson === null) $serverOffersJson = '[]';
-                if (sync_offers_payload_introduces_duplicates($v, $serverOffersJson) || sync_offers_payload_has_unregistered_new($v, $serverOffersJson)) {
+                /* v34.39.66 (RIAL-COMPANION-ADOPT): پیش از گارد یکپارچگی، همراه‌های
+                   بی‌مهرِ پدرثبت‌شده را همین‌جا رسمی می‌کنیم؛ وگرنه یک ردیف همراه،
+                   کل پیشنهادهای دستگاه را برای همیشه از سینک خارج می‌کرد و
+                   پروجکشن بعدی فرمان، آن را بی‌صدا حذف می‌کرد. */
+                $adoptedNos = [];
+                $adoptRows = sync_offers_adopt_companions($v, $serverOffersJson, (string)($j['by'] ?? ''));
+                if (is_array($adoptRows) && !empty($adoptRows['adopted'])) {
+                    $v = $adoptRows['json'];
+                    $adoptedNos = $adoptRows['adopted'];
+                    $offersAdopted[$k] = $adoptedNos;
+                    try { @error_log('[PTF] offers_adopt key=' . $k . ' nos=' . implode(',', $adoptedNos) . ' by=' . (string)($j['by'] ?? '')); } catch (Throwable $eAdoptLog) {}
+                }
+                if (sync_offers_payload_introduces_duplicates($v, $serverOffersJson) || sync_offers_payload_has_unregistered_new($v, $serverOffersJson, $adoptedNos)) {
                     $rejected[] = $k;
                     $conflicts[] = $k;
                     $conflictData[$k] = $serverOffersJson;
@@ -3373,7 +3453,8 @@ if (is_string($wfMergedJson)) $v = $wfMergedJson;
             'skipped' => array_values(array_unique($skipped_keys)), 'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
             'conflicts' => $conflicts, 'protectedConflicts' => array_values(array_unique($protectedConflicts)), 'serverData' => $conflictData, 'krevs' => $krevs,
             'massDeletionBlocked' => $massBlocked,
-            'staleKept' => $staleKept], JSON_UNESCAPED_UNICODE); /* v34.39.62: ردیف‌های حفظ‌شده در برابر push کهنه */ /* v14.7 US-382 + v15.0 US-384 + per-key ACK + v34.38.12 سپر حذف انبوه */
+            'staleKept' => $staleKept,
+            'offersAdopted' => $offersAdopted], JSON_UNESCAPED_UNICODE); /* v34.39.66: همراه‌های ریالی/ارزی که همین push مهر سرور گرفتند */ /* v34.39.62: ردیف‌های حفظ‌شده در برابر push کهنه */ /* v14.7 US-382 + v15.0 US-384 + per-key ACK + v34.38.12 سپر حذف انبوه */
         break;
 
     case 'data_pull':

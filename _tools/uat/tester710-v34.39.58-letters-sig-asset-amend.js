@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester710 — v34.39.65 (LETTER-SIG-ASSET + LETTER-AMEND-REV)
+/* tester710 — v34.39.66 (LETTER-SIG-ASSET + LETTER-AMEND-REV)
    قرارداد اجرایی دو رفعِ تاییدشدهٔ کارفرما (RCA 2026-10-24):
 
    ① «مهر و امضا در پروفایل ذخیره است ولی روی نامه نمی‌افتد»
@@ -74,7 +74,7 @@ function makeCtx(store, opts) {
       createElement: function () { return { style: {}, setAttribute: function () {}, appendChild: function () {} }; },
       body: { appendChild: function () {} }
     },
-    /* v34.39.65: getData در لایهٔ دادهٔ واقعی همیشه JSON تازه برمی‌گرداند (storage.js).
+    /* v34.39.66: getData در لایهٔ دادهٔ واقعی همیشه JSON تازه برمی‌گرداند (storage.js).
        بدون این کلون، _collectLetter سند ذخیره‌شده را درجا تغییر می‌داد و مقایسهٔ
        «قبل/بعد» اصلاحیه در هارنس بی‌معنی می‌شد. */
     getData: function (k) {
@@ -95,7 +95,7 @@ function makeCtx(store, opts) {
     notify: function (n) { notifies.push(n); },
     alert: function (m) { alerts.push(String(m)); },
     confirm: function (m) { alerts.push('CONFIRM ' + m); return opts.confirm !== false; },
-    /* v34.39.65 (R5): دلیل اصلاح دیگر از prompt() نمی‌آید؛ فیلد textarea درون فرم است.
+    /* v34.39.66 (R5): دلیل اصلاح دیگر از prompt() نمی‌آید؛ فیلد textarea درون فرم است.
        این stub فقط برای سازگاری نگاه داشته شده و باید بی‌استفاده بماند. */
     prompt: function (m) { alerts.push('PROMPT ' + m); return opts.promptValue === undefined ? 'دلیل آزمایشی' : opts.promptValue; },
     ptfToast: function (m, k) { toasts.push([m, k]); },
@@ -106,7 +106,7 @@ function makeCtx(store, opts) {
   ctx.window = ctx; ctx.globalThis = ctx;
   ctx._previews = previews; ctx._alerts = alerts; ctx._audits = audits; ctx._notifies = notifies;
   ctx._toasts = toasts;
-  /* v34.39.65: دلیل اصلاح، فیلد درون فرم است (نه prompt) */
+  /* v34.39.66: دلیل اصلاح، فیلد درون فرم است (نه prompt) */
   ctx._reason = opts.promptValue === undefined ? 'دلیل آزمایشی' : opts.promptValue;
   ctx._els = els; ctx._store = store; ctx._setSession = function (s) { session = s; };
   vm.createContext(ctx);
@@ -629,7 +629,7 @@ function formDom(c, over) {
   Object.keys(v).forEach(function (id) { e[id] = { value: v[id], checked: false, innerHTML: '', innerText: '' }; });
   e.ltBsm = { checked: true, value: '' }; e.ltB = { checked: false }; e.ltI = { checked: false };
   e.ltBodyEditor = { innerHTML: '<p>متن نامه</p>', innerText: 'متن نامه', dataset: {}, addEventListener: function () {}, classList: { add: function () {}, remove: function () {} }, style: {} };
-  /* v34.39.65: دلیل اصلاح، فیلد درون فرم است (maxlength=300) */
+  /* v34.39.66: دلیل اصلاح، فیلد درون فرم است (maxlength=300) */
   e.ltAmendReason = { value: (over && over.ltAmendReason !== undefined ? over.ltAmendReason : c._reason) || '', focus: function () {} };
   e.panels = { html: '', insertAdjacentHTML: function (pos, h) { this.html += h; } };
   return e;
@@ -650,7 +650,7 @@ function formDom(c, over) {
 })();
 
 (function () {
-  /* F2 — دلیل خالی (v34.39.65: اعتبارسنجی درون‌فرم، نه prompt) */
+  /* F2 — دلیل خالی (v34.39.66: اعتبارسنجی درون‌فرم، نه prompt) */
   var store = storeWith({ boss: clone(PROFILE) }, [clone(BASE)]);
   var c = makeCtx(store, { promptValue: '   ' });
   formDom(c);
@@ -732,6 +732,6 @@ function formDom(c, over) {
 })();
 
 console.log('\n══════════════════════════════════════════════════════════════');
-console.log('tester710 v34.39.65 — ' + P + ' PASS / ' + F + ' FAIL');
+console.log('tester710 v34.39.66 — ' + P + ' PASS / ' + F + ' FAIL');
 console.log('══════════════════════════════════════════════════════════════');
 process.exit(F ? 1 : 0);

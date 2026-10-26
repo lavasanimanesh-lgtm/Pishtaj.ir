@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester717 — v34.39.65 (LETTER-AMEND-FIX)
+/* tester717 — v34.39.66 (LETTER-AMEND-FIX)
    پین‌تست رفعِ ۶ ایرادِ اثبات‌شدهٔ دکمهٔ «📝 اصلاح» (گزارش:
    ARENA-LETTER-AMEND-BUTTON-REVIEW-2026-10-26.md، D1/D2/D4/D5/D6/D7/D9).
 
@@ -373,6 +373,6 @@ head('H8 (D7) — خروجی PDF خودکار پس از ثبت اصلاحیه');
 })();
 
 console.log('\n══════════════════════════════════════════════════════════════');
-console.log('tester717 v34.39.65 — ' + P + ' PASS / ' + F + ' FAIL');
+console.log('tester717 v34.39.66 — ' + P + ' PASS / ' + F + ' FAIL');
 console.log('══════════════════════════════════════════════════════════════');
 process.exit(F ? 1 : 0);

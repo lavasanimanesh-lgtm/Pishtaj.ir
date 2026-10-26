@@ -805,6 +805,10 @@ function renderOffers() {
           rialInline = '<div style="margin-top:6px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#047857;display:flex;flex-wrap:wrap;align-items:center;gap:6px" title="نسخه ریالی همین پیشنهاد — ساخته‌شده با نرخ ' + (_rt ? _rt.toLocaleString('fa-IR') : '') + ' ریال/' + escP(o.currency) + '">' +
             '<span>💱 نسخه ریالی (همان شماره)</span>' +
             (_rt ? '<span style="font-size:10px;opacity:.85">نرخ ' + _rt.toLocaleString('fa-IR') + ' ریال/' + escP(o.currency) + '</span>' : '') +
+            /* v34.39.66 (RIAL-COMPANION-REG): رکوردی که مهر سرور ندارد یعنی ثبت رسمی
+               نشده است؛ تا کاربر نداند، همان سناریوی «دیروز بود امروز نیست» تکرار می‌شود.
+               این نشان با ماندگاریِ سروری هم‌گام است، نه با وضعیت محلی. */
+            (!String(_comp.serverRegisteredAt || '').trim() ? '<span style="font-size:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:6px;padding:1px 5px" title="این نسخهٔ ریالی هنوز مهر ثبت سرور ندارد؛ در صف ارسال است و خودکار رسمی می‌شود">⏳ ثبت‌نشده در سرور</span>' : '') +
             '<span style="margin-left:auto;display:inline-flex;gap:4px">' +
               '<button class="bt bt-o" style="width:24px;height:24px;padding:0;font-size:11px;color:#0e7490" onclick="offerQuickPreview(\'' + ptfOnClickArg(_comp.no) + '\')" title="نمایش نسخه ریالی">👁</button>' +
               '<button class="bt bt-o" style="width:24px;height:24px;padding:0;font-size:11px;color:#0e7490" onclick="offerPrint(\'' + ptfOnClickArg(_comp.no) + '\')" title="چاپ/PDF نسخه ریالی">🖨</button>' +

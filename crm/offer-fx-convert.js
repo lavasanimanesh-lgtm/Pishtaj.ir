@@ -27,6 +27,37 @@
 
   /* ---------- کمکی ---------- */
   function offersAll() { try { return getData(OFFERS_KEY) || []; } catch (e) { return []; } }
+
+  /* ═══ v34.39.66 (FX-COMPANION-REG — همان RCA 2026-10-26، سمت ارزی) ═══
+     نسخهٔ همراه ارزی (fxOf) هم مثل همراه ریالی با setData محلی ساخته می‌شد و مهر
+     سرور نداشت؛ همان زنجیره (رد کل کلید پیشنهادها → پروجکشن بعدی فرمان) آن را هم
+     بی‌صدا حذف می‌کرد. حالا: ساخت/ویرایش همراهِ بی‌مهر از مسیر register_offer ثبت
+     می‌شود؛ ACK ⇒ مهر سرور، رد قطعی ⇒ برداشتن رکورد محلی، خطای گذرا ⇒ ماندن در صف. */
+  function registerCompanionLocalFx(comp, label, opts) {
+    if (!comp || !comp.no) return;
+    opts = opts || {};
+    if (comp.serverRegisteredAt && !opts.force) return;      /* قبلاً رسمی شده */
+    if (typeof window.ptfOfferRegisterCompanion !== 'function') return;
+    window.ptfOfferRegisterCompanion(comp, { source: 'fx-convert' }, function (r) {
+      if (r && r.ok) {
+        try { if (typeof renderOffers === 'function') renderOffers(); } catch (eR) {}
+        return;
+      }
+      var why = String((r && (r.error || r.why)) || 'unknown');
+      if (r && r.definitive && opts.dropOnReject !== false) {
+        try {
+          var kept = offersAll().filter(function (x) { return !(x && x.no === comp.no && !x.serverRegisteredAt); });
+          setData(OFFERS_KEY, kept);
+          if (typeof renderOffers === 'function') renderOffers();
+        } catch (eDrop) {}
+        try { audit('پیشنهادها', '⛔ ثبت ' + label + ' ' + comp.no + ' روی سرور رد شد (' + why + ') — رکورد محلی برداشته شد', comp.fxOf || ''); } catch (eA) {}
+        try { alert('⛔ ' + label + ' ' + comp.no + ' روی سرور ثبت نشد.\n\nعلت: ' + why + '\n\nرکورد محلی برداشته شد تا سندِ بدون مهر سرور باقی نماند. لطفاً دوباره تلاش کنید (💱).'); } catch (eAl) {}
+        return;
+      }
+      try { audit('پیشنهادها', '⚠️ ثبت ' + label + ' ' + comp.no + ' به تعویق افتاد (' + why + ') — در صف ارسال می‌ماند', comp.fxOf || ''); } catch (eA2) {}
+      try { ptfToast('⚠️ ' + label + ' ' + comp.no + ' فعلاً روی سرور ثبت نشد (' + why + ')؛ در صف ارسال می‌ماند و خودکار رسمی می‌شود.', 'warn'); } catch (eT) {}
+    });
+  }
   function offerByNo(no) { return offersAll().filter(function (o) { return o && o.no === no; })[0] || null; }
   function curName() { try { return curSession().name || ''; } catch (e) { return ''; } }
   function curUser() { try { return curSession().user || ''; } catch (e) { return ''; } }
@@ -249,6 +280,9 @@
     comp.fxConvert.termsCur = targetCur;
     comp.updatedAtISO = new Date().toISOString();
     setData(OFFERS_KEY, offers);
+    /* v34.39.66: خودترمیمی — همراهِ بی‌مهرِ به‌جامانده از نسخه‌های قبلی، در اولین
+       ویرایش رسمی می‌شود (نه اینکه فقط محلی بماند و بعداً حذف شود). */
+    registerCompanionLocalFx(comp, 'نسخهٔ ارزی', { dropOnReject: false });
     try { audit('پیشنهادها', 'بازسازی شرایط ارزی ' + comp.no + ' از ' + src.no + ' (نرخ ' + rate + ' — ' + targetCur + ')', comp.no); } catch (e) {}
     toast('🔧 شرایط نسخه ارزی به‌روز شد (' + conv.terms.length + ' بند)', 'ok');
     try { if (typeof renderDeals === 'function') renderDeals(); } catch (e2) {}
@@ -418,6 +452,7 @@
     }
     comp.updatedAtISO = new Date().toISOString();
     setData(OFFERS_KEY, offers);
+    registerCompanionLocalFx(comp, 'نسخهٔ ارزی', { dropOnReject: false });
     try { audit('پیشنهادها', 'اصلاح شرایط/نرخ نسخه ارزی ' + comp.no + ' از ' + src.no + ' (نرخ ' + rate + ' — ' + targetCur + ')', comp.no); } catch (eA) {}
     toast('🔧 شرایط نسخه ارزی ' + comp.no + ' ذخیره شد', 'ok');
     var dlg = document.getElementById('sfFxTermsDlg');
@@ -511,9 +546,12 @@
         updatedAtISO: new Date().toISOString()
       };
       try { if (typeof offEnsureOfferLineIds === 'function') offEnsureOfferLineIds(comp.items, comp.no); } catch (eL) {}
+      /* v34.39.66: مهر ساخت ماشین‌خوان، مثل همراه ریالی. */
+      try { if (typeof dedupStamp === 'function') dedupStamp(comp); } catch (eStamp) {}
       var offers = offersAll();
       offers.unshift(comp);
       setData(OFFERS_KEY, offers);
+      registerCompanionLocalFx(comp, 'نسخهٔ ارزی');
 
       try {
         var deals = getData(DEALS_KEY) || [];
