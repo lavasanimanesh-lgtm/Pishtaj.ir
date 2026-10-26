@@ -44,6 +44,16 @@ function T(name, cond, extra) {
 }
 function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function extractFnLike(src, marker) {
+  var start = src.indexOf(marker);
+  if (start < 0) return '';
+  var i = src.indexOf('{', start), d = 0;
+  for (var j = i; j < src.length; j++) {
+    if (src[j] === '{') d++;
+    else if (src[j] === '}') { d--; if (!d) return src.slice(start, j + 1); }
+  }
+  return '';
+}
 function extractFn(src, name) {
   var start = src.indexOf('function ' + name + '(');
   if (start < 0) return '';
@@ -302,6 +312,49 @@ if (helperSrc) {
   T('K3) فهرست شماره‌های بی‌مهر درست است', JSON.stringify(kbox.ptfOfferRowsWithoutServerStamp(localPending)) === '["CO-2"]', JSON.stringify(kbox.ptfOfferRowsWithoutServerStamp(localPending)));
 }
 var CS = read('crm/client-server.js');
+/* K5 — اجرای واقعی نویسندهٔ مرکزی پروجکشن (بدون استثنا، با کد خودِ client-server.js) */
+(function () {
+  var fnProj = extractFnLike(read('crm/client-server.js'), 'window.ptfBApplyServerProjection = function');
+  T('K5) تابع واقعی نویسندهٔ پروجکشن قابل استخراج است', !!fnProj && fnProj.length > 500);
+  if (!fnProj) return;
+  function build(withKeep) {
+    var store = {};
+    var dirty = null;
+    var local = [{ no: 'CO-1', serverRegisteredAt: '2026-10-20T10:00:00Z' }, { no: 'CO-2', rialOf: 'CO-1', fxConvert: { rate: 1 } }];
+    store.ptf_crm_offers = JSON.stringify(local);
+    var ctx = {
+      console: console, JSON: JSON, Object: Object, Array: Array, String: String, Number: Number,
+      Date: Date, isNaN: isNaN, cache: {}, bPullRevs: function () { return {}; }, heavyList: function () { return false; },
+      idbKnown: {}, idbMem: {}, ptfStorageIdbSet: function () {}, ptfBMirrorActive: function () { return false; },
+      localStorage: { setItem: function (k, v) { store[k] = v; }, getItem: function (k) { return store[k] === undefined ? null : store[k]; }, removeItem: function (k) { delete store[k]; } },
+      localSet: function (k, v) { store[k] = v; return true; }, localDel: function (k) { delete store[k]; },
+      localGet: function (k) { return store[k] === undefined ? null : store[k]; },
+      ptfSyncNotifyDirty: function (k) { dirty = k; }
+    };
+    ctx.window = ctx; ctx.globalThis = ctx;
+    vm.createContext(ctx);
+    if (withKeep) {
+      vm.runInContext(extractFn(read('crm/sync.js'), 'ptfOfferRowsWithoutServerStamp') + '\n' +
+        extractFn(read('crm/sync.js'), 'ptfOffersPreservePendingRows'), ctx, { filename: 'keep-helper.js' });
+      ctx.ptfSyncOffersPreservePendingRows = function (a, b) { return ctx.ptfOffersPreservePendingRows(a, b); };
+    }
+    vm.runInContext(fnProj, ctx, { filename: 'client-server.js#projection' });
+    return { ctx: ctx, store: store, dirty: function () { return dirty; } };
+  }
+  /* ① با نگهبان (v34.39.66): ردیف بی‌مهر می‌ماند و کلید dirty می‌شود */
+  var withKeep = build(true);
+  var srv = JSON.stringify([{ no: 'CO-1', serverRegisteredAt: '2026-10-20T10:00:00Z' }]);
+  withKeep.ctx.ptfBApplyServerProjection('ptf_crm_offers', srv, 501);
+  var afterKeep = JSON.parse(withKeep.store.ptf_crm_offers);
+  T('K5) پروجکشن کامل سرور، ردیف بی‌مهر را حذف نمی‌کند (اجرای کد واقعی)', afterKeep.length === 2 && afterKeep.some(function (o) { return o.no === 'CO-2'; }), JSON.stringify(afterKeep.map(function (o) { return o.no; })));
+  T('K5) ردیف حفظ‌شده کلید را برای ثبت مجدد dirty می‌کند', withKeep.dirty() === 'ptf_crm_offers');
+  /* ② حذف واقعی همچنان معتبر است */
+  var noKeep = build(false);
+  noKeep.store.ptf_crm_offers = JSON.stringify([{ no: 'CO-9', serverRegisteredAt: '2026-10-01T00:00:00Z' }]);
+  noKeep.ctx.ptfBApplyServerProjection('ptf_crm_offers', JSON.stringify([]), 502);
+  T('K5) حذف واقعیِ ردیف مهر‌دار همچنان اعمال می‌شود', JSON.parse(noKeep.store.ptf_crm_offers).length === 0, noKeep.store.ptf_crm_offers);
+})();
+
 T('K1) نویسندهٔ مرکزی projection (ptfBApplyServerProjection) برای پیشنهادها حفظ را اعمال می‌کند',
   /function \(k, value, rev\) \{[\s\S]{0,2600}if \(k === 'ptf_crm_offers' && typeof window\.ptfSyncOffersPreservePendingRows === 'function'\)/.test(CS));
 T('K1) حفظ‌شدن ردیف، کلید را dirty می‌کند (تا ثبت/پذیرش سرور)',

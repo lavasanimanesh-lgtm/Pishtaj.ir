@@ -250,4 +250,4 @@ ptfSyncOfferIntegrityScan();   // یا دکمهٔ «🔍 بررسی پیشنها
 | **P4-ب** کلید ردیف `no` در `ptfEntitySaveCollection` | ⏸ عمداً انجام نشد — رجیستری سرور برای پیشنهادها `id => 'cd'` است؛ این تغییر نیازمند تغییر هم‌زمان رجیستری + تست مهاجرت است (توضیح در یادداشت انتشار §۴) |
 | ترمیم رکورد ازدست‌رفته | همچنان بازسازی با همان نرخ از شاهد `audit`/تایم‌لاین (رکورد هرگز روی سرور نبود) |
 
-پین‌تست‌ها: `_tools/uat/tester718-v34.39.66-rial-companion-registration.js` (۵۵ چک) و `_tools/uat/probe-rial-companion-adopt-2026-10-27.js` (۱۸ چک، اجرای واقعی PHP) — هر دو در گیت ثبت شده‌اند.
+پین‌تست‌ها: `_tools/uat/tester718-v34.39.66-rial-companion-registration.js` (۵۹ چک) و `_tools/uat/probe-rial-companion-adopt-2026-10-27.js` (۱۸ چک، اجرای واقعی PHP) — هر دو در گیت ثبت شده‌اند.
