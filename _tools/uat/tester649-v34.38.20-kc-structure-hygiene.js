@@ -87,7 +87,6 @@ var REWRITTEN = [
   /* ۲۸ صفحهٔ دارایِ خواهرِ غنی — حالا با محتوای مستقل */
   'asme-b31-3-process-piping-guide.html', 'cement-industry-supply-guide.html', 'contactor-bimetal-guide.html',
   'dpt.html', 'gas-analyzer-industry-guide.html', 'hydrostatic-level-transmitter.html',
-  'incoterms-industrial-trade-guide.html', 'industrial-cable-selection-guide.html',
   'international-supply-contract-guide.html', 'petrochemical-industry-supply-guide.html',
   'plc-types-industrial-guide.html', 'plug-valve-guide.html', 'pmi-testing-guide.html',
   'power-distribution-transformer-guide.html', 'power-plant-industry-supply-guide.html',

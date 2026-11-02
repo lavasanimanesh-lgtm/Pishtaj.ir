@@ -69,7 +69,7 @@ RewriteRule ^careers/([a-z0-9]+(?:-[a-z0-9]+)*)/?$ /careers/view.php?slug=$1 [L,
 # the legacy thin stubs below; those stubs point back here and create a redirect
 # loop (or a 200 meta-refresh page) for crawlers and users.
 RewriteRule ^knowledge-center/article-012\.html$ /industries/steel/ [R=301,L]
-RewriteRule ^knowledge-center/nace-mr0175\.html$ /knowledge-center/nace-mr0175-sour-service-guide.html [R=301,L]
+RewriteRule ^knowledge-center/nace-mr0175\.html$ /comparisons/nace-mr0175-vs-mr0103.html [R=301,L]
 
 # SEO-2026-08-31 (KC-CONSOLIDATION): 40 پوستهٔ مرکز دانش که برای یک موضوع،
 # چند URL داشتیم. پوسته‌ها فقط خزش را هدر می‌دادند و با صفحهٔ اصلیِ همان
@@ -1538,3 +1538,55 @@ RewriteRule ^knowledge-center/kc\-99\.html$ - [G,L]
 RewriteRule ^knowledge-center/kc\-994\.html$ - [G,L]
 RewriteRule ^knowledge-center/kc\-996\.html$ - [G,L]
 RewriteRule ^knowledge-center/kc\-998\.html$ - [G,L]
+
+# ------------------------------------------------------------------
+# SEO-2026-11-02 (CANN-RESOLVE): رفع کندیبالیزیشن و صفحات تکراری
+# اشتباه قبلی: هر موضوع ۲ URL داشت (بدون پسوند + با پسوند)
+# هر دو برای یک کوئری رقابت می‌کردند → تقویت link equity
+# قانون: صفحهٔ نازک (۲۲ خط) → نسخهٔ کامل (۱۵۰+ خط) یا صفحهٔ جدیدتر
+# ------------------------------------------------------------------
+
+# 1) article-001 — تست هیدرواستاتیک: نازک + .html هر دو به نسخهٔ جدید
+RewriteRule ^knowledge-center/article\-001\.html$ /knowledge-center/pipe-hydrotest-procedure.html [R=301,L]
+RewriteRule ^knowledge-center/article\-001$ /knowledge-center/pipe-hydrotest-procedure.html [R=301,L]
+
+# 2) article-010 — ترخیص گمرکی: نازک + .html هر دو به kc-customs-clearance
+RewriteRule ^knowledge-center/article\-010\.html$ /knowledge-center/kc-customs-clearance.html [R=301,L]
+RewriteRule ^knowledge-center/article\-010$ /knowledge-center/kc-customs-clearance.html [R=301,L]
+
+# 3) article-012 — فولاد: نازک به industries/steel (مقصد .html قبلاً ۳۰۱ شده)
+RewriteRule ^knowledge-center/article\-012$ /industries/steel/ [R=301,L]
+
+# 4) باقی article-NNN (نازک بدون پسوند) → نسخهٔ کامل .html
+RewriteRule ^knowledge-center/article\-002$ /knowledge-center/article-002.html [R=301,L]
+RewriteRule ^knowledge-center/article\-003$ /knowledge-center/article-003.html [R=301,L]
+RewriteRule ^knowledge-center/article\-004$ /knowledge-center/article-004.html [R=301,L]
+RewriteRule ^knowledge-center/article\-005$ /knowledge-center/article-005.html [R=301,L]
+RewriteRule ^knowledge-center/article\-006$ /knowledge-center/article-006.html [R=301,L]
+RewriteRule ^knowledge-center/article\-007$ /knowledge-center/article-007.html [R=301,L]
+RewriteRule ^knowledge-center/article\-008$ /knowledge-center/article-008.html [R=301,L]
+RewriteRule ^knowledge-center/article\-009$ /knowledge-center/article-009.html [R=301,L]
+RewriteRule ^knowledge-center/article\-011$ /knowledge-center/article-011.html [R=301,L]
+RewriteRule ^knowledge-center/article\-013$ /knowledge-center/article-013.html [R=301,L]
+RewriteRule ^knowledge-center/article\-014$ /knowledge-center/article-014.html [R=301,L]
+RewriteRule ^knowledge-center/article\-015$ /knowledge-center/article-015.html [R=301,L]
+RewriteRule ^knowledge-center/article\-016$ /knowledge-center/article-016.html [R=301,L]
+RewriteRule ^knowledge-center/article\-017$ /knowledge-center/article-017.html [R=301,L]
+
+# 5) رفع کندیبالیزیشن NACE — مقایسه و راهنما هر دو informational
+# nace-mr0175-vs-mr0103 (مقایسه) + nace-mr0175-sour-service-guide (راهنما)
+# مقایسه نمایش بیشتر دارد (68 vs 49) — راهنما redirect به مقایسه
+RewriteRule ^knowledge-center/nace\-mr0175\-sour\-service\-guide\.html$ /comparisons/nace-mr0175-vs-mr0103.html [R=301,L]
+
+# 6) رفع کندیبالیزیشن ترخیص — article-010 قبلاً حل شد
+# ترخیص تجهیزات: kc-customs-clearance (245 خط) vs article-010 (حل شد)
+
+# 7) رفع کندیبالیزیشن فلنج lap joint — نسخه فارسی → انگلیسی
+# (ریدایرکت‌های خاص بالا کافی هستند — نام فارسی و encoded)
+
+# 8) رفع کندیبالیزیشن اینکوترمز — incoterms-industrial-trade-guide → kc-incoterms-2024
+RewriteRule ^knowledge-center/incoterms\-industrial\-trade\-guide\.html$ /knowledge-center/kc-incoterms-2024.html [R=301,L]
+
+# 9) رفع کندیبالیزیشن تست هیدرواستاتیک — دو نسخه قدیمی حل شد
+# باقی: article-001 → pipe-hydrotest-procedure (بالا حل شد)
+
