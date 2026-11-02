@@ -33,11 +33,11 @@ T('cache-bust هر دو فایل فرم تازه شده است',
 T('فیلد تاریخ اعتبار در فرم مالی/فنی‌مالی رندر می‌شود',
   offers.indexOf("o.kind !== 'TO'") > -1 && offers.indexOf("ptfDatePicker('ofValidJ'") > -1);
 T('اعتبار پیش‌فرض هفت روز بعد از تاریخ سند حفظ شده است',
-  /function defaultValidity\([\s\S]{0,350}setDate\(d\.getDate\(\) \+ 7\)/.test(offers));
+  /function defaultValidity\([\s\S]{0,350}setUTCDate\(d\.getUTCDate\(\) \+ 7\)/.test(offers));
 var matBlock = offers.slice(offers.indexOf('function offMaterializeCurrentDocument()'), offers.indexOf('function offerPreview()'));
 var saveBlock = offers.slice(offers.indexOf('function offerSave()'), offers.indexOf('window.offerSave = offerSave'));
 T('materialize مقدار ofValidJ را به validUntil می‌برد', /o\.validUntil\s*=\s*[^;\n]*ofValidJ/.test(matBlock));
-T('ذخیره نهایی مقدار ofValidJ را به validUntil می‌برد', /o\.validUntil\s*=\s*[^;\n]*ofValidJ/.test(saveBlock));
+T('ذخیره نهایی مقدار ofValidJ را به validUntil می‌برد', /ptfResolveDateInput\('ofValidJ'/.test(saveBlock) && /o\.validUntil\s*=\s*_vRes\.iso/.test(saveBlock));
 T('یادآور سه‌روزه انقضا برقرار است',
   bridge.indexOf('function checkOfferExpiry()') > -1 &&
   bridge.indexOf('3 * 86400000') > -1 && bridge.indexOf('o.validUntil <= warn') > -1);

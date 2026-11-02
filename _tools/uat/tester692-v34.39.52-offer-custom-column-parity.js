@@ -79,7 +79,7 @@ global.prompt = function () { return 'Origin'; };
 global.MAX_EXTRA_COLS = +(of.match(/var MAX_EXTRA_COLS = (\d+);/)[1]);
 eval(of.match(/var SELLER_INFO = \{[\s\S]*?\n\};/)[0].replace('var SELLER_INFO', 'global.SELLER_INFO'));
 loadFns('offers.js', ['offerSerial', 'ptfSetOffState', 'offNormLine', 'offItemKey', 'offEnsureOfferLineIds',
-  'offDedupeOfferItems', 'defaultValidity', 'myEnName', 'offerPostAwardLocked', 'ptfOfferResolveSaveIdentity',
+  'offDedupeOfferItems', 'defaultValidity', 'offDateFaOf', 'offTodayISO', 'myEnName', 'offerPostAwardLocked', 'ptfOfferResolveSaveIdentity',
   'offUpdExtra', 'offAddColumn', 'offDelColumn', 'offerSave', 'numToWords']);
 /* helperهای واقعی DOM→state از فایل offers.js را جدا از بقیهٔ CRM اجرا می‌کنیم. */
 var extraHelpersStart = of.indexOf('window.ptfOfferExtraValue = function (item, col)');
