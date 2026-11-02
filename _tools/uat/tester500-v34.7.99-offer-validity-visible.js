@@ -23,21 +23,21 @@ var pro = read('crm/offers-pro.js');
 var bridge = read('crm/bridge.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('نسخه رسمی v34.39.66 است', ver.crm_version === 'v34.39.66', ver.crm_version);
-T('index و service worker روی v34.39.66 هستند',
-  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.66'") > -1 &&
-  sw.indexOf("RELEASE = 'v34.39.66'") > -1);
+T('نسخه رسمی v34.39.67 است', ver.crm_version === 'v34.39.67', ver.crm_version);
+T('index و service worker روی v34.39.67 هستند',
+  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.39.67'") > -1 &&
+  sw.indexOf("RELEASE = 'v34.39.67'") > -1);
 T('cache-bust هر دو فایل فرم تازه شده است',
-  idx.indexOf('offers.js?v=34.39.66') > -1 && idx.indexOf('offers-pro.js?v=34.39.66') > -1);
+  idx.indexOf('offers.js?v=34.39.67') > -1 && idx.indexOf('offers-pro.js?v=34.39.67') > -1);
 
 T('فیلد تاریخ اعتبار در فرم مالی/فنی‌مالی رندر می‌شود',
   offers.indexOf("o.kind !== 'TO'") > -1 && offers.indexOf("ptfDatePicker('ofValidJ'") > -1);
 T('اعتبار پیش‌فرض هفت روز بعد از تاریخ سند حفظ شده است',
-  /function defaultValidity\([\s\S]{0,350}setDate\(d\.getDate\(\) \+ 7\)/.test(offers));
+  /function defaultValidity\([\s\S]{0,350}setUTCDate\(d\.getUTCDate\(\) \+ 7\)/.test(offers));
 var matBlock = offers.slice(offers.indexOf('function offMaterializeCurrentDocument()'), offers.indexOf('function offerPreview()'));
 var saveBlock = offers.slice(offers.indexOf('function offerSave()'), offers.indexOf('window.offerSave = offerSave'));
 T('materialize مقدار ofValidJ را به validUntil می‌برد', /o\.validUntil\s*=\s*[^;\n]*ofValidJ/.test(matBlock));
-T('ذخیره نهایی مقدار ofValidJ را به validUntil می‌برد', /o\.validUntil\s*=\s*[^;\n]*ofValidJ/.test(saveBlock));
+T('ذخیره نهایی مقدار ofValidJ را به validUntil می‌برد', /ptfResolveDateInput\('ofValidJ'/.test(saveBlock) && /o\.validUntil\s*=\s*_vRes\.iso/.test(saveBlock));
 T('یادآور سه‌روزه انقضا برقرار است',
   bridge.indexOf('function checkOfferExpiry()') > -1 &&
   bridge.indexOf('3 * 86400000') > -1 && bridge.indexOf('o.validUntil <= warn') > -1);

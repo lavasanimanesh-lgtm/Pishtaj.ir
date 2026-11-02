@@ -412,8 +412,14 @@
         '<input type="radio" name="offTpl" value="' + t.id + '"' + (saved === t.id ? ' checked' : '') + ' style="margin-left:6px">' +
         '<b style="font-size:13px">' + t.lb + '</b><div style="font-size:11.5px;color:#64748b;margin-top:3px;margin-right:22px">' + t.desc + '</div></label>';
     }).join('');
+    /* v34.39.67: انتخاب تقویم تاریخ روی سند چاپی (پیش‌فرض میلادی؛ ذخیره‌سازی رکورد تغییر نمی‌کند) */
+    var curCal = (typeof window.ptfDocCalPref === 'function') ? window.ptfDocCalPref() : 'gregorian';
+    var calBox = '<div style="margin:6px 0 4px;font-size:12.5px;color:#334155">📅 تاریخ سند روی چاپ: ' +
+      '<select id="offDocCal" style="font-size:12.5px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px">' +
+      '<option value="gregorian"' + (curCal === 'gregorian' ? ' selected' : '') + '>میلادی (Gregorian)</option>' +
+      '<option value="jalali"' + (curCal === 'jalali' ? ' selected' : '') + '>شمسی (Jalali)</option></select></div>';
     var html = '<div class="md-b" style="display:grid;z-index:2800" onclick="if(event.target===this){window._offPreviewFromForm=false;this.remove()}"><div class="md" style="max-width:460px">' +
-      '<h3>🖨 انتخاب قالب سند ' + escP(o.no) + '</h3>' + cards +
+      '<h3>🖨 انتخاب قالب سند ' + escP(o.no) + '</h3>' + cards + calBox +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
       '<button class="bt bt-o" onclick="window._offPreviewFromForm=false;this.closest(\'.md-b\').remove()">انصراف</button>' +
       '<button class="bt bt-o" onclick="offerTplGo(\'' + ptfOnClickArg(o.no) + '\', true)">👁 پیش‌نمایش</button>' +
@@ -425,6 +431,9 @@
     var sel = document.querySelector('input[name="offTpl"]:checked');
     var tpl = sel ? sel.value : 'letterhead';
     localStorage.setItem('ptf_offer_tpl', tpl);
+    /* v34.39.67: تقویم انتخابی کاربر برای همین چاپ (و دفعات بعد تا تغییر دوباره) */
+    var calSel = document.getElementById('offDocCal');
+    if (calSel && typeof window.ptfSetDocCalPref === 'function') window.ptfSetDocCalPref(calSel.value);
     /* v34.39.52 BUG-OFF-PRINT-STALE-DOC (گزارش کارفرما): «ستون جدید را می‌سازیم،
        مقدار می‌دهیم، چاپ می‌گیریم — مقادیرش در خروجی نیست.»
        ریشه: این تابع همیشه اول رکورد ذخیره‌شده را برمی‌داشت؛ دیالوگ قالب که از
@@ -885,6 +894,19 @@
     }
   };
 
+  /* v34.39.67: تاریخ سند روی چاپ — مطابق تقویم انتخابی کاربر (ISO ذخیره‌شده دست‌نخورده) */
+  function docDateOf(iso) {
+    return (typeof window.ptfDocDate === 'function') ? window.ptfDocDate(iso) : String(iso || '');
+  }
+  /* v34.39.67: مقدار تاریخ در HTML چاپ. در حالت شمسی با فونت لاتین (انگلیسی) و جهت LTR چاپ می‌شود؛
+     میلادی بدون تغییر (فقط متن escape شده). */
+  function docDateHtml(iso) {
+    var txt = docDateOf(iso);
+    if (typeof window.ptfDocCalPref === 'function' && window.ptfDocCalPref() === 'jalali') {
+      return '<span dir="ltr" style="font-family:Arial,Helvetica,sans-serif">' + escP(txt) + '</span>';
+    }
+    return escP(txt);
+  }
   window.offerPrintTpl = function (o, tpl, isPreview, dest) {
     if (o && window._offState && o === window._offState && typeof window.ptfOfferSyncExtraInputs === 'function') {
       window.ptfOfferSyncExtraInputs(o);
@@ -901,8 +923,8 @@
     var pageCount = Math.max(1, Math.ceil((o.items || []).length / rowsPerPage));
     var docPrefix = o.kind === 'TO' ? 'TO' : (_pAs === 'TC' ? 'TC' : 'CO'); /* v20.1 US-442 */
     var meta = '<div class="dno">' + docPrefix + ' No.: <span class="acc">' + escP(o.no) + '</span>' + (o.rev ? ' <small>(Rev.' + String(o.rev).padStart(2, '0') + ')</small>' : '') + '</div>' +
-      '<b>Date:</b> ' + escP(o.dateEn || new Date().toISOString().slice(0, 10)) + '<br><b>Ref (Inquiry):</b> ' + escP((typeof ptfInqClientNo === 'function' ? ptfInqClientNo(o.inqNo) : o.inqNo) || '—') +
-      (isCO && o.validUntil ? '<br><b>Valid Until:</b> ' + escP(o.validUntil) : '') +
+      '<b>Date:</b> ' + docDateHtml(o.dateEn || (typeof window.ptfTodayISO === 'function' ? window.ptfTodayISO() : new Date().toISOString().slice(0, 10))) + '<br><b>Ref (Inquiry):</b> ' + escP((typeof ptfInqClientNo === 'function' ? ptfInqClientNo(o.inqNo) : o.inqNo) || '—') +
+      (isCO && o.validUntil ? '<br><b>Valid Until:</b> ' + docDateHtml(o.validUntil) : '') +
       (isCO ? '<br><b>Currency:</b> ' + cur.id : '') +
       '<br><span class="pgc">Page 1 of ' + pageCount + '</span>';
     var parties = '<div class="parties">' +

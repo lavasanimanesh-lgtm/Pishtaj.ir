@@ -156,7 +156,43 @@
     if (check.getUTCFullYear() !== gy || check.getUTCMonth() !== gm - 1 || check.getUTCDate() !== gd) return '';
     try { var j = d2j(g2d(gy, gm, gd)); return j.jy + '/' + pad(j.jm) + '/' + pad(j.jd); } catch (e) { return ''; }
   }
-  function todayISO() { return new Date().toISOString().slice(0, 10); }
+  /* v34.39.67: تاریخ «امروز» باید روز محلی کاربر باشد. toISOString() تاریخ UTC
+     می‌دهد و در ساعات اول روز (مثلاً ۰۰:۰۰ تا ۰۳:۳۰ تهران) روز قبل را نشان می‌داد. */
+  function localISO(d) {
+    d = d || new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  function todayISO() { return localISO(new Date()); }
+
+  /* v34.39.67: اعتبارسنجی ورودی یک فیلد تاریخ شمسی در فرم.
+     - خالی  → prevIso (تاریخ قبلی سند؛ اگر نباشد امروز)
+     - معتبر → ISO
+     - نامعتبر → ok=false (ذخیره باید متوقف شود؛ نباید بی‌صدا به امروز برود) */
+  function resolveDateInput(id, prevIso) {
+    var el = document.getElementById(id);
+    var raw = String((el && el.value) || '').trim();
+    if (!raw) return { ok: true, iso: prevIso || todayISO(), empty: true };
+    var iso = jToIso(raw);
+    if (!iso) return { ok: false, iso: '', empty: false };
+    return { ok: true, iso: iso, empty: false };
+  }
+
+  /* v34.39.67: قالب تاریخ سند چاپی. ورودی همیشه ISO میلادی است؛ خروجی یا ISO
+     یا شمسی YYYY/MM/DD با ارقام لاتین (برای فونت انگلیسی سند). */
+  var DOC_CAL_KEY = 'ptf_offer_date_cal';
+  function docCalPref() {
+    var raw = (typeof window.ptfDataPrefGet === 'function') ? window.ptfDataPrefGet(DOC_CAL_KEY, 'gregorian') : 'gregorian';
+    return raw === 'jalali' ? 'jalali' : 'gregorian';
+  }
+  function setDocCalPref(v) {
+    if (typeof window.ptfDataPrefSet === 'function') window.ptfDataPrefSet(DOC_CAL_KEY, v === 'jalali' ? 'jalali' : 'gregorian');
+  }
+  function docDate(iso, cal) {
+    var s = String(iso || '').slice(0, 10);
+    if (!s) return '';
+    if ((cal || docCalPref()) !== 'jalali') return s;
+    return isoToJ(s) || s;
+  }
   function todayJ() { return isoToJ(todayISO()); }
   function digitsEn(s) { return faArToLatin(String(s || '')); }
   function faNum(n) {
@@ -822,4 +858,14 @@
   window.ptfCalNav = _nav;
   window.ptfCalPick = _pick;
   window.ptfCalPickToday = _pickToday;
+  /* v34.39.67: توابع تاریخ سند (اعتبارسنجی فرم، روز محلی، قالب چاپ) */
+  window.ptfTodayISO = todayISO;
+  window.ptfLocalISO = localISO;
+  window.ptfResolveDateInput = resolveDateInput;
+  window.ptfDocDate = docDate;
+  window.ptfDocCalPref = docCalPref;
+  window.ptfSetDocCalPref = setDocCalPref;
+  window.DateKit.localISO = localISO;
+  window.DateKit.resolveDateInput = resolveDateInput;
+  window.DateKit.docDate = docDate;
 })();

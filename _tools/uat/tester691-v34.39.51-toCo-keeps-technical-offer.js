@@ -74,7 +74,7 @@ global.myEnName = function () { return 'Sales Department'; };
 global.dedupNorm = function (x) { return String(x == null ? '' : x).replace(/\s/g, '').toLowerCase(); };
 global._offState = null;
 loadFns('offers.js', ['offerSerial', 'ptfSetOffState', 'offNormLine', 'offItemKey', 'offEnsureOfferLineIds', 'offDedupeOfferItems',
-  'defaultValidity', 'offerPostAwardLocked', 'ptfOfferResolveSaveIdentity', 'offerToCo', 'offerSave']);
+  'defaultValidity', 'offDateFaOf', 'offTodayISO', 'offerPostAwardLocked', 'ptfOfferResolveSaveIdentity', 'offerToCo', 'offerSave']);
 /* offRowIsEmpty به‌صورت window.offRowIsEmpty = function… تعریف شده (نه declaration)؛
    offEnsureOfferLineIds به آن نیاز دارد، پس عیناً از همان فایل استخراج می‌شود. */
 (function () {

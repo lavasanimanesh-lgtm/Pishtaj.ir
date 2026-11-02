@@ -382,16 +382,31 @@ function entityMatches(entity, q) {
 // US-157: اعتبار پیش‌فرض CO = ۷ روز پس از تاریخ سند
 function defaultValidity(dateEn) {
   try {
-    var d = dateEn ? new Date(dateEn) : new Date();
-    d.setDate(d.getDate() + 7);
+    /* v34.39.67: محاسبهٔ روزی خالص روی ISO (نیمه‌روز UTC) — مستقل از منطقهٔ زمانی */
+    var base = dateEn ? String(dateEn).slice(0, 10) : (typeof window.ptfTodayISO === 'function' ? window.ptfTodayISO() : new Date().toISOString().slice(0, 10));
+    var d = new Date(base + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + 7);
     return d.toISOString().slice(0, 10);
   } catch (e) { return ''; }
+}
+// v34.39.67: روز امروز محلی کاربر (نه UTC)
+function offTodayISO() {
+  return (typeof window.ptfTodayISO === 'function') ? window.ptfTodayISO() : new Date().toISOString().slice(0, 10);
+}
+// v34.39.67: تاریخ سند برای فهرست/مرتب‌سازی — از dateEn مشتق می‌شود تا با چاپ هم‌خوان باشد
+function offDateFaOf(o) {
+  var iso = String((o && o.dateEn) || '').slice(0, 10);
+  if (iso && typeof window.ptfISOToJ === 'function') {
+    var j = window.ptfISOToJ(iso);
+    if (j) return j.replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; });
+  }
+  return (o && o.dateFa) || (o && o.dateEn) || '';
 }
 // US-157: وضعیت اعتبار CO → {cl, lb} یا null
 function offerValidState(o) {
   if (o.kind !== 'CO' || !o.validUntil || o.st === 'won' || o.st === 'lost') return null;
-  var today = new Date().toISOString().slice(0, 10);
-  var warn = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+  var today = offTodayISO();
+  var warn = (typeof window.ptfLocalISO === 'function') ? window.ptfLocalISO(new Date(Date.now() + 3 * 86400000)) : new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
   if (o.validUntil < today) return { cl: '#fee2e2;color:#b91c1c', lb: '⛔ منقضی ' + o.validUntil };
   if (o.validUntil <= warn) return { cl: '#fef3c7;color:#b45309', lb: '⏳ تا ' + o.validUntil };
   return { cl: '#ecfdf5;color:#047857', lb: '✓ تا ' + o.validUntil };
@@ -567,7 +582,7 @@ window.ptfCustOfferTimelineHtml = function (custCd) {
       '<b dir="ltr">' + escP(o.no) + '</b> ' + kind +
       ' <span class="bd" style="font-size:10.5px">' + escP(ST[st] || st) + '</span>' +
       (o.inqNo ? ' <small style="color:#64748b" dir="ltr">inq: ' + escP(o.inqNo) + '</small>' : '') +
-      '<div style="color:#64748b;margin-top:2px">' + escP(o.dateFa || o.dateEn || '—') +
+      '<div style="color:#64748b;margin-top:2px">' + escP(offDateFaOf(o) || '—') +
       (total ? ' — ' + (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : total.toLocaleString('fa-IR') + ' ریال') : '') +
       '</div></div>' +
       (o.st === 'won' && o.kind !== 'TO'
@@ -690,7 +705,7 @@ function renderOffers() {
     getters: {
       no: function (o) { return o.no || ''; },
       buyerCo: function (o) { return o.buyerCo || ''; },
-      dateFa: function (o) { return o.dateFa || ''; },
+      dateFa: function (o) { return offDateFaOf(o); },
       amount: function (o) { return (o.kind === 'CO' || o.kind === 'TC') ? (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : 0; },
       st: function (o) { return o.st || ''; }
     },
@@ -832,7 +847,7 @@ function renderOffers() {
         return (typeof ptfCustCellHtml === 'function') ? ptfCustCellHtml(p.fa, p.en, o.buyerCd) : escP(p.fa);
       })() + '</td>' +
       '<td style="direction:ltr;font-size:12px">' + escP(o.inqNo || '—') + '</td>' +
-      '<td>' + escP(o.dateFa || '') + '</td>' +
+      '<td>' + escP(offDateFaOf(o)) + '</td>' +
       '<td>' + o.items.length + '</td>' +
       '<td>' + ((o.kind === 'CO' || o.kind === 'TC') && total ? (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : (o.currency && o.currency !== 'IRR' ? total.toLocaleString('en-US') + ' ' + o.currency : total.toLocaleString('fa-IR') + ' ریال')) : '—') + (((o.currency && o.currency !== 'IRR') && (o.fxBasis || o.fxRateRef)) ? '<div style="font-size:10px;color:#64748b">مرجع: ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : o.fxBasis === 'converted' ? 'تبدیل‌شده' : 'توافقی') + (o.fxRateRef ? ' | ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</div>' : '') + marginBadge + '</td>' + /* v17.4 US-416: ارز سند */
       '<td>' + stCell + invBadge + '</td>' +
@@ -867,7 +882,7 @@ window.offerReviseClone = function(no) {
   _offState.rev = (_offState.rev || 0) + 1;
   _offState.st = 'revise';
   _offState.dateFa = faDate();
-  _offState.dateEn = new Date().toISOString().slice(0, 10);
+  _offState.dateEn = offTodayISO();
   offerForm();
   if (typeof ptfToast === 'function') ptfToast('📑 نگارش Rev. ' + _offState.rev + ' آماده ویرایش و صدور شد', 'ok');
 };
@@ -1112,7 +1127,7 @@ function offerNew(kind) {
   ptfSetOffState({
     no: offerSerial(kind), kind: kind, rev: 0, editMode: 'new',
     dateFa: new Date().toLocaleDateString('fa-IR'),
-    dateEn: new Date().toISOString().slice(0, 10),
+    dateEn: offTodayISO(),
     buyerCd: '', buyerCo: '', buyerContact: '', buyerTel: '', inqNo: '',
     items: [{ name: '', desc: '', model: '', qty: 1, unit: 'NO', brand: '', dlv: '', price: 0 }], /* v122 US-278: ردیف پیش‌فرض */ terms: [], st: 'draft', vatNote: true
   });
@@ -3466,9 +3481,18 @@ function offerSave() {
       }
     } catch(eInqAuto) {}
   }
-  o.dateEn = (typeof ptfJToISO==='function' ? ptfJToISO(((document.getElementById('ofDateJ')||{}).value || '')) : '') || new Date().toISOString().slice(0, 10); /* v22 audited: انتخاب شمسی، ذخیره ISO */
+  /* v34.39.67: ورودی نامعتبر → ذخیره متوقف می‌شود (نه تبدیل بی‌صدا به امروز).
+     خالی → تاریخ سند قبلی حفظ می‌شود. */
+  var _dRes = (typeof window.ptfResolveDateInput === 'function') ? window.ptfResolveDateInput('ofDateJ', o.dateEn) : { ok: true, iso: o.dateEn || offTodayISO() };
+  if (!_dRes.ok) { alert('⛔ تاریخ سند معتبر نیست. تاریخ شمسی را مانند ۱۴۰۵/۰۸/۱۱ وارد کنید یا از تقویم انتخاب کنید.'); return; }
+  o.dateEn = _dRes.iso || offTodayISO(); /* v22 audited: انتخاب شمسی، ذخیره ISO */
+  o.dateFa = offDateFaOf(o);
   // US-157: اعتبار پیشنهاد
-  if (o.kind === 'CO' || o.kind === 'TC') o.validUntil = (typeof ptfJToISO==='function' ? ptfJToISO(((document.getElementById('ofValidJ') || {}).value || '')) : '') || defaultValidity(o.dateEn);
+  if (o.kind === 'CO' || o.kind === 'TC') {
+    var _vRes = (typeof window.ptfResolveDateInput === 'function') ? window.ptfResolveDateInput('ofValidJ', o.validUntil || defaultValidity(o.dateEn)) : { ok: true, iso: o.validUntil || defaultValidity(o.dateEn) };
+    if (!_vRes.ok) { alert('⛔ تاریخ اعتبار پیشنهاد معتبر نیست. تاریخ شمسی را مانند ۱۴۰۵/۰۸/۱۱ وارد کنید یا از تقویم انتخاب کنید.'); return; }
+    o.validUntil = _vRes.iso || defaultValidity(o.dateEn);
+  }
   o.sellerContact = (document.getElementById('ofSeller')||{value:''}).value.trim();
   if (o.kind !== 'TO') o.printAs = ((document.getElementById('ofPrintAs') || {}).value) || o.printAs || (o.kind === 'TC' ? 'TC' : 'CO'); /* v20.1 US-442 */
   if (!o.buyerCd) { alert('کارفرما را انتخاب کنید'); return; }

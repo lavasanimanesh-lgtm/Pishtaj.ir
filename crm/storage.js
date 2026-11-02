@@ -1878,3 +1878,7 @@ window.ptfPurgeCloudOrphans = function (cb) {
       if (cb) cb(false);
     });
 };
+
+/* v34.39.67: ترجیح همگام UI (مثلاً تقویم چاپ). UI مستقیم به localStorage نمی‌زند؛ از این لایه می‌گذرد. */
+window.ptfDataPrefGet = function (key, def) { try { var v = localStorage.getItem(String(key)); return v === null ? def : v; } catch (e) { return def; } };
+window.ptfDataPrefSet = function (key, val) { try { localStorage.setItem(String(key), String(val)); return true; } catch (e) { return false; } };

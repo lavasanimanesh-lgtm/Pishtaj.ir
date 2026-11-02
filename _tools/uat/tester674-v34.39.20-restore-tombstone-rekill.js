@@ -581,11 +581,11 @@ setTimeout(function () {
       JSON.parse(portApplyTombstones('ptf_crm_deals', rowNoDate, tombNow, '[]')).length === 0);
 
     console.log('\n── پین‌های انتشار ──');
-    test('P1: نسخهٔ انتشار v34.39.66 است', version === 'v34.39.66', version);
+    test('P1: نسخهٔ انتشار v34.39.66 است', version === 'v34.39.67', version);
     test('P2: Service Worker / index.html بامپ شده‌اند',
-      sw.indexOf('v34.39.66') > -1 && indexHtml.indexOf("PTF_CRM_RELEASE = 'v34.39.66'") > -1);
+      sw.indexOf('v34.39.67') > -1 && indexHtml.indexOf("PTF_CRM_RELEASE = 'v34.39.67'") > -1);
     test('P3: تستر در گیت CI ثبت است', gate.indexOf('tester674-v34.39.20-restore-tombstone-rekill.js') > -1);
-    test('P4: پین tester621 به نسخهٔ جدید به‌روز شده', tester621Src.indexOf("'v34.39.66'") > -1 && tester621Src.indexOf('v34.39.66') > -1);
+    test('P4: پین tester621 به نسخهٔ جدید به‌روز شده', tester621Src.indexOf("'v34.39.67'") > -1 && tester621Src.indexOf('v34.39.67') > -1);
 
     console.log('');
     if (failures) { console.log('=== tester674: ' + failures + ' FAIL ==='); process.exit(1); }
