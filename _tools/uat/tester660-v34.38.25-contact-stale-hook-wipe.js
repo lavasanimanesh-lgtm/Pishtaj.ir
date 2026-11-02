@@ -49,7 +49,7 @@ var versionJson = JSON.parse(read('VERSION.json'));
 var idx = read('crm/index.html');
 var sw = read('crm/sw.js');
 
-var V = '34.39.67';
+var V = '34.39.68';
 
 /* ═══════════════════ ۱) ایستا: سورس و ثبت گیت ═══════════════════ */
 head('۱. ایستا — نشانه‌های اصلاح در سورس');

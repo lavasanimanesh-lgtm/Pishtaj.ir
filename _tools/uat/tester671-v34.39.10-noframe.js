@@ -40,7 +40,7 @@ T('۳.۲ بودجه <۴۰K، آکولاد متوازن، مارکرِ ۱۰ لا�
 T('۳.۳ رگرسیونِ کلی: برقِ ۲۶s/۱۵s، موجِ no-repeat، canonical‌ها',
   /animation:ptfCurS 26s linear infinite/.test(home) && /animation:ptfCurS 15s linear infinite/.test(home) &&
   home.indexOf('background-repeat:no-repeat') > -1 && idx.indexOf('href="tel:02146087679"') > -1 && idx.indexOf('wa.me/989925868479') > -1);
-T('۳.۴ VERSION.json = v34.39.66', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.67');
+T('۳.۴ VERSION.json = v34.39.66', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.68');
 
 DONE('tester671-v34.39.66-noframe');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

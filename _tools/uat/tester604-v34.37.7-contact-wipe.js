@@ -366,14 +366,14 @@ function runCb(people) {
 /* ───────────────────── ۴) گیت / نسخه ───────────────────── */
 head('۴. گیت و نسخه');
 var ver = JSON.parse(read('VERSION.json'));
-T('۴.۱ VERSION.json = v34.39.66', ver.crm_version === 'v34.39.67', ver.crm_version);
+T('۴.۱ VERSION.json = v34.39.66', ver.crm_version === 'v34.39.68', ver.crm_version);
 T('۴.۲ tester604 در run-ci-gate.js ثبت است',
   gate.indexOf('tester604-v34.37.7-contact-wipe.js') > -1);
 T('۴.۳ SYNTAX گیت phonefmt.js را هم چک می‌کند',
   /'crm\/phonefmt\.js'/.test(gate));
 T('۴.۴ قرارداد UI/sw = 34.39.66',
-  /window\.PTF_CRM_RELEASE = 'v34\.39\.67'/.test(idx) &&
-  /CACHE = 'ptf-crm-v34\.39\.67'/.test(read('crm/sw.js')));
+  /window\.PTF_CRM_RELEASE = 'v34\.39\.68'/.test(idx) &&
+  /CACHE = 'ptf-crm-v34\.39\.68'/.test(read('crm/sw.js')));
 
 console.log('\n— tester604 (CONTACT-WIPE: تلفن/اشخاص/کانال مشتری دیگر پاک نمی‌شود) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);

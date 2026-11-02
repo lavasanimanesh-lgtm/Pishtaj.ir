@@ -32,7 +32,7 @@ T('۳.۲ بودجه <۴۰K و آکولاد متوازن و مارکرِ ۹ لا�
 T('۳.۳ رگرسیون‌زدا: کلید تم فقط‌آیکونِ دسکتاپ، موجِ no-repeat، آیکون شیت، canonical‌ها، جست‌وجو در DOM حذف نشده',
   home.indexOf('#mainNav .theme-toggle{width:42px;height:42px;padding:0;border:0!important') > -1 &&
   home.indexOf('background-repeat:no-repeat') > -1 && idx.indexOf('href="tel:02146087679"') > -1);
-T('۳.۴ VERSION.json = v34.39.66', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.67');
+T('۳.۴ VERSION.json = v34.39.66', JSON.parse(read('VERSION.json')).crm_version === 'v34.39.68');
 DONE('tester670-v34.39.66-calm2-searchmin');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
