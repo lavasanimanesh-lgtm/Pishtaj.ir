@@ -4,8 +4,8 @@
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ترانسمیتر فشار روزمونت 3051؛ انتخاب مدل و Model Code</title>
-<meta name="description" content="راهنمای کامل ترانسمیتر فشار روزمونت — خانواده‌ی Rosemount 3051 (Coplanar)، 2088 (Inline)، 3095 و 3051S، رمزگشایی Model Code، پارامترهای انتخاب…" />
+<title>ترانسمیتر روزمونت 3051 | مقایسه خانواده و راهنمای انتخاب</title>
+<meta name="description" content="راهنمای جامع ترانسمیتر فشار روزمونت: مقایسه خانواده Rosemount 3051 (Coplanar)، 2088 (Inline)، 3095 و 3051S. رمزگشایی Model Code و پارامترهای انتخاب مهندسی." />
 <meta name="robots" content="index, follow" />
 <link rel="canonical" href="https://pishtaj.ir/knowledge-center/rosemount-pressure-transmitter-family.html" />
 <link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/knowledge-center/rosemount-pressure-transmitter-family.html" />
@@ -231,17 +231,65 @@
 <h2 id="kc-sec-8">جدول مقایسهٔ مدل‌های اصلی ترانسمیتر فشار روزمونت</h2>
 <p>پیش از نوشتنِ استعلام، جایگاه هر مدل را بشناسید؛ بخشِ بزرگی از اصلاحیه‌ها و دوباره‌کاری‌ها
 به انتخابِ اشتباهِ مدل برمی‌گردد:</p>
-<ul>
-<li><b>Rosemount 3051C (Coplanar):</b> پرکاربردترین گزینه برای فشار تفاضلی، فشار گیج و مطلق؛
-اتصالِ Coplanar نصب و مانifold را ساده می‌کند.</li>
-<li><b>Rosemount 3051T:</b> مدلِ In-line برای فشار گیج و مطلق در بازه‌های وسیع‌تر
-و کاربردهایی که اتصالِ مستقیم مدنظر است.</li>
-<li><b>Rosemount 3051S (Scalable):</b> پلتفرمِ ماژولار برای دقت و پایداریِ بالاتر و
-امکاناتِ پیشرفته (تشخیص، HART/Fieldbus، پیکربندیِ پیشرفته).</li>
-<li><b>Rosemount 2088:</b> مدلِ اقتصادی برای فشار گیج/مطلق؛ مناسبِ سرویس‌های عمومی که
-دقتِ فوق‌العاده یا امکاناتِ تشخیصیِ گسترده لازم نیست.</li>
-<li><b>Rosemount 2090P / 2090F:</b> برای کاربردهای بهداشتی و سطح (Paper/Pulp و صنایع غذایی).</li>
-</ul>
+
+<table style="width:100%;border-collapse:collapse;font-size:13px;margin:14px 0">
+<thead>
+<tr style="background:#f1f5f9">
+<th style="border:1px solid #e2e8f0;padding:9px 10px;text-align:right">مدل</th>
+<th style="border:1px solid #e2e8f0;padding:9px 10px;text-align:right">نوع</th>
+<th style="border:1px solid #e2e8f0;padding:9px 10px;text-align:right">اندازه‌گیری</th>
+<th style="border:1px solid #e2e8f0;padding:9px 10px;text-align:right">اتصال</th>
+<th style="border:1px solid #e2e8f0;padding:9px 10px;text-align:right">دقت</th>
+<th style="border:1px solid #e2e8f0;padding:9px 10px;text-align:right">کاربرد اصلی</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="border:1px solid #e2e8f0;padding:9px 10px"><b>3051C</b></td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">Coplanar</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">DP, GP, AP</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">Coplanar</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">±0.04%</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">پرکاربردترین — صنعت عمومی</td>
+</tr>
+<tr style="background:#f8fafc">
+<td style="border:1px solid #e2e8f0;padding:9px 10px"><b>3051T</b></td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">In-line</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">GP, AP</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">مستقیم</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">±0.04%</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">نصب مستقیم — رنج وسیع</td>
+</tr>
+<tr>
+<td style="border:1px solid #e2e8f0;padding:9px 10px"><b>3051S</b></td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">Scalable</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">DP, GP, AP</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">Coplanar</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">±0.025%</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">دقت بالا — کاربردهای بحرانی</td>
+</tr>
+<tr style="background:#f8fafc">
+<td style="border:1px solid #e2e8f0;padding:9px 10px"><b>2088</b></td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">Inline</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">GP, AP</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">مستقیم</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">±0.1%</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">اقتصادی — سرویس عمومی</td>
+</tr>
+<tr>
+<td style="border:1px solid #e2e8f0;padding:9px 10px"><b>2090P/F</b></td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">卫生级</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">GP, AP, سطح</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">Tri-Clamp</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">±0.075%</td>
+<td style="border:1px solid #e2e8f0;padding:9px 10px">صنایع غذایی، دارویی، کاغذ</td>
+</tr>
+</tbody>
+</table>
+
+<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:14px 18px;margin:14px 0;font-size:13.5px;color:#0c4a6e">
+<b>💡 نکته کلیدی:</b> برای اکثر کاربردهای صنعتی (نفت، گاز، پتروشیمی)، <b>3051C</b> انتخاب استاندارد است. اگر دقت بالاتر یا امکانات تشخیصی پیشرفته نیاز دارید، <b>3051S</b> را بررسی کنید. برای سرویس‌های عمومی با بودجه محدود، <b>2088</b> گزینه اقتصادی مناسبی است.
+</div>
 
 <h2 id="kc-sec-9">اشتباهاتِ رایج در استعلام ترانسمیتر 3051</h2>
 <ul>
