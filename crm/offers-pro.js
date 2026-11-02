@@ -414,10 +414,9 @@
     }).join('');
     /* v34.39.67: انتخاب تقویم تاریخ روی سند چاپی (پیش‌فرض میلادی؛ ذخیره‌سازی رکورد تغییر نمی‌کند) */
     var curCal = (typeof window.ptfDocCalPref === 'function') ? window.ptfDocCalPref() : 'gregorian';
-    var calBox = '<div style="margin:6px 0 4px;font-size:12.5px;color:#334155">📅 تاریخ سند روی چاپ: ' +
-      '<select id="offDocCal" style="font-size:12.5px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px">' +
-      '<option value="gregorian"' + (curCal === 'gregorian' ? ' selected' : '') + '>میلادی (Gregorian)</option>' +
-      '<option value="jalali"' + (curCal === 'jalali' ? ' selected' : '') + '>شمسی (Jalali)</option></select></div>';
+    var calBox = '<label style="display:flex;align-items:center;gap:8px;margin:8px 0 4px;padding:8px 10px;border:1px dashed var(--brd);border-radius:10px;font-size:12.5px;color:#334155;cursor:pointer">' +
+      '<input type="checkbox" id="offDocShamsi"' + (curCal === 'jalali' ? ' checked' : '') + ' style="appearance:auto !important;-webkit-appearance:checkbox !important;width:18px !important;height:18px !important;min-width:18px !important;min-height:18px !important;margin:0 !important;padding:0 !important;accent-color:#0e7490;flex:0 0 auto">' +
+      '<span>📅 تایید کنم که تاریخ روی نسخهٔ چاپی <b>شمسی</b> باشد (بدون تیک: میلادی)</span></label>';
     var html = '<div class="md-b" style="display:grid;z-index:2800" onclick="if(event.target===this){window._offPreviewFromForm=false;this.remove()}"><div class="md" style="max-width:460px">' +
       '<h3>🖨 انتخاب قالب سند ' + escP(o.no) + '</h3>' + cards + calBox +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
@@ -432,8 +431,8 @@
     var tpl = sel ? sel.value : 'letterhead';
     localStorage.setItem('ptf_offer_tpl', tpl);
     /* v34.39.67: تقویم انتخابی کاربر برای همین چاپ (و دفعات بعد تا تغییر دوباره) */
-    var calSel = document.getElementById('offDocCal');
-    if (calSel && typeof window.ptfSetDocCalPref === 'function') window.ptfSetDocCalPref(calSel.value);
+    var shamsiChk = document.getElementById('offDocShamsi');
+    if (shamsiChk && typeof window.ptfSetDocCalPref === 'function') window.ptfSetDocCalPref(shamsiChk.checked ? 'jalali' : 'gregorian');
     /* v34.39.52 BUG-OFF-PRINT-STALE-DOC (گزارش کارفرما): «ستون جدید را می‌سازیم،
        مقدار می‌دهیم، چاپ می‌گیریم — مقادیرش در خروجی نیست.»
        ریشه: این تابع همیشه اول رکورد ذخیره‌شده را برمی‌داشت؛ دیالوگ قالب که از
