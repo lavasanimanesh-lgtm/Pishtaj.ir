@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* =====================================================================
-   tester718-v34.39.67-rial-companion-registration.js
+   tester718-v34.39.68-rial-companion-registration.js
    RIAL-COMPANION-REG — ریشهٔ «نسخهٔ ریالی دیروز در کادر سبز بود، امروز نیست»
 
    پین‌تست‌های این انتشار (همه روی **کد واقعی** ریپو، بدون قرارداد ساختگی):
@@ -28,14 +28,14 @@
 
    U — رابط کاربری و نسخه
      U1 نشان «⏳ ثبت‌نشده در سرور» در کادر سبز، وابسته به serverRegisteredAt
-     U2 پین نسخهٔ واحد v34.39.67 در پنج نقطهٔ رسمی
+     U2 پین نسخهٔ واحد v34.39.68 در پنج نقطهٔ رسمی
      U3 ptfOfferRegisterCompanion قرارداد register_offer + createIntent:false دارد
    ===================================================================== */
 var fs = require('fs');
 var path = require('path');
 var vm = require('vm');
 var ROOT = path.resolve(__dirname, '../..');
-var VER = '34.39.67';
+var VER = '34.39.68';
 
 var pass = 0, fail = 0;
 function T(name, cond, extra) {
@@ -341,7 +341,7 @@ var CS = read('crm/client-server.js');
     vm.runInContext(fnProj, ctx, { filename: 'client-server.js#projection' });
     return { ctx: ctx, store: store, dirty: function () { return dirty; } };
   }
-  /* ① با نگهبان (v34.39.67): ردیف بی‌مهر می‌ماند و کلید dirty می‌شود */
+  /* ① با نگهبان (v34.39.68): ردیف بی‌مهر می‌ماند و کلید dirty می‌شود */
   var withKeep = build(true);
   var srv = JSON.stringify([{ no: 'CO-1', serverRegisteredAt: '2026-10-20T10:00:00Z' }]);
   withKeep.ctx.ptfBApplyServerProjection('ptf_crm_offers', srv, 501);
@@ -381,13 +381,13 @@ T('U3) قرارداد projection موجودیت حفظ می‌شود (pin tester
   /value != null\) \{[\s\S]{0,160}ptfBApplyServerProjection\(collection, value, rev\)/.test(SDV2));
 
 var pins = [
-  ['VERSION.json', /"crm_version": "v34\.39\.67"/],
-  ['VERSION.json', /"version": "34\.39\.67"/],
-  ['crm/index.html', /window\.PTF_CRM_RELEASE = 'v34\.39\.67'/],
-  ['crm/index.html', /\?v=34\.39\.67/],
-  ['crm/clear-cache.html', /window\.VER = 'v34\.39\.67'/],
-  ['crm/device-reconnect.html', /var VER = 'v34\.39\.67'/],
-  ['api/sales-domain.php', /SD_SERVICE_VERSION = '34\.39\.67'/]
+  ['VERSION.json', /"crm_version": "v34\.39\.68"/],
+  ['VERSION.json', /"version": "34\.39\.68"/],
+  ['crm/index.html', /window\.PTF_CRM_RELEASE = 'v34\.39\.68'/],
+  ['crm/index.html', /\?v=34\.39\.68/],
+  ['crm/clear-cache.html', /window\.VER = 'v34\.39\.68'/],
+  ['crm/device-reconnect.html', /var VER = 'v34\.39\.68'/],
+  ['api/sales-domain.php', /SD_SERVICE_VERSION = '34\.39\.68'/]
 ];
 pins.forEach(function (p) {
   var txt = read(p[0]);
