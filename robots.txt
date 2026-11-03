@@ -18,6 +18,38 @@ Disallow: /.well-known/
 # Avoid indexing parameterised duplicates of the RFQ form
 Disallow: /rfq/?*
 
+# AI search crawlers — explicitly allowed for visibility in AI search results
+# (ChatGPT, Perplexity, Claude, Google AI Mode, etc.)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
 # One shared group: named Allow-only groups would override these exclusions.
 # Public pages and rendering assets remain crawlable for all compliant bots.
 # robots.txt controls crawling, not authentication or guaranteed deindexing.
