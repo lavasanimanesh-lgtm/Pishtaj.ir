@@ -1,0 +1,615 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   UX/UI Pro Max Enhancements for CRM
+   Based on UX/UI Pro Max Skill (161 reasoning rules, 99 UX guidelines)
+   Version: 1.0
+   Date: 2026-11-04
+   
+   این فایل تمام کمبودهای UI/UX را بر اساس استانداردهای Pro Max جبران می‌کند
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1. ANIMATION & MOTION SYSTEM (Pro Max Priority: HIGH)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Smooth Transitions - Global */
+*, *::before, *::after {
+  transition: 
+    background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   2. HOVER STATES & MICRO-INTERACTIONS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Cards - Soft UI Evolution Style */
+.pn, .ptf-card, .card {
+  transition: 
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pn:hover, .ptf-card:hover, .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Buttons - Active State */
+button:active, .btn:active, .bt:active, .bt-o:active {
+  transform: scale(0.96);
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Buttons - Hover State */
+button:hover, .btn:hover, .bt:hover, .bt-o:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Links - Underline Animation */
+a:not(.btn):not(.bt):not(.sb-i) {
+  position: relative;
+  text-decoration: none;
+}
+
+a:not(.btn):not(.bt):not(.sb-i)::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--pri, #ef4b1a);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+a:not(.btn):not(.bt):not(.sb-i):hover::after {
+  width: 100%;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   3. FOCUS STATES (Accessibility - Pro Max Priority: CRITICAL)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Focus Visible - All Interactive Elements */
+button:focus-visible,
+.btn:focus-visible,
+.bt:focus-visible,
+.bt-o:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid rgba(239, 75, 26, 0.6);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(239, 75, 26, 0.2);
+}
+
+/* Focus for Dark Mode */
+html.ptf-dark button:focus-visible,
+html.ptf-dark .btn:focus-visible,
+html.ptf-dark .bt:focus-visible {
+  outline-color: rgba(247, 148, 0, 0.8);
+  box-shadow: 0 0 0 4px rgba(247, 148, 0, 0.3);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   4. LOADING STATES & SKELETON SCREENS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Skeleton Loading Animation */
+.ptf-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 25%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: ptf-shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes ptf-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Skeleton Variants */
+.ptf-skeleton-text {
+  height: 16px;
+  margin: 8px 0;
+}
+
+.ptf-skeleton-title {
+  height: 24px;
+  width: 60%;
+  margin: 12px 0;
+}
+
+.ptf-skeleton-card {
+  height: 120px;
+  margin: 12px 0;
+}
+
+/* Loading Spinner */
+.ptf-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: var(--pri, #ef4b1a);
+  border-radius: 50%;
+  animation: ptf-spin 0.8s linear infinite;
+}
+
+@keyframes ptf-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Button Loading State */
+button.is-loading, .btn.is-loading, .bt.is-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+button.is-loading::after, .btn.is-loading::after, .bt.is-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ptf-spin 0.6s linear infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   5. EMPTY STATES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.ptf-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.05), rgba(15, 39, 68, 0.03));
+  border-radius: 16px;
+  border: 2px dashed rgba(14, 116, 144, 0.2);
+  margin: 20px 0;
+  animation: ptf-fade-in 0.3s ease-out;
+}
+
+@keyframes ptf-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ptf-empty-state svg {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+  color: #64748b;
+}
+
+.ptf-empty-state h3 {
+  font-size: 20px;
+  color: #334155;
+  margin: 0 0 8px 0;
+  font-weight: 900;
+}
+
+.ptf-empty-state p {
+  font-size: 15px;
+  color: #64748b;
+  margin: 0 0 20px 0;
+  line-height: 1.6;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ptf-empty-state .ptf-btn {
+  margin-top: 12px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   6. FORM VALIDATION & FEEDBACK
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Input States */
+.fld input, .field input, .fld textarea, .field textarea, .fld select, .field select {
+  transition: 
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+/* Invalid Input */
+.fld input:invalid:not(:placeholder-shown):not(:focus),
+.field input:invalid:not(:placeholder-shown):not(:focus),
+.fld textarea:invalid:not(:placeholder-shown):not(:focus),
+.field textarea:invalid:not(:placeholder-shown):not(:focus) {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+/* Valid Input */
+.fld input:valid:not(:placeholder-shown),
+.field input:valid:not(:placeholder-shown),
+.fld textarea:valid:not(:placeholder-shown),
+.field textarea:valid:not(:placeholder-shown) {
+  border-color: #059669;
+  background-color: #ecfdf5;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+/* Error Message Animation */
+.fld .error, .field .error {
+  display: none;
+  color: #dc2626;
+  font-size: 13px;
+  margin-top: 6px;
+  font-weight: 700;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border-right: 3px solid #dc2626;
+  animation: ptf-slide-down 0.2s ease-out;
+}
+
+@keyframes ptf-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fld input:invalid:not(:placeholder-shown):not(:focus) ~ .error,
+.field input:invalid:not(:placeholder-shown):not(:focus) ~ .error {
+  display: block;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   7. TOAST NOTIFICATIONS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.ptf-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 99998;
+  font-weight: 700;
+  font-size: 14px;
+  max-width: calc(100vw - 32px);
+  animation: ptf-toast-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes ptf-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.ptf-toast.ptf-toast-out {
+  animation: ptf-toast-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes ptf-toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+}
+
+/* Toast Variants */
+.ptf-toast.ptf-toast-success {
+  background: #059669;
+}
+
+.ptf-toast.ptf-toast-error {
+  background: #dc2626;
+}
+
+.ptf-toast.ptf-toast-warning {
+  background: #d97706;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   8. PAGE TRANSITIONS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Page Enter Animation */
+.ca {
+  animation: ptf-page-enter 0.3s ease-out;
+}
+
+@keyframes ptf-page-enter {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Modal/Dialog Animation */
+.md-b, .ptf-modal {
+  animation: ptf-modal-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes ptf-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   9. MOBILE ENHANCEMENTS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  /* Touch Targets - Minimum 48px */
+  button, .btn, .bt, .bt-o, .ba, a.btn, a.bt,
+  input[type="button"], input[type="submit"], input[type="reset"] {
+    min-height: 48px !important;
+    min-width: 48px !important;
+  }
+
+  /* Bottom Nav Active State */
+  .mnv-item.active, #mnvBar button.active {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+  }
+
+  .mnv-item:active, #mnvBar button:active {
+    transform: scale(0.92);
+    transition: transform 0.1s ease;
+  }
+
+  /* Card Swipe Hint Animation */
+  @keyframes ptf-swipe-hint {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(-10px); }
+  }
+
+  .ptf-swipe-hint {
+    animation: ptf-swipe-hint 1s ease-in-out 2;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   10. DARK MODE ENHANCEMENTS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+html.ptf-dark {
+  /* Smooth Theme Transition */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.ptf-dark .pn,
+html.ptf-dark .ptf-card,
+html.ptf-dark .card {
+  transition: 
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
+}
+
+html.ptf-dark .pn:hover,
+html.ptf-dark .ptf-card:hover,
+html.ptf-dark .card:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   11. TABLE ENHANCEMENTS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Table Row Hover */
+.tb2 tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.tb2 tbody tr:hover {
+  background-color: rgba(239, 75, 26, 0.04);
+}
+
+html.ptf-dark .tb2 tbody tr:hover {
+  background-color: rgba(247, 148, 0, 0.08);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   12. SIDEBAR ENHANCEMENTS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Sidebar Item Hover */
+.sb-i {
+  transition: 
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.sb-i:hover {
+  background-color: rgba(239, 75, 26, 0.08);
+  color: var(--pri, #ef4b1a);
+}
+
+/* Sidebar Active Indicator Animation */
+.sb-i.act {
+  animation: ptf-active-slide 0.3s ease-out;
+}
+
+@keyframes ptf-active-slide {
+  from {
+    box-shadow: inset -3px 0 0 transparent;
+  }
+  to {
+    box-shadow: inset -3px 0 0 var(--pri, #ef4b1a);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   13. SCROLL ANIMATIONS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Smooth Scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Scroll Progress Indicator */
+.ptf-scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--pri, #ef4b1a), var(--org, #f79400));
+  z-index: 99999;
+  transition: width 0.1s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   14. UTILITY CLASSES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Fade In */
+.ptf-fade-in {
+  animation: ptf-fade-in 0.3s ease-out;
+}
+
+/* Slide Up */
+.ptf-slide-up {
+  animation: ptf-slide-up 0.3s ease-out;
+}
+
+@keyframes ptf-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale In */
+.ptf-scale-in {
+  animation: ptf-scale-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes ptf-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Pulse */
+.ptf-pulse {
+  animation: ptf-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes ptf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Bounce */
+.ptf-bounce {
+  animation: ptf-bounce 1s infinite;
+}
+
+@keyframes ptf-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Shake */
+.ptf-shake {
+  animation: ptf-shake 0.5s;
+}
+
+@keyframes ptf-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   15. PERFORMANCE OPTIMIZATIONS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Hardware Acceleration for Animations */
+.pn:hover,
+button:active,
+.btn:active,
+.md-b,
+.ptf-modal {
+  will-change: transform;
+}
+
+/* Remove will-change after animation */
+.pn:not(:hover),
+button:not(:active),
+.btn:not(:active) {
+  will-change: auto;
+}
