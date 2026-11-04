@@ -237,56 +237,6 @@
   // ═══════════════════════════════════════════════════════════════════════════════
 
   /**
-   * Form auto-save draft
-   */
-  function initFormAutoSave() {
-    const forms = document.querySelectorAll('form');
-    
-    forms.forEach(form => {
-      const formId = form.id || `form-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Load draft
-      const draft = localStorage.getItem(`draft-${formId}`);
-      if (draft) {
-        try {
-          const data = JSON.parse(draft);
-          Object.keys(data).forEach(key => {
-            const input = form.querySelector(`[name="${key}"]`);
-            if (input) {
-              input.value = data[key];
-            }
-          });
-          showToast('پیش‌نویس بازیابی شد', 'info', 2000);
-        } catch (e) {
-          console.warn('Failed to load draft:', e);
-        }
-      }
-
-      // Auto-save on input
-      const saveDraft = debounce(() => {
-        const formData = {};
-        const inputs = form.querySelectorAll('input, textarea, select');
-        
-        inputs.forEach(input => {
-          if (input.name && input.type !== 'submit') {
-            formData[input.name] = input.value;
-          }
-        });
-
-        localStorage.setItem(`draft-${formId}`, JSON.stringify(formData));
-      }, CONFIG.DEBOUNCE_DELAY);
-
-      form.addEventListener('input', saveDraft);
-
-      // Clear draft on submit
-      form.addEventListener('submit', () => {
-        localStorage.removeItem(`draft-${formId}`);
-        showToast('فرم با موفقیت ارسال شد', 'success');
-      });
-    });
-  }
-
-  /**
    * Form validation feedback
    */
   function initFormValidation() {
@@ -459,7 +409,6 @@
     initSmoothScroll();
     initScrollAnimations();
     initKeyboardShortcuts();
-    initFormAutoSave();
     initFormValidation();
     enhanceButtonAccessibility();
     initLazyLoading();
