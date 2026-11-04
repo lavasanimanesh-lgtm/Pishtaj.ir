@@ -753,7 +753,13 @@ function renderLetters() {
       '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letDel(\'' + l.cd + '\')">🗑️</button>' +
       '</td></tr>';
   });
-  el.innerHTML = h + '</tbody></table></div>' + (ls.length ? '' : '<div style="text-align:center;color:#94a3b8;padding:20px">نامه‌ای ثبت نشده</div>');
+  el.innerHTML = h + '</tbody></table></div>' + (ls.length ? '' : 'CRMComponents.createEmptyState({
+      icon: '✉️',
+      title: 'هنوز نامه‌ای ثبت نشده',
+      description: 'برای شروع، اولین نامه خود را ایجاد کنید یا از قالب‌های آماده استفاده کنید.',
+      actionText: '✉️ ایجاد نامه جدید',
+      actionCallback: function() { /* TODO: Open new letter form */ }
+    })');
 }
 
 /* ---------- فرم نامه صادره ---------- */

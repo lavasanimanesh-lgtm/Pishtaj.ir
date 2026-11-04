@@ -250,7 +250,13 @@
         '<span style="display:flex;gap:5px;align-items:center">' + acts +
         (isVoid ? '<span class="bd" style="background:#fee2e2;color:#b91c1c">ابطال شد</span>' : (x.st === 'settled' ? '<span class="bd b-st4">تسویه شد</span>' : (isTreasurer() ? '<button class="bt" style="padding:4px 11px;font-size:12px;background:#059669" onclick="pettySettle(\'' + x.cd + '\')">✔ تسویه از حساب</button>' : '<span class="bd" style="background:#fef3c7;color:#b45309">در انتظار تسویه</span>'))) + '</span>' +
         '</div></div>';
-    }).join('') || '<div style="text-align:center;color:#94a3b8;padding:22px">هزینه‌ای ثبت نشده</div>';
+    }).join('') || 'CRMComponents.createEmptyState({
+    icon: '💵',
+    title: 'هنوز هزینه‌ای ثبت نشده',
+    description: 'اولین هزینه خود را ثبت کنید تا گزارش‌های مالی دقیق‌تری داشته باشید.',
+    actionText: '💵 ثبت هزینه جدید',
+    actionCallback: function() { /* TODO: Open new expense form */ }
+  })';
     if (list.length > shown.length) {
       el.innerHTML += '<div style="text-align:center;padding:8px"><button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fde68a" onclick="ptfPettyMore()">⬇ نمایش ' +
         Math.min(per, list.length - shown.length) + ' مورد دیگر (' + shown.length + ' از ' + list.length + ')</button></div>';
