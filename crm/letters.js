@@ -689,6 +689,16 @@ window.letSortBy = function (k) {
 
 
 function renderLetters() {
+
+// Phase 9: Add helper text to form fields
+if (window.CRMPhase9) {
+  // Add helper for search field
+  CRMPhase9.addHelper('input[type="search"]', 'برای جستجو از عنوان، شماره یا متن نامه استفاده کنید', 'info');
+  
+  // Add tooltip to action buttons
+  CRMPhase9.addTooltip('button[onclick*="newLetter"]', 'ایجاد نامه جدید (Ctrl+N)');
+}
+
   var el = document.getElementById('ltWrap');
   if (!el) return;
   var q = letNorm(((document.getElementById('ltSrch') || {}).value || '').trim());
