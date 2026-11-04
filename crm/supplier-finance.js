@@ -791,7 +791,7 @@
       }
       var rows = slBoxRows();
       if (rows) body.innerHTML = rows;
-      else body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">گردش حسابی برای نمایش نیست.</td></tr>';
+      else body.innerHTML = '<tr><td colspan="3" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('گردش حسابی برای نمایش نیست') : '<div style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">گردش حسابی برای نمایش نیست.</div>') + '</td></tr>';
       window._slBoxLazyDone = true;
       window._slBoxLazyPending = false;
     };
@@ -802,13 +802,13 @@
       var body = document.getElementById('slBoxBody');
       if (!body) return;
       var rows = slBoxRows();
-      body.innerHTML = rows || '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">موردی مطابق این جست‌وجو نیست.</td></tr>';
+      body.innerHTML = rows || '<tr><td colspan="3" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('موردی مطابق این جست‌وجو نیست') : '<div style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">موردی مطابق این جست‌وجو نیست.</div>') + '</td></tr>';
       window._slBoxLazyDone = true;
     };
     window.ptfSlBoxToggle = function (el) { if (el && el.open) window.ptfSlBoxLazy(true); };
     function box() {
       if (!canSee()) return '';
-      var loading = '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">⏳ با بازکردن این بخش، گردش حساب تأمین‌کنندگان محاسبه می‌شود…</td></tr>';
+      var loading = '<tr><td colspan="3" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('⏳ با بازکردن این بخش، گردش حساب تأمین‌کنندگان محاسبه می‌شود') : '<div style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">⏳ با بازکردن این بخش، گردش حساب تأمین‌کنندگان محاسبه می‌شود…</div>') + '</td></tr>';
       return '<details id="slBox" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-bottom:14px" ontoggle="ptfSlBoxToggle(this)"><summary style="cursor:pointer;font-weight:900;color:#0c4a6e">🧾 فاکتور، حساب و پرداخت تأمین‌کنندگان <small style="font-weight:400;color:#0369a1">(پیش‌فرض بسته — برای بازکردن کلیک کنید)</small></summary><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><input id="slBoxQ" type="text" value="' + escP(window._slBoxSearch || '') + '" oninput="slBoxSearch(this.value)" placeholder="🔍 جست‌وجوی نام یا کد تأمین‌کننده" aria-label="جست‌وجو در حساب تأمین‌کنندگان" style="flex:1 1 240px;min-width:200px;padding:8px 10px;border:1px solid #bae6fd;border-radius:10px;font-size:12px;background:#fff;color:#0f172a"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><small style="color:#0369a1">فاکتور، پرداخت و چک؛ حساب‌های باز ابتدا.</small><button class="bt" onclick="slNewInvoice()">＋ فاکتور خرید</button></div></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>تأمین‌کننده</th><th>مانده</th><th></th></tr></thead><tbody id="slBoxBody">' + loading + '</tbody></table></div></details>';
     }
   var oldBuild = window.buildSuppliers;

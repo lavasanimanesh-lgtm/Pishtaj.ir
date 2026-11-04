@@ -57,7 +57,7 @@
     var rows = issuedRows();
     var body = rows.map(function (c) {
       return '<tr data-ptf-nav="cheque:' + escP(c.cd) + '" data-cheque-cd="' + escP(c.cd) + '"><td class="cheque-cell-id"><div class="cheque-cell-content"><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</div></td><td class="cheque-cell-party"><div class="cheque-cell-content"><span class="cheque-party-name">' + escP(c.toWhom || c.payeeName || '—') + '</span><br>' + partyBadge(c) + (c.dealCd ? '<br><small class="cheque-deal-link">📁 ' + escP(c.dealLabel || c.dealCd) + '</small>' : '') + '</div></td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td class="cheque-cell-actions">' + issuedActs(c) + '</td></tr>';
-    }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:18px">چک صادره‌ای ثبت نشده است</td></tr>';
+    }).join('') || '<tr><td colspan="7" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('چک صادره‌ای ثبت نشده است') : '<div style="text-align:center;color:#94a3b8;padding:18px">چک صادره‌ای ثبت نشده است</div>') + '</td></tr>';
     var openSum = rows.filter(function (c) { return c.st === 'open'; }).reduce(function (s, c) { return s + (+c.amt || 0); }, 0);
     return '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره/صیادی</th><th>طرف</th><th>بانک</th><th>سررسید</th><th>مبلغ</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
       '<div style="margin-top:8px;font-size:12.5px"><b style="color:#b45309">جمع چک‌های در گردش: ' + money(openSum) + ' ریال</b></div>';
@@ -68,7 +68,7 @@
     var body = rows.map(function (c) {
       var custNm = c.payerName || c.toWhom || c.sourceCustomerCd || '—';
       return '<tr data-ptf-nav="cheque:' + escP(c.cd) + '" data-cheque-cd="' + escP(c.cd) + '"><td class="cheque-cell-id"><div class="cheque-cell-content"><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</div></td><td class="cheque-cell-party"><div class="cheque-cell-content"><span class="cheque-party-name">' + escP(custNm) + '</span><br>' + partyBadge(c) + (c.sourceInvoiceCd ? '<br><small class="cheque-deal-link">🧾 ' + escP(c.sourceInvoiceCd) + '</small>' : '') + '</div></td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td class="cheque-cell-actions">' + receivedActs(c) + '</td></tr>';
-    }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:18px">چک وارده‌ای ثبت نشده است</td></tr>';
+    }).join('') || '<tr><td colspan="7" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('چک وارده‌ای ثبت نشده است') : '<div style="text-align:center;color:#94a3b8;padding:18px">چک وارده‌ای ثبت نشده است</div>') + '</td></tr>';
     var openSum = rows.filter(function (c) { return c.st === 'open' || c.st === 'held' || c.st === 'endorsed'; }).reduce(function (s, c) { return s + (+c.amt || 0); }, 0);
     return '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره/صیادی</th><th>صادرکننده</th><th>بانک</th><th>سررسید</th><th>مبلغ</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
       '<div style="margin-top:8px;font-size:12.5px"><b style="color:#0e7490">جمع چک‌های فعال وارده: ' + money(openSum) + ' ریال</b></div>';
@@ -682,7 +682,7 @@
         '<td style="direction:ltr">' + escP(b.accountNo || '—') + '</td><td>' + escP(b.owner || '—') + '</td>' +
         '<td style="direction:ltr">' + escP(b.fromNo || '') + ' .. ' + escP(b.toNo || '') + '</td>' +
         '<td><button class="ba" style="color:#dc2626" onclick="ptfChequeBookDeleteUi(\'' + ptfOnClickArg(b.cd) + '\')">🗑</button></td></tr>';
-    }).join('') || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:14px">دسته چکی ثبت نشده است</td></tr>';
+    }).join('') || '<tr><td colspan="5" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('دسته چکی ثبت نشده است') : '<div style="text-align:center;color:#94a3b8;padding:14px">دسته چکی ثبت نشده است</div>') + '</td></tr>';
     var html = '<div class="md-b" id="ptfChBookDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:90vh;overflow:auto">' +
       '<h3>📒 دسته‌های چک شرکت</h3>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;font-size:12px;color:#0c4a6e;margin-bottom:10px">دسته چک = کتاب چکِ شرکت (بانک/شماره حساب/مالک/شعبه/سری/شماره از..تا). هنگام ثبت چک صادره از منوی کشویی انتخاب می‌شود و مشخصات به‌صورت خودکار منتقل می‌شود.</div>' +

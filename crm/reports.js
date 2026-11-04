@@ -126,7 +126,7 @@
         '<td>' + s.inv + '</td><td>' + s.let + '</td>' +
         '<td><b>' + s.acts + '</b></td></tr>';
     });
-    tb.innerHTML = h || '<tr><td colspan="11" style="text-align:center;color:#94a3b8;padding:20px">داده‌ای در این بازه نیست</td></tr>';
+    tb.innerHTML = h || '<tr><td colspan="11" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('داده‌ای در این بازه نیست') : '<div style="text-align:center;color:#94a3b8;padding:20px">داده‌ای در این بازه نیست</div>') + '</td></tr>';
 
     // Audit trail
     var el = document.getElementById('repAudit');
@@ -144,7 +144,7 @@
         '<span class="bd" style="background:#f1f5f9;color:#475569">' + escP(a.m) + '</span>' +
         '<span>' + escP(a.a) + '</span>' +
         (a.ref ? '<span style="color:#0e7490;direction:ltr">' + escP(a.ref) + '</span>' : '') + '</div>';
-    }).join('') || '<div style="text-align:center;color:#94a3b8;padding:16px;font-size:12.5px">تحرکی در این بازه/فیلتر ثبت نشده</div>';
+    }).join('') || (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('تحرکی در این بازه/فیلتر ثبت نشده') : '<div style="text-align:center;color:#94a3b8;padding:16px;font-size:12.5px">تحرکی در این بازه/فیلتر ثبت نشده</div>');
   };
 
   /* ---- روتینگ + گارد دسترسی ---- */
@@ -190,7 +190,7 @@
     var el = document.getElementById('repDeletedArcWrap');
     if (!el) return;
     if (!arc.length) {
-      el.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:24px;background:#f8fafc;border-radius:14px;border:1px dashed var(--brd)">هیچ رکورد حذف‌شده‌ای در بایگانی آماری ثبت نشده است.</div>';
+      el.innerHTML = window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('هیچ رکورد حذف‌شده‌ای در بایگانی آماری ثبت نشده است') : '<div style="text-align:center;color:#94a3b8;padding:24px;background:#f8fafc;border-radius:14px;border:1px dashed var(--brd)">هیچ رکورد حذف‌شده‌ای در بایگانی آماری ثبت نشده است.</div>';
       return;
     }
     var h = '<div class="tb2"><table><thead><tr><th>#</th><th>نوع</th><th>کد / عنوان</th><th>دلیل حذف</th><th>توضیح تکمیلی</th><th>حذف‌کننده</th><th>تاریخ زمان</th><th>عملیات</th></tr></thead><tbody>';
