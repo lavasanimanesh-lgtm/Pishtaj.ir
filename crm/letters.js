@@ -689,6 +689,16 @@ window.letSortBy = function (k) {
 
 
 function renderLetters() {
+
+// Phase 9: Add helper text to form fields
+if (window.CRMPhase9) {
+  // Add helper for search field
+  CRMPhase9.addHelper('input[type="search"]', 'برای جستجو از عنوان، شماره یا متن نامه استفاده کنید', 'info');
+  
+  // Add tooltip to action buttons
+  CRMPhase9.addTooltip('button[onclick*="newLetter"]', 'ایجاد نامه جدید (Ctrl+N)');
+}
+
   var el = document.getElementById('ltWrap');
   if (!el) return;
   var q = letNorm(((document.getElementById('ltSrch') || {}).value || '').trim());
@@ -753,7 +763,13 @@ function renderLetters() {
       '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letDel(\'' + l.cd + '\')">🗑️</button>' +
       '</td></tr>';
   });
-  el.innerHTML = h + '</tbody></table></div>' + (ls.length ? '' : '<div style="text-align:center;color:#94a3b8;padding:20px">نامه‌ای ثبت نشده</div>');
+  el.innerHTML = h + '</tbody></table></div>' + (ls.length ? '' : 'CRMComponents.createEmptyState({
+      icon: '✉️',
+      title: 'هنوز نامه‌ای ثبت نشده',
+      description: 'برای شروع، اولین نامه خود را ایجاد کنید یا از قالب‌های آماده استفاده کنید.',
+      actionText: '✉️ ایجاد نامه جدید',
+      actionCallback: function() { /* TODO: Open new letter form */ }
+    })');
 }
 
 /* ---------- فرم نامه صادره ---------- */

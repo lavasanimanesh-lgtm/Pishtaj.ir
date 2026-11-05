@@ -868,7 +868,7 @@ function renderOffers() {
       ((!isWon && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !o.fxOf) ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#9a3412;border-color:#fdba74" onclick="ptfMarkOfferAmendment(\''+o.no+'\')" title="علامت‌گذاری به‌عنوان متمم مستقل یک پرونده موجود">➕</button>' : '') +
       (isWon ? '' : ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#dc2626" onclick="offerDel(\''+o.no+'\')" title="حذف">🗑️</button>') + '</td></tr>';
   });
-  tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">پیشنهادی در این تب ثبت نشده</td></tr>';
+  tb.innerHTML = h || '<tr><td colspan="9" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('پیشنهادی در این تب ثبت نشده') : '<div style="text-align:center;color:#94a3b8;padding:26px">پیشنهادی در این تب ثبت نشده</div>') + '</td></tr>';
 }
 
 // US-223: ایجاد یک‌کلیکی نسخه جدید و اصلاحیه (Rev. +1)
@@ -2539,7 +2539,7 @@ function prodSrchRender() {
     return '<div onclick="prodSrchPick(\'' + ptfOnClickArg(p.cd) + '\')" style="padding:9px 12px;border:1px solid var(--brd);border-radius:10px;margin-bottom:5px;cursor:pointer;font-size:12.5px" onmouseover="this.style.background=\'#fff8f5\'" onmouseout="this.style.background=\'#fff\'">' +
       '<b>' + escP(p.nm) + '</b>' + (p.en ? ' <span style="color:#64748b;direction:ltr;display:inline-block">/ ' + escP(p.en) + '</span>' : '') +
       '<div style="font-size:11px;color:#94a3b8;margin-top:2px">' + escP(p.cd) + (p.st ? ' | ' + escP(p.st) : '') + (p.br ? ' | ' + escP(p.br) : '') + ' | واحد: ' + escP(p.un||'-') + '</div></div>';
-  }).join('') || '<div style="text-align:center;color:#94a3b8;padding:16px;font-size:12.5px">کالایی با این جستجو یافت نشد</div>';
+  }).join('') || (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('کالایی با این جستجو یافت نشد') : '<div style="text-align:center;color:#94a3b8;padding:16px;font-size:12.5px">کالایی با این جستجو یافت نشد</div>');
 }
 
 function prodSrchPick(cd) {
@@ -4601,7 +4601,7 @@ function renderCustomers2() {
       '<td>' + (typeof window.ptfCustomerSummaryActionHtml === 'function' ? window.ptfCustomerSummaryActionHtml(c) : '') + '<button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="اطلاعات و تماس‌های مشتری" aria-label="اطلاعات و تماس‌های مشتری" onclick="showEntityCard(\'ptf_crm_customers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
       '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش مشتری" aria-label="ویرایش مشتری" onclick="showCustModal(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
-  tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">مشتری‌ای ثبت نشده</td></tr>';
+  tb.innerHTML = h || '<tr><td colspan="6" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('مشتری‌ای ثبت نشده') : '<div style="text-align:center;color:#94a3b8;padding:22px">مشتری‌ای ثبت نشده</div>') + '</td></tr>';
   if (document.getElementById('dCust')) document.getElementById('dCust').textContent = items.length;
   try { if (typeof window.ptfCustSortMarks === 'function') window.ptfCustSortMarks(); } catch (eMarks) {} /* v34.39.45 (CUST-SORT) */
 }
@@ -4647,7 +4647,7 @@ function renderSuppliers2() {
       '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fde68a" onclick="ptfSupApprovedMore()">⬇ نمایش ' +
       Math.min(per, list.length - shown.length) + ' مورد دیگر (' + shown.length + ' از ' + list.length + ')</button></td></tr>';
   }
-  tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">تامین‌کننده‌ای ثبت نشده</td></tr>';
+  tb.innerHTML = h || '<tr><td colspan="6" style="padding:0">' + (window.CRMUpgrade ? CRMUpgrade.createProfessionalEmpty('تامین‌کننده‌ای ثبت نشده') : '<div style="text-align:center;color:#94a3b8;padding:22px">تامین‌کننده‌ای ثبت نشده</div>') + '</td></tr>';
   if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;
 }
 window.ptfSupApprovedMore = function () {
