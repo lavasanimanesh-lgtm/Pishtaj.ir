@@ -182,13 +182,13 @@
         '</div>';
     }).join('') || (query
       ? '<div style="text-align:center;color:#64748b;padding:24px;border:1px dashed var(--brd);border-radius:12px">موردی مطابق «' + escP(query) + '» پیدا نشد.<br><button class="bt bt-o" style="margin-top:8px" onclick="rfqsClearListSearch()">نمایش همه درخواست‌ها</button></div>'
-      : 'CRMComponents.createEmptyState({
-    icon: '📋',
-    title: 'هنوز درخواست تامین ثبت نشده',
-    description: 'برای شروع فرآیند خرید، اولین درخواست تامین خود را ایجاد کنید.',
-    actionText: '📋 ایجاد درخواست جدید',
-    actionCallback: function() { /* TODO: Open new RFQ form */ }
-  })');
+      : (window.CRMComponents ? CRMComponents.createEmptyState({
+          icon: '📋',
+          title: 'هنوز درخواست تامین ثبت نشده',
+          description: 'برای شروع فرآیند خرید، اولین درخواست تامین خود را ایجاد کنید.',
+          actionText: '📋 ایجاد درخواست جدید',
+          actionCallback: function() { /* TODO: Open new RFQ form */ }
+        }) : '<div style="text-align:center;color:#94a3b8;padding:24px">درخواست تامینی ثبت نشده — با «+ تامین جدید» شروع کنید</div>'));
   };
   window.rfqsSetListSearch = function (value) {
     window._rfqsListSearch = String(value || '');
