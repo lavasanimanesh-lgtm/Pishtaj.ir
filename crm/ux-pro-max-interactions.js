@@ -237,6 +237,43 @@
   // ═══════════════════════════════════════════════════════════════════════════════
 
   /**
+   * Safe storage helpers using data layer (PTF.getData/setData)
+   */
+  function safeGetDraft(formId) {
+    var key = 'draft-' + formId;
+    try {
+      if (typeof window.getData === 'function') {
+        return window.getData(key);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function safeSetDraft(formId, data) {
+    var key = 'draft-' + formId;
+    try {
+      if (typeof window.setData === 'function') {
+        window.setData(key, data);
+      }
+    } catch (e) {
+      console.warn('Failed to save draft:', e);
+    }
+  }
+
+  function safeRemoveDraft(formId) {
+    var key = 'draft-' + formId;
+    try {
+      if (typeof window.setData === 'function') {
+        window.setData(key, null);
+      }
+    } catch (e) {
+      console.warn('Failed to remove draft:', e);
+    }
+  }
+
+  /**
    * Form auto-save draft
    */
   function initFormAutoSave() {
@@ -245,15 +282,14 @@
     forms.forEach(form => {
       const formId = form.id || `form-${Math.random().toString(36).substr(2, 9)}`;
       
-      // Load draft
-      const draft = localStorage.getItem(`draft-${formId}`);
+      // Load draft using safe helper
+      const draft = safeGetDraft(formId);
       if (draft) {
         try {
-          const data = JSON.parse(draft);
-          Object.keys(data).forEach(key => {
+          Object.keys(draft).forEach(key => {
             const input = form.querySelector(`[name="${key}"]`);
             if (input) {
-              input.value = data[key];
+              input.value = draft[key];
             }
           });
           showToast('پیش‌نویس بازیابی شد', 'info', 2000);
@@ -262,7 +298,7 @@
         }
       }
 
-      // Auto-save on input
+      // Auto-save on input using safe helper
       const saveDraft = debounce(() => {
         const formData = {};
         const inputs = form.querySelectorAll('input, textarea, select');
@@ -273,14 +309,14 @@
           }
         });
 
-        localStorage.setItem(`draft-${formId}`, JSON.stringify(formData));
+        safeSetDraft(formId, formData);
       }, CONFIG.DEBOUNCE_DELAY);
 
       form.addEventListener('input', saveDraft);
 
-      // Clear draft on submit
+      // Clear draft on submit using safe helper
       form.addEventListener('submit', () => {
-        localStorage.removeItem(`draft-${formId}`);
+        safeRemoveDraft(formId);
         showToast('فرم با موفقیت ارسال شد', 'success');
       });
     });

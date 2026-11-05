@@ -1728,7 +1728,7 @@ function letApplyAmendment(cd, reason, patch) {
 /* ---- UI: باز کردن فرم در حالت اصلاحیه ---- */
 window.letAmendOpen = function (cd) {
   var l = getData('ptf_crm_letters').filter(function (x) { return x && x.cd === cd; })[0];
-  if (!l) return;
+  if (!l) { alert('⛔ نامه مورد نظر یافت نشد'); return; }
   /* v34.39.65 (D4): فقط نامهٔ صادره — فرم این مودال فرم نامهٔ صادره است و روی نامهٔ
      وارده، «گیرنده» خالی می‌شد و ثبت به بن‌بست «گیرنده، موضوع و متن الزامی است» می‌رسید. */
   if (l.kind !== 'OUT') { alert('⛔ اصلاحیه فقط برای نامهٔ صادره است — نامهٔ وارده سند طرف مقابل است و از این فرم بازنویسی نمی‌شود.'); return; }
