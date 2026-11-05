@@ -1,6 +1,69 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
+
+<script>
+  // BUG-003 Fix: آنی‌سازی اعمال تم در هد قبل از رندر بدنه (FOUC Elimination)
+  (function(){
+    try {
+      var mode = localStorage.getItem('ptf_theme');
+      /* v14.1 (US-354): حالت خودکار — تم سیستم */
+      if (mode === 'auto') { try { mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch(e2){ mode = 'light'; } }
+      var r = document.documentElement;
+      if (mode === 'dark') {
+        r.style.setProperty('--bg', '#0f172a');
+        r.style.setProperty('--crd', '#1e293b');
+        r.style.setProperty('--tx', '#f8fafc');
+        r.style.setProperty('--brd', '#334155');
+        r.style.setProperty('--sb', '#0f172a');
+      }
+    } catch(e){}
+  })();
+</script>
+
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>CRM | سامانه مدیریت | پیشرو تجهیز فرتاک</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.json?v=34.39.68">
+<meta name="theme-color" content="#ef4b1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PTF CRM">
+<link rel="apple-touch-icon" href="../assets/images/favicon/apple-touch-icon.png">
+<script>
+(function(){
+  try {
+    var mode = localStorage.getItem('ptf_theme');
+    var r = document.documentElement;
+    if (mode === 'dark') {
+      r.style.setProperty('--bg', '#0f172a');
+      r.style.setProperty('--crd', '#1e293b');
+      r.style.setProperty('--tx', '#f8fafc');
+      r.style.setProperty('--brd', '#334155');
+      r.style.setProperty('--sb', '#0f172a');
+    } else {
+      var th = localStorage.getItem('ptf_crm_theme_vars');
+      if (th) {
+        var v = JSON.parse(th);
+        if (v.pri) r.style.setProperty('--pri', v.pri);
+        if (v.bg) r.style.setProperty('--bg', v.bg);
+        if (v.crd) r.style.setProperty('--crd', v.crd);
+        if (v.tx) r.style.setProperty('--tx', v.tx);
+        if (v.brd) r.style.setProperty('--brd', v.brd);
+        if (v.sb) r.style.setProperty('--sb', v.sb);
+      }
+    }
+  } catch(e){}
+})();
+</script>
+
+<link rel="stylesheet" href="ux-enhancements-mobile.css?v=34.39.68">
+<link rel="stylesheet" href="crm-styles.css?v=34.39.68">
+
+<!-- Restored CRM baseline styles; UX stylesheets above can layer on top. -->
 <style id="ptfCriticalTheme">
   :root { --bg: #f7f8fa; --brd: #e8ebf0; --pri: #ef4b1a; --org: #f79400; --crd: #fff; --tx: #1e293b; --sb: #fff; }
   body { background: var(--bg); color: var(--tx); }
@@ -94,7 +157,7 @@
   .tb > div:last-child { flex: 0 0 auto !important; display: flex !important; align-items: center !important; gap: 4px !important; }
   /* مخفی‌سازی عناصر غیرضروری موبایل */
   #topVerPill, #liveHealthPill, #clockD { display: none !important; }
-  
+
   /* تبدیل ردیف‌های جدول به کارت‌های اطلاعاتی مستقل لمسی (Card Transformation) */
   .tb2 table, .tb2 thead, .tb2 tbody, .tb2 th, .tb2 td, .tb2 tr {
     display: block !important;
@@ -150,7 +213,7 @@
     overflow-wrap: anywhere;
   }
   #panels .tb2 td[data-mobile-label=""]::before { content: none; }
-  
+
   /* بهبود نمایش سایدبار و ناوبری در موبایل */
   /* crm-l normal */
   /* sb 56px kept */
@@ -1296,63 +1359,6 @@
 }
 @media (max-width:420px) { #cfAccountDlg .cf-ledger-toolbar { grid-template-columns:minmax(0,1fr)!important; } }
 </style>
-<script>
-  // BUG-003 Fix: آنی‌سازی اعمال تم در هد قبل از رندر بدنه (FOUC Elimination)
-  (function(){
-    try {
-      var mode = localStorage.getItem('ptf_theme');
-      /* v14.1 (US-354): حالت خودکار — تم سیستم */
-      if (mode === 'auto') { try { mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch(e2){ mode = 'light'; } }
-      var r = document.documentElement;
-      if (mode === 'dark') {
-        r.style.setProperty('--bg', '#0f172a');
-        r.style.setProperty('--crd', '#1e293b');
-        r.style.setProperty('--tx', '#f8fafc');
-        r.style.setProperty('--brd', '#334155');
-        r.style.setProperty('--sb', '#0f172a');
-      }
-    } catch(e){}
-  })();
-</script>
-
-<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
-<title>CRM | سامانه مدیریت | پیشرو تجهیز فرتاک</title>
-<meta name="robots" content="noindex, nofollow">
-<link rel="manifest" href="manifest.json?v=34.39.68">
-<meta name="theme-color" content="#ef4b1a">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="PTF CRM">
-<link rel="apple-touch-icon" href="../assets/images/favicon/apple-touch-icon.png">
-<script>
-(function(){
-  try {
-    var mode = localStorage.getItem('ptf_theme');
-    var r = document.documentElement;
-    if (mode === 'dark') {
-      r.style.setProperty('--bg', '#0f172a');
-      r.style.setProperty('--crd', '#1e293b');
-      r.style.setProperty('--tx', '#f8fafc');
-      r.style.setProperty('--brd', '#334155');
-      r.style.setProperty('--sb', '#0f172a');
-    } else {
-      var th = localStorage.getItem('ptf_crm_theme_vars');
-      if (th) {
-        var v = JSON.parse(th);
-        if (v.pri) r.style.setProperty('--pri', v.pri);
-        if (v.bg) r.style.setProperty('--bg', v.bg);
-        if (v.crd) r.style.setProperty('--crd', v.crd);
-        if (v.tx) r.style.setProperty('--tx', v.tx);
-        if (v.brd) r.style.setProperty('--brd', v.brd);
-        if (v.sb) r.style.setProperty('--sb', v.sb);
-      }
-    }
-  } catch(e){}
-})();
-</script>
 <style>
 *{box-sizing:border-box;font-family:'B Nazanin','BNazanin','B-Nazanin',Vazirmatn,Tahoma,sans-serif;margin:0}
 body{font-size:15.5px}
@@ -1742,18 +1748,18 @@ try {
 <div class="login-c"><img src="../assets/images/ptf-logo.png" alt="PTF">
 <h2>🔐 سامانه مدیریت CRM</h2><p>دسترسی محرمانه ویژه پرسنل مجاز سازمان</p>
 <div class="lerr" id="lerr">❌ نام کاربری یا رمز عبور اشتباه است</div>
-<div id="pwaInstallBox" style="display:none;margin-top:18px;padding:14px;border:1.5px dashed rgba(239,75,26,.4);border-radius:16px;text-align:center;background:#fff8f5">
-  <div style="font-size:13px;font-weight:800;color:#c2410c;margin-bottom:8px">📲 نصب وب‌اپلیکیشن CRM</div>
-  <div style="font-size:11.5px;color:#64748b;margin-bottom:10px">دسترسی سریع از صفحه اصلی گوشی — بدون مرورگر</div>
-  <button type="button" onclick="ptfInstallApp()" style="background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;border:0;border-radius:12px;padding:9px 24px;font-family:inherit;font-weight:800;cursor:pointer;font-size:13px">نصب اپلیکیشن</button>
+<div id="pwaInstallBox" class="ptf-f21">
+  <div class="ptf-f31">📲 نصب وب‌اپلیکیشن CRM</div>
+  <div class="ptf-s53">دسترسی سریع از صفحه اصلی گوشی — بدون مرورگر</div>
+  <button type="button" onclick="ptfInstallApp()" class="ptf-f9">نصب اپلیکیشن</button>
 </div>
-<div id="netBadge" style="display:none;margin-top:10px;background:#fef3c7;color:#b45309;border-radius:10px;padding:7px;font-size:11.5px;text-align:center"></div>
+<div id="netBadge" class="ptf-f17"></div>
 <form onsubmit="doLogin();return false">
 <div class="fld"><label>👤 نام کاربری</label><input type="text" id="uName" name="username" placeholder="Username" required autocomplete="username"></div>
 <div class="fld"><label>🔑 رمز عبور</label><input type="password" id="uPass" name="password" placeholder="Password" required autocomplete="current-password"></div>
 <button type="submit" class="btn-l">ورود امن به سامانه</button>
 </form>
-<button onclick="ptfSafeReset()" style="margin-top:12px;background:none;border:none;color:#94a3b8;font-size:11px;cursor:pointer">🔄 رفع مشکل ورود (بدون حذف داده)</button>
+<button onclick="ptfSafeReset()" class="ptf-f16">🔄 رفع مشکل ورود (بدون حذف داده)</button>
 <script>
 // نسخه امن: فقط session و کش پاک می‌شود — داده‌های CRM هرگز حذف نمی‌شوند
 function ptfSafeReset() {
@@ -1781,17 +1787,17 @@ function ptfSafeReset() {
 <nav class="sb-n">
 <div class="nl">منوی اصلی</div>
 <button class="sb-i act" onclick="goPanel('dash',this)"><span class="ic">📊</span><span class="lb">داشبورد</span></button>
-<button class="sb-i" onclick="goPanel('rfq',this)"><span class="ic">📋</span><span class="lb">درخواست‌ها</span><span class="bc" id="rBadge" style="display:none">0</span></button>
+<button class="sb-i" onclick="goPanel('rfq',this)"><span class="ic">📋</span><span class="lb">درخواست‌ها</span><span class="bc" id="rBadge" class="ptf-style-1">0</span></button>
 <button class="sb-i" onclick="goPanel('sup',this)"><span class="ic">🏭</span><span class="lb">تامین‌کنندگان</span></button>
 <button class="sb-i" onclick="goPanel('rfqs',this)"><span class="ic">🤖</span><span class="lb">تامین</span></button>
 <button class="sb-i" onclick="goPanel('cust',this)"><span class="ic">🤝</span><span class="lb">مشتریان</span></button>
-<button class="sb-i" onclick="goPanel('leads',this)"><span class="ic">🎯</span><span class="lb">سرنخ‌ها</span><span class="bc" id="ldBadge" style="display:none">0</span></button>
-<button class="sb-i" onclick="goPanel('rem',this)"><span class="ic">⏰</span><span class="lb">یادآورها</span><span class="bc" id="rmBadge" style="display:none">0</span></button>
+<button class="sb-i" onclick="goPanel('leads',this)"><span class="ic">🎯</span><span class="lb">سرنخ‌ها</span><span class="bc" id="ldBadge" class="ptf-style-1">0</span></button>
+<button class="sb-i" onclick="goPanel('rem',this)"><span class="ic">⏰</span><span class="lb">یادآورها</span><span class="bc" id="rmBadge" class="ptf-style-1">0</span></button>
 <button class="sb-i" onclick="goPanel('prod',this)"><span class="ic">📦</span><span class="lb">کالاها</span></button>
 <button class="sb-i" onclick="goPanel('surplus',this)"><span class="ic">🏬</span><span class="lb">موجودی انبار</span></button>
 <button class="sb-i" onclick="goPanel('chqprint',this)"><span class="ic">🖨</span><span class="lb">چاپ چک</span></button>
 <button class="sb-i" onclick="goPanel('off',this)"><span class="ic">📄</span><span class="lb">پیشنهاد</span></button>
-<button class="sb-i" onclick="goPanel('ai',this)" style="background:linear-gradient(90deg,rgba(124,58,237,.15),transparent);border-right:3px solid #7c3aed"><span class="ic">🤖</span><span class="lb">دستیار</span><span class="bc" style="background:#7c3aed" id="aiBadge">AI</span></button>
+<button class="sb-i" onclick="goPanel('ai',this)" class="ptf-s24"><span class="ic">🤖</span><span class="lb">دستیار</span><span class="bc" class="ptf-s32" id="aiBadge">AI</span></button>
 <!-- v13.9 (US-344): «سفارشات و سود» حذف شد — مصوبه تیم: عملکرد موازی با مالی/تحلیلگر (داده دستی قدیمی) -->
 <!-- v14.0 (BUG-014/US-272): «مالی» قدیمی حذف شد — کلید legacy ptf_crm_finance که هیچ ماژولی به آن نمی‌نویسد (پنل همیشه خالی)؛ فاکتورها/مطالبات/سود خالص جایگزین کامل‌اند -->
 <button class="sb-i" onclick="goPanel('deals',this)"><span class="ic">📁</span><span class="lb">پرونده‌ها</span></button>
@@ -1800,7 +1806,7 @@ function ptfSafeReset() {
 <button class="sb-i" onclick="goPanel('anl',this)"><span class="ic">📊</span><span class="lb">تحلیلگر</span></button>
 <button class="sb-i" onclick="goPanel('cnt',this)"><span class="ic">📜</span><span class="lb">قراردادها</span></button>
 <button class="sb-i" onclick="goPanel('taxret',this)"><span class="ic">📁</span><span class="lb">اظهارنامه‌ها</span></button>
-<button class="sb-i" onclick="goPanel('cart',this)"><span class="ic">🗂</span><span class="lb">کارتابل من</span><span class="bc" id="ctBadge" style="display:none">0</span></button>
+<button class="sb-i" onclick="goPanel('cart',this)"><span class="ic">🗂</span><span class="lb">کارتابل من</span><span class="bc" id="ctBadge" class="ptf-style-1">0</span></button>
 <!-- v13.7 (US-336): «قیمت‌های خرید» از منو حذف شد — هم‌پوشان با «درخواست تامین» (مصوبه تیم چابکی)؛ داده‌ها محفوظ و از درخواست تامین در دسترس -->
 <button class="sb-i" onclick="goPanel('inv',this)"><span class="ic">🧾</span><span class="lb">فاکتورها</span></button>
 <button class="sb-i" onclick="goPanel('recv',this)"><span class="ic">💰</span><span class="lb">مطالبات</span></button>
@@ -1815,7 +1821,7 @@ function ptfSafeReset() {
      smLabel وقتی هر سه پنهان باشند خودکار پنهان می‌شود (crm/cms.js). -->
 <div class="nl sm-h" id="smLabel" role="button" tabindex="0" onclick="toggleSiteMod()"
      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSiteMod()}">مدیریت سایت<span class="sm-ar" id="smArrow">▾</span></div>
-<div id="smBody" style="display:none">
+<div id="smBody" class="ptf-style-1">
 <button class="sb-i" onclick="goPanel('cms',this)"><span class="ic">🎛</span><span class="lb">سایت</span></button>
 <button class="sb-i" onclick="goPanel('gsc',this)"><span class="ic">📈</span><span class="lb">سرچ کنسول</span></button>
 <button class="sb-i" onclick="goPanel('jobs',this)"><span class="ic">💼</span><span class="lb">فرصت شغلی</span></button>
@@ -1824,19 +1830,31 @@ function ptfSafeReset() {
 <div class="sb-f" id="sbFoot"></div>
 </aside>
 <main class="mn">
-<div class="tb" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+<div class="tb" class="ptf-f20">
   <!-- MOB-041: جستجوی سرتاسری به ذره‌بین چپ هدر منتقل شد؛ این کنترل تکراری کنار عنوان حذف شد. -->
-  <div style="display:flex;align-items:center;gap:12px;min-width:0">
-    <h2 id="pgTitle" style="margin:0">📊 داشبورد</h2>
+  <div class="ptf-f14">
+    <h2 id="pgTitle" class="ptf-s67">📊 داشبورد</h2>
   </div>
-  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span id="topVerPill" style="font-size:11.5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:4px 10px;color:#1e40af;font-weight:700"></span>
-    <div id="liveHealthPill" style="display:flex;align-items:center;gap:6px;font-size:11.5px;background:#ecfdf5;border:1px solid #10b981;border-radius:10px;padding:4px 10px;color:#047857"></div>
-    <span style="font-size:12px;color:#94a3b8" id="clockD"></span>
+  <div class="ptf-f26">
+    <span id="topVerPill" class="ptf-f23"></span>
+    <div id="liveHealthPill" class="ptf-f13"></div>
+    <span class="ptf-s11" id="clockD"></span>
   </div>
 </div>
 <div id="trialBarWrap"></div>
-<div class="ca" id="panels"></div>
+<div class="ca" id="panels">
+  <!-- Skeleton Loading -->
+  <div class="ptf-skeleton-container" id="mainSkeleton">
+    <div class="ptf-skeleton-header">
+      <div class="ptf-skeleton ptf-skeleton-title"></div>
+      <div class="ptf-skeleton ptf-skeleton-text" class="ptf-s27"></div>
+    </div>
+    <div class="ptf-skeleton-cards">
+      <div class="ptf-skeleton ptf-skeleton-card"></div>
+      <div class="ptf-skeleton ptf-skeleton-card"></div>
+      <div class="ptf-skeleton ptf-skeleton-card"></div>
+    </div>
+  </div></div>
 </main></div>
 
 <script>
@@ -2321,9 +2339,9 @@ function ptfMigBannerTick() {
       ? '🖥 انتقال یک‌بارهٔ این دستگاه ناقص مانده — تا تکمیل آن حافظهٔ مرورگر پر می‌شود: <b>تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه ← «تکمیل انتقال یک‌باره»</b>'
       : '🖥 این دستگاه هنوز به معماری جدید منتقل نشده — برای فعال‌سازی کامل و آزادسازی حافظه: <b>تنظیمات ← بک‌آپ و بازگردانی ← وضعیت دستگاه ← «انتقال یک‌بارهٔ داده‌های این دستگاه»</b>') +
       ((st.queue || 0) > 0 ? ' (⏳ ' + st.queue + ' تغییر در صف آفلاین هم هست)' : '') + '</span>' +
-      '<button type="button" class="bt" style="background:#059669;padding:6px 14px" onclick="if(typeof ptfBConfirmFlush===\'function\')ptfBConfirmFlush()">⬆️ ' + (ptfMigFin ? 'تکمیل انتقال' : 'انتقال یک‌باره') + '</button>' +
-      '<button type="button" class="bt bt-o" style="padding:6px 12px" onclick="if(typeof goPanelByName===\'function\')goPanelByName(\'set\')">رفتن به تنظیمات</button>' +
-      '<button type="button" class="bt bt-s" style="padding:6px 12px" onclick="window._ptfMigDismissed=true;document.getElementById(\'ptfMigBar\').remove()">بعداً</button>';
+      '<button type="button" class="bt" class="ptf-s3" onclick="if(typeof ptfBConfirmFlush===\'function\')ptfBConfirmFlush()">⬆️ ' + (ptfMigFin ? 'تکمیل انتقال' : 'انتقال یک‌باره') + '</button>' +
+      '<button type="button" class="bt bt-o" class="ptf-s36" onclick="if(typeof goPanelByName===\'function\')goPanelByName(\'set\')">رفتن به تنظیمات</button>' +
+      '<button type="button" class="bt bt-s" class="ptf-s36" onclick="window._ptfMigDismissed=true;document.getElementById(\'ptfMigBar\').remove()">بعداً</button>';
     document.body.appendChild(bar);
   } catch (e) {}
 }
@@ -2373,11 +2391,11 @@ window.PTF_CRM_RELEASE = 'v34.39.68'; window.VER = 'v34.39.68'; window.PTF_CRM_S
       var d = document.createElement('div');
       d.id = 'ptfVerShield';
       d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.93);display:flex;align-items:center;justify-content:center;padding:20px';
-      d.innerHTML = '<div style="background:#fff;border-radius:18px;padding:28px 34px;max-width:430px;box-shadow:0 30px 80px rgba(0,0,0,.35);text-align:center;font-family:inherit">' +
-        '<div style="font-size:36px;line-height:1">🔄</div>' +
-        '<h3 style="margin:12px 0 8px;color:#0f172a;font-size:17px">نسخهٔ جدیدی از سامانه روی سرور است</h3>' +
-        '<p style="color:#475569;font-size:13.5px;line-height:2;margin:0 0 16px">نسخهٔ اجراشده در مرورگر شما <b dir="ltr">' + rel + '</b> است اما سرور <b dir="ltr">' + srv + '</b> را ارائه می‌کند. برای عملکرد صحیح (از جمله تب‌های مدیریت سایت) یک‌بار بارگذاری مجدد کنید.</p>' +
-        '<button onclick="location.reload()" style="border:0;border-radius:999px;padding:12px 30px;background:#ef4b1a;color:#fff;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit">بارگذاری نسخهٔ جدید</button></div>';
+      d.innerHTML = '<div class="ptf-f34">' +
+        '<div class="ptf-s58">🔄</div>' +
+        '<h3 class="ptf-s15">نسخهٔ جدیدی از سامانه روی سرور است</h3>' +
+        '<p class="ptf-f12">نسخهٔ اجراشده در مرورگر شما <b dir="ltr">' + rel + '</b> است اما سرور <b dir="ltr">' + srv + '</b> را ارائه می‌کند. برای عملکرد صحیح (از جمله تب‌های مدیریت سایت) یک‌بار بارگذاری مجدد کنید.</p>' +
+        '<button onclick="location.reload()" class="ptf-f15">بارگذاری نسخهٔ جدید</button></div>';
       (document.body || document.documentElement).appendChild(d);
     }).catch(function () {});
   } catch (eVs) {}
@@ -2792,9 +2810,9 @@ window.ptfUnifiedCode = function (prefix) {
 // Sprint 115 / US-109: ماژول وندور لیست در مشتریان
 window.ptfVendorStatusBadge = function(c) {
   var vs = c.venSt || 'unreg';
-  if (vs === 'approved') return ' <span class="bd" style="background:#d1fae5;color:#065f46" title="تایید در وندور لیست شماره ' + escP(c.venNo||'') + '">🏆 وندور تاییدشده</span>';
-  if (vs === 'pending') return ' <span class="bd" style="background:#fef3c7;color:#d97706">⏳ بررسی مدارک وندوری</span>';
-  return ' <span class="bd" style="background:#f1f5f9;color:#64748b">⚪ ثبت‌نشده در وندور</span>';
+  if (vs === 'approved') return ' <span class="bd" class="ptf-style-2" title="تایید در وندور لیست شماره ' + escP(c.venNo||'') + '">🏆 وندور تاییدشده</span>';
+  if (vs === 'pending') return ' <span class="bd" class="ptf-s4">⏳ بررسی مدارک وندوری</span>';
+  return ' <span class="bd" class="ptf-s46">⚪ ثبت‌نشده در وندور</span>';
 };
 
 // Sprint 115 / US-110: زونکن دیجیتال پروژه
@@ -2815,37 +2833,37 @@ window.ptfOpenProjectBinder = function(prjNo) {
   ];
   function binderDocRow(d, idx) {
     var act;
-    if (d.sysOffer) act = '<a href="javascript:void(0)" onclick="event.stopPropagation();if(typeof offerPrint===\'function\')offerPrint(\'' + escP(d.sysOffer) + '\')" style="color:#7c3aed">🖨️ PDF</a>';
-    else if (d.purged) act = '<small style="color:#94a3b8">حذف‌شده از ابر</small>';
-    else if (d.archived) act = '<small style="color:#7c3aed">در zip بایگانی</small>';
-    else if (d.key) act = '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(d.key) + '\')" style="color:#0e7490">👁 مشاهده</a>';
-    else act = '<small style="color:#d97706" title="کلید ابری ندارد">بدون فایل ابری</small>';
-    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border:1px solid var(--brd);border-radius:8px;margin:4px 0;font-size:12px" onclick="event.stopPropagation()">' +
+    if (d.sysOffer) act = '<a href="javascript:void(0)" onclick="event.stopPropagation();if(typeof offerPrint===\'function\')offerPrint(\'' + escP(d.sysOffer) + '\')" class="ptf-s43">🖨️ PDF</a>';
+    else if (d.purged) act = '<small class="ptf-style-3">حذف‌شده از ابر</small>';
+    else if (d.archived) act = '<small class="ptf-s43">در zip بایگانی</small>';
+    else if (d.key) act = '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(d.key) + '\')" class="ptf-style-4">👁 مشاهده</a>';
+    else act = '<small class="ptf-s60" title="کلید ابری ندارد">بدون فایل ابری</small>';
+    return '<div class="ptf-f24" onclick="event.stopPropagation()">' +
       '<span>📄 ' + escP(d.name || ('سند ' + (idx + 1))) + '</span><span>' + act + '</span></div>';
   }
   var rows = SECT.map(function(sc){
     var list = docs.filter(function(d){ return d.folder === sc.id; });
     var n = list.length;
-    var st = n ? '<span class="bd" style="background:#d1fae5;color:#065f46">' + n + ' سند</span>' : '<span class="bd" style="background:#f1f5f9;color:#64748b">خالی</span>';
+    var st = n ? '<span class="bd" class="ptf-style-2">' + n + ' سند</span>' : '<span class="bd" class="ptf-s46">خالی</span>';
     var docsHtml = n ? list.map(binderDocRow).join('') :
-      '<div style="color:#94a3b8;font-size:11.5px;padding:4px 0">مدرکی در این بخش نیست</div>';
-    return '<tr><td style="vertical-align:top">' + sc.lb + '</td><td style="vertical-align:top">' + st + '</td><td style="vertical-align:top;min-width:160px">' +
+      '<div class="ptf-s17">مدرکی در این بخش نیست</div>';
+    return '<tr><td class="ptf-s16">' + sc.lb + '</td><td class="ptf-s16">' + st + '</td><td class="ptf-s29">' +
       docsHtml +
-      '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="event.stopPropagation();ptfBinderOpenFolder(\'' + escP(prjNo) + '\',\'' + sc.id + '\')">' + (n ? '📂 پوشه پرونده' : '+ افزودن در پرونده') + '</button>' +
+      '<button type="button" class="bt bt-o" class="ptf-s38" onclick="event.stopPropagation();ptfBinderOpenFolder(\'' + escP(prjNo) + '\',\'' + sc.id + '\')">' + (n ? '📂 پوشه پرونده' : '+ افزودن در پرونده') + '</button>' +
       '</td></tr>';
   }).join('');
   /* اسناد بدون folder */
   var orphan = docs.filter(function(d){ return !d.folder || !SECT.some(function(s){ return s.id === d.folder; }); });
   if (orphan.length) {
-    rows += '<tr><td>📦 سایر</td><td><span class="bd" style="background:#d1fae5;color:#065f46">' + orphan.length + ' سند</span></td><td onclick="event.stopPropagation()">' + orphan.map(binderDocRow).join('') + '</td></tr>';
+    rows += '<tr><td>📦 سایر</td><td><span class="bd" class="ptf-style-2">' + orphan.length + ' سند</span></td><td onclick="event.stopPropagation()">' + orphan.map(binderDocRow).join('') + '</td></tr>';
   }
-  var html = '<div class="md-b" id="ptfBinderModal" style="display:grid;z-index:1800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:92vh;overflow:auto" onclick="event.stopPropagation()">' +
+  var html = '<div class="md-b" id="ptfBinderModal" class="ptf-s45" onclick="if(event.target===this)this.remove()"><div class="md" class="ptf-s44" onclick="event.stopPropagation()">' +
     '<h3>🗄️ زونکن دیجیتال یکپارچه پرونده — ' + escP(prjNo) + '</h3>' +
-    '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px;font-size:12.5px;margin-bottom:14px">' +
+    '<div class="ptf-f3">' +
     '<b>مشتری:</b> ' + escP(p.buyerCo||'-') + ' | <b>شماره پیش‌فاکتور:</b> ' + escP(p.offerNo||'-') + ' | <b>کل اسناد:</b> ' + docs.length +
-    (p.archiveMetaOnly ? ' | <span style="color:#7c3aed">بایگانی متادیتایی</span>' : '') + '</div>' +
+    (p.archiveMetaOnly ? ' | <span class="ptf-s43">بایگانی متادیتایی</span>' : '') + '</div>' +
     '<div class="tb2"><table><thead><tr><th>بخش سند</th><th>وضعیت</th><th>اسناد / عملیات</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="bt" onclick="event.stopPropagation();var m=document.getElementById(\'ptfBinderModal\');if(m)m.remove()">بستن زونکن</button></div></div></div>';
+    '<div class="ptf-s20"><button class="bt" onclick="event.stopPropagation();var m=document.getElementById(\'ptfBinderModal\');if(m)m.remove()">بستن زونکن</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
 };
 /* v21.1 BUG-037: رفتن به پوشه پرونده بدون بستن اجباری زونکن با remove+reopen ایمن */
@@ -2877,22 +2895,22 @@ window.ptfCalculateNetProfit = function(prjNo) {
   var netProfit = r.profit - extraCost;
   var pct = r.sellIrr > 0 ? Math.round(netProfit * 100 / r.sellIrr) : 0;
   var warnHtml = r.warnings.length
-    ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:12px;color:#b91c1c;margin-bottom:10px;line-height:1.9">' + r.warnings.map(function(w){return escP(w);}).join('<br>') + '</div>'
+    ? '<div class="ptf-f38">' + r.warnings.map(function(w){return escP(w);}).join('<br>') + '</div>'
     : '';
   var reliableTag = (r.complete && !r.buyPendingFx.length)
-    ? '<span class="bd" style="background:#d1fae5;color:#065f46">✅ همه اجزا قطعی — قابل اتکا</span>'
-    : '<span class="bd" style="background:#fef3c7;color:#b45309">⚠️ ناقص — اجزای نامشخص در هشدارها</span>';
-  var html = '<div class="md-b" style="display:grid;z-index:1800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px">' +
+    ? '<span class="bd" class="ptf-style-2">✅ همه اجزا قطعی — قابل اتکا</span>'
+    : '<span class="bd" class="ptf-s34">⚠️ ناقص — اجزای نامشخص در هشدارها</span>';
+  var html = '<div class="md-b" class="ptf-s45" onclick="if(event.target===this)this.remove()"><div class="md" class="ptf-s52">' +
     '<h3>💰 محاسبه‌گر سود خالص پروژه (مدیریت) ' + reliableTag + '</h3>' +
     warnHtml +
-    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;font-size:13px;color:#166534;margin-bottom:14px;line-height:2">' +
-    '<b>فروش ریالی واقعی:</b> ' + r.sellIrr.toLocaleString('fa-IR') + ' ریال <small style="color:#4d7c0f">(' + escP(r.sellSrc) + ')</small><br>' +
-    '<b>هزینه تأمین و خرید (ریالی‌شده):</b> ' + r.buyIrr.toLocaleString('fa-IR') + ' ریال' + (r.buyItems ? ' <small style="color:#4d7c0f">(' + r.buyItems + ' قلم)</small>' : '') + '<br>' +
-    '<b>هزینه‌های ثبت‌شده پرونده:</b> ' + recordedCosts.toLocaleString('fa-IR') + ' ریال' + (extraCost ? ' <small style="color:#92400e">+ هزینه ثبت‌نشده اعلامی: ' + extraCost.toLocaleString('fa-IR') + ' ریال</small>' : '') + '<hr style="border:none;border-top:1px dashed #86efac;margin:8px 0">' +
-    '<b style="font-size:15px;color:' + (netProfit >= 0 ? '#15803d' : '#dc2626') + '">سود خالص (ریال واقعی): ' + netProfit.toLocaleString('fa-IR') + ' ریال (' + pct + '٪)</b></div>' +
-    '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+    '<div class="ptf-f36">' +
+    '<b>فروش ریالی واقعی:</b> ' + r.sellIrr.toLocaleString('fa-IR') + ' ریال <small class="ptf-s28">(' + escP(r.sellSrc) + ')</small><br>' +
+    '<b>هزینه تأمین و خرید (ریالی‌شده):</b> ' + r.buyIrr.toLocaleString('fa-IR') + ' ریال' + (r.buyItems ? ' <small class="ptf-s28">(' + r.buyItems + ' قلم)</small>' : '') + '<br>' +
+    '<b>هزینه‌های ثبت‌شده پرونده:</b> ' + recordedCosts.toLocaleString('fa-IR') + ' ریال' + (extraCost ? ' <small class="ptf-s22">+ هزینه ثبت‌نشده اعلامی: ' + extraCost.toLocaleString('fa-IR') + ' ریال</small>' : '') + '<hr class="ptf-s47">' +
+    '<b class="ptf-s61">سود خالص (ریال واقعی): ' + netProfit.toLocaleString('fa-IR') + ' ریال (' + pct + '٪)</b></div>' +
+    '<div class="ptf-s26">' +
     '<button class="bt bt-o" onclick="this.closest(&quot;.md-b&quot;).remove()">بستن</button>' +
-    '<button class="bt" style="background:#059669" onclick="alert(&quot;✅ سود خالص ' + pct + '٪ تایید شد&quot;);this.closest(&quot;.md-b&quot;).remove();">🏆 تأیید سود</button></div></div></div>';
+    '<button class="bt" class="ptf-s35" onclick="alert(&quot;✅ سود خالص ' + pct + '٪ تایید شد&quot;);this.closest(&quot;.md-b&quot;).remove();">🏆 تأیید سود</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
 };
 
@@ -3013,7 +3031,7 @@ window.ptfShowExcelGuidelineModal = function (moduleType, fileInputId) {
   var c = cfg[moduleType] || cfg.PROD;
   var rowsHtml = '';
   c.cols.forEach(function(item) {
-    rowsHtml += '<tr><td><b style="color:#0e7490">' + escP(item.c) + '</b></td><td><b>' + escP(item.n) + '</b></td><td style="font-size:12px;color:#475569">' + escP(item.r) + '</td></tr>';
+    rowsHtml += '<tr><td><b class="ptf-style-4">' + escP(item.c) + '</b></td><td><b>' + escP(item.n) + '</b></td><td class="ptf-s68">' + escP(item.r) + '</td></tr>';
   });
 
   /* v122.2 (US-280): پرامپت آماده هوش مصنوعی — برای تبدیل PDF/فایل به‌هم‌ریخته به اکسل استاندارد همین ماژول */
@@ -3040,26 +3058,26 @@ window.ptfShowExcelGuidelineModal = function (moduleType, fileInputId) {
   aiPrompt += 'خروجی نهایی: فایل اکسل استاندارد قابل بارگذاری مستقیم در سامانه.';
   window._ptfAiPromptCache = aiPrompt;
 
-  var html = '<div class="md-b" style="display:grid;z-index:1900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:680px">' +
+  var html = '<div class="md-b" class="ptf-s57" onclick="if(event.target===this)this.remove()"><div class="md" class="ptf-s18">' +
     '<h3>' + escP(c.title) + '</h3>' +
-    '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px;font-size:12.5px;color:#0369a1;margin-bottom:14px">' +
+    '<div class="ptf-f10">' +
     '<b>قانون شیت:</b> ' + escP(c.sheet) + '<br><b>قانون سرستون:</b> ' + escP(c.header) + '</div>' +
-    '<div class="tb2" style="margin-bottom:14px"><table><thead><tr><th>موقعیت در اکسل (از چپ A B C D)</th><th>عنوان اطلاعات</th><th>قاعده و پیش‌فرض</th></tr></thead>' +
+    '<div class="tb2" class="ptf-s1"><table><thead><tr><th>موقعیت در اکسل (از چپ A B C D)</th><th>عنوان اطلاعات</th><th>قاعده و پیش‌فرض</th></tr></thead>' +
     '<tbody>' + rowsHtml + '</tbody></table></div>' +
-    '<div style="background:#fff8f5;border:1px solid #fed7aa;border-radius:10px;padding:10px;font-size:12px;color:#9a3412;margin-bottom:16px">' + escP(c.note) + '</div>' +
+    '<div class="ptf-f1">' + escP(c.note) + '</div>' +
     /* v122.2 (US-280): جعبه پرامپت AI برای فایل‌های PDF/به‌هم‌ریخته */
-    '<details style="margin-bottom:16px;border:1px solid #ddd6fe;border-radius:12px;background:#faf5ff;overflow:hidden">' +
-    '<summary style="cursor:pointer;padding:11px 14px;font-size:12.5px;font-weight:bold;color:#6d28d9">🤖 فایل PDF یا به‌هم‌ریخته دارید؟ پرامپت آماده هوش مصنوعی (کلیک کنید)</summary>' +
-    '<div style="padding:0 14px 12px">' +
-    '<div style="font-size:12px;color:#5b21b6;margin-bottom:8px">این متن را کپی کنید و همراه فایل خود به هوش مصنوعی (دستیار هوشمند همین سامانه، ChatGPT، Gemini و…) بدهید تا فایل اکسل استاندارد همین ماژول را تحویل بگیرید:</div>' +
-    '<textarea id="ptfAiPromptTa" readonly onclick="this.select()" style="width:100%;height:130px;font-size:11px;padding:9px;border:1px solid #ddd6fe;border-radius:10px;background:#fff;color:#374151;resize:vertical;direction:rtl">' + escP(aiPrompt) + '</textarea>' +
-    '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">' +
-    '<button class="bt bt-o" style="font-size:12px;color:#6d28d9;border-color:#ddd6fe" onclick="var t=document.getElementById(\'ptfAiPromptTa\');t.select();try{document.execCommand(\'copy\')}catch(e){}if(navigator.clipboard)navigator.clipboard.writeText(t.value);this.textContent=\'✅ کپی شد\'">📋 کپی پرامپت</button>' +
-    '<button class="bt bt-o" style="font-size:12px" onclick="this.closest(&quot;.md-b&quot;).remove();if(typeof goPanel===\'function\')goPanel(\'ai\')">🤖 باز کردن دستیار هوشمند سامانه</button>' +
+    '<details class="ptf-f28">' +
+    '<summary class="ptf-f4">🤖 فایل PDF یا به‌هم‌ریخته دارید؟ پرامپت آماده هوش مصنوعی (کلیک کنید)</summary>' +
+    '<div class="ptf-s56">' +
+    '<div class="ptf-s63">این متن را کپی کنید و همراه فایل خود به هوش مصنوعی (دستیار هوشمند همین سامانه، ChatGPT، Gemini و…) بدهید تا فایل اکسل استاندارد همین ماژول را تحویل بگیرید:</div>' +
+    '<textarea id="ptfAiPromptTa" readonly onclick="this.select()" class="ptf-f35">' + escP(aiPrompt) + '</textarea>' +
+    '<div class="ptf-f41">' +
+    '<button class="bt bt-o" class="ptf-s7" onclick="var t=document.getElementById(\'ptfAiPromptTa\');t.select();try{document.execCommand(\'copy\')}catch(e){}if(navigator.clipboard)navigator.clipboard.writeText(t.value);this.textContent=\'✅ کپی شد\'">📋 کپی پرامپت</button>' +
+    '<button class="bt bt-o" class="ptf-s39" onclick="this.closest(&quot;.md-b&quot;).remove();if(typeof goPanel===\'function\')goPanel(\'ai\')">🤖 باز کردن دستیار هوشمند سامانه</button>' +
     '</div></div></details>' +
-    '<div style="display:flex;justify-content:space-between;align-items:center">' +
+    '<div class="ptf-s50">' +
     '<button class="bt bt-o" onclick="this.closest(&quot;.md-b&quot;).remove()">انصراف</button>' +
-    '<button class="bt" style="background:#059669;color:#fff;padding:10px 20px;font-size:13px" onclick="ptfXlsGuideGo(this, &quot;' + fileInputId + '&quot;)">✅ بارگذاری اکسل</button>' +
+    '<button class="bt" class="ptf-f22" onclick="ptfXlsGuideGo(this, &quot;' + fileInputId + '&quot;)">✅ بارگذاری اکسل</button>' +
     '</div></div></div>';
 
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -3336,9 +3354,9 @@ function buildDashboard() {
     '<div class="sc"><b id="dSup">0</b><span>تامین‌کنندگان</span></div>' +
     '<div class="sc"><b id="dCust">0</b><span>مشتریان</span></div>' +
     '<div class="sc"><b id="dUser">0</b><span>کاربران</span></div></div>' +
-    '<div style="background:#f8fafc;border-radius:16px;padding:20px;border:1px solid var(--brd)">' +
-    '<h4 style="margin:0 0 12px;font-size:14px">📈 آخرین فعالیت‌ها</h4>' +
-    '<div id="actLog" style="font-size:13px;line-height:2;color:#475569"><span style="color:#94a3b8">هنوز فعالیتی ثبت نشده</span></div></div>';
+    '<div class="ptf-f8">' +
+    '<h4 class="ptf-s8">📈 آخرین فعالیت‌ها</h4>' +
+    '<div id="actLog" class="ptf-s21"><span class="ptf-style-3">هنوز فعالیتی ثبت نشده</span></div></div>';
 }
 
 function updateStats() {
@@ -3396,7 +3414,7 @@ function renderRfq() {
     tb.innerHTML += '<tr><td><strong>' + cdSafe + '</strong></td><td>' + escP(rfqs[i].co) + '</td>' +
       '<td>' + (rfqs[i].ca||'-') + '</td><td>' + (rfqs[i].dt||'—') + '</td>' +
       '<td><span class="bd b-' + (rfqs[i].st||'st1') + '">' + (rfqs[i].stxt||'دریافت اولیه') + '</span></td>' +
-      '<td><button class="ba" style="color:#0f172a;font-weight:bold" onclick="ptfViewRfq(\'' + cdSafe + '\')">👁 مشاهده</button> <button class="ba" onclick="editRfq(\'' + cdSafe + '\')">✎ ویرایش/حذف</button></td></tr>';
+      '<td><button class="ba" class="ptf-s54" onclick="ptfViewRfq(\'' + cdSafe + '\')">👁 مشاهده</button> <button class="ba" onclick="editRfq(\'' + cdSafe + '\')">✎ ویرایش/حذف</button></td></tr>';
   }
   updateStats();
 }
@@ -3414,8 +3432,8 @@ function buildSuppliers() {
   return '<div class="ph"><h3>🏭 تامین‌کنندگان</h3>' +
     '<div class="sb2"><input type="text" id="sSrch" placeholder="جستجو..." oninput="renderSuppliers()">' +
     '<button class="bt" onclick="showSupModal2()">+ ثبت</button>' +
-    '<button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;SUP&quot;, &quot;supXlsInp&quot;)">📥 ورود اکسل</button>' +
-    '<input type="file" id="supXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportSupXls(this)"></div></div>' +
+    '<button class="bt bt-o" class="ptf-s49" onclick="ptfShowExcelGuidelineModal(&quot;SUP&quot;, &quot;supXlsInp&quot;)">📥 ورود اکسل</button>' +
+    '<input type="file" id="supXlsInp" accept=".csv,.xlsx,.xls" class="ptf-style-1" onchange="ptfStandardImportSupXls(this)"></div></div>' +
     '<div class="tb2"><table><thead><tr><th>کد</th><th>شرکت</th><th>رابط اصلی</th><th>تماس</th><th>دسته</th><th>عملیات</th></tr></thead>' +
     '<tbody id="sTb"></tbody></table></div>';
 }
@@ -3438,10 +3456,10 @@ function renderSuppliers() {
   for (var i = 0; i < list.length; i++) {
     var s = list[i];
     h += '<tr><td><strong>' + escP(s.cd) + '</strong></td><td>' + escP(s.co) + '</td>' +
-      '<td>' + escP(s.nm || '-') + '</td><td style="direction:ltr">' + escP(s.ph || '-') + '</td>' +
+      '<td>' + escP(s.nm || '-') + '</td><td class="ptf-style-5">' + escP(s.ph || '-') + '</td>' +
       '<td>' + escP(s.ca || '-') + '</td></tr>';
   }
-  tb.innerHTML = h || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:22px">' + (q ? 'تامین‌کننده‌ای با این جستجو یافت نشد' : 'تامین‌کننده‌ای ثبت نشده') + '</td></tr>';
+  tb.innerHTML = h || '<tr><td colspan="5" class="ptf-s12">' + (q ? 'تامین‌کننده‌ای با این جستجو یافت نشد' : 'تامین‌کننده‌ای ثبت نشده') + '</td></tr>';
   if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;
 }
 
@@ -3463,21 +3481,21 @@ function buildProducts() {
   var catOpts='<option value="">همه</option>';
   for (var i=0;i<PROD_CATS.length;i++) catOpts += '<option>'+PROD_CATS[i]+'</option>';
   return '<div class="ph"><h3>📦 مدیریت کالاها</h3>' +
-    '<div class="sb2" style="flex-wrap:wrap;gap:6px">' +
+    '<div class="sb2" class="ptf-s62">' +
     '<button class="bt" onclick="showProdModal()">+ کالای جدید</button>' +
-    '<button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="exportProdCsv()">📤 خروجی اکسل</button>' +
+    '<button class="bt bt-o" class="ptf-s49" onclick="exportProdCsv()">📤 خروجی اکسل</button>' +
     '<button class="bt bt-o" onclick="ptfShowExcelGuidelineModal(&quot;PROD&quot;, &quot;pCsvIn&quot;)">📥 ورود اکسل</button>' +
     '' +
-    '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfBatchDeleteProducts()">🗑 حذف دسته‌جمعی انتخاب‌شده‌ها</button>' +
-    '<input type="file" id="pCsvIn" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportProdXls(this)">' +
+    '<button class="bt bt-o" class="ptf-s30" onclick="ptfBatchDeleteProducts()">🗑 حذف دسته‌جمعی انتخاب‌شده‌ها</button>' +
+    '<input type="file" id="pCsvIn" accept=".csv,.xlsx,.xls" class="ptf-style-1" onchange="ptfStandardImportProdXls(this)">' +
     '</div></div>' +
     '<div id="prodFilters" class="product-filters">' +
     '<input type="text" id="pSrch" placeholder="جستجو: کد، نام، برند، استاندارد..." oninput="renderProducts()">' +
     '<select id="pFcat" onchange="renderProducts()">' + catOpts + '</select>' +
     '<div id="prodFilterExtras" class="product-filter-extras"></div>' +
     '</div>' +
-    '<div style="font-size:12px;color:#94a3b8;margin-bottom:8px" id="pCount"></div>' +
-    '<div class="tb2"><table><thead><tr><th style="width:32px"><input type="checkbox" id="pChkAll" onclick="ptfToggleAllProdChk(this)" title="انتخاب همه"></th><th onclick="sortProd(&quot;cd&quot;)" style="cursor:pointer">کد ⇅</th><th onclick="sortProd(&quot;nm&quot;)" style="cursor:pointer">نام کالا ⇅</th><th>دسته</th><th>استاندارد/گرید</th><th>برند</th><th>واحد</th><th onclick="sortProd(&quot;pr&quot;)" style="cursor:pointer">قیمت مرجع ⇅</th><th>عملیات</th></tr></thead>' +
+    '<div class="ptf-s55" id="pCount"></div>' +
+    '<div class="tb2"><table><thead><tr><th class="ptf-s41"><input type="checkbox" id="pChkAll" onclick="ptfToggleAllProdChk(this)" title="انتخاب همه"></th><th onclick="sortProd(&quot;cd&quot;)" class="ptf-style-6">کد ⇅</th><th onclick="sortProd(&quot;nm&quot;)" class="ptf-style-6">نام کالا ⇅</th><th>دسته</th><th>استاندارد/گرید</th><th>برند</th><th>واحد</th><th onclick="sortProd(&quot;pr&quot;)" class="ptf-style-6">قیمت مرجع ⇅</th><th>عملیات</th></tr></thead>' +
     '<tbody id="pTb"></tbody></table></div>';
 }
 
@@ -3511,8 +3529,8 @@ function renderProductsServer() {
   var q = ((document.getElementById('pSrch')||{}).value || '').trim();
   var fc = (document.getElementById('pFcat')||{}).value || '';
   var sort = (typeof prodSort !== 'undefined' && prodSort) ? prodSort : { key: 'cd', dir: 1 };
-  if (prodServerPage.loading) { tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">⏳ در حال دریافت از سرور…</td></tr>'; return; }
-  if (!prodServerPage.rows) { prodServerPage.loading = true; tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">⏳ در حال دریافت از سرور…</td></tr>';
+  if (prodServerPage.loading) { tb.innerHTML = '<tr><td colspan="9" class="ptf-style-7">⏳ در حال دریافت از سرور…</td></tr>'; return; }
+  if (!prodServerPage.rows) { prodServerPage.loading = true; tb.innerHTML = '<tr><td colspan="9" class="ptf-style-7">⏳ در حال دریافت از سرور…</td></tr>';
     var opts = { page: prodServerPage.page, pageSize: 100, sortBy: sort.key === 'pr' ? 'pr' : (sort.key || 'cd'), sortDir: sort.dir === -1 ? 'desc' : 'asc' };
     if (q) opts.q = q;
     window.ptfCollectionQuery('ptf_crm_products', opts, function (d) {
@@ -3531,20 +3549,20 @@ function renderProductsServer() {
     var cd = p.cd || '';
     var safeCd = cd.replace(/'/g, '');
     h += '<tr><td><input type="checkbox" class="p-chk" value="' + escP(cd) + '"></td>' +
-      '<td><strong>'+escP(cd)+'</strong></td><td>'+escP(p.nm)+(p.en?'<br><small style="color:#94a3b8">'+escP(p.en)+'</small>':'')+'</td>'+
-      '<td>'+escP((typeof ptfNormCat==='function'?ptfNormCat(p.ca):p.ca)||'-')+'</td><td>'+escP(p.st||'-')+'</td><td>'+escP(p.br||'-')+(p.md?'<br><small style="color:#7c3aed;direction:ltr;display:inline-block">'+escP(p.md)+'</small>':'')+'</td><td>'+escP(p.un||'-')+'</td>'+
-      '<td>'+(p.pr? (+p.pr).toLocaleString(p.prCur&&p.prCur!=='IRR'?'en-US':'fa-IR')+' '+(p.prCur&&p.prCur!=='IRR'?p.prCur:'ریال') : '-')+(p.refPriceAt ? '<br><small style="color:#0e7490" title="'+escP(p.refPriceSrc||'')+'">مرجع: '+escP(p.refPriceAt)+'</small>' : '')+'</td>'+
-      '<td><button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 10px;font-size:12px" title="ویرایش کالا" aria-label="ویرایش کالا" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
-      '<button class="bt bt-o entity-row-action" data-entity-action="delete" style="padding:4px 10px;font-size:12px;color:#dc2626" title="حذف کالا" aria-label="حذف کالا" onclick="delProd(\''+safeCd+'\')">🗑️</button></td></tr>';
+      '<td><strong>'+escP(cd)+'</strong></td><td>'+escP(p.nm)+(p.en?'<br><small class="ptf-style-3">'+escP(p.en)+'</small>':'')+'</td>'+
+      '<td>'+escP((typeof ptfNormCat==='function'?ptfNormCat(p.ca):p.ca)||'-')+'</td><td>'+escP(p.st||'-')+'</td><td>'+escP(p.br||'-')+(p.md?'<br><small class="ptf-s66">'+escP(p.md)+'</small>':'')+'</td><td>'+escP(p.un||'-')+'</td>'+
+      '<td>'+(p.pr? (+p.pr).toLocaleString(p.prCur&&p.prCur!=='IRR'?'en-US':'fa-IR')+' '+(p.prCur&&p.prCur!=='IRR'?p.prCur:'ریال') : '-')+(p.refPriceAt ? '<br><small class="ptf-style-4" title="'+escP(p.refPriceSrc||'')+'">مرجع: '+escP(p.refPriceAt)+'</small>' : '')+'</td>'+
+      '<td><button class="bt bt-o entity-row-action" data-entity-action="edit" class="ptf-s9" title="ویرایش کالا" aria-label="ویرایش کالا" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
+      '<button class="bt bt-o entity-row-action" data-entity-action="delete" class="ptf-s40" title="حذف کالا" aria-label="حذف کالا" onclick="delProd(\''+safeCd+'\')">🗑️</button></td></tr>';
   }
   var nav = '';
   if (prodServerPage.totalPages > 1) {
-    nav = '<tr><td colspan="9" style="text-align:center;padding:10px">' +
-      '<button class="bt bt-o" style="padding:3px 10px" onclick="ptfProdServerGoto(' + (prodServerPage.page - 1) + ')"' + (prodServerPage.page <= 1 ? ' disabled' : '') + '>‹ قبلی</button> ' +
+    nav = '<tr><td colspan="9" class="ptf-s31">' +
+      '<button class="bt bt-o" class="ptf-style-8" onclick="ptfProdServerGoto(' + (prodServerPage.page - 1) + ')"' + (prodServerPage.page <= 1 ? ' disabled' : '') + '>‹ قبلی</button> ' +
       ' صفحهٔ ' + prodServerPage.page + ' از ' + prodServerPage.totalPages + ' ' +
-      '<button class="bt bt-o" style="padding:3px 10px" onclick="ptfProdServerGoto(' + (prodServerPage.page + 1) + ')"' + (prodServerPage.page >= prodServerPage.totalPages ? ' disabled' : '') + '>بعدی ›</button></td></tr>';
+      '<button class="bt bt-o" class="ptf-style-8" onclick="ptfProdServerGoto(' + (prodServerPage.page + 1) + ')"' + (prodServerPage.page >= prodServerPage.totalPages ? ' disabled' : '') + '>بعدی ›</button></td></tr>';
   }
-  tb.innerHTML = (h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">کالایی یافت نشد</td></tr>') + nav;
+  tb.innerHTML = (h || '<tr><td colspan="9" class="ptf-style-7">کالایی یافت نشد</td></tr>') + nav;
 }
 /* v34.8.34 (T3-1 عملیاتی + فیکس نمایش): خواندن سرور-محور با گاردهای مطمئن —
    • نبود توکن → خطای محلی داخل DataLayer (بدون fetch) → fallback فوری
@@ -3574,11 +3592,11 @@ function prodRowHtml(p) {
   var cd = p.cd || '';
   var safeCd = cd.replace(/'/g, '');
   return '<tr><td><input type="checkbox" class="p-chk" value="' + escP(cd) + '"></td>' +
-    '<td><strong>'+escP(cd)+'</strong></td><td>'+escP(p.nm)+(p.en?'<br><small style="color:#94a3b8">'+escP(p.en)+'</small>':'')+'</td>'+
-    '<td>'+escP((typeof ptfNormCat==='function'?ptfNormCat(p.ca):p.ca)||'-')+'</td><td>'+escP(p.st||'-')+'</td><td>'+escP(p.br||'-')+(p.md?'<br><small style="color:#7c3aed;direction:ltr;display:inline-block">'+escP(p.md)+'</small>':'')+'</td><td>'+escP(p.un||'-')+'</td>'+
-    '<td>'+(p.pr? (+p.pr).toLocaleString(p.prCur&&p.prCur!=='IRR'?'en-US':'fa-IR')+' '+(p.prCur&&p.prCur!=='IRR'?p.prCur:'ریال') : '-')+(p.refPriceAt ? '<br><small style="color:#0e7490" title="'+escP(p.refPriceSrc||'')+'">مرجع: '+escP(p.refPriceAt)+'</small>' : '')+'</td>'+
-    '<td><button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 10px;font-size:12px" title="ویرایش کالا" aria-label="ویرایش کالا" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
-    '<button class="bt bt-o entity-row-action" data-entity-action="delete" style="padding:4px 10px;font-size:12px;color:#dc2626" title="حذف کالا" aria-label="حذف کالا" onclick="delProd(\''+safeCd+'\')">🗑️</button></td></tr>';
+    '<td><strong>'+escP(cd)+'</strong></td><td>'+escP(p.nm)+(p.en?'<br><small class="ptf-style-3">'+escP(p.en)+'</small>':'')+'</td>'+
+    '<td>'+escP((typeof ptfNormCat==='function'?ptfNormCat(p.ca):p.ca)||'-')+'</td><td>'+escP(p.st||'-')+'</td><td>'+escP(p.br||'-')+(p.md?'<br><small class="ptf-s66">'+escP(p.md)+'</small>':'')+'</td><td>'+escP(p.un||'-')+'</td>'+
+    '<td>'+(p.pr? (+p.pr).toLocaleString(p.prCur&&p.prCur!=='IRR'?'en-US':'fa-IR')+' '+(p.prCur&&p.prCur!=='IRR'?p.prCur:'ریال') : '-')+(p.refPriceAt ? '<br><small class="ptf-style-4" title="'+escP(p.refPriceSrc||'')+'">مرجع: '+escP(p.refPriceAt)+'</small>' : '')+'</td>'+
+    '<td><button class="bt bt-o entity-row-action" data-entity-action="edit" class="ptf-s9" title="ویرایش کالا" aria-label="ویرایش کالا" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
+    '<button class="bt bt-o entity-row-action" data-entity-action="delete" class="ptf-s40" title="حذف کالا" aria-label="حذف کالا" onclick="delProd(\''+safeCd+'\')">🗑️</button></td></tr>';
 }
 function renderProductsLocal() {
   var items = getData('ptf_crm_products');
@@ -3603,14 +3621,14 @@ function renderProductsLocal() {
   if (el) el.textContent = 'نمایش ' + list.length + ' از ' + items.length + ' کالا';
   var h = '';
   for (var i=0;i<list.length;i++) h += prodRowHtml(list[i]);
-  tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">کالایی یافت نشد</td></tr>';
+  tb.innerHTML = h || '<tr><td colspan="9" class="ptf-style-7">کالایی یافت نشد</td></tr>';
 }
 function renderProductsServer() {
   var tb = document.getElementById('pTb');
   if (!tb) return;
   var q = ((document.getElementById('pSrch')||{}).value || '').trim();
   var sort = (typeof prodSort !== 'undefined' && prodSort) ? prodSort : { key: 'cd', dir: 1 };
-  if (prodServerPage.loading) { tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">⏳ در حال دریافت از سرور…</td></tr>'; return; }
+  if (prodServerPage.loading) { tb.innerHTML = '<tr><td colspan="9" class="ptf-style-7">⏳ در حال دریافت از سرور…</td></tr>'; return; }
   if (!prodServerPage.rows) {
     /* نبود توکن داخل DataLayer خطای no_token می‌دهد → همین‌جا fallback؛ حداکثر ۲ retry */
     if (prodServerPage.fails >= 2) {
@@ -3620,7 +3638,7 @@ function renderProductsServer() {
       return;
     }
     prodServerPage.loading = true; prodServerPage.fails++;
-    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">⏳ در حال دریافت از سرور…</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" class="ptf-style-7">⏳ در حال دریافت از سرور…</td></tr>';
     var opts = { page: prodServerPage.page, pageSize: 100, sortBy: sort.key === 'pr' ? 'pr' : (sort.key || 'cd'), sortDir: sort.dir === -1 ? 'desc' : 'asc' };
     if (q) opts.q = q;
     window.ptfCollectionQuery('ptf_crm_products', opts, function (d) {
@@ -3655,12 +3673,12 @@ function renderProductsServer() {
   for (var i=0;i<list.length;i++) h += prodRowHtml(list[i]);
   var nav = '';
   if (prodServerPage.totalPages > 1) {
-    nav = '<tr><td colspan="9" style="text-align:center;padding:10px">' +
-      '<button class="bt bt-o" style="padding:3px 10px" onclick="ptfProdServerGoto(' + (prodServerPage.page - 1) + ')"' + (prodServerPage.page <= 1 ? ' disabled' : '') + '>‹ قبلی</button> ' +
+    nav = '<tr><td colspan="9" class="ptf-s31">' +
+      '<button class="bt bt-o" class="ptf-style-8" onclick="ptfProdServerGoto(' + (prodServerPage.page - 1) + ')"' + (prodServerPage.page <= 1 ? ' disabled' : '') + '>‹ قبلی</button> ' +
       ' صفحهٔ ' + prodServerPage.page + ' از ' + prodServerPage.totalPages + ' ' +
-      '<button class="bt bt-o" style="padding:3px 10px" onclick="ptfProdServerGoto(' + (prodServerPage.page + 1) + ')"' + (prodServerPage.page >= prodServerPage.totalPages ? ' disabled' : '') + '>بعدی ›</button></td></tr>';
+      '<button class="bt bt-o" class="ptf-style-8" onclick="ptfProdServerGoto(' + (prodServerPage.page + 1) + ')"' + (prodServerPage.page >= prodServerPage.totalPages ? ' disabled' : '') + '>بعدی ›</button></td></tr>';
   }
-  tb.innerHTML = (h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">کالایی یافت نشد</td></tr>') + nav;
+  tb.innerHTML = (h || '<tr><td colspan="9" class="ptf-style-7">کالایی یافت نشد</td></tr>') + nav;
 }
 function renderProducts() {
   if (prodServerReadOn()) { try { renderProductsServer(); return; } catch (eSrv) { prodServerReadOn._offOnce = true; } }
@@ -3711,23 +3729,23 @@ function showProdModal(cd) {
   for (var i=0;i<PROD_UNITS_EN.length;i++) unitOpts += '<option'+(p&&p.un===PROD_UNITS_EN[i]?' selected':'')+'>'+PROD_UNITS_EN[i]+'</option>';
   unitOpts += '</optgroup>';
   var autoCd = p ? p.cd : prodAutoCode();
-  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:560px">' +
+  var html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md" class="ptf-s52">' +
     '<h3>'+(p?'✎ ویرایش کالا':'📦 کالای جدید')+'</h3>' +
-    '<div class="fr"><div class="fld"><label>کد کالا (خودکار — قفل 🔒)</label><input type="text" id="nPCd" value="'+escP(autoCd)+'" readonly style="background:#f1f5f9;color:#475569;cursor:not-allowed;direction:ltr"></div>' +
+    '<div class="fr"><div class="fld"><label>کد کالا (خودکار — قفل 🔒)</label><input type="text" id="nPCd" value="'+escP(autoCd)+'" readonly class="ptf-f29"></div>' +
     '<div class="fld"><label>دسته</label><select id="nPCa">'+catOpts+'</select></div></div>' +
     '<div class="fld"><label>شرح کالا * (فارسی یا انگلیسی)</label><input type="text" id="nPNm" value="'+(p?escP(p.nm):'')+'" placeholder="مثال: زانو ۹۰ درجه ... یا Elbow 90° LR ..."></div>' +
-    '<div class="fld"><label>نام معادل انگلیسی (اختیاری — اگر شرح فارسی است)</label><input type="text" id="nPEn" value="'+(p?escP(p.en||''):'')+'" style="direction:ltr"></div>' +
+    '<div class="fld"><label>نام معادل انگلیسی (اختیاری — اگر شرح فارسی است)</label><input type="text" id="nPEn" value="'+(p?escP(p.en||''):'')+'" class="ptf-style-5"></div>' +
     '<div class="fr"><div class="fld"><label>استاندارد / گرید</label><input type="text" id="nPSt" value="'+(p?escP(p.st||''):'')+'" placeholder="ASTM A106 Gr.B"></div>' +
     '<div class="fld"><label>برند</label><input type="text" id="nPBr" value="'+(p?escP(p.br||''):'')+'"></div></div>' +
     /* v15.9 (US-389 — گزارش کارفرما): فیلد مدل به فرم کالا اضافه شد */
-    '<div class="fr"><div class="fld"><label>مدل / پارت‌نامبر</label><input type="text" id="nPMd" value="'+(p?escP(p.md||''):'')+'" placeholder="3051CD2A / EJA110E" style="direction:ltr"></div><div class="fld"></div></div>' +
+    '<div class="fr"><div class="fld"><label>مدل / پارت‌نامبر</label><input type="text" id="nPMd" value="'+(p?escP(p.md||''):'')+'" placeholder="3051CD2A / EJA110E" class="ptf-style-5"></div><div class="fld"></div></div>' +
     '<div class="fr"><div class="fld"><label>واحد * (هم‌زبان با شرح)</label><select id="nPUn">'+unitOpts+'</select></div>' +
-    '<div class="fld"><label>قیمت مرجع خرید</label><div style="display:flex;gap:6px"><input type="number" id="nPPr" value="'+(p&&p.pr?p.pr:'')+'" min="0" style="direction:ltr;flex:1">' +
+    '<div class="fld"><label>قیمت مرجع خرید</label><div class="ptf-s64"><input type="number" id="nPPr" value="'+(p&&p.pr?p.pr:'')+'" min="0" class="ptf-s48">' +
     /* v15.6 (US-387 ③ — دستور کارفرما): قیمت خرید به ریال یا ارز — نه ریال */
-    '<select id="nPPrCur" style="width:88px;direction:ltr;padding:8px;border:2px solid var(--brd);border-radius:12px;background:#f8fafc">' +
+    '<select id="nPPrCur" class="ptf-f32">' +
     ['IRR','EUR','USD'].map(function(cc){ return '<option value="'+cc+'"'+((p&&p.prCur?p.prCur:'IRR')===cc?' selected':'')+'>'+cc+'</option>'; }).join('') + '</select></div></div></div>' +
     '<div class="fld"><label>توضیحات</label><textarea id="nPDs" rows="2">'+(p?escP(p.ds||''):'')+'</textarea></div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveProd('+(p?'true':'false')+')">'+(p?'ذخیره تغییرات':'ثبت کالا')+'</button></div></div></div>';
+    '<div class="ptf-s25"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveProd('+(p?'true':'false')+')">'+(p?'ذخیره تغییرات':'ثبت کالا')+'</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
 }
 
@@ -3874,16 +3892,16 @@ function importProdCsv(inp) {
 // ===== CUSTOMERS =====
 function buildCustomers() {
   return '<div class="ph"><h3>🤝 مشتریان</h3>' +
-    '<div class="sb2"><input type="text" id="cSrch" placeholder="جستجو (شرکت، صنعت، رابط، تلفن)..." oninput="renderCustomers()" style="flex:1">' +
-    '<select id="cVenFlt" onchange="renderCustomers()" style="padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:12px"><option value="">همه وضعیت‌های وندور</option><option value="approved">🏆 وندور تاییدشده</option><option value="pending">⏳ بررسی مدارک</option><option value="unreg">⚪ ثبت‌نشده</option></select>' +
-    '<button class="bt" onclick="showCustModal()">+ ثبت</button><button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;CUST&quot;, &quot;custXlsInp&quot;)">📥 ورود اکسل</button><button class="bt bt-o" style="color:#b45309;border-color:#fde68a" onclick="ptfOpenContactRecovery()" title="بازیابی خودکار شماره‌های پاک‌شدهٔ مشتریان از بک‌آپ‌های سرور (فقط فیلدهای تماسِ خالی — v34.38.10)">🛟 بازیابی تماس‌ها</button><button class="bt bt-o" style="color:#0369a1;border-color:#bae6fd" onclick="ptfOpenContactSyncDiag()" title="تشخیص: چرا شماره‌ای که روی دستگاهِ دیگری دوباره وارد شده برای من نمایش داده نمی‌شود (خواندن مستقیم از سرور + مقایسه با کش/صف آفلاین — v34.39.29)">🩺 تشخیص سینک تماس</button><input type="file" id="custXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportCustXls(this)"></div></div>' +
+    '<div class="sb2"><input type="text" id="cSrch" placeholder="جستجو (شرکت، صنعت، رابط، تلفن)..." oninput="renderCustomers()" class="ptf-s42">' +
+    '<select id="cVenFlt" onchange="renderCustomers()" class="ptf-f27"><option value="">همه وضعیت‌های وندور</option><option value="approved">🏆 وندور تاییدشده</option><option value="pending">⏳ بررسی مدارک</option><option value="unreg">⚪ ثبت‌نشده</option></select>' +
+    '<button class="bt" onclick="showCustModal()">+ ثبت</button><button class="bt bt-o" class="ptf-s49" onclick="ptfShowExcelGuidelineModal(&quot;CUST&quot;, &quot;custXlsInp&quot;)">📥 ورود اکسل</button><button class="bt bt-o" class="ptf-s23" onclick="ptfOpenContactRecovery()" title="بازیابی خودکار شماره‌های پاک‌شدهٔ مشتریان از بک‌آپ‌های سرور (فقط فیلدهای تماسِ خالی — v34.38.10)">🛟 بازیابی تماس‌ها</button><button class="bt bt-o" class="ptf-s13" onclick="ptfOpenContactSyncDiag()" title="تشخیص: چرا شماره‌ای که روی دستگاهِ دیگری دوباره وارد شده برای من نمایش داده نمی‌شود (خواندن مستقیم از سرور + مقایسه با کش/صف آفلاین — v34.39.29)">🩺 تشخیص سینک تماس</button><input type="file" id="custXlsInp" accept=".csv,.xlsx,.xls" class="ptf-style-1" onchange="ptfStandardImportCustXls(this)"></div></div>' +
     /* v34.39.45 (CUST-SORT): سرستون‌های کلیک‌خور + نشانگر وضعیت مرتب‌سازی */
     '<div class="tb2"><table><thead><tr>' +
-    '<th onclick="ptfCustSortClick(\'cd\')" style="cursor:pointer" title="کلیک: سورت بر اساس کد — کلیک سوم: بازگشت به جدیدترین اول">کد <span id="cSortCd"></span></th>' +
-    '<th onclick="ptfCustSortClick(\'co\')" style="cursor:pointer" title="کلیک: سورت بر اساس نام شرکت">شرکت <span id="cSortCo"></span></th>' +
-    '<th onclick="ptfCustSortClick(\'ind\')" style="cursor:pointer" title="کلیک: سورت بر اساس صنعت">صنعت <span id="cSortInd"></span></th>' +
-    '<th onclick="ptfCustSortClick(\'con\')" style="cursor:pointer" title="کلیک: سورت بر اساس رابط اصلی">رابط اصلی <span id="cSortCon"></span></th>' +
-    '<th>تماس <span id="cSortLb" style="font-weight:normal;font-size:10px;color:#64748b"></span></th><th>عملیات</th></tr></thead>' +
+    '<th onclick="ptfCustSortClick(\'cd\')" class="ptf-style-6" title="کلیک: سورت بر اساس کد — کلیک سوم: بازگشت به جدیدترین اول">کد <span id="cSortCd"></span></th>' +
+    '<th onclick="ptfCustSortClick(\'co\')" class="ptf-style-6" title="کلیک: سورت بر اساس نام شرکت">شرکت <span id="cSortCo"></span></th>' +
+    '<th onclick="ptfCustSortClick(\'ind\')" class="ptf-style-6" title="کلیک: سورت بر اساس صنعت">صنعت <span id="cSortInd"></span></th>' +
+    '<th onclick="ptfCustSortClick(\'con\')" class="ptf-style-6" title="کلیک: سورت بر اساس رابط اصلی">رابط اصلی <span id="cSortCon"></span></th>' +
+    '<th>تماس <span id="cSortLb" class="ptf-s19"></span></th><th>عملیات</th></tr></thead>' +
     '<tbody id="cTb"></tbody></table></div>';
 }
 
@@ -4061,8 +4079,8 @@ function renderCustomers() {
     var c = list[i];
     var badge = window.ptfVendorStatusBadge ? window.ptfVendorStatusBadge(c) : '';
     var contact = c.ph || c.mob || c.tel || c.phone || '-';
-    tb.innerHTML += '<tr data-cust-cd="' + escP(c.cd) + '"><td><strong>' + escP(c.cd) + '</strong>' + badge + '</td><td>' + (typeof window.ptfCustomerSummaryNameHtml === 'function' ? window.ptfCustomerSummaryNameHtml(c) : '<b>' + escP(ptfCustDualName(c)) + '</b>') + (c.coEn ? '<div style="font-size:10.5px;color:#64748b" dir="ltr">' + escP(c.coEn) + '</div>' : '') + '</td>' +
-      '<td>' + escP(c.ind||'-') + '</td><td>' + escP(c.con||'-') + '</td><td style="direction:ltr">' + escP(contact) + '</td><td>' + (typeof window.ptfCustomerSummaryActionHtml === 'function' ? window.ptfCustomerSummaryActionHtml(c) : '') + '</td></tr>';
+    tb.innerHTML += '<tr data-cust-cd="' + escP(c.cd) + '"><td><strong>' + escP(c.cd) + '</strong>' + badge + '</td><td>' + (typeof window.ptfCustomerSummaryNameHtml === 'function' ? window.ptfCustomerSummaryNameHtml(c) : '<b>' + escP(ptfCustDualName(c)) + '</b>') + (c.coEn ? '<div class="ptf-s65" dir="ltr">' + escP(c.coEn) + '</div>' : '') + '</td>' +
+      '<td>' + escP(c.ind||'-') + '</td><td>' + escP(c.con||'-') + '</td><td class="ptf-style-5">' + escP(contact) + '</td><td>' + (typeof window.ptfCustomerSummaryActionHtml === 'function' ? window.ptfCustomerSummaryActionHtml(c) : '') + '</td></tr>';
   }
   if (document.getElementById('dCust')) document.getElementById('dCust').textContent = list.length;
   try { if (typeof window.ptfCustSortMarks === 'function') window.ptfCustSortMarks(); } catch (eMarks) {} /* v34.39.45 */
@@ -4092,7 +4110,7 @@ function renderOrders() {
     tRev += p.sell; tCost += p.buy; tPro += profit;
     tb.innerHTML += '<tr><td><strong>' + escP(rfqs[i].cd) + '</strong></td><td>' + escP(rfqs[i].co) + '</td>' +
       '<td>' + (p.buy ? p.buy.toLocaleString() : '—') + '</td><td>' + (p.sell ? p.sell.toLocaleString() : '—') + '</td>' +
-      '<td style="color:' + (profit>=0?'#059669':'#dc2626') + ';font-weight:900">' + (profit ? profit.toLocaleString() : '—') + '</td></tr>';
+      '<td class="ptf-s51">' + (profit ? profit.toLocaleString() : '—') + '</td></tr>';
   }
   document.getElementById('oTotal').textContent = rfqs.length;
   document.getElementById('oRev').textContent = tRev.toLocaleString();
@@ -4121,7 +4139,7 @@ function renderFinance() {
     tRev += invs[i].sell; tCost += invs[i].buy; tPro += profit;
     tb.innerHTML += '<tr><td><strong>' + (invs[i].ref||invs[i].code) + '</strong></td><td>' + invs[i].orderCode + '</td>' +
       '<td>' + invs[i].sell.toLocaleString() + '</td><td>' + invs[i].buy.toLocaleString() + '</td>' +
-      '<td style="color:' + (profit>=0?'#059669':'#dc2626') + '">' + profit.toLocaleString() + '</td>' +
+      '<td class="ptf-s59">' + profit.toLocaleString() + '</td>' +
       '<td><span class="bd ' + (invs[i].payStatus==='paid'?'b-st4':'b-st3') + '">' +
       (invs[i].payStatus==='paid'?'✅ پرداخت شده':'⏳ پرداخت نشده') + '</span></td></tr>';
   }
@@ -4133,7 +4151,7 @@ function renderFinance() {
 // ===== USERS =====
 function buildUsers() {
   return '<div class="ph"><h3>👥 کاربران</h3>' +
-    '<span style="display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+    '<span class="ptf-f40">' +
     '<button class="bt bt-o" onclick="ptfUsersSyncManual()" title="ارسال فهرست کاربران این مرورگر به سرور — برای ورود از موبایل/مرورگرهای دیگر">🔄 همگام‌سازی کاربران</button>' +
     '<button class="bt" onclick="showModal(\'uMd\')">+ کاربر جدید</button></span></div>' +
     '<div class="tb2"><table><thead><tr><th>نام کاربری</th><th>نام</th><th>نقش</th><th>تماس</th><th>وضعیت</th><th></th></tr></thead>' +
@@ -4166,26 +4184,26 @@ function buildSettings() {
     if (!el || typeof ptfLlmStatus !== 'function') return;
     fetch('../api/llm.php?action=status&_t=' + Date.now(), { headers: ptfApiAuthHeaders(false) }).then(function(r){ return r.json(); }).then(function(d){
       el.innerHTML = d.ok
-        ? '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:10px;padding:10px 12px;font-size:13px">' +
-          '✅ <b>پیکربندی هوش مصنوعی پیدا شد</b> <span style="background:#047857;color:#fff;border-radius:12px;padding:2px 8px;font-size:11px;margin-right:6px">نسخه سرور: ' + escP(d.ver||'v90.1') + '</span><br>' +
-          '<div style="background:#d1fae5;border-radius:6px;padding:6px 8px;margin-top:6px;color:#065f46;font-size:12px">📌 <b>آخرین آپدیت و یوزر استوری:</b> ' + escP(d.us||'US-207 (پایداری اتصال، اجبار به IPv4 و رفع پاسخ خالی)') + '</div>' +
-          '<small style="color:#047857;display:block;margin-top:6px">🔌 ارائه‌دهنده: <b>' + escP(d.provider||'') + '</b> — مدل: <b>' + escP(d.model||'') + '</b></small>' +
-          '<button class="bt" style="margin-top:8px;font-size:12px;background:#059669;color:#fff" onclick="ptfLlmRealTest()">🧪 تست واقعی بدون cache (تشخیص DNS/TLS/cURL)</button><div id="llmTestRes" style="margin-top:8px;font-size:12px"></div></div>'
-        : '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:10px 12px;font-size:13px">⚠️ <b>غیرفعال</b><br><small style="color:#b45309">' + escP(d.error||'') + ' — راهنما: DOCS-LLM-SETUP.md</small></div>';
-    }).catch(function(){ el.innerHTML = '<small style="color:#dc2626">عدم دسترسی به سرور api/llm.php</small>'; });
+        ? '<div class="ptf-f39">' +
+          '✅ <b>پیکربندی هوش مصنوعی پیدا شد</b> <span class="ptf-f25">نسخه سرور: ' + escP(d.ver||'v90.1') + '</span><br>' +
+          '<div class="ptf-f2">📌 <b>آخرین آپدیت و یوزر استوری:</b> ' + escP(d.us||'US-207 (پایداری اتصال، اجبار به IPv4 و رفع پاسخ خالی)') + '</div>' +
+          '<small class="ptf-s33">🔌 ارائه‌دهنده: <b>' + escP(d.provider||'') + '</b> — مدل: <b>' + escP(d.model||'') + '</b></small>' +
+          '<button class="bt" class="ptf-f11" onclick="ptfLlmRealTest()">🧪 تست واقعی بدون cache (تشخیص DNS/TLS/cURL)</button><div id="llmTestRes" class="ptf-s10"></div></div>'
+        : '<div class="ptf-f5">⚠️ <b>غیرفعال</b><br><small class="ptf-s14">' + escP(d.error||'') + ' — راهنما: DOCS-LLM-SETUP.md</small></div>';
+    }).catch(function(){ el.innerHTML = '<small class="ptf-s5">عدم دسترسی به سرور api/llm.php</small>'; });
   }, 200);
   var _savedSettings = {};
   try { _savedSettings = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}') || {}; } catch (eSet) {}
-  return '<header class="ptf-settings-head" data-settings-header><div class="ptf-settings-head-copy"><span class="ptf-settings-title-icon" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;min-width:38px;max-width:38px;overflow:hidden;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;min-width:22px;max-width:22px;display:inline-block;"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.15-1.4l2.05-1.6-2-3.45-2.4 1a7 7 0 00-2.4-1.4L13.7 2.6h-3.4l-.4 2.55a7 7 0 00-2.4 1.4l-2.4-1-2 3.45 2.05 1.6A7 7 0 005 12c0 .5.05.95.15 1.4L3.1 15l2 3.45 2.4-1a7 7 0 002.4 1.4l.4 2.55h3.4l.4-2.55a7 7 0 002.4-1.4l2.4 1 2-3.45-2.05-1.6c.1-.45.15-.9.15-1.4z"/></svg></span><span><h3>تنظیمات سیستم</h3><p>پروفایل، ذخیره‌سازی، هوش مصنوعی و ارتباطات سازمان را از یک نمای امن مدیریت کنید.</p></span></div>' +
+  return '<header class="ptf-settings-head" data-settings-header><div class="ptf-settings-head-copy"><span class="ptf-settings-title-icon" aria-hidden="true" class="ptf-f18"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="ptf-f6"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.15-1.4l2.05-1.6-2-3.45-2.4 1a7 7 0 00-2.4-1.4L13.7 2.6h-3.4l-.4 2.55a7 7 0 00-2.4 1.4l-2.4-1-2 3.45 2.05 1.6A7 7 0 005 12c0 .5.05.95.15 1.4L3.1 15l2 3.45 2.4-1a7 7 0 002.4 1.4l.4 2.55h3.4l.4-2.55a7 7 0 002.4-1.4l2.4 1 2-3.45-2.05-1.6c.1-.45.15-.9.15-1.4z"/></svg></span><span><h3>تنظیمات سیستم</h3><p>پروفایل، ذخیره‌سازی، هوش مصنوعی و ارتباطات سازمان را از یک نمای امن مدیریت کنید.</p></span></div>' +
     '<span class="ptf-settings-version">نسخه: ' + (window.VER || 'v22.4') + '</span></header>' +
     '<div class="ptf-settings-base">' +
       '<section class="ptf-settings-section ptf-settings-profile" data-settings-title="پروفایل و هویت"><h4>👤 پروفایل و هویت</h4>' +
         (typeof ptfAvatarSection === 'function' ? ptfAvatarSection() : '') + '</section>' +
-      '<section class="ptf-settings-section ptf-settings-cloud" data-settings-title="فضای ابری و فایل‌ها"><h4>☁️ فضای ابری و فایل‌ها</h4><p class="ptf-settings-section-note">وضعیت اتصال و مصرف فضای ذخیره‌سازی اسناد سازمان.</p><div id="arvanBox" style="min-height:120px"><!-- v34.39.23 UI-STABILITY R6: ارتفاع رزرو — پر شدن دیرهنگام (setTimeout 100ms) پرش نسازد --></div></section>' +
-      '<section class="ptf-settings-section ptf-settings-ai" data-settings-title="هوش مصنوعی سازمان"><h4>🤖 هوش مصنوعی سازمان</h4><p class="ptf-settings-section-note">پیکربندی، مدل فعال و بررسی امن اتصال سرویس AI.</p><div id="llmBox" style="min-height:120px"><small style="color:#94a3b8">در حال بررسی...</small></div></section>' +
-      '<section class="ptf-settings-section ptf-settings-sessions" data-settings-title="نشست‌های فعال (R6)"><h4>🔐 نشست‌های فعال</h4><p class="ptf-settings-section-note">دستگاه‌های واردشده (نقش ارشد): ابطال گروهی برای «خروج اجباری همه» یا کاربر مشخص. نشست همین تب زنده می‌ماند.</p><div id="sessionsBox" style="min-height:120px"><small style="color:#94a3b8">در حال بررسی...</small></div></section>' +
-      '<section class="ptf-settings-section ptf-settings-enginegate" data-settings-title="موتور همگام‌سازی (R4)"><h4>🚦 موتور همگام‌سازی — بازنشستگی legacy</h4><p class="ptf-settings-section-note">شواهد push توده‌ای ۷روزه و مدیریت پرچم PTF_LEGACY_PUSH_OFF (گام ۱؛ فقط نقش ارشد). گام ۲ = حذف کامل موتور legacy پس از پنجرهٔ سبز همهٔ کلیدها.</p><div id="engineGateBox" style="min-height:120px"><small style="color:#94a3b8">در حال بررسی...</small></div></section>' +
-      '<section class="ptf-settings-section ptf-settings-contact" data-settings-title="ارتباطات و نگهداری"><h4>📨 ارتباطات و نگهداری</h4><div class="fld"><label>ایمیل</label><input type="email" id="sEmail" value="' + escP(_savedSettings.email || '') + '" aria-label="ایمیل تنظیمات"></div><div class="fld"><label>پیامک</label><input type="text" id="sSms" value="' + escP(_savedSettings.sms || '') + '" aria-label="شماره پیامک تنظیمات"></div><div class="ptf-settings-contact-actions"><button type="button" class="bt ptf-settings-save-action" onclick="saveSet()">✔ ذخیره تنظیمات</button><button type="button" class="bt bt-s ptf-settings-backup-action" onclick="backup()">📤 تهیه پشتیبان</button></div></section>' +
+      '<section class="ptf-settings-section ptf-settings-cloud" data-settings-title="فضای ابری و فایل‌ها"><h4>☁️ فضای ابری و فایل‌ها</h4><p class="ptf-settings-section-note">وضعیت اتصال و مصرف فضای ذخیره‌سازی اسناد سازمان.</p><div id="arvanBox" class="ptf-style-10" style="min-height:120px"><!-- v34.39.23 UI-STABILITY R6: ارتفاع رزرو — پر شدن دیرهنگام (setTimeout 100ms) پرش نسازد --></div></section>' +
+      '<section class="ptf-settings-section ptf-settings-ai" data-settings-title="هوش مصنوعی سازمان"><h4>🤖 هوش مصنوعی سازمان</h4><p class="ptf-settings-section-note">پیکربندی، مدل فعال و بررسی امن اتصال سرویس AI.</p><div id="llmBox" class="ptf-style-10" style="min-height:120px"><small class="ptf-style-3">در حال بررسی...</small></div></section>' +
+      '<section class="ptf-settings-section ptf-settings-sessions" data-settings-title="نشست‌های فعال (R6)"><h4>🔐 نشست‌های فعال</h4><p class="ptf-settings-section-note">دستگاه‌های واردشده (نقش ارشد): ابطال گروهی برای «خروج اجباری همه» یا کاربر مشخص. نشست همین تب زنده می‌ماند.</p><div id="sessionsBox" class="ptf-style-10" style="min-height:120px"><small class="ptf-style-3">در حال بررسی...</small></div></section>' +
+      '<section class="ptf-settings-section ptf-settings-enginegate" data-settings-title="موتور همگام‌سازی (R4)"><h4>🚦 موتور همگام‌سازی — بازنشستگی legacy</h4><p class="ptf-settings-section-note">شواهد push توده‌ای ۷روزه و مدیریت پرچم PTF_LEGACY_PUSH_OFF (گام ۱؛ فقط نقش ارشد). گام ۲ = حذف کامل موتور legacy پس از پنجرهٔ سبز همهٔ کلیدها.</p><div id="engineGateBox" class="ptf-style-10" style="min-height:120px"><small class="ptf-style-3">در حال بررسی...</small></div></section>' +
+      '<section class="ptf-settings-section ptf-settings-contact" data-settings-title="ارتباطات و نگهداری"><h4>📨 ارتباطات و نگهداری</h4><div class="fld"><label>ایمیل</label><input type="email" pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" title="ایمیل معتبر وارد کنید" id="sEmail" value="' + escP(_savedSettings.email || '') + '" aria-label="ایمیل تنظیمات"></div><div class="fld"><label>پیامک</label><input type="text" id="sSms" value="' + escP(_savedSettings.sms || '') + '" aria-label="شماره پیامک تنظیمات"></div><div class="ptf-settings-contact-actions"><button type="button" class="bt ptf-settings-save-action" onclick="saveSet()">✔ ذخیره تنظیمات</button><button type="button" class="bt bt-s ptf-settings-backup-action" onclick="backup()">📤 تهیه پشتیبان</button></div></section>' +
     '</div>';
 }
 
@@ -4200,20 +4218,20 @@ function ptfLlmTransportHtml(t) {
   if (t.namelookup_ms != null || t.connect_ms != null || t.total_ms != null) rows.push('زمان‌ها: DNS ' + escP(String(t.namelookup_ms || 0)) + 'ms | Connect ' + escP(String(t.connect_ms || 0)) + 'ms | Total ' + escP(String(t.total_ms || 0)) + 'ms');
   if (t.ssl_verify_result != null) rows.push('TLS verify result: <b dir="ltr">' + escP(String(t.ssl_verify_result)) + '</b>');
   if (!rows.length) return '';
-  return '<div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:7px;padding:7px;margin-top:7px;font-size:10.5px;line-height:1.8;color:#475569"><b>جزئیات امن ارتباط هاست</b><br>' + rows.join('<br>') + '</div>';
+  return '<div class="ptf-f33"><b>جزئیات امن ارتباط هاست</b><br>' + rows.join('<br>') + '</div>';
 }
 function ptfLlmRealTest() {
   var res = document.getElementById('llmTestRes');
   if (!res) return;
-  res.innerHTML = '<span style="color:#0e7490">⏳ در حال فراخوانی واقعی سرویس AI بدون استفاده از cache... (حداکثر ۴۵ ثانیه)</span>';
+  res.innerHTML = '<span class="ptf-style-4">⏳ در حال فراخوانی واقعی سرویس AI بدون استفاده از cache... (حداکثر ۴۵ ثانیه)</span>';
   fetch('../api/llm.php?action=test&_t=' + Date.now(), { method: 'POST', headers: ptfApiAuthHeaders(true), body: '{}' })
     .then(function(r){ return r.text().then(function(t) { try { return JSON.parse(t); } catch (e) { return { ok:false, error:'پاسخ API ساختار JSON معتبر ندارد', raw:t.slice(0,500), diag:'خروجی debug یا خطای PHP پیش از JSON رخ داده است؛ متن خام پایین نمایش داده می‌شود.' }; } }); })
     .then(function(d){
       res.innerHTML = d.ok
-        ? '<div style="background:#ecfdf5;border-radius:8px;padding:8px;color:#047857">' + escP(d.msg||'✅ اتصال برقرار') + ptfLlmTransportHtml(d.transport) + '</div>'
-        : '<div style="background:#fef2f2;border-radius:8px;padding:8px;color:#b91c1c;line-height:1.6"><b>❌ اتصال واقعی شکست خورد:</b><br>' + escP(d.diag||d.error||'') + ptfLlmTransportHtml(d.transport) + (d.raw ? '<br><div style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:6px;margin-top:6px;max-height:130px;overflow-y:auto;direction:ltr;text-align:left;font-family:monospace;font-size:11px;color:#475569;word-break:break-all">' + escP(d.raw) + '</div>' : '') + '</div>';
+        ? '<div class="ptf-f7">' + escP(d.msg||'✅ اتصال برقرار') + ptfLlmTransportHtml(d.transport) + '</div>'
+        : '<div class="ptf-f19"><b>❌ اتصال واقعی شکست خورد:</b><br>' + escP(d.diag||d.error||'') + ptfLlmTransportHtml(d.transport) + (d.raw ? '<br><div class="ptf-f37">' + escP(d.raw) + '</div>' : '') + '</div>';
     })
-    .catch(function(){ res.innerHTML = '<span style="color:#dc2626">❌ عدم دسترسی به سرور CRM یا خطای شبکهٔ مرورگر</span>'; });
+    .catch(function(){ res.innerHTML = '<span class="ptf-s5">❌ عدم دسترسی به سرور CRM یا خطای شبکهٔ مرورگر</span>'; });
 }
 function saveSet() {
   // v31.7.8 HOTFIX: Merge with existing settings to preserve adminHash and other keys.
@@ -4269,32 +4287,32 @@ var modalStack = {};
 function showModal(id) {
   var html = '';
   if (id === 'rMd') {
-    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>➕ استعلام جدید</h3>' +
       '<div class="fld"><label>شرکت</label><input type="text" id="nRComp"></div>' +
       '<div class="fr"><div class="fld"><label>مسئول</label><input type="text" id="nRCon"></div>' +
       '<div class="fld"><label>حوزه</label><select id="nRCat"><option>پایپینگ</option><option>شیرآلات</option><option>برق</option><option>ابزار دقیق</option></select></div></div>' +
       /* US-303: اقلام درخواست از همان ابتدا وارد شود تا دکمه «از درخواست» در پیشنهادها کار کند */
-      '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:9px 12px;font-size:12px;color:#5b21b6;margin-bottom:10px">📋 پس از ثبت، پنجره <b>ورود اقلام درخواست</b> باز می‌شود (دستی / اکسل / دستیار) تا هنگام صدور پیشنهاد فنی و مالی، اقلام با یک کلیک «از درخواست» بارگذاری شوند.</div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveRfq()">ثبت</button></div></div></div>';
+      '<div class="ptf-f30">📋 پس از ثبت، پنجره <b>ورود اقلام درخواست</b> باز می‌شود (دستی / اکسل / دستیار) تا هنگام صدور پیشنهاد فنی و مالی، اقلام با یک کلیک «از درخواست» بارگذاری شوند.</div>' +
+      '<div class="ptf-s25"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveRfq()">ثبت</button></div></div></div>';
   }
   else if (id === 'sMd') {
-    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>🏭 تامین‌کننده جدید</h3>' +
       '<div class="fld"><label>شرکت</label><input type="text" id="nSComp"></div>' +
       '<div class="fr"><div class="fld"><label>مسئول</label><input type="text" id="nSNm"></div><div class="fld"><label>تلفن</label><input type="text" id="nSPh"></div></div>' +
       '<div class="fr"><div class="fld"><label>دسته</label><select id="nSCat"><option>پایپینگ</option><option>شیرآلات</option><option>برق</option><option>ابزار دقیق</option></select></div></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveSup()">ثبت</button></div></div></div>';
+      '<div class="ptf-s25"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveSup()">ثبت</button></div></div></div>';
   }
   else if (id === 'cMd') {
-    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>🤝 کارفرما جدید</h3>' +
       '<div class="fld"><label>شرکت</label><input type="text" id="nCComp"></div>' +
-      '<div class="fld"><label>نام انگلیسی شرکت (اختیاری)</label><input type="text" id="nCEn" dir="ltr" style="direction:ltr;text-align:left" placeholder="Company name in English"></div>' + /* v34.9.2: نام دوگانه */
+      '<div class="fld"><label>نام انگلیسی شرکت (اختیاری)</label><input type="text" id="nCEn" dir="ltr" class="ptf-s37" placeholder="Company name in English"></div>' + /* v34.9.2: نام دوگانه */
       '<div class="fr"><div class="fld"><label>صنعت</label><select id="nCInd"><option>نفت و گاز</option><option>پتروشیمی</option><option>فولاد</option></select></div>' +
       '<div class="fld"><label>مسئول</label><input type="text" id="nCCon"></div></div>' +
       '<div class="fr"><div class="fld"><label>تلفن</label><input type="text" id="nCPh"></div></div>' +
-      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveCust()">ثبت</button></div></div></div>';
+      '<div class="ptf-style-11"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveCust()">ثبت</button></div></div></div>';
   }
   else if (id === 'oMd') {
     var opts = '';
@@ -4302,12 +4320,12 @@ function showModal(id) {
     for (var i = 0; i < rfqs.length; i++) {
       opts += '<option value="' + escP(rfqs[i].cd) + '">' + escP(rfqs[i].cd) + ' - ' + escP(rfqs[i].co) + '</option>';
     }
-    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>💰 قیمت سفارش</h3>' +
       '<div class="fld"><label>سفارش</label><select id="oSel">' + opts + '</select></div>' +
       '<div class="fr"><div class="fld"><label>خرید (ریال)</label><input type="number" id="oBuy"></div>' +
       '<div class="fld"><label>فروش (ریال)</label><input type="number" id="oSell"></div></div>' +
-      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveOrder()">ذخیره</button></div></div></div>';
+      '<div class="ptf-style-11"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveOrder()">ذخیره</button></div></div></div>';
   }
   else if (id === 'fMd') {
     opts = '';
@@ -4315,16 +4333,16 @@ function showModal(id) {
     for (i = 0; i < rfqs.length; i++) {
       opts += '<option value="' + escP(rfqs[i].cd) + '">' + escP(rfqs[i].cd) + ' - ' + escP(rfqs[i].co) + '</option>';
     }
-    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>💳 فاکتور جدید</h3>' +
       '<div class="fld"><label>سفارش</label><select id="fSel">' + opts + '</select></div>' +
       '<div class="fr"><div class="fld"><label>فروش (ریال)</label><input type="number" id="fSell"></div>' +
       '<div class="fld"><label>خرید (ریال)</label><input type="number" id="fBuy"></div></div>' +
       '<div class="fld"><label>وضعیت</label><select id="fPay"><option value="paid">✅ پرداخت شده</option><option value="pending">⏳ پرداخت نشده</option></select></div>' +
-      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveFin()">ثبت</button></div></div></div>';
+      '<div class="ptf-style-11"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveFin()">ثبت</button></div></div></div>';
   }
   else if (id === 'uMd') {
-    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>👤 کاربر جدید</h3>' +
       '<div class="fld"><label>نام</label><input type="text" id="nUNm"></div>' +
       '<div class="fr"><div class="fld"><label>نام کاربری</label><input type="text" id="nULg"></div>' +
@@ -4334,17 +4352,17 @@ function showModal(id) {
       '<option value="کارشناس ارشد (Operator)">🟠 ارشد</option>' +
       '<option value="کارشناس فروش (Editor)">🟡 فروش</option>' +
       '</select></div>' +
-      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveUser()">تعریف</button></div></div></div>';
+      '<div class="ptf-style-11"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveUser()">تعریف</button></div></div></div>';
   }
   else if (id === 'eMd') {
-    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
-      '<h3>📄 تغییر وضعیت: <span id="eCd" style="color:var(--pri)"></span></h3>' +
+    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
+      '<h3>📄 تغییر وضعیت: <span id="eCd" class="ptf-s6"></span></h3>' +
       '<div class="fld"><label>وضعیت</label><select id="eSt">' +
       '<option value="st1">🔴 دریافت اولیه</option><option value="st2">🔵 بررسی فنی</option>' +
       '<option value="st3">🟡 تایید</option><option value="st4">🟢 پیش‌فاکتور</option>' +
       '<option value="st5">🔵 ابلاغ سفارش</option><option value="st6">🟠 آماده‌سازی</option>' +
       '<option value="st7">✅ تحویل شده</option></select></div>' +
-      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveRfqStatus()">ذخیره</button></div></div></div>';
+      '<div class="ptf-style-11"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveRfqStatus()">ذخیره</button></div></div></div>';
   }
   
   if (html) {
@@ -4724,5 +4742,6 @@ setInterval(function(){
 <script defer src="tax-returns.js?v=34.39.68"></script>
 <script defer src="case-revision.js?v=34.39.68"></script>
 
+<script src="ux-enhancements-mobile.js?v=34.39.68" defer></script>
 </body>
 </html>

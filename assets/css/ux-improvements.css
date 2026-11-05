@@ -1,0 +1,486 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   UX/UI Improvements - Based on UI/UX Pro Max Skill Audit
+   Phase 1: Accessibility (Critical)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1. COLOR CONTRAST FIXES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Footer text - improve from 4.2:1 to 7.2:1 contrast ratio */
+#ptf-site-footer {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+#ptf-site-footer a {
+  color: rgba(255, 255, 255, 0.90);
+}
+
+#ptf-site-footer a:hover {
+  color: #ffbd52;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   2. FOCUS STATES - Global focus-visible for accessibility
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Global focus style */
+:focus-visible {
+  outline: 3px solid rgba(239, 75, 26, 0.5);
+  outline-offset: 2px;
+}
+
+/* Input focus */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--red, #ef4b1a);
+  outline-offset: 1px;
+  border-color: var(--red, #ef4b1a);
+  box-shadow: 0 0 0 4px rgba(239, 75, 26, 0.1);
+}
+
+/* Button focus */
+button:focus-visible,
+.ptf-btn:focus-visible,
+a.ptf-btn:focus-visible {
+  outline: 3px solid rgba(239, 75, 26, 0.5);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(239, 75, 26, 0.15);
+}
+
+/* Link focus */
+a:focus-visible {
+  outline: 2px solid rgba(239, 75, 26, 0.5);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Card focus */
+.ptf-card:focus-visible,
+.ptf-product-card:focus-visible {
+  outline: 3px solid rgba(239, 75, 26, 0.5);
+  outline-offset: 2px;
+  box-shadow: 0 8px 24px rgba(239, 75, 26, 0.15);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   3. TOUCH TARGETS - Mobile minimum 44x44px
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 790px) {
+  /* Navigation links */
+  #top[data-ptf-shell="header"] .main-nav a {
+    min-height: 44px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Buttons */
+  button,
+  .ptf-btn,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Icon buttons */
+  .icon-btn,
+  .ptf-icon-btn {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Form inputs */
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Phase 2: UX Polish (High Priority)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   4. LOADING STATES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Loading button state */
+.ptf-btn.is-loading,
+button.is-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.ptf-btn.is-loading::after,
+button.is-loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ptf-spin 0.6s linear infinite;
+  color: #fff;
+}
+
+@keyframes ptf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Skeleton loading for cards */
+.ptf-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 25%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: ptf-shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes ptf-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   5. ERROR HANDLING - Inline validation
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.field {
+  position: relative;
+}
+
+.field input:invalid:not(:placeholder-shown):not(:focus),
+.field textarea:invalid:not(:placeholder-shown):not(:focus),
+.field select:invalid:not(:focus) {
+  border-color: #dc2626;
+}
+
+.field .error {
+  display: none;
+  color: #dc2626;
+  font-size: 13px;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.field input:invalid:not(:placeholder-shown):not(:focus) ~ .error,
+.field textarea:invalid:not(:placeholder-shown):not(:focus) ~ .error,
+.field select:invalid:not(:focus) ~ .error {
+  display: block;
+}
+
+.field .success {
+  display: none;
+  color: #16a34a;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.field input:valid:not(:placeholder-shown) ~ .success,
+.field textarea:valid:not(:placeholder-shown) ~ .success {
+  display: block;
+}
+
+/* Error summary for forms */
+.ptf-error-summary {
+  background: #fef2f2;
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.ptf-error-summary h3 {
+  color: #dc2626;
+  font-size: 16px;
+  margin: 0 0 12px 0;
+}
+
+.ptf-error-summary ul {
+  margin: 0;
+  padding: 0 0 0 20px;
+}
+
+.ptf-error-summary li {
+  color: #dc2626;
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Phase 3: Performance (Medium Priority)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   6. ANIMATION PERFORMANCE - Use transform instead of width/height
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Optimize animations for performance */
+.ptf-animate-transform {
+  will-change: transform;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   7. EMPTY STATES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.ptf-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.05), rgba(15, 39, 68, 0.03));
+  border-radius: 16px;
+  border: 2px dashed rgba(14, 116, 144, 0.2);
+}
+
+.ptf-empty-state svg {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.ptf-empty-state h3 {
+  font-size: 20px;
+  color: #334155;
+  margin: 0 0 8px 0;
+}
+
+.ptf-empty-state p {
+  font-size: 15px;
+  color: #64748b;
+  margin: 0 0 20px 0;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ptf-empty-state .ptf-btn {
+  margin-top: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Phase 4: Advanced (Low Priority)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   8. MICRO-INTERACTIONS - Cards and buttons
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Card hover effects */
+.ptf-card,
+.ptf-product-card {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ptf-card:hover,
+.ptf-product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+.ptf-card:active,
+.ptf-product-card:active {
+  transform: translateY(-2px);
+}
+
+/* Button press effect */
+.ptf-btn:active,
+button:active {
+  transform: scale(0.98);
+}
+
+/* Link underline animation */
+.ptf-animated-link {
+  position: relative;
+  text-decoration: none;
+}
+
+.ptf-animated-link::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ptf-animated-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   9. TYPOGRAPHY SCALE - Minimum 16px for body text
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Ensure minimum readable font size */
+body {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Small text should not be smaller than 14px */
+small,
+.text-small {
+  font-size: 14px;
+}
+
+/* Very small text (captions) should not be smaller than 12px */
+.text-tiny,
+caption {
+  font-size: 12px;
+}
+
+/* Mobile typography adjustments */
+@media (max-width: 790px) {
+  body {
+    font-size: 16px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  h2 {
+    font-size: 22px;
+  }
+
+  h3 {
+    font-size: 18px;
+  }
+
+  p, li, a {
+    font-size: 16px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   10. DARK MODE CONTRAST IMPROVEMENTS
+   ───────────────────────────────────────────────────────────────────────────── */
+
+html.ptf-dark {
+  /* Improve text contrast in dark mode */
+  --dark-text-primary: rgba(255, 255, 255, 0.95);
+  --dark-text-secondary: rgba(255, 255, 255, 0.87);
+  --dark-text-tertiary: rgba(255, 255, 255, 0.76);
+}
+
+html.ptf-dark body {
+  color: var(--dark-text-primary);
+}
+
+html.ptf-dark .ptf-card,
+html.ptf-dark .ptf-product-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html.ptf-dark .ptf-card:hover,
+html.ptf-dark .ptf-product-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+html.ptf-dark input,
+html.ptf-dark textarea,
+html.ptf-dark select {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--dark-text-primary);
+}
+
+html.ptf-dark input:focus,
+html.ptf-dark textarea:focus,
+html.ptf-dark select:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--red, #ef4b1a);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   UTILITY CLASSES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Visually hidden but accessible to screen readers */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Skip link */
+.ptf-skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--red, #ef4b1a);
+  color: #fff;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 9999;
+  border-radius: 0 0 8px 0;
+}
+
+.ptf-skip-link:focus {
+  top: 0;
+}
+
+/* Live region for dynamic content */
+.ptf-live-region {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
