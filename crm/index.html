@@ -2857,7 +2857,7 @@ window.ptfOpenProjectBinder = function(prjNo) {
   if (orphan.length) {
     rows += '<tr><td>📦 سایر</td><td><span class="bd" class="ptf-style-2">' + orphan.length + ' سند</span></td><td onclick="event.stopPropagation()">' + orphan.map(binderDocRow).join('') + '</td></tr>';
   }
-  var html = '<div class="md-b" id="ptfBinderModal" class="ptf-s45" onclick="if(event.target===this)this.remove()"><div class="md" class="ptf-s44" onclick="event.stopPropagation()">' +
+  var html = '<div class="md-b" id="ptfBinderModal" style="display:grid" class="ptf-s45" onclick="if(event.target===this)this.remove()"><div class="md" class="ptf-s44" onclick="event.stopPropagation()">' +
     '<h3>🗄️ زونکن دیجیتال یکپارچه پرونده — ' + escP(prjNo) + '</h3>' +
     '<div class="ptf-f3">' +
     '<b>مشتری:</b> ' + escP(p.buyerCo||'-') + ' | <b>شماره پیش‌فاکتور:</b> ' + escP(p.offerNo||'-') + ' | <b>کل اسناد:</b> ' + docs.length +
@@ -2900,7 +2900,7 @@ window.ptfCalculateNetProfit = function(prjNo) {
   var reliableTag = (r.complete && !r.buyPendingFx.length)
     ? '<span class="bd" class="ptf-style-2">✅ همه اجزا قطعی — قابل اتکا</span>'
     : '<span class="bd" class="ptf-s34">⚠️ ناقص — اجزای نامشخص در هشدارها</span>';
-  var html = '<div class="md-b" class="ptf-s45" onclick="if(event.target===this)this.remove()"><div class="md" class="ptf-s52">' +
+  var html = '<div class="md-b" style="display:grid" class="ptf-s45" onclick="if(event.target===this)this.remove()"><div class="md" class="ptf-s52">' +
     '<h3>💰 محاسبه‌گر سود خالص پروژه (مدیریت) ' + reliableTag + '</h3>' +
     warnHtml +
     '<div class="ptf-f36">' +
@@ -3058,7 +3058,7 @@ window.ptfShowExcelGuidelineModal = function (moduleType, fileInputId) {
   aiPrompt += 'خروجی نهایی: فایل اکسل استاندارد قابل بارگذاری مستقیم در سامانه.';
   window._ptfAiPromptCache = aiPrompt;
 
-  var html = '<div class="md-b" class="ptf-s57" onclick="if(event.target===this)this.remove()"><div class="md" class="ptf-s18">' +
+  var html = '<div class="md-b" style="display:grid" class="ptf-s57" onclick="if(event.target===this)this.remove()"><div class="md" class="ptf-s18">' +
     '<h3>' + escP(c.title) + '</h3>' +
     '<div class="ptf-f10">' +
     '<b>قانون شیت:</b> ' + escP(c.sheet) + '<br><b>قانون سرستون:</b> ' + escP(c.header) + '</div>' +
@@ -3729,7 +3729,7 @@ function showProdModal(cd) {
   for (var i=0;i<PROD_UNITS_EN.length;i++) unitOpts += '<option'+(p&&p.un===PROD_UNITS_EN[i]?' selected':'')+'>'+PROD_UNITS_EN[i]+'</option>';
   unitOpts += '</optgroup>';
   var autoCd = p ? p.cd : prodAutoCode();
-  var html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md" class="ptf-s52">' +
+  var html = '<div class="md-b" style="display:grid" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md" class="ptf-s52">' +
     '<h3>'+(p?'✎ ویرایش کالا':'📦 کالای جدید')+'</h3>' +
     '<div class="fr"><div class="fld"><label>کد کالا (خودکار — قفل 🔒)</label><input type="text" id="nPCd" value="'+escP(autoCd)+'" readonly class="ptf-f29"></div>' +
     '<div class="fld"><label>دسته</label><select id="nPCa">'+catOpts+'</select></div></div>' +
@@ -4287,7 +4287,7 @@ var modalStack = {};
 function showModal(id) {
   var html = '';
   if (id === 'rMd') {
-    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" style="display:grid" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>➕ استعلام جدید</h3>' +
       '<div class="fld"><label>شرکت</label><input type="text" id="nRComp"></div>' +
       '<div class="fr"><div class="fld"><label>مسئول</label><input type="text" id="nRCon"></div>' +
@@ -4297,7 +4297,7 @@ function showModal(id) {
       '<div class="ptf-s25"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveRfq()">ثبت</button></div></div></div>';
   }
   else if (id === 'sMd') {
-    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" style="display:grid" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>🏭 تامین‌کننده جدید</h3>' +
       '<div class="fld"><label>شرکت</label><input type="text" id="nSComp"></div>' +
       '<div class="fr"><div class="fld"><label>مسئول</label><input type="text" id="nSNm"></div><div class="fld"><label>تلفن</label><input type="text" id="nSPh"></div></div>' +
@@ -4305,7 +4305,7 @@ function showModal(id) {
       '<div class="ptf-s25"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveSup()">ثبت</button></div></div></div>';
   }
   else if (id === 'cMd') {
-    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" style="display:grid" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>🤝 کارفرما جدید</h3>' +
       '<div class="fld"><label>شرکت</label><input type="text" id="nCComp"></div>' +
       '<div class="fld"><label>نام انگلیسی شرکت (اختیاری)</label><input type="text" id="nCEn" dir="ltr" class="ptf-s37" placeholder="Company name in English"></div>' + /* v34.9.2: نام دوگانه */
@@ -4320,7 +4320,7 @@ function showModal(id) {
     for (var i = 0; i < rfqs.length; i++) {
       opts += '<option value="' + escP(rfqs[i].cd) + '">' + escP(rfqs[i].cd) + ' - ' + escP(rfqs[i].co) + '</option>';
     }
-    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" style="display:grid" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>💰 قیمت سفارش</h3>' +
       '<div class="fld"><label>سفارش</label><select id="oSel">' + opts + '</select></div>' +
       '<div class="fr"><div class="fld"><label>خرید (ریال)</label><input type="number" id="oBuy"></div>' +
@@ -4333,7 +4333,7 @@ function showModal(id) {
     for (i = 0; i < rfqs.length; i++) {
       opts += '<option value="' + escP(rfqs[i].cd) + '">' + escP(rfqs[i].cd) + ' - ' + escP(rfqs[i].co) + '</option>';
     }
-    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" style="display:grid" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>💳 فاکتور جدید</h3>' +
       '<div class="fld"><label>سفارش</label><select id="fSel">' + opts + '</select></div>' +
       '<div class="fr"><div class="fld"><label>فروش (ریال)</label><input type="number" id="fSell"></div>' +
@@ -4342,7 +4342,7 @@ function showModal(id) {
       '<div class="ptf-style-11"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveFin()">ثبت</button></div></div></div>';
   }
   else if (id === 'uMd') {
-    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" style="display:grid" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>👤 کاربر جدید</h3>' +
       '<div class="fld"><label>نام</label><input type="text" id="nUNm"></div>' +
       '<div class="fr"><div class="fld"><label>نام کاربری</label><input type="text" id="nULg"></div>' +
@@ -4355,7 +4355,7 @@ function showModal(id) {
       '<div class="ptf-style-11"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveUser()">تعریف</button></div></div></div>';
   }
   else if (id === 'eMd') {
-    html = '<div class="md-b" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
+    html = '<div class="md-b" style="display:grid" class="ptf-style-9" onclick="if(event.target===this)hideModal()"><div class="md">' +
       '<h3>📄 تغییر وضعیت: <span id="eCd" class="ptf-s6"></span></h3>' +
       '<div class="fld"><label>وضعیت</label><select id="eSt">' +
       '<option value="st1">🔴 دریافت اولیه</option><option value="st2">🔵 بررسی فنی</option>' +
@@ -4747,5 +4747,41 @@ setInterval(function(){
 <script src="ux-phase9-interactions.js?v=34.39.68" defer></script>
 <script src="ux-auto-upgrade.js?v=34.39.68" defer></script>
 <script src="ux-enhancements-mobile.js?v=34.39.68" defer></script>
+<script>
+/* ═══ MD-B-VISIBLE-GUARD (v34.39.68) ═══════════════════════════════════════════
+   قرارداد CSS این سامانه: `.md-b{...;display:none;...}` و هر پنجرهٔ مودال هنگام
+   درج باید خودش `display:grid` بگذارد (۲۰۱ مورد در codebase همین کار را می‌کنند).
+   هر پوشش `.md-b` که بدون مقدار display درج شود، در DOM هست اما هرگز دیده نمی‌شود
+   → کلیک روی دکمهٔ مربوطه «هیچ اتفاقی نمی‌افتد» (همان ریشهٔ گزارشِ
+   «دکمهٔ پرامپت آماده تبدیل فایل کار نمی‌کند» در مشاهدهٔ درخواست).
+
+   این نگهبان فقط المان‌های تازه‌درج‌شده‌ای را لمس می‌کند که هیچ displayِ صریحی
+   (inline) ندارند؛ مودال‌های مینیمایزشده (display:none) و پنجره‌هایی که خودشان
+   display می‌گذارند، دست‌نخورده می‌مانند. */
+(function () {
+  if (typeof MutationObserver === 'undefined') return;
+  function fixOne(el) {
+    if (!el || el.nodeType !== 1 || !el.classList || !el.classList.contains('md-b')) return;
+    if (el.style && el.style.display) return; /* تصمیم صریحِ سازندهٔ پنجره — دخالت نکن */
+    el.style.display = 'grid';
+  }
+  function fixTree(node) {
+    if (!node || node.nodeType !== 1) return;
+    fixOne(node);
+    if (!node.querySelectorAll) return;
+    var list = node.querySelectorAll('.md-b');
+    for (var k = 0; k < list.length; k++) fixOne(list[k]);
+  }
+  var mo = new MutationObserver(function (muts) {
+    for (var i = 0; i < muts.length; i++) {
+      var added = muts[i].addedNodes || [];
+      for (var j = 0; j < added.length; j++) fixTree(added[j]);
+    }
+  });
+  function boot() { try { mo.observe(document.body, { childList: true, subtree: true }); } catch (e) {} }
+  if (document.body) boot();
+  else document.addEventListener('DOMContentLoaded', boot);
+})();
+</script>
 </body>
 </html>
